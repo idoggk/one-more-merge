@@ -41,18 +41,25 @@ function tone(freq: number, dur: number, type: OscillatorType, vol: number, dela
   }
 }
 
-function noise(dur: number, vol: number, delay = 0, hp = 800) {
-  if (!ctx || !master || !audioSettings.on || voices > 10) return;
+// Sound design follows ChatGPT's SOUND_DESIGN_BRIEF (ten key sounds). Cosmetic variation uses Math.random, never game RNG.
+const NOTES = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31];
+const note = (base: number, step: number) => base * Math.pow(2, NOTES[Math.min(step, NOTES.length - 1)] / 12);
+const PHRASE = [0, 4, 7, 12]; // cascade phrase: max four rising steps, then resolve
+const vary = (f: number) => f * (1 + (Math.random() - 0.5) * 0.04);
+
+function bandNoise(dur: number, vol: number, delay: number, freq: number, q = 1.5) {
+  if (!ctx || !master || !audioSettings.on || voices > 12) return;
   try {
     const t = ctx.currentTime + delay;
     const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const f = ctx.createBiquadFilter();
-    f.type = 'highpass';
-    f.frequency.value = hp;
+    f.type = 'bandpass';
+    f.frequency.value = freq;
+    f.Q.value = q;
     const g = ctx.createGain();
     g.gain.value = vol;
     src.connect(f).connect(g).connect(master);
@@ -64,56 +71,107 @@ function noise(dur: number, vol: number, delay = 0, hp = 800) {
   }
 }
 
-const NOTES = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31];
-const note = (base: number, step: number) => base * Math.pow(2, NOTES[Math.min(step, NOTES.length - 1)] / 12);
-
 export const sfx = {
-  pickup: () => tone(520, 0.06, 'triangle', 0.15),
-  drop: () => tone(300, 0.07, 'triangle', 0.15),
-  invalid: () => tone(180, 0.12, 'square', 0.06, 0, 120),
+  pickup: () => bandNoise(0.03, 0.12, 0, 2500),
+  drop: () => tone(300, 0.06, 'triangle', 0.12),
+  invalid: () => tone(180, 0.12, 'square', 0.05, 0, 120),
+  /** merge_rank_up: click + bright upward bloop; higher ranks add fullness, not endless pitch. */
   merge: (rank: number) => {
-    tone(note(330, rank * 2), 0.14, 'triangle', 0.35, 0, note(330, rank * 2 + 1));
-    noise(0.05, 0.15, 0, 3000);
+    bandNoise(0.025, 0.3, 0, 3000);
+    tone(vary(300), 0.14, 'triangle', 0.3, 0.01, 650);
+    if (rank >= 3) tone(vary(150), 0.16, 'sine', 0.18, 0.01, 325);
+    if (rank >= 5) tone(vary(600), 0.12, 'sine', 0.08, 0.02, 1300);
   },
-  cascadeStep: (i: number, delay: number) => tone(note(440, i), 0.09, 'sine', 0.12, delay),
+  rankUp: (rank: number) => tone(note(523, Math.min(rank, 6)), 0.1, 'triangle', 0.14, 0.06),
+  /** cascade_phrase: one soft pluck per presentation beat (depth), max 4 rising steps. */
+  cascadeStep: (beat: number, delay: number) => {
+    const semi = PHRASE[Math.min(beat, PHRASE.length - 1)];
+    tone(440 * Math.pow(2, semi / 12), 0.12, 'triangle', 0.1, delay);
+  },
+  /** phrase resolution on the biggest shot */
+  chord: (n: number) => {
+    const root = 220 * (n >= 10 ? 1.5 : 1);
+    for (const m of [1, 1.26, 1.5]) tone(root * m, 0.4, 'triangle', 0.08);
+    tone(root / 2, 0.3, 'sine', 0.12);
+  },
+  /** cannon_fire: passive = cork pop; payload = pressure release + body thump with midrange weight. */
   cannon: (delay = 0, big = false) => {
-    tone(big ? 110 : 160, 0.12, 'square', big ? 0.18 : 0.06, delay, 50);
-    noise(0.08, big ? 0.2 : 0.06, delay, 400);
+    if (big) {
+      tone(vary(400), 0.05, 'square', 0.08, delay, 250);
+      tone(vary(180), 0.2, 'triangle', 0.22, delay, 70);
+      bandNoise(0.16, 0.25, delay, 600, 0.8);
+      tone(90, 0.18, 'sine', 0.14, delay + 0.01, 50);
+    } else {
+      tone(vary(320), 0.07, 'triangle', 0.06, delay, 120);
+      bandNoise(0.05, 0.06, delay, 1500);
+    }
+  },
+  /** coil_zap: quick elastic zzip */
+  zap: (delay = 0) => {
+    tone(vary(700), 0.09, 'sawtooth', 0.04, delay, 220);
+    tone(vary(700), 0.09, 'triangle', 0.06, delay, 220);
+    bandNoise(0.06, 0.05, delay, 4000, 3);
+  },
+  /** bell_ring: warm brass ding with slightly inharmonic partials */
+  bell: (rank: number, delay = 0) => {
+    const f0 = vary(520) * (1 - Math.min(rank, 6) * 0.03);
+    bandNoise(0.01, 0.1, delay, 5000);
+    tone(f0, 0.4 + rank * 0.03, 'sine', 0.1, delay);
+    tone(f0 * 2.76, 0.18, 'sine', 0.04, delay);
+    tone(f0 * 5.4, 0.08, 'sine', 0.02, delay);
   },
   hit: (big: boolean) => {
-    noise(big ? 0.25 : 0.08, big ? 0.35 : 0.12, 0, 200);
-    tone(big ? 90 : 140, big ? 0.3 : 0.1, 'sawtooth', big ? 0.2 : 0.08, 0, 40);
+    bandNoise(big ? 0.14 : 0.05, big ? 0.22 : 0.07, 0, 400, 0.7);
+    if (big) tone(120, 0.16, 'triangle', 0.12, 0, 60);
   },
-  chord: (n: number) => {
-    const base = 220 * Math.pow(2, Math.min(n, 20) / 24);
-    for (const m of [1, 1.25, 1.5, 2]) tone(base * m, 0.35, 'triangle', 0.1);
-    noise(0.2, 0.15, 0, 300);
+  /** panel_break: sharp metal snap + two hollow clatters (resonance varies per target) */
+  panelBreak: (target: number) => {
+    const k = 1 + target * 0.12;
+    bandNoise(0.05, 0.35, 0, 3500, 1);
+    tone(300 * k, 0.12, 'triangle', 0.12, 0.04);
+    tone(470 * k, 0.1, 'triangle', 0.1, 0.09);
   },
-  rankUp: (rank: number) => {
-    for (let i = 0; i < 3; i++) tone(note(523, rank + i * 2), 0.12, 'square', 0.08, i * 0.06);
+  /** kickback_land: tok; fusion adds a separate bright answer */
+  kickback: (fused = false) => {
+    tone(vary(280), 0.08, 'triangle', 0.18, 0, 200);
+    bandNoise(0.03, 0.12, 0, 1200);
+    if (fused) {
+      tone(600, 0.12, 'triangle', 0.15, 0.06, 1100);
+      tone(900, 0.1, 'sine', 0.08, 0.1);
+    }
   },
-  delivery: () => tone(700, 0.04, 'sine', 0.06),
-  scrap: () => noise(0.15, 0.2, 0, 1500),
+  delivery: () => tone(vary(700), 0.035, 'sine', 0.04),
+  scrap: () => {
+    bandNoise(0.12, 0.2, 0, 900);
+    tone(200, 0.12, 'triangle', 0.08, 0, 90);
+  },
   kill: () => {
-    noise(0.7, 0.5, 0, 100);
-    for (let i = 0; i < 5; i++) tone(note(220, i * 2), 0.2, 'square', 0.12, i * 0.07);
+    bandNoise(0.5, 0.4, 0, 250, 0.6);
+    tone(110, 0.4, 'triangle', 0.25, 0, 40);
+    for (let i = 0; i < 3; i++) tone(note(330, i * 2), 0.12, 'triangle', 0.1, 0.08 + i * 0.07);
   },
+  /** overdrive_start: lever click, engine catches, rising glide */
   overdrive: () => {
-    for (let i = 0; i < 6; i++) tone(note(260, i * 2), 0.12, 'sawtooth', 0.1, i * 0.04);
+    bandNoise(0.02, 0.3, 0, 2000);
+    tone(180, 0.35, 'triangle', 0.15, 0.03, 420);
+    tone(90, 0.3, 'sawtooth', 0.05, 0.05, 140);
   },
-  kickback: () => {
-    tone(900, 0.25, 'sine', 0.15, 0, 300);
-    noise(0.1, 0.2, 0.22, 600);
-  },
-  click: () => tone(800, 0.03, 'triangle', 0.1),
+  click: () => bandNoise(0.02, 0.15, 0, 3000),
+  /** victory_rebuild: low clunk, three bright plucks resolving into a chord, nut-click */
   win: () => {
-    for (let i = 0; i < 8; i++) tone(note(330, i), 0.25, 'triangle', 0.18, i * 0.08);
+    tone(100, 0.2, 'triangle', 0.25, 0, 60);
+    [0, 4, 7].forEach((s, i) => tone(523 * Math.pow(2, s / 12), 0.25, 'triangle', 0.14, 0.18 + i * 0.12));
+    for (const s of [0, 4, 7, 12]) tone(523 * Math.pow(2, s / 12), 0.6, 'sine', 0.06, 0.6);
+    bandNoise(0.02, 0.2, 0.85, 4000);
   },
+  /** defeat_sputter: two uneven pops, downward glide, air release. No punitive buzzer. */
   lose: () => {
-    for (let i = 0; i < 4; i++) tone(note(220, 6 - i * 2), 0.3, 'triangle', 0.15, i * 0.15);
+    tone(140, 0.08, 'triangle', 0.15, 0, 80);
+    tone(120, 0.08, 'triangle', 0.12, 0.13, 70);
+    tone(260, 0.35, 'triangle', 0.12, 0.24, 110);
+    bandNoise(0.3, 0.06, 0.3, 1200, 0.5);
   },
 };
-
 export function haptic(ms = 10) {
   try {
     navigator.vibrate?.(ms);

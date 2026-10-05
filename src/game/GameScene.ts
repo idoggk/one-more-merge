@@ -780,7 +780,7 @@ export class GameScene extends Phaser.Scene {
         }
         case 'kickback': {
           const land = cellXY(e.idx);
-          sfx.kickback();
+          sfx.kickback(e.into >= 0);
           this.chunks.explode(8, land.x, land.y);
           if (e.into >= 0) {
             const into = cellXY(e.into);
@@ -791,6 +791,7 @@ export class GameScene extends Phaser.Scene {
           needReconcile = true;
           break;
         }        case 'threshold':
+          sfx.panelBreak(e.target);
           this.chunks.explode(18, this.target.x, this.target.y - 40);
           this.cameras.main.shake(140, 0.006);
           if (e.level >= 2) this.setTargetTexture();
@@ -936,7 +937,16 @@ export class GameScene extends Phaser.Scene {
     }
     this.tweens.add({ targets: lg, alpha: 0, delay: windup + maxDepth * step + 200, duration: 250, onComplete: () => lg.destroy() });
 
-    for (let d = 0; d <= maxDepth; d++) sfx.cascadeStep(Math.min(d * 2 + (r.count > 8 ? 2 : 0), 13), (windup + d * step) / 1000);
+    // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
+    for (let d = 0; d <= maxDepth; d++) {
+      const at = (windup + d * step) / 1000;
+      const acts = r.activations.filter((a) => a.depth === d);
+      if (d > 0) sfx.cascadeStep(Math.min(d - 1, 3), at);
+      if (acts.some((a) => a.family === 'coil')) sfx.zap(at);
+      const bell = acts.find((a) => a.family === 'bell');
+      if (bell) sfx.bell(bell.rank, at);
+      if (acts.some((a) => a.family === 'cannon')) sfx.cannon(at + 0.02, true);
+    }
     r.activations.forEach((a) => {
       const delay = windup + a.depth * step;
       const { x, y } = cellXY(a.idx);
@@ -954,7 +964,6 @@ export class GameScene extends Phaser.Scene {
         if (a.charge > 1) this.ring(x, y, 0x5fe8ff, 56, 6, 220);
         if (a.family === 'cannon') {
           this.flash(x, y - 46, 40, 0xfff0a0);
-          sfx.cannon(0, true);
         }
       });
       this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
