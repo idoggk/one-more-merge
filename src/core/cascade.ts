@@ -67,6 +67,7 @@ export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, r
       const rr = r + dr * k, cc = c + dc * k;
       if (!inside(rr, cc)) break;
       const from = at(rr, cc);
+      if (reserved.has(from)) break; // any reserved cell blocks the ray, even when empty
       const g = grid[from];
       if (!g) continue;
       if (!busy.has(from) && !reserved.has(from) && g.family !== 'magnet') return { from, to };

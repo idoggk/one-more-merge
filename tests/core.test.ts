@@ -97,6 +97,15 @@ describe('cascade', () => {
     expect(r.moves.map((x) => [x.from, x.to])).toEqual([[idxOf(3, 0), idxOf(3, 1)]]);
   });
 
+  it('magnet: an empty reserved cell blocks the pull ray', () => {
+    const grid = empty();
+    const m = idxOf(3, 0);
+    grid[m] = g('magnet');
+    grid[idxOf(3, 3)] = g('cannon'); // right ray: (3,1) dest, (3,2) reserved+empty blocks, so no pull
+    const r = resolveCascade(grid, m, { perks: [], overdrive: false, reserved: new Set([idxOf(3, 2)]) });
+    expect(r.moves).toEqual([]);
+  });
+
   it('merging magnets in-game moves the pulled sprite and keeps ids unique', () => {
     const s = newGame(31, false, false, ['magnet']);
     s.grid.fill(null);
