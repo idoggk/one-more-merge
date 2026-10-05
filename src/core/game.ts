@@ -1,0 +1,470 @@
+import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
+import { rawDamage, resolveCascade } from './cascade';
+import { Rng } from './rng';
+import type { CascadeResult, Family, Gadget, Grid, PerkId } from './types';
+
+export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
+
+export type Phase = 'tutorial' | 'playing' | 'choice' | 'won' | 'lost';
+
+export type GameEvent =
+  | { type: 'cascade'; result: CascadeResult; damage: number; overdriveStart: boolean; kickback: boolean }
+  | { type: 'kickbackIncoming' }
+  | { type: 'kickback'; idx: number; into: number; gadget: Gadget }
+  | { type: 'shot'; idx: number; id: number; damage: number }
+  | { type: 'delivery'; idx: number; gadget: Gadget }
+  | { type: 'move'; from: number; to: number; swap: boolean }
+  | { type: 'scrap'; idx: number; gadget: Gadget }
+  | { type: 'threshold'; target: number; level: number }
+  | { type: 'kill'; target: number; final: boolean; demo: boolean }
+  | { type: 'newTarget'; target: number }
+  | { type: 'overdriveEnd' }
+  | { type: 'end'; won: boolean };
+
+export interface Stats {
+  merges: number;
+  scraps: number;
+  biggestChain: number;
+  biggestHit: number;
+  bestRank: number;
+  totalDamage: number;
+}
+
+export interface GameState {
+  version: 1;
+  seed: number;
+  phase: Phase;
+  practice: boolean;
+  grid: Grid;
+  nextId: number;
+  supplyRng: number;
+  perkRng: number;
+  bag: Family[];
+  pending: Gadget[];
+  supplyTimer: number;
+  shipments: number;
+  target: number; // 0..2 ; -1 demo
+  hp: number;
+  maxHp: number;
+  thresholds: number; // panels broken on current target (0..3)
+  pendingDamage: number;
+  timeLeft: number;
+  elapsed: number;
+  odCharge: number;
+  odLeft: number;
+  perks: PerkId[];
+  offer: PerkId[];
+  mergeCd: number;
+  tutorialMerges: number;
+  kickRng: number;
+  drops: { t: number }[];
+  bigCd: number;
+  stats: Stats;
+}
+
+const START: [number, number, Family][] = [
+  [4, 1, 'cannon'],
+  [4, 2, 'cannon'],
+  [3, 1, 'coil'],
+  [3, 2, 'bell'],
+  [1, 0, 'cannon'],
+  [3, 4, 'cannon'],
+  [1, 1, 'coil'],
+  [1, 3, 'bell'],
+];
+
+export const idxOf = (r: number, c: number) => r * COLS + c;
+
+export function newGame(seed: number, tutorial = false): GameState {
+  const s: GameState = {
+    version: 1,
+    seed: seed >>> 0,
+    phase: tutorial ? 'tutorial' : 'playing',
+    practice: tutorial,
+    grid: new Array(ROWS * COLS).fill(null),
+    nextId: 1,
+    supplyRng: seed >>> 0,
+    perkRng: (seed ^ 0x9e3779b9) >>> 0,
+    bag: [],
+    pending: [],
+    supplyTimer: TUNING.supplyPeriod,
+    shipments: 0,
+    target: tutorial ? -1 : 0,
+    hp: tutorial ? TUNING.demoHp : TUNING.targetHp[0],
+    maxHp: tutorial ? TUNING.demoHp : TUNING.targetHp[0],
+    thresholds: 0,
+    pendingDamage: 0,
+    timeLeft: TUNING.runTime,
+    elapsed: 0,
+    odCharge: 0,
+    odLeft: 0,
+    perks: [],
+    offer: [],
+    mergeCd: 0,
+    tutorialMerges: 0,
+    kickRng: (seed ^ 0x51ed270b) >>> 0,
+    drops: [],
+    bigCd: 0,
+    stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0 },
+  };
+  for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f, 1);
+  return s;
+}
+
+function makeGadget(s: GameState, family: Family, rank: number): Gadget {
+  return { id: s.nextId++, family, rank, cd: family === 'cannon' ? cannonPeriod(s) : 0 };
+}
+
+export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPeriodOverdrive : TUNING.cannonPeriod);
+export const odNeeded = (s: GameState) => (s.perks.includes('juice') ? 5 : TUNING.overdriveMerges);
+const odDuration = (s: GameState) => (s.perks.includes('juice') ? 8 : TUNING.overdriveDuration);
+
+/** Peek the next shipment (family + rank) without consuming RNG. */
+export function peekNext(s: GameState): { family: Family; rank: number } {
+  if (s.pending.length) return { family: s.pending[0].family, rank: s.pending[0].rank };
+  const fam = s.bag.length ? s.bag[0] : peekBag(s);
+  return { family: fam, rank: nextShipmentRank(s, s.shipments + 1) };
+}
+
+function peekBag(s: GameState): Family {
+  const tmp = { ...s, bag: [] as Family[] };
+  refillBag(tmp);
+  return tmp.bag[0];
+}
+
+function refillBag(s: GameState) {
+  const rng = new Rng(s.supplyRng);
+  const bag: Family[] = [];
+  for (const f of Object.keys(TUNING.bag) as Family[]) for (let i = 0; i < TUNING.bag[f]; i++) bag.push(f);
+  rng.shuffle(bag);
+  s.bag = bag;
+  s.supplyRng = rng.state;
+}
+
+const nextShipmentRank = (s: GameState, ordinal: number) => (s.perks.includes('quality') && ordinal % 4 === 0 ? 2 : 1);
+
+function generateShipment(s: GameState): Gadget {
+  if (!s.bag.length) refillBag(s);
+  const fam = s.bag.shift()!;
+  s.shipments++;
+  return makeGadget(s, fam, nextShipmentRank(s, s.shipments));
+}
+
+export const isActive = (s: GameState) => s.phase === 'playing';
+
+// ---------- player commands ----------
+
+export type CommandResult = { ok: boolean; events: GameEvent[] };
+
+export function canMerge(a: Gadget | null, b: Gadget | null): boolean {
+  return !!a && !!b && a.family === b.family && a.rank === b.rank && a.rank < MAX_RANK;
+}
+
+/** Drag gadget from `from` onto `to`: merge, move, or swap. */
+export function drop(s: GameState, from: number, to: number, fromId: number): CommandResult {
+  const ev: GameEvent[] = [];
+  if (s.phase !== 'playing' && s.phase !== 'tutorial') return { ok: false, events: ev };
+  if (from === to || from < 0 || to < 0 || from >= s.grid.length || to >= s.grid.length) return { ok: false, events: ev };
+  const a = s.grid[from];
+  if (!a || a.id !== fromId) return { ok: false, events: ev };
+  const b = s.grid[to];
+  if (canMerge(a, b)) {
+    if (s.mergeCd > 0) return { ok: false, events: ev };
+    return merge(s, from, to);
+  }
+  // move / swap never fire anything
+  s.grid[to] = a;
+  s.grid[from] = b;
+  ev.push({ type: 'move', from, to, swap: !!b });
+  return { ok: true, events: ev };
+}
+
+function merge(s: GameState, from: number, to: number): CommandResult {
+  const ev: GameEvent[] = [];
+  const a = s.grid[from]!;
+  const g = makeGadget(s, a.family, a.rank + 1);
+  s.grid[from] = null;
+  s.grid[to] = g;
+  s.stats.merges++;
+  s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
+  s.mergeCd = TUNING.mergeCooldown;
+
+  let odStart = false;
+  if (s.phase === 'playing') {
+    s.odCharge++;
+    if (s.odCharge >= odNeeded(s)) {
+      s.odCharge = 0;
+      enterOverdrive(s, odDuration(s));
+      odStart = true;
+    }
+  } else {
+    s.tutorialMerges++;
+  }
+  // new cannon starts a full (current) period after its immediate activation
+  if (g.family === 'cannon') g.cd = cannonPeriod(s);
+
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0 });
+  s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
+  s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
+  ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
+  if (s.phase === 'playing' && TUNING.kickback && result.count >= TUNING.bigCascade && s.bigCd <= 0) {
+    s.bigCd = TUNING.bigCascadeCooldown;
+    queueDrop(s, ev);
+  }
+  applyDamage(s, result.total, ev);
+  if (s.phase === 'tutorial' && s.tutorialMerges >= 2 && s.target === -1) startRunFromTutorial(s, ev);
+  return { ok: true, events: ev };
+}
+
+export function scrap(s: GameState, idx: number, id: number): CommandResult {
+  const g = s.grid[idx];
+  if (s.phase !== 'playing' || !g || g.id !== id) return { ok: false, events: [] };
+  s.grid[idx] = null;
+  s.stats.scraps++;
+  return { ok: true, events: [{ type: 'scrap', idx, gadget: g }] };
+}
+
+export function choosePerk(s: GameState, perk: PerkId): CommandResult {
+  const ev: GameEvent[] = [];
+  if (s.phase !== 'choice' || !s.offer.includes(perk)) return { ok: false, events: ev };
+  s.perks.push(perk);
+  s.offer = [];
+  if (perk === 'juice') {
+    if (s.odCharge >= 5) {
+      s.odCharge = 0;
+      enterOverdrive(s, 8);
+    } else if (s.odLeft > 0) s.odLeft = Math.min(8, s.odLeft + 2);
+  }
+  s.phase = 'playing';
+  s.target++;
+  s.maxHp = s.hp = TUNING.targetHp[s.target];
+  s.thresholds = 0;
+  ev.push({ type: 'newTarget', target: s.target });
+  const carry = s.pendingDamage;
+  s.pendingDamage = 0;
+  if (carry > 0) applyDamage(s, carry, ev);
+  return { ok: true, events: ev };
+}
+
+// ---------- internals ----------
+
+function enterOverdrive(s: GameState, dur: number) {
+  const wasActive = s.odLeft > 0;
+  s.odLeft = Math.max(s.odLeft, dur);
+  if (!wasActive) rescaleCannons(s, TUNING.cannonPeriod, TUNING.cannonPeriodOverdrive);
+}
+
+function rescaleCannons(s: GameState, oldP: number, newP: number) {
+  for (const g of s.grid) if (g && g.family === 'cannon') g.cd = (g.cd / oldP) * newP;
+}
+
+function applyDamage(s: GameState, dmg: number, ev: GameEvent[]) {
+  if (dmg <= 0) return;
+  s.stats.totalDamage += dmg;
+  const before = s.hp;
+  s.hp -= dmg;
+  if (s.target >= 0) {
+    const frac = Math.max(0, s.hp) / s.maxHp;
+    const lvl = frac <= 0.25 ? 3 : frac <= 0.5 ? 2 : frac <= 0.75 ? 1 : 0;
+    if (lvl > s.thresholds && s.hp > 0) {
+      for (let l = s.thresholds + 1; l <= lvl; l++) queueDrop(s, ev);
+      s.thresholds = lvl;
+      ev.push({ type: 'threshold', target: s.target, level: lvl });
+    }
+  }
+  if (s.hp > 0 || before <= 0) return;
+  const over = -s.hp;
+  s.hp = 0;
+  if (s.target === -1) {
+    // demo can: respawn, no carry-over
+    ev.push({ type: 'kill', target: -1, final: false, demo: true });
+    s.hp = s.maxHp = TUNING.demoHp;
+    return;
+  }
+  const final = s.target === TUNING.targetHp.length - 1;
+  s.thresholds = 3;
+  ev.push({ type: 'kill', target: s.target, final, demo: false });
+  if (final) {
+    s.phase = 'won';
+    ev.push({ type: 'end', won: true });
+    return;
+  }
+  s.pendingDamage = over;
+  s.phase = 'choice';
+  s.offer = makeOffer(s);
+}
+
+function makeOffer(s: GameState): PerkId[] {
+  const rng = new Rng(s.perkRng);
+  const pool = rng.shuffle(ALL_PERKS.filter((p) => !s.perks.includes(p)));
+  s.perkRng = rng.state;
+  return pool.slice(0, 3);
+}
+
+function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
+  s.phase = 'playing';
+  s.target = 0;
+  s.hp = s.maxHp = TUNING.targetHp[0];
+  s.thresholds = 0;
+  s.timeLeft = TUNING.runTime;
+  s.elapsed = 0;
+  s.odCharge = 0;
+  s.odLeft = 0;
+  s.supplyTimer = TUNING.supplyPeriod;
+  for (const g of s.grid) if (g && g.family === 'cannon') g.cd = TUNING.cannonPeriod;
+  ev.push({ type: 'newTarget', target: 0 });
+}
+
+/** Advance one fixed 50 ms step. `reserved` = cells deliveries must avoid (drag in progress). */
+export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): GameEvent[] {
+  const ev: GameEvent[] = [];
+  s.mergeCd = Math.max(0, s.mergeCd - TICK);
+  if (s.phase !== 'playing') return ev;
+  const dt = Math.min(TICK, s.timeLeft);
+  s.elapsed += dt;
+  s.timeLeft -= dt;
+
+  // Overdrive
+  if (s.odLeft > 0) {
+    s.odLeft -= dt;
+    if (s.odLeft <= 0) {
+      s.odLeft = 0;
+      rescaleCannons(s, TUNING.cannonPeriodOverdrive, TUNING.cannonPeriod);
+      ev.push({ type: 'overdriveEnd' });
+    }
+  }
+
+  // Passive cannons in stable id order
+  const cannons = s.grid
+    .map((g, idx) => ({ g, idx }))
+    .filter((x): x is { g: Gadget; idx: number } => !!x.g && x.g.family === 'cannon')
+    .sort((a, b) => a.g.id - b.g.id);
+  for (const { g, idx } of cannons) {
+    g.cd -= dt;
+    if (g.cd <= 1e-9) {
+      g.cd += cannonPeriod(s);
+      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult;
+      ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
+      applyDamage(s, dmg, ev);
+      if (s.phase !== 'playing') return ev;
+    }
+  }
+
+  // Kickback drops
+  s.bigCd = Math.max(0, s.bigCd - dt);
+  for (const d of s.drops) d.t -= dt;
+  while (s.drops.length && s.drops[0].t <= 0 && s.phase === 'playing') {
+    s.drops.shift();
+    landDrop(s, reserved, ev);
+  }
+  if (s.phase !== 'playing') return ev;
+
+  // Supply
+  admitPending(s, reserved, ev);
+  if (s.pending.length < TUNING.maxPending) {
+    s.supplyTimer -= dt;
+    if (s.supplyTimer <= 0) {
+      s.supplyTimer += TUNING.supplyPeriod;
+      s.pending.push(generateShipment(s));
+      admitPending(s, reserved, ev);
+    }
+  } else s.supplyTimer = 0;
+
+  if (s.timeLeft <= 1e-9) {
+    s.timeLeft = 0;
+    s.phase = 'lost';
+    ev.push({ type: 'end', won: false });
+  }
+  return ev;
+}
+
+function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) {
+  if (!s.pending.length) return;
+  const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i));
+  if (slot < 0) return;
+  const g = s.pending.shift()!;
+  s.grid[slot] = g;
+  ev.push({ type: 'delivery', idx: slot, gadget: g });
+}
+
+export function legalPairs(s: GameState): [number, number][] {
+  const out: [number, number][] = [];
+  for (let i = 0; i < s.grid.length; i++)
+    for (let j = i + 1; j < s.grid.length; j++) if (canMerge(s.grid[i], s.grid[j])) out.push([i, j]);
+  return out;
+}
+
+/** Dry-run preview: how many gadgets would fire if `from` merged into `to`. Never mutates. */
+export function previewMerge(s: GameState, from: number, to: number): CascadeResult | null {
+  const a = s.grid[from];
+  const b = s.grid[to];
+  if (!canMerge(a, b)) return null;
+  const grid = s.grid.slice();
+  grid[from] = null;
+  grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0 });
+}
+
+export function serialize(s: GameState): string {
+  return JSON.stringify(s);
+}
+
+export function deserialize(json: string): GameState | null {
+  try {
+    const s = JSON.parse(json) as GameState;
+    if (s.version !== 1 || !Array.isArray(s.grid) || s.grid.length !== ROWS * COLS) return null;
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+// ---------- kickback ----------
+
+function queueDrop(s: GameState, ev: GameEvent[]) {
+  if (!TUNING.kickback || s.target < 0) return;
+  s.drops.push({ t: TUNING.kickbackFall });
+  ev.push({ type: 'kickbackIncoming' });
+}
+
+/** A loose part lands next to a lonely gadget and fuses with it (one bounded secondary cascade). */
+function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) {
+  const rng = new Rng(s.kickRng);
+  const counts = new Map<string, number>();
+  for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
+  const options: { idx: number; land: number }[] = [];
+  s.grid.forEach((g, idx) => {
+    if (!g || g.rank >= MAX_RANK || reserved.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
+    const r = Math.floor(idx / COLS), c = idx % COLS;
+    for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
+      const rr = r + dr, cc = c + dc;
+      if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
+      const n = idxOf(rr, cc);
+      if (!s.grid[n] && !reserved.has(n)) options.push({ idx, land: n });
+    }
+  });
+  if (options.length) {
+    const pick = options[rng.int(options.length)];
+    s.kickRng = rng.state;
+    const old = s.grid[pick.idx]!;
+    const g = makeGadget(s, old.family, old.rank + 1);
+    if (g.family === 'cannon') g.cd = cannonPeriod(s);
+    s.grid[pick.idx] = g;
+    s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
+    ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0 });
+    s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
+    ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
+    applyDamage(s, result.total, ev);
+    return;
+  }
+  // nothing lonely with room: drop a plain part
+  const fam = (['cannon', 'coil', 'bell'] as Family[])[rng.int(3)];
+  s.kickRng = rng.state;
+  const g = makeGadget(s, fam, 1);
+  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i));
+  if (slot >= 0) {
+    s.grid[slot] = g;
+    ev.push({ type: 'kickback', idx: slot, into: -1, gadget: g });
+  } else if (s.pending.length < TUNING.maxPending) s.pending.unshift(g);
+}
