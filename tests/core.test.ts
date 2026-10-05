@@ -169,6 +169,43 @@ describe('game', () => {
     expect(s.hp).toBeCloseTo(TUNING.targetHp[1] - pending);
   });
 
+  it('occupancy guard holds deliveries at 25 and resumes at 22', () => {
+    const s = newGame(13);
+    for (let i = 0; i < s.grid.length && s.grid.filter(Boolean).length < 25; i++) if (!s.grid[i]) s.grid[i] = g('bell', 6);
+    run(s, 10);
+    expect(s.grid.filter(Boolean).length).toBe(25);
+    expect(s.trayHold).toBe(true);
+    for (let i = 0, n = 0; n < 4; i++) if (s.grid[i]?.rank === 6) (s.grid[i] = null), n++;
+    tick(s);
+    expect(s.trayHold).toBe(false);
+  });
+
+  it('each target pays at most 3 threshold drops, and they fuse', () => {
+    const s = newGame(21);
+    const fusesBefore = s.stats.kickFuses;
+    // HP just above 0 but max huge: one merge crosses 75/50/25% at once without killing
+    s.maxHp = 100000;
+    s.hp = 20000;
+    s.thresholds = 0;
+    drop(s, idxOf(4, 1), idxOf(4, 2), s.grid[idxOf(4, 1)]!.id);
+    expect(s.drops.length).toBe(3);
+    expect(s.drops.every((d) => d.fuse)).toBe(true);
+    run(s, 1);
+    expect(s.drops.length).toBe(0);
+    expect(s.stats.kickFuses).toBeGreaterThan(fusesBefore);
+  });
+
+  it('big-cascade drops land beside a match without fusing', () => {
+    const s = newGame(22);
+    s.drops.push({ t: 0, fuse: false });
+    const before = s.grid.filter(Boolean).length;
+    const evs = tick(s);
+    const k = evs.find((e) => e.type === 'kickback');
+    expect(k && k.type === 'kickback' && k.into).toBe(-1);
+    expect(evs.some((e) => e.type === 'cascade')).toBe(false);
+    expect(s.grid.filter(Boolean).length).toBe(before + 1);
+  });
+
   it('tutorial: two merges start the real run', () => {
     const s = newGame(11, true);
     drop(s, idxOf(4, 1), idxOf(4, 2), s.grid[idxOf(4, 1)]!.id);
