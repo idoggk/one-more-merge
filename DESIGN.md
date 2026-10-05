@@ -73,7 +73,12 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
   otherwise they become plain drops. Never skips the player's expensive upgrades. Kickback share of skilled damage 40% → 22%.
 - **Hoarding is fine** (ChatGPT): a crammed contraption going off is the fantasy. New 'hoard until 24 then merge' bot wins 0/200.
 - **Friendlier opening**: HP 2,250 / 11,250 / 18,000. 200 seeds: novice 78%/115 s, greedy 64%/111 s, cascade 98%/66 s, hoarder 0%, idle 0%.
-  Harder preset (HP ×1.33 = previous values) is the natural first 'challenge' unlock.
+  **Challenge mode** (HP ×1.4) unlocks after the first win; separate best time.
+- **Rearranging matters** (answers ChatGPT's repeated 'bots never move pieces'): new *builder* bot may spend an action moving a
+  relay beside a pair. 200/200 wins at **50.7 s** vs 65.7 s for merge-only cascade bot — ~23% faster. Its chains are
+  deliberately saturated (83%): intentional full-machine eruptions, the payoff, not accidental noise.
+- **Kickback telegraph**: landing cell planned when the panel breaks, reserved from deliveries, shown with a pulsing marker
+  while the part arcs down; re-planned only if the board changed.
 
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
 1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·

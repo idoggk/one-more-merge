@@ -1,5 +1,5 @@
 // Headless balance simulator. Usage: npx vite-node tools/sim.ts
-import { TUNING } from '../src/content/tuning';
+import { COLS, TUNING } from '../src/content/tuning';
 import { choosePerk, drop, legalPairs, newGame, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 
@@ -38,6 +38,37 @@ const seeker: Policy = {
         if (d > bestDmg) [bestDmg, best] = [d, [f, t]];
       }
     return best;
+  },
+};
+
+/** Like `seeker`, but may spend its action moving a relay next to a pair if that sets up a bigger chain. */
+const builder: Policy = {
+  name: 'builder 2.5s',
+  every: 2.5,
+  pick: (s, rng) => {
+    const best = (st: GameState) => {
+      let bd = 0;
+      for (const [a, b] of legalPairs(st)) for (const [f, t] of [[a, b], [b, a]]) bd = Math.max(bd, previewMerge(st, f, t)!.total);
+      return bd;
+    };
+    const now = best(s);
+    let move: [number, number] | null = null;
+    let moveVal = now * 1.25; // a move costs a whole action: must set up a clearly better chain
+    const pairs = legalPairs(s);
+    const near = new Set<number>();
+    for (const [a, b] of pairs) for (const c of [a, b]) for (const d of [-COLS, COLS, -1, 1]) if (c + d >= 0 && c + d < s.grid.length) near.add(c + d);
+    s.grid.forEach((g, from) => {
+      if (!g || g.family === 'cannon') return;
+      for (const to of near) {
+        if (s.grid[to]) continue;
+        const tmp = { ...s, grid: s.grid.slice() };
+        tmp.grid[to] = g;
+        tmp.grid[from] = null;
+        const v = best(tmp);
+        if (v > moveVal) [moveVal, move] = [v, [from, to]];
+      }
+    });
+    return move ?? seeker.pick(s, rng);
   },
 };
 
@@ -82,7 +113,7 @@ const median = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.fl
 
 function report(label: string, N = 200) {
   console.log(`\n== ${label}`);
-  for (const pol of label.includes('SWEEP') ? [novice, greedy, seeker, hoarder] : [idle, novice, greedy, seeker, hoarder]) {
+  for (const pol of label.includes('SWEEP') ? [novice, greedy, seeker, hoarder, builder] : [idle, novice, greedy, seeker, hoarder, builder]) {
     const rs = Array.from({ length: N }, (_, i) => play(i + 1, pol));
     const wins = rs.filter((r) => r.won);
     console.log(
@@ -95,7 +126,7 @@ const hp = (m: number) => TUNING.targetHp.map((h) => Math.round(h * m));
 const rev3 = { passiveMult: 1, kickback: false, sameFamilyRelay: true, supplyCurve: [] as [number, number][], supplyPeriod: 2.2, holdAt: 99, releaseAt: 99, targetHp: [3200, 16000, 26000] };
 const variants: [string, Partial<typeof TUNING>][] = [
   ['R2 (fuse any rank)', { kickbackMaxRank: 6 }],
-  ['R3 fuse cap rank<=2', {}],
+  ['current', {}],
   ['R3 cap HPx0.85', { targetHp: hp(0.85) }],
   ['R3 cap HPx0.75', { targetHp: hp(0.75) }],
   ['R3 cap HPx0.65', { targetHp: hp(0.65) }],
