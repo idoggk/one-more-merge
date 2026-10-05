@@ -80,6 +80,15 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
 - **Kickback telegraph**: landing cell planned when the panel breaks, reserved from deliveries, shown with a pulsing marker
   while the part arcs down; re-planned only if the board changed.
 
+## Round 4
+- **First 60 s** (ChatGPT: 'deliver the first I-built-that payoff within ~15 s'): Tin Can HP 2,250 → 1,200. First panel break +
+  Kickback now at median 23 s (novice) / 9–13 s (skilled), was 31 s / 21–34 s. Win rates unchanged-or-better; idle still never wins.
+- **Magnet spec (first unlockable toy, ChatGPT)**: activated by merge or by a relay (family filter applies). Deals no damage,
+  emits no relay pulse. When its ID reaches the BFS queue head it scans up/right/down/left for an empty neighbour, looks up to
+  two cells beyond along that ray (first occupied cell blocks), and pulls that gadget in if it is unactivated, unqueued,
+  unreserved and not a Magnet. First eligible ray only; atomic move; BFS continues on the updated board. Never swaps,
+  auto-merges, crosses occupied cells, moves queued gadgets, targets a Kickback reservation, or triggers activations by moving.
+
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
 1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·
 3 two payload cannons in one chain: **Magnet** · 4 magnet makes a match: **Battery** · 5 battery discharge in a win: **Fan** ·

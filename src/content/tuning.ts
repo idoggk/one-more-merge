@@ -26,7 +26,7 @@ export const TUNING = {
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
-  targetHp: [2250, 11250, 18000],
+  targetHp: [1200, 11250, 18000],
   hardHpMult: 1.4,
   mergeCooldown: 0.1,
   demoHp: 20,
