@@ -19,14 +19,16 @@ export const TUNING = {
   maxPending: 3,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   runTime: 135,
-  // x2 of rev3 after kickback + payload cannons (see tools/sim.ts)
-  targetHp: [6400, 32000, 52000],
+  // rev3 x1.3, tuned for kickback + payload cannons + no same-family relays (see tools/sim.ts)
+  targetHp: [4200, 21000, 34000],
   mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
   passiveMult: 0.33,
   /** Kickback: target panels / big cascades drop a part that fuses with a lonely match. */
   kickback: true,
+  /** false = bells never ring bells, coils never zap coils (limits whole-board chains). */
+  sameFamilyRelay: false,
   kickbackFall: 0.6,
   bigCascade: 8,
   bigCascadeCooldown: 8,

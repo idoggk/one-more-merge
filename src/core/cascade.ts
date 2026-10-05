@@ -89,6 +89,7 @@ export function resolveCascade(grid: Grid, rootIdx: number, opts: CascadeOpts): 
     const coilMult = 1 + TUNING.coilChargePerRank * a.rank;
     for (const to of routeCells(idx, a.family, a.rank, opts.perks)) {
       if (!grid[to] || to === idx) continue;
+      if (!TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
       edges.push({ from: idx, to, kind });
       if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
       enqueue(idx, to, a.depth + 1);

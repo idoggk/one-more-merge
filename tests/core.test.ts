@@ -64,6 +64,15 @@ describe('cascade', () => {
     expect(root.charge).toBeCloseTo(1 + 0.35 * 3);
   });
 
+  it('relays never wake their own family', () => {
+    const grid = empty();
+    grid[idxOf(2, 0)] = g('cannon', 2); // root
+    grid[idxOf(2, 1)] = g('bell'); // sparked by root
+    grid[idxOf(2, 4)] = g('bell'); // same row: must NOT ring
+    grid[idxOf(2, 2)] = g('coil'); // same row: rings
+    expect(resolveCascade(grid, idxOf(2, 0), opts).activations.map((a) => a.idx)).toEqual([idxOf(2, 0), idxOf(2, 1), idxOf(2, 2)]);
+  });
+
   it('fully connected board stays bounded', () => {
     const grid = empty();
     for (let i = 0; i < grid.length; i++) grid[i] = g(i % 2 ? 'coil' : 'bell', 3);

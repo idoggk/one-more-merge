@@ -15,6 +15,8 @@ Junkzilla) before one shared 135 s clock. After target 1 and 2: pick 1 of 3 perk
 | Coil | 4 | — | zaps cardinal tiles at distance 1 (rank 2+: 1–2), charges them ×(1+0.35·rank) |
 | Bell | 3 | — | rings whole row; rank 2 +up/down; rank 3+ +whole column |
 
+Relays never wake their own family (no bell→bell, coil→coil).
+
 Damage = base × 2.25^(rank−1) × strongest coil charge × perk; cascade total × combo (1+0.08·(n−1), cap 3) × overdrive.
 Each gadget fires at most once per cascade (BFS, visited set) — always bounded.
 
@@ -26,7 +28,9 @@ Each gadget fires at most once per cascade (BFS, visited set) — always bounded
   *lonely* gadget (odd count of its family+rank) and fuses with it → one secondary cascade.
   Never overwrites a gadget; never recurses beyond the finite thresholds. Restores the
   "the machine surprises me" promise from the original pitch.
-- **Target HP ×2** (6,400 / 32,000 / 52,000) to compensate — see sim below.
+- **No same-family relays**: bells never ring bells, coils never zap coils. On a packed board one merge used
+  to fire 80%+ of the machine in 61% of novice cascades (placement irrelevant); now 21%.
+- **Target HP** 4,200 / 21,000 / 34,000 (rev3 ×1.3) to compensate for all of the above — see sim below.
 - Supply stays automatic (2.2 s, seeded 6/4/2 bag). Pull-supply tray is a candidate experiment.
 - Meta: deferred. Direction agreed: unlock *toys* (new families, board shapes, blueprints) via
   discovery challenges, not permanent +% damage. Core keeps data-driven content ids to allow it.
@@ -37,7 +41,8 @@ Each gadget fires at most once per cascade (BFS, visited set) — always bounded
 |---|---|---|---|
 | rev3 rules | 76% win, 125 s | 98%, 108 s | 100%, 77.5 s |
 | rev3 + kickback | 100%, 66 s | 100%, 62.5 s | 100%, 37.5 s |
-| **payload + kickback, HP×2 (current)** | **57%, 110 s** | **98%, 92.5 s** | **100%, 60 s** |
+| payload + kickback, HP×2 | 57%, 110 s | 98%, 92.5 s | 100%, 60 s |
+| **+ no same-family relays, HP×1.3 (current)** | **51%, 110 s** | **97%, 100 s** | **100%, 63 s** |
 
 Idle never wins. Placement-aware play clears ~35% faster than greedy merging — arrangement matters.
 Bots are not humans: real fun needs observed playtests (see ChatGPT's 5-person script in its research doc).
