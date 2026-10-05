@@ -188,10 +188,10 @@ export class GameScene extends Phaser.Scene {
     this.linkG = this.add.graphics().setDepth(30);
 
     // header
-    this.headerText = this.add.text(76, 24, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' });
+    this.headerText = this.add.text(70, 27, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' });
     this.timerText = this.add.text(W - 28, 22, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#3b2533' }).setOrigin(1, 0);
     this.odGauge = this.add.graphics();
-    if (this.hasArt('icon_timer')) this.add.image(W - 150, 48, 'icon_timer').setDisplaySize(44, 44);
+    if (this.hasArt('icon_timer')) this.add.image(W - 132, 46, 'icon_timer').setDisplaySize(42, 42);
     if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
@@ -679,7 +679,7 @@ export class GameScene extends Phaser.Scene {
     // overdrive gauge
     const og = this.odGauge.clear();
     const need = odNeeded(s);
-    const gx = W - 200 - need * 26;
+    const gx = 384;
     this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
     const active = s.odLeft > 0;
     for (let i = 0; i < (demo ? 0 : need); i++) {
