@@ -19,7 +19,7 @@ import {
   type GameState,
 } from '../core/game';
 import type { CascadeResult, Gadget, PerkId } from '../core/types';
-import { audioSettings, haptic, sfx, unlockAudio } from './audio';
+import { audioSettings, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 
 export const W = 720;
@@ -43,6 +43,7 @@ interface Meta {
   wins: number;
   sound: boolean;
   hints: boolean;
+  music: boolean;
   hardUnlocked: boolean;
   bestTimeHard: number | null;
 }
@@ -51,7 +52,7 @@ const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
 
 function loadMeta(): Meta {
-  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, hardUnlocked: false, bestTimeHard: null };
+  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null };
   try {
     return { ...d, ...JSON.parse(localStorage.getItem(META_KEY) || '{}') };
   } catch {
@@ -139,6 +140,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.meta = loadMeta();
     audioSettings.on = this.meta.sound;
+    audioSettings.music = this.meta.music;
     this.buildStatic();
     const saved = (() => {
       try {
@@ -161,6 +163,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on('gameout', () => this.cancelDrag());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
+        stopMusic();
         this.save();
         this.cancelDrag();
       }
@@ -378,6 +381,7 @@ export class GameScene extends Phaser.Scene {
 
   onDown(p: Phaser.Input.Pointer) {
     unlockAudio();
+    startMusic();
     if (!this.canAct()) return;
     const idx = this.cellAt(p.x, p.y);
     if (idx < 0 || !this.s.grid[idx]) {
@@ -683,6 +687,7 @@ export class GameScene extends Phaser.Scene {
       og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx + i * 26, 30, 22, 30, 6);
       og.fillStyle(filled ? (active ? 0xff6a00 : 0xffcf33) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
     }
+    setMusicIntensity(active);
     const glow = this.odGlow.clear();
     if (active) {
       const a = 0.35 + 0.25 * Math.sin(this.time.now / 90);
@@ -1035,6 +1040,7 @@ export class GameScene extends Phaser.Scene {
     b.add([g, t]).setSize(w, 86).setInteractive({ useHandCursor: true });
     b.on('pointerdown', () => {
       unlockAudio();
+      startMusic();
       sfx.click();
       b.setScale(0.95);
       if (g instanceof Phaser.GameObjects.Image && this.hasArt(artKey + '_pressed')) g.setTexture(artKey + '_pressed');
@@ -1171,18 +1177,25 @@ export class GameScene extends Phaser.Scene {
   openPause() {
     if (this.modal || this.s.phase === 'won' || this.s.phase === 'lost') return;
     this.cancelDrag();
-    const c = this.panel(620);
-    const top = H / 2 - 310;
+    const c = this.panel(this.s.phase === 'tutorial' ? 840 : 730);
+    const top = H / 2 - (this.s.phase === 'tutorial' ? 420 : 365);
     c.add(this.add.text(W / 2, top + 70, 'PAUSED', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533' }).setOrigin(0.5));
     this.button(c, W / 2, top + 190, 420, 'RESUME', 0x5fbf4a, () => this.closeModal());
     const snd = this.button(c, W / 2, top + 300, 420, `SOUND: ${this.meta.sound ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
       this.meta.sound = !this.meta.sound;
       audioSettings.on = this.meta.sound;
+    audioSettings.music = this.meta.music;
       store(META_KEY, JSON.stringify(this.meta));
       (snd.list[1] as Phaser.GameObjects.Text).setText(`SOUND: ${this.meta.sound ? 'ON' : 'OFF'}`);
     });
-    this.button(c, W / 2, top + 410, 420, 'RESTART', 0xe8452c, () => this.retry());
-    if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 520, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.retry());
+    const mus = this.button(c, W / 2, top + 410, 420, `MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
+      this.meta.music = !this.meta.music;
+      audioSettings.music = this.meta.music;
+      store(META_KEY, JSON.stringify(this.meta));
+      (mus.list[1] as Phaser.GameObjects.Text).setText(`MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`);
+    });
+    this.button(c, W / 2, top + 520, 420, 'RESTART', 0xe8452c, () => this.retry());
+    if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 630, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.retry());
   }
 
   save() {

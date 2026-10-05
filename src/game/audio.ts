@@ -2,7 +2,7 @@
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let voices = 0;
-export const audioSettings = { on: true };
+export const audioSettings = { on: true, music: true };
 
 export function unlockAudio() {
   try {
@@ -120,4 +120,72 @@ export function haptic(ms = 10) {
   } catch {
     /* ignore */
   }
+}
+
+// ---------- music: tiny generative groove (kick / hat / bass arpeggio) ----------
+const music = { on: false, timer: 0 as unknown as ReturnType<typeof setInterval>, step: 0, next: 0, intense: false, bpm: 112 };
+const BASS = [0, 0, 7, 0, 5, 5, 3, 5]; // semitones over A1
+
+function mtone(freq: number, t: number, dur: number, type: OscillatorType, vol: number, slideTo?: number) {
+  if (!ctx || !master) return;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+function mnoise(t: number, dur: number, vol: number) {
+  if (!ctx || !master) return;
+  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const f = ctx.createBiquadFilter();
+  f.type = 'highpass';
+  f.frequency.value = 6000;
+  const g = ctx.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(master);
+  src.start(t);
+}
+
+function schedule() {
+  if (!ctx || !music.on || !audioSettings.on || !audioSettings.music) return;
+  const spb = 60 / (music.bpm * (music.intense ? 1.25 : 1)) / 2; // eighth notes
+  while (music.next < ctx.currentTime + 0.2) {
+    const t = music.next;
+    const s = music.step % 16;
+    if (s % 4 === 0) mtone(120, t, 0.18, 'sine', 0.22, 40); // kick
+    if (s % 2 === 1 || music.intense) mnoise(t, 0.04, music.intense ? 0.06 : 0.035); // hat
+    if (s === 4 || s === 12) mnoise(t, 0.12, 0.05); // snare-ish
+    const n = BASS[Math.floor(s / 2) % BASS.length] + (music.step % 32 >= 16 ? -2 : 0);
+    if (s % 2 === 0) mtone(55 * Math.pow(2, n / 12), t, spb * 1.6, 'triangle', 0.09);
+    if (music.intense && s % 2 === 1) mtone(220 * Math.pow(2, (n + 12) / 12), t, spb * 0.8, 'square', 0.025);
+    music.next += spb;
+    music.step++;
+  }
+}
+
+export function startMusic() {
+  if (!ctx || music.on) return;
+  music.on = true;
+  music.next = ctx.currentTime + 0.05;
+  music.timer = setInterval(schedule, 50);
+}
+
+export function stopMusic() {
+  music.on = false;
+  clearInterval(music.timer);
+}
+
+export function setMusicIntensity(intense: boolean) {
+  music.intense = intense;
 }
