@@ -15,12 +15,18 @@ export const TUNING = {
   overdriveFactor: 1.5,
   overdriveMerges: 6,
   overdriveDuration: 6,
-  supplyPeriod: 2.2,
+  /** Fallback / last delivery interval. */
+  supplyPeriod: 3.4,
+  /** Slowing delivery: [until active second, interval]. Late pressure = clock, not sorting. */
+  supplyCurve: [[15, 2.1], [45, 2.4], [90, 2.85]] as [number, number][],
+  /** Occupancy guard: hold deliveries in the tray at holdAt filled cells, resume at releaseAt. */
+  holdAt: 25,
+  releaseAt: 22,
   maxPending: 3,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   runTime: 135,
-  // rev3 x1.3, tuned for kickback + payload cannons + no same-family relays (see tools/sim.ts)
-  targetHp: [4200, 21000, 34000],
+  // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
+  targetHp: [3000, 15000, 24000],
   mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
@@ -29,6 +35,8 @@ export const TUNING = {
   kickback: true,
   /** false = bells never ring bells, coils never zap coils (limits whole-board chains). */
   sameFamilyRelay: false,
+  /** Threshold drops auto-fuse; big-cascade drops just land beside a match. */
+  kickbackFuse: true,
   kickbackFall: 0.6,
   bigCascade: 8,
   bigCascadeCooldown: 8,

@@ -47,6 +47,33 @@ Each gadget fires at most once per cascade (BFS, visited set) — always bounded
 Idle never wins. Placement-aware play clears ~35% faster than greedy merging — arrangement matters.
 Bots are not humans: real fun needs observed playtests (see ChatGPT's 5-person script in its research doc).
 
+## Round 2 (ChatGPT review → adopted)
+- **Hybrid Kickback**: only HP-threshold drops auto-fuse (9 per run max). Big-cascade (≥8) drops just land next to a lonely match and wait for the player.
+- **Slowing supply** (ChatGPT's curve, scaled ×0.75 after sim): 2.1 s → 2.4 s (15 s) → 2.85 s (45 s) → 3.4 s (90 s). Late pressure = clock, not sorting.
+  ChatGPT's unscaled curve (2.8→4.5 s) made the run unwinnable for every bot: parts are the main damage source.
+- **Occupancy guard**: at 25/30 filled, deliveries wait in the tray; resume at 22.
+- **HP** 3,000 / 15,000 / 24,000.
+
+Ablation (matched seeds 1–200, rev3 HP unless stated). Wins / median winning time:
+
+| Variant | novice | greedy | cascade | kickback dmg share (cascade bot) |
+|---|---|---|---|---|
+| A rev3 baseline | 152 / 125 s | 195 / 108 s | 200 / 77.5 s | 0% |
+| B family filter only | 8 | 165 | 200 / 85 s | 0% |
+| C payload only | 12 | 123 | 200 / 85 s | 0% |
+| D threshold kickback only | 200 / 95 s | 200 / 72 s | 200 / 50 s | 37% |
+| E pacing curve only | 0 | 0 | 35 | 0% |
+| **Current (120 seeds)** | **58%, 120 s** | **74%, 101 s** | **99%, 71 s** | 39% |
+
+Watch-outs: Kickback is ~40% of skilled damage (ChatGPT: "don't let the free reward carry the run");
+under slow supply the random novice sometimes beats greedy merging — dense boards chain more ("hoarding").
+
+## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
+1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·
+3 two payload cannons in one chain: **Magnet** · 4 magnet makes a match: **Battery** · 5 battery discharge in a win: **Fan** ·
+6 fan push makes a match: Mad Fridge Remix · 7 win with a new toy + all originals: Blueprint Bench.
+Unlocks are optional loadout picks; no Bolts / +% damage until players show demand.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

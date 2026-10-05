@@ -28,6 +28,8 @@ export interface Stats {
   biggestHit: number;
   bestRank: number;
   totalDamage: number;
+  dmgBy: Partial<Record<DmgSource, number>>;
+  kickFuses: number;
 }
 
 export interface GameState {
@@ -57,7 +59,9 @@ export interface GameState {
   mergeCd: number;
   tutorialMerges: number;
   kickRng: number;
-  drops: { t: number }[];
+  drops: { t: number; fuse: boolean }[];
+  /** Occupancy guard: deliveries wait in the tray while true. */
+  trayHold: boolean;
   bigCd: number;
   stats: Stats;
 }
@@ -104,10 +108,12 @@ export function newGame(seed: number, tutorial = false): GameState {
     tutorialMerges: 0,
     kickRng: (seed ^ 0x51ed270b) >>> 0,
     drops: [],
+    trayHold: false,
     bigCd: 0,
-    stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0 },
+    stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f, 1);
+  s.supplyTimer = supplyPeriod(s);
   return s;
 }
 
@@ -148,6 +154,11 @@ function generateShipment(s: GameState): Gadget {
   const fam = s.bag.shift()!;
   s.shipments++;
   return makeGadget(s, fam, nextShipmentRank(s, s.shipments));
+}
+
+export function supplyPeriod(s: GameState): number {
+  for (const [until, p] of TUNING.supplyCurve) if (s.elapsed < until) return p;
+  return TUNING.supplyPeriod;
 }
 
 export const isActive = (s: GameState) => s.phase === 'playing';
@@ -209,9 +220,9 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
   if (s.phase === 'playing' && TUNING.kickback && result.count >= TUNING.bigCascade && s.bigCd <= 0) {
     s.bigCd = TUNING.bigCascadeCooldown;
-    queueDrop(s, ev);
+    queueDrop(s, ev, false);
   }
-  applyDamage(s, result.total, ev);
+  applyDamage(s, result.total, ev, 'player');
   if (s.phase === 'tutorial' && s.tutorialMerges >= 2 && s.target === -1) startRunFromTutorial(s, ev);
   return { ok: true, events: ev };
 }
@@ -242,7 +253,7 @@ export function choosePerk(s: GameState, perk: PerkId): CommandResult {
   ev.push({ type: 'newTarget', target: s.target });
   const carry = s.pendingDamage;
   s.pendingDamage = 0;
-  if (carry > 0) applyDamage(s, carry, ev);
+  if (carry > 0) applyDamage(s, carry, ev, 'carry');
   return { ok: true, events: ev };
 }
 
@@ -258,16 +269,19 @@ function rescaleCannons(s: GameState, oldP: number, newP: number) {
   for (const g of s.grid) if (g && g.family === 'cannon') g.cd = (g.cd / oldP) * newP;
 }
 
-function applyDamage(s: GameState, dmg: number, ev: GameEvent[]) {
+type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
+
+function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
   if (dmg <= 0) return;
   s.stats.totalDamage += dmg;
+  s.stats.dmgBy[src] = (s.stats.dmgBy[src] ?? 0) + dmg;
   const before = s.hp;
   s.hp -= dmg;
   if (s.target >= 0) {
     const frac = Math.max(0, s.hp) / s.maxHp;
     const lvl = frac <= 0.25 ? 3 : frac <= 0.5 ? 2 : frac <= 0.75 ? 1 : 0;
     if (lvl > s.thresholds && s.hp > 0) {
-      for (let l = s.thresholds + 1; l <= lvl; l++) queueDrop(s, ev);
+      for (let l = s.thresholds + 1; l <= lvl; l++) queueDrop(s, ev, true);
       s.thresholds = lvl;
       ev.push({ type: 'threshold', target: s.target, level: lvl });
     }
@@ -310,7 +324,7 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
   s.elapsed = 0;
   s.odCharge = 0;
   s.odLeft = 0;
-  s.supplyTimer = TUNING.supplyPeriod;
+  s.supplyTimer = supplyPeriod(s);
   for (const g of s.grid) if (g && g.family === 'cannon') g.cd = TUNING.cannonPeriod;
   ev.push({ type: 'newTarget', target: 0 });
 }
@@ -345,7 +359,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
       g.cd += cannonPeriod(s);
       const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult;
       ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
-      applyDamage(s, dmg, ev);
+      applyDamage(s, dmg, ev, 'passive');
       if (s.phase !== 'playing') return ev;
     }
   }
@@ -354,8 +368,8 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   s.bigCd = Math.max(0, s.bigCd - dt);
   for (const d of s.drops) d.t -= dt;
   while (s.drops.length && s.drops[0].t <= 0 && s.phase === 'playing') {
-    s.drops.shift();
-    landDrop(s, reserved, ev);
+    const d = s.drops.shift()!;
+    landDrop(s, reserved, ev, d.fuse);
   }
   if (s.phase !== 'playing') return ev;
 
@@ -364,7 +378,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   if (s.pending.length < TUNING.maxPending) {
     s.supplyTimer -= dt;
     if (s.supplyTimer <= 0) {
-      s.supplyTimer += TUNING.supplyPeriod;
+      s.supplyTimer += supplyPeriod(s);
       s.pending.push(generateShipment(s));
       admitPending(s, reserved, ev);
     }
@@ -379,7 +393,10 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 }
 
 function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) {
-  if (!s.pending.length) return;
+  const occ = s.grid.reduce((n, g) => n + (g ? 1 : 0), 0);
+  if (occ >= TUNING.holdAt) s.trayHold = true;
+  else if (occ <= TUNING.releaseAt) s.trayHold = false;
+  if (!s.pending.length || s.trayHold) return;
   const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i));
   if (slot < 0) return;
   const g = s.pending.shift()!;
@@ -421,14 +438,14 @@ export function deserialize(json: string): GameState | null {
 
 // ---------- kickback ----------
 
-function queueDrop(s: GameState, ev: GameEvent[]) {
+function queueDrop(s: GameState, ev: GameEvent[], fuse: boolean) {
   if (!TUNING.kickback || s.target < 0) return;
-  s.drops.push({ t: TUNING.kickbackFall });
+  s.drops.push({ t: TUNING.kickbackFall, fuse: fuse && TUNING.kickbackFuse });
   ev.push({ type: 'kickbackIncoming' });
 }
 
 /** A loose part lands next to a lonely gadget and fuses with it (one bounded secondary cascade). */
-function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) {
+function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], fuse: boolean) {
   const rng = new Rng(s.kickRng);
   const counts = new Map<string, number>();
   for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
@@ -447,6 +464,14 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) 
     const pick = options[rng.int(options.length)];
     s.kickRng = rng.state;
     const old = s.grid[pick.idx]!;
+    if (!fuse) {
+      // plain drop: a matching part waits next to its partner for the player to merge
+      const g = makeGadget(s, old.family, old.rank);
+      s.grid[pick.land] = g;
+      ev.push({ type: 'kickback', idx: pick.land, into: -1, gadget: g });
+      return;
+    }
+    s.stats.kickFuses++;
     const g = makeGadget(s, old.family, old.rank + 1);
     if (g.family === 'cannon') g.cd = cannonPeriod(s);
     s.grid[pick.idx] = g;
@@ -455,7 +480,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) 
     const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0 });
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
-    applyDamage(s, result.total, ev);
+    applyDamage(s, result.total, ev, 'kick');
     return;
   }
   // nothing lonely with room: drop a plain part

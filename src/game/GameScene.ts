@@ -13,6 +13,7 @@ import {
   previewMerge,
   scrap,
   serialize,
+  supplyPeriod,
   tick,
   type GameEvent,
   type GameState,
@@ -606,9 +607,9 @@ export class GameScene extends Phaser.Scene {
     this.trayIcon.setScale(Math.min(62 / f.width, 62 / f.height));
     this.trayBadge.setText(nxt.rank > 1 ? String(nxt.rank) : '');
     const ta = this.trayArc.clear();
-    const prog = s.pending.length >= TUNING.maxPending ? 1 : 1 - s.supplyTimer / TUNING.supplyPeriod;
+    const prog = s.pending.length >= TUNING.maxPending ? 1 : 1 - s.supplyTimer / supplyPeriod(s);
     ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
-    this.pendingText.setText(s.pending.length ? `+${s.pending.length} waiting` : '');
+    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : '');
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(!tut);
     for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut);
