@@ -230,7 +230,9 @@ export class GameScene extends Phaser.Scene {
       blendMode: 'ADD',
     }).setDepth(50);
     const debris = [0, 1, 2, 3, 4, 5].map((i) => `debris_${i}`).filter((k) => this.hasArt(k));
-    this.chunks = this.add.particles(0, 0, debris.length ? debris : 'chunk', {
+    const atlas = this.buildDebrisAtlas(debris);
+    this.chunks = this.add.particles(0, 0, atlas ?? 'chunk', {
+      frame: atlas ? debris : undefined,
       speed: { min: 250, max: 600 },
       angle: { min: 210, max: 330 },
       gravityY: 1500,
@@ -238,9 +240,25 @@ export class GameScene extends Phaser.Scene {
       alpha: { start: 1, end: 0 },
       tint: debris.length ? 0xffffff : [0x9aa4ad, 0x6c7680, 0xc9cfd4, 0xe8452c, 0x5a4a5a],
       rotate: { min: 0, max: 360 },
-      scale: debris.length ? { min: 0.12, max: 0.26 } : { min: 0.8, max: 1.6 },
+      scale: atlas ? { min: 0.35, max: 0.7 } : { min: 0.8, max: 1.6 },
       emitting: false,
     }).setDepth(45);
+  }
+
+  /** Pack debris_N images into one canvas texture with one frame each (particles need a single texture). */
+  buildDebrisAtlas(keys: string[]): string | null {
+    if (!keys.length) return null;
+    const size = 128;
+    const tex = this.textures.createCanvas('debris_atlas', size * keys.length, size);
+    if (!tex) return null;
+    keys.forEach((k, i) => {
+      const src = this.textures.get(k).getSourceImage() as HTMLImageElement;
+      const sc = Math.min(size / src.width, size / src.height);
+      tex.context.drawImage(src, i * size + (size - src.width * sc) / 2, (size - src.height * sc) / 2, src.width * sc, src.height * sc);
+      tex.add(k, 0, i * size, 0, size, size);
+    });
+    tex.refresh();
+    return 'debris_atlas';
   }
 
   startState(s: GameState) {
