@@ -99,6 +99,9 @@ export class GameScene extends Phaser.Scene {
   timerText!: Phaser.GameObjects.Text;
   odGauge!: Phaser.GameObjects.Graphics;
   boltIcon?: Phaser.GameObjects.Image;
+  flames: Phaser.GameObjects.Image[] = [];
+  face!: Phaser.GameObjects.Image;
+  faceUntil = 0;
   odGlow!: Phaser.GameObjects.Graphics;
   overlayG!: Phaser.GameObjects.Graphics;
   previewText!: Phaser.GameObjects.Text;
@@ -184,6 +187,17 @@ export class GameScene extends Phaser.Scene {
       this.add.image(x, y, 'slot').setDisplaySize(CELL - 6, CELL - 6);
     }
     this.odGlow = this.add.graphics();
+    if (this.hasArt('vfx_flame')) {
+      const bw = CELL * COLS + 30;
+      const bh = CELL * ROWS + 30;
+      const mk = (x: number, y: number, len: number, ang: number) => this.add.image(x, y, 'vfx_flame').setAngle(ang).setDisplaySize(len, 60).setDepth(4).setVisible(false);
+      this.flames = [
+        mk(W / 2, BY - 22, bw, 180),
+        mk(W / 2, BY + CELL * ROWS + 22, bw, 0),
+        mk(BX - 22, BY + (CELL * ROWS) / 2, bh, 90),
+        mk(BX + CELL * COLS + 22, BY + (CELL * ROWS) / 2, bh, -90),
+      ];
+    }
     this.overlayG = this.add.graphics().setDepth(5);
     this.linkG = this.add.graphics().setDepth(30);
 
@@ -202,6 +216,7 @@ export class GameScene extends Phaser.Scene {
     this.stageFrame = this.add.graphics();
     // target
     this.target = this.add.image(W / 2, TARGET_Y, 'target_0');
+    this.face = this.add.image(W / 2, TARGET_Y, 'dot').setVisible(false);
     this.hpBar = this.add.graphics();
     this.hpText = this.add.text(W / 2, 404, '', { fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5).setDepth(2);
 
@@ -608,6 +623,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHints();
     this.drawHud(dms);
     this.animateIdle();
+    this.updateFace();
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -689,7 +705,8 @@ export class GameScene extends Phaser.Scene {
     }
     setMusicIntensity(active);
     const glow = this.odGlow.clear();
-    if (active) {
+    for (const fl of this.flames) fl.setVisible(active).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 70));
+    if (active && !this.flames.length) {
       const a = 0.35 + 0.25 * Math.sin(this.time.now / 90);
       glow.lineStyle(14, 0xff6a00, a).strokeRoundedRect(BX - 14, BY - 14, CELL * COLS + 28, CELL * ROWS + 28, 30);
     }
@@ -841,12 +858,56 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** One-shot sprite effect from ChatGPT's VFX set. Returns false if the art is missing (caller falls back). */
+  fx(key: string, x: number, y: number, size: number, opts: { angle?: number; dur?: number; grow?: number; depth?: number } = {}): boolean {
+    if (!this.hasArt(key)) return false;
+    const img = this.add.image(x, y, key).setDepth(opts.depth ?? 49).setAngle(opts.angle ?? 0);
+    const s = size / Math.max(img.width, img.height);
+    img.setScale(s * 0.6);
+    this.tweens.add({ targets: img, scale: s * (opts.grow ?? 1.3), alpha: 0, duration: opts.dur ?? 160, ease: 'Quad.Out', onComplete: () => img.destroy() });
+    return true;
+  }
+
   flash(x: number, y: number, size: number, color = 0xffffff) {
     const c = this.add.image(x, y, 'dot').setTint(color).setDepth(49).setScale(size / 16).setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: c, scale: (size * 1.6) / 16, alpha: 0, duration: 140, onComplete: () => c.destroy() });
   }
 
+  /** Face patches (face_<target>_<hit|angry|dizzy>) cover the sprite's own face; offsets are fractions of the sprite box. */
+  static FACE = [
+    { x: 0, y: -0.02, w: 0.42 },
+    { x: 0.02, y: -0.08, w: 0.4 },
+    { x: 0, y: -0.2, w: 0.36 },
+  ];
+
+  showFace(mood: 'hit' | 'angry' | 'dizzy' | null, ms = 0) {
+    const ti = this.s.target;
+    const key = ti >= 0 && mood ? `face_${ti}_${mood}` : '';
+    if (!key || !this.hasArt(key)) {
+      this.face.setVisible(false);
+      return;
+    }
+    const cfg = GameScene.FACE[ti];
+    const tw = this.target.displayWidth;
+    const th = this.target.displayHeight;
+    this.face.setTexture(key).setVisible(true);
+    this.face.setScale((tw * cfg.w) / this.face.width);
+    this.face.setPosition(this.target.x + cfg.x * tw, this.target.y + cfg.y * th).setAngle(this.target.angle);
+    this.faceUntil = ms ? this.time.now + ms : 0;
+  }
+
+  updateFace() {
+    if (!this.face) return;
+    const s = this.s;
+    if (this.faceUntil && this.time.now < this.faceUntil) {
+      this.face.setPosition(this.target.x + GameScene.FACE[Math.max(0, s.target)].x * this.target.displayWidth, this.target.y + GameScene.FACE[Math.max(0, s.target)].y * this.target.displayHeight).setAngle(this.target.angle).setAlpha(this.target.alpha);
+      return;
+    }
+    this.showFace(s.target >= 0 && s.phase === 'playing' && s.hp / s.maxHp < 0.25 ? 'angry' : null);
+  }
+
   hitTarget(big: boolean) {
+    if (big) this.showFace('hit', 380);
     this.tweens.killTweensOf(this.target);
     const s = this.targetBaseScale;
     this.target.setScale(s * (big ? 1.18 : 1.05), s * (big ? 0.85 : 0.96)).setAngle(Phaser.Math.Between(-6, 6)).setY(TARGET_Y);
@@ -880,7 +941,7 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => {
           this.sparks.setParticleTint(color);
           this.sparks.explode(big ? 8 : 3, b.x, b.y);
-          if (big) this.ring(b.x, b.y, color, 46, 8, 200);
+          if (big && !this.fx('vfx_impact', b.x, b.y, 110, { dur: 140 })) this.ring(b.x, b.y, color, 46, 8, 200);
           b.destroy();
           trail?.destroy();
           onHit?.();
@@ -921,7 +982,7 @@ export class GameScene extends Phaser.Scene {
     // root snap
     const root = cellXY(r.rootIdx);
     this.ring(root.x, root.y, 0xffffff, 80, 14, 300);
-    this.flash(root.x, root.y, 70);
+    if (!this.fx('vfx_spark', root.x, root.y, 150, { dur: 180, grow: 1.5 })) this.flash(root.x, root.y, 70);
     // links: a fading line + a travelling pulse per route
     const lg = this.add.graphics().setDepth(30);
     for (const e of r.edges) {
@@ -930,7 +991,12 @@ export class GameScene extends Phaser.Scene {
       const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
-        lg.lineStyle(e.kind === 'spark' ? 5 : 8, col, 0.85).lineBetween(a.x, a.y, b.x, b.y);
+        if (e.kind === 'coil' && this.hasArt('vfx_arc')) {
+          const arc = this.add.image((a.x + b.x) / 2, (a.y + b.y) / 2, 'vfx_arc').setDepth(30);
+          const len = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
+          arc.setRotation(Math.atan2(b.y - a.y, b.x - a.x)).setDisplaySize(len, Math.min(60, (arc.height / arc.width) * len * 1.4));
+          this.tweens.add({ targets: arc, alpha: 0, delay: 220, duration: 220, onComplete: () => arc.destroy() });
+        } else lg.lineStyle(e.kind === 'spark' ? 5 : 8, col, 0.85).lineBetween(a.x, a.y, b.x, b.y);
         const p = this.add.image(a.x, a.y, 'spark').setTint(col).setDepth(31).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD);
         this.tweens.add({ targets: p, x: b.x, y: b.y, angle: 180, duration: Math.max(60, step), onComplete: () => p.destroy() });
       });
@@ -962,8 +1028,9 @@ export class GameScene extends Phaser.Scene {
         this.sparks.setParticleTint(color);
         this.sparks.explode(a.charge > 1 ? 10 : 5, x, y);
         if (a.charge > 1) this.ring(x, y, 0x5fe8ff, 56, 6, 220);
+        if (a.family === 'bell') this.fx('vfx_wave', x, y, 170, { dur: 300, grow: 1.6, depth: 29 });
         if (a.family === 'cannon') {
-          this.flash(x, y - 46, 40, 0xfff0a0);
+          if (!this.fx('vfx_muzzle', x, y - 58, 90, { angle: -90, dur: 100, grow: 1.1 })) this.flash(x, y - 46, 40, 0xfff0a0);
         }
       });
       this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
@@ -987,6 +1054,7 @@ export class GameScene extends Phaser.Scene {
       // wind-up: white flash + rattle, then blow apart
       this.tweens.killTweensOf(tgt);
       tgt.setTintFill(0xffffff);
+      this.showFace('dizzy', 900);
       this.tweens.add({ targets: tgt, x: { from: tgt.x - 8, to: tgt.x + 8 }, duration: 40, yoyo: true, repeat: demo ? 1 : 3 });
       this.time.delayedCall(demo ? 120 : 260, () => {
         tgt.clearTint().setX(W / 2);
