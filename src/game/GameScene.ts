@@ -1144,7 +1144,7 @@ export class GameScene extends Phaser.Scene {
       const img = this.add.image(W / 2, H / 2, 'title');
       img.setScale(Math.max(W / img.width, H / img.height));
       c.add(img);
-    } else c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.55).setInteractive());
+    } else c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.72).setInteractive());
     c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive());
     let logo: Phaser.GameObjects.GameObject;
     if (this.hasArt('logo')) {
