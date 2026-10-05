@@ -73,6 +73,44 @@ describe('cascade', () => {
     expect(resolveCascade(grid, idxOf(2, 0), opts).activations.map((a) => a.idx)).toEqual([idxOf(2, 0), idxOf(2, 1), idxOf(2, 2)]);
   });
 
+  it('magnet pulls the first gadget along a ray into the empty neighbour', () => {
+    const grid = empty();
+    const m = idxOf(3, 2);
+    grid[m] = g('magnet', 2); // root
+    grid[idxOf(0, 2)] = g('cannon'); // up ray: (2,2) empty, (1,2) empty, (0,2) cannon -> pulled to (2,2)
+    const r = resolveCascade(grid, m, opts);
+    expect(r.moves).toEqual([{ from: idxOf(0, 2), to: idxOf(2, 2), id: grid[idxOf(0, 2)]!.id }]);
+    expect(r.activations.map((a) => a.idx)).toEqual([m]); // the pull itself never activates anything
+    expect(grid[idxOf(0, 2)]).not.toBeNull(); // input grid untouched (pure)
+  });
+
+  it('magnet: occupied cell blocks the ray; never pulls magnets, queued gadgets or reserved cells', () => {
+    const grid = empty();
+    const m = idxOf(3, 2);
+    grid[m] = g('magnet', 2);
+    grid[idxOf(1, 2)] = g('magnet'); // up: blocked by a magnet (not pullable) -> stops the ray
+    grid[idxOf(0, 2)] = g('cannon');
+    grid[idxOf(3, 4)] = g('cannon'); // right: (3,3) empty, (3,4) cannon -> reserved
+    grid[idxOf(4, 2)] = g('bell'); // down neighbour occupied -> sparked (queued), no empty dest that way
+    grid[idxOf(3, 0)] = g('coil'); // left: (3,1) empty, (3,0) coil -> eligible
+    const r = resolveCascade(grid, m, { perks: [], overdrive: false, reserved: new Set([idxOf(3, 4)]) });
+    expect(r.moves.map((x) => [x.from, x.to])).toEqual([[idxOf(3, 0), idxOf(3, 1)]]);
+  });
+
+  it('merging magnets in-game moves the pulled sprite and keeps ids unique', () => {
+    const s = newGame(31, false, false, ['magnet']);
+    s.grid.fill(null);
+    s.grid[idxOf(5, 0)] = g('magnet');
+    s.grid[idxOf(5, 1)] = g('magnet');
+    s.grid[idxOf(5, 4)] = g('cannon');
+    drop(s, idxOf(5, 0), idxOf(5, 1), s.grid[idxOf(5, 0)]!.id);
+    // magnet at (5,1): right neighbour (5,2) empty, ray -> (5,3) empty, (5,4) cannon -> pulled to (5,2)
+    expect(s.grid[idxOf(5, 2)]?.family).toBe('cannon');
+    expect(s.grid[idxOf(5, 4)]).toBeNull();
+    const ids = s.grid.filter(Boolean).map((x) => x!.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it('fully connected board stays bounded', () => {
     const grid = empty();
     for (let i = 0; i < grid.length; i++) grid[i] = g(i % 2 ? 'coil' : 'bell', 3);

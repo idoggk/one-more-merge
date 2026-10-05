@@ -27,6 +27,7 @@ const COLORS: Record<Family, [number, number, number]> = {
   cannon: [0xe8452c, 0xff7a52, 0x9e2416],
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
+  magnet: [0xc23fd1, 0xef8cf7, 0x7a1f86],
 };
 
 /** Draw a chunky procedural gadget into a 128x128 texture. */
@@ -61,6 +62,17 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
     const r = 10 + rank * 2;
     g.fillStyle(light).fillCircle(64, 24, r).strokeCircle(64, 24, r);
     if (rank >= 3) g.fillStyle(main).fillCircle(64, 24, r * 0.5);
+  } else if (fam === 'magnet') {
+    // horseshoe magnet: thick U with silver tips; more ranks = wider + field lines
+    const w = 22 + rank * 2;
+    g.lineStyle(w + 12, OUT, 1).beginPath().arc(64, 58, 30, Math.PI, 0, false).strokePath();
+    g.lineStyle(w, main, 1).beginPath().arc(64, 58, 30, Math.PI, 0, false).strokePath();
+    g.lineStyle(6, OUT, 1);
+    g.fillStyle(main).fillRect(34 - w / 2, 58, w, 30).strokeRect(34 - w / 2, 58, w, 30);
+    g.fillStyle(main).fillRect(94 - w / 2, 58, w, 30).strokeRect(94 - w / 2, 58, w, 30);
+    g.fillStyle(0xdfe6ea).fillRect(34 - w / 2, 88, w, 20).strokeRect(34 - w / 2, 88, w, 20);
+    g.fillStyle(0xdfe6ea).fillRect(94 - w / 2, 88, w, 20).strokeRect(94 - w / 2, 88, w, 20);
+    for (let i = 1; i < Math.min(rank, 4); i++) g.lineStyle(3, light, 0.9).beginPath().arc(64, 108, 14 + i * 9, Math.PI * 1.1, Math.PI * 1.9, false).strokePath();
   } else {
     const w = 60 + rank * 5;
     g.fillStyle(dark).fillRoundedRect(28, 104, 72, 14, 5).strokeRoundedRect(28, 104, 72, 14, 5);

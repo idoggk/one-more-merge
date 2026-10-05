@@ -2,6 +2,7 @@
 import { COLS, TUNING } from '../src/content/tuning';
 import { choosePerk, drop, legalPairs, newGame, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
+import type { Family } from '../src/core/types';
 
 type Policy = { name: string; every: number; pick: (s: GameState, rng: Rng) => [number, number] | null };
 
@@ -78,8 +79,9 @@ const hoarder: Policy = {
   pick: (s, rng) => (s.grid.filter(Boolean).length >= 24 ? seeker.pick(s, rng) : null),
 };
 
+let simToys: Family[] = [];
 function play(seed: number, pol: Policy) {
-  const s = newGame(seed);
+  const s = newGame(seed, false, false, simToys);
   const rng = new Rng(seed * 7 + 1);
   let next = pol.every;
   let kickFuses = 0;
@@ -130,6 +132,7 @@ const hp = (m: number) => TUNING.targetHp.map((h) => Math.round(h * m));
 const rev3 = { passiveMult: 1, kickback: false, sameFamilyRelay: true, supplyCurve: [] as [number, number][], supplyPeriod: 2.2, holdAt: 99, releaseAt: 99, targetHp: [3200, 16000, 26000] };
 const variants: [string, Partial<typeof TUNING>][] = [
   ['current', {}],
+  ['current + MAGNETS', {}],
   ['challenge (hard)', { hardHpMult: 1.4 }],
   ['HPx0.85', { targetHp: hp(0.85) }],
   ['rev3 ref', rev3],];
@@ -138,5 +141,6 @@ const only = process.argv[2];
 for (const [label, v] of variants) {
   if (only && !label.includes(only)) continue;
   Object.assign(TUNING, base, v);
+  simToys = label.includes('MAGNETS') ? ['magnet'] : [];
   report(label);
 }

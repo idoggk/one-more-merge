@@ -18,7 +18,7 @@ import {
   type GameEvent,
   type GameState,
 } from '../core/game';
-import type { CascadeResult, Gadget, PerkId } from '../core/types';
+import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { audioSettings, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 
@@ -46,13 +46,15 @@ interface Meta {
   music: boolean;
   hardUnlocked: boolean;
   bestTimeHard: number | null;
+  /** Unlocked toys and whether each is switched on for runs. */
+  toys: Partial<Record<Family, boolean>>;
 }
 
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
 
 function loadMeta(): Meta {
-  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null };
+  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {} };
   try {
     return { ...d, ...JSON.parse(localStorage.getItem(META_KEY) || '{}') };
   } catch {
@@ -766,6 +768,7 @@ export class GameScene extends Phaser.Scene {
       switch (e.type) {
         case 'cascade':
           this.playCascade(e.result, e.overdriveStart, e.kickback);
+          this.checkChallenges(e.result, e.kickback);
           break;
         case 'shot':
           this.playPassiveShot(e.idx, e.damage);
@@ -1019,7 +1022,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of r.edges) {
       const a = cellXY(e.from);
       const b = cellXY(e.to);
-      const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : 0xffffff;
+      const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
         if (e.kind === 'coil' && this.hasArt('vfx_arc')) {
@@ -1043,6 +1046,7 @@ export class GameScene extends Phaser.Scene {
       const bell = acts.find((a) => a.family === 'bell');
       if (bell) sfx.bell(bell.rank, at);
       if (acts.some((a) => a.family === 'cannon')) sfx.cannon(at + 0.02, true);
+      if (acts.some((a) => a.family === 'magnet')) sfx.magnet(at);
     }
     r.activations.forEach((a) => {
       const delay = windup + a.depth * step;
@@ -1245,11 +1249,27 @@ export class GameScene extends Phaser.Scene {
     this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry());
   }
 
+  activeToys(): Family[] {
+    return (Object.entries(this.meta.toys) as [Family, boolean][]).filter(([, on]) => on).map(([f]) => f);
+  }
+
+  /** Discovery challenges (ChatGPT's day-3 idea): wake 3 cannons in one chain you started -> Magnet. */
+  checkChallenges(r: CascadeResult, kickback: boolean) {
+    if (kickback || this.s.phase === 'tutorial' || 'magnet' in this.meta.toys) return;
+    if (r.activations.filter((a) => a.family === 'cannon').length < 3) return;
+    this.meta.toys.magnet = true;
+    store(META_KEY, JSON.stringify(this.meta));
+    this.time.delayedCall(900, () => {
+      sfx.rankUp(6);
+      this.floatText(W / 2, BY + 120, 'NEW TOY UNLOCKED!\nMAGNET (next run)', '#c23fd1', 40, 1400);
+    });
+  }
+
   retry(hard = this.s.hard) {
     this.closeModal();
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
-    this.startState(newGame(Date.now() >>> 0, false, hard));
+    this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys()));
   }
 
   openTitle() {
@@ -1279,6 +1299,14 @@ export class GameScene extends Phaser.Scene {
     this.modal = c;
     const play = this.button(c, W / 2, H - (m.hardUnlocked ? 250 : 200), 440, 'PLAY', 0x5fbf4a, () => this.retry(false));
     if (m.hardUnlocked) this.button(c, W / 2, H - 140, 440, 'CHALLENGE', 0xe8452c, () => this.retry(true));
+    if ('magnet' in m.toys) {
+      const tg = this.button(c, W / 2, H - 520, 340, `MAGNETS: ${m.toys.magnet ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
+        m.toys.magnet = !m.toys.magnet;
+        store(META_KEY, JSON.stringify(m));
+        (tg.list[1] as Phaser.GameObjects.Text).setText(`MAGNETS: ${m.toys.magnet ? 'ON' : 'OFF'}`);
+      });
+      tg.setScale(0.8);
+    } else c.add(this.add.text(W / 2, H - 520, 'Challenge: wake 3 cannons in one chain', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#e07af0', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
     this.tweens.add({ targets: play, scale: 1.06, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
 

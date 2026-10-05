@@ -157,6 +157,12 @@ export const sfx = {
     tone(90, 0.3, 'sawtooth', 0.05, 0.05, 140);
   },
   click: () => bandNoise(0.02, 0.15, 0, 3000),
+  /** magnet: low hum swell + metallic clunk */
+  magnet: (delay = 0) => {
+    tone(110, 0.18, 'sawtooth', 0.05, delay, 220);
+    tone(vary(240), 0.08, 'triangle', 0.14, delay + 0.14, 160);
+    bandNoise(0.04, 0.15, delay + 0.14, 900);
+  },
   /** victory_rebuild: low clunk, three bright plucks resolving into a chord, nut-click */
   win: () => {
     tone(100, 0.2, 'triangle', 0.25, 0, 60);

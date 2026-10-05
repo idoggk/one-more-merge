@@ -39,6 +39,8 @@ export interface GameState {
   practice: boolean;
   /** Challenge mode: tougher targets. */
   hard: boolean;
+  /** Unlocked extra families mixed into the supply bag (e.g. magnet). */
+  toys: Family[];
   grid: Grid;
   nextId: number;
   supplyRng: number;
@@ -83,13 +85,14 @@ export const idxOf = (r: number, c: number) => r * COLS + c;
 
 export const targetHp = (s: GameState, i: number) => Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1));
 
-export function newGame(seed: number, tutorial = false, hard = false): GameState {
+export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = []): GameState {
   const s: GameState = {
     version: 1,
     seed: seed >>> 0,
     phase: tutorial ? 'tutorial' : 'playing',
     practice: tutorial,
     hard,
+    toys: tutorial ? [] : toys,
     grid: new Array(ROWS * COLS).fill(null),
     nextId: 1,
     supplyRng: seed >>> 0,
@@ -147,6 +150,7 @@ function refillBag(s: GameState) {
   const rng = new Rng(s.supplyRng);
   const bag: Family[] = [];
   for (const f of Object.keys(TUNING.bag) as Family[]) for (let i = 0; i < TUNING.bag[f]; i++) bag.push(f);
+  for (const f of s.toys ?? []) for (let i = 0; i < (TUNING.toyBag[f] ?? 0); i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
   s.supplyRng = rng.state;
@@ -219,7 +223,8 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0 });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)) });
+  applyMoves(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
   ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
@@ -263,6 +268,14 @@ export function choosePerk(s: GameState, perk: PerkId): CommandResult {
 }
 
 // ---------- internals ----------
+
+function applyMoves(s: GameState, r: CascadeResult) {
+  for (const m of r.moves) {
+    if (s.grid[m.from]?.id !== m.id || s.grid[m.to]) throw new Error('magnet move desync');
+    s.grid[m.to] = s.grid[m.from];
+    s.grid[m.from] = null;
+  }
+}
 
 function enterOverdrive(s: GameState, dur: number) {
   const wasActive = s.odLeft > 0;
@@ -425,7 +438,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0 });
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)) });
 }
 
 export function serialize(s: GameState): string {
@@ -503,7 +516,8 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0 });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)) });
+    applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
     applyDamage(s, result.total, ev, 'kick');

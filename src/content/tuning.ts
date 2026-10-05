@@ -6,7 +6,7 @@ export const TICK = 0.05;
 
 export const TUNING = {
   rankMult: 2.25,
-  base: { cannon: 10, coil: 4, bell: 3 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -24,6 +24,8 @@ export const TUNING = {
   releaseAt: 22,
   maxPending: 3,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
+  /** Unlocked toys add these tokens to the 12-token bag. */
+  toyBag: { magnet: 2 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
   targetHp: [1200, 11250, 18000],

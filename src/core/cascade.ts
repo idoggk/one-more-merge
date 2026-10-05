@@ -48,13 +48,41 @@ export function sparkCells(idx: number): number[] {
 export interface CascadeOpts {
   perks: readonly PerkId[];
   overdrive: boolean;
+  /** Cells promised to falling Kickback parts: magnets never pull into or out of them. */
+  reserved?: ReadonlySet<number>;
+}
+
+/**
+ * Magnet (ChatGPT spec): scan up/right/down/left for an empty neighbour; look up to two cells beyond it along that ray
+ * (first occupied cell blocks). Pull that gadget if it has not activated / is not queued, is not reserved and is not a magnet.
+ * First eligible ray only.
+ */
+export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>): { from: number; to: number } | null {
+  const [r, c] = rc(idx);
+  for (const [dr, dc] of DIRS) {
+    if (!inside(r + dr, c + dc)) continue;
+    const to = at(r + dr, c + dc);
+    if (grid[to] || reserved.has(to)) continue;
+    for (let k = 2; k <= 3; k++) {
+      const rr = r + dr * k, cc = c + dc * k;
+      if (!inside(rr, cc)) break;
+      const from = at(rr, cc);
+      const g = grid[from];
+      if (!g) continue;
+      if (!busy.has(from) && !reserved.has(from) && g.family !== 'magnet') return { from, to };
+      break; // first occupied cell blocks the ray
+    }
+  }
+  return null;
 }
 
 /**
  * Pure, bounded BFS cascade from a freshly merged gadget at rootIdx.
  * Each gadget activates at most once; strongest direct Coil charge wins.
  */
-export function resolveCascade(grid: Grid, rootIdx: number, opts: CascadeOpts): CascadeResult {
+export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts): CascadeResult {
+  const grid = input.slice(); // magnets may move pieces; later steps see the updated board
+  const moves: CascadeResult['moves'] = [];
   const root = grid[rootIdx];
   if (!root) throw new Error('cascade root is empty');
   const visited = new Map<number, Activation>(); // by idx
@@ -85,6 +113,16 @@ export function resolveCascade(grid: Grid, rootIdx: number, opts: CascadeOpts): 
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
     if (a.family === 'cannon') continue;
+    if (a.family === 'magnet') {
+      const p = magnetPull(grid, idx, new Set(visited.keys()), opts.reserved ?? new Set());
+      if (p) {
+        moves.push({ ...p, id: grid[p.from]!.id });
+        edges.push({ from: p.from, to: p.to, kind: 'magnet' });
+        grid[p.to] = grid[p.from];
+        grid[p.from] = null;
+      }
+      continue;
+    }
     const kind = a.family;
     const coilMult = 1 + TUNING.coilChargePerRank * a.rank;
     for (const to of routeCells(idx, a.family, a.rank, opts.perks)) {
@@ -109,5 +147,5 @@ export function resolveCascade(grid: Grid, rootIdx: number, opts: CascadeOpts): 
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, count: acts.length, comboMult, total };
+  return { rootIdx, activations: acts, edges, moves, count: acts.length, comboMult, total };
 }

@@ -12,6 +12,7 @@ export const FAMILY_INFO = {
   cannon: { name: 'Cannon', color: 0xe8452c, text: 'Fires on its own. Fires hard when a chain wakes it.' },
   coil: { name: 'Coil', color: 0x27c4e0, text: 'Zaps neighbours and charges them. Rank 2+ reaches 2 tiles.' },
   bell: { name: 'Bell', color: 0xf2b521, text: 'Rings its whole row. Rank 2: +up/down. Rank 3+: +column.' },
+  magnet: { name: 'Magnet', color: 0xc23fd1, text: 'When it fires, pulls a gadget up to 2 tiles into an empty spot beside it.' },
 } as const;
 
 export const TARGET_NAMES = ['TIN CAN', 'MAD FRIDGE', 'JUNKZILLA'];

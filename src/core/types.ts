@@ -1,5 +1,5 @@
-export type Family = 'cannon' | 'coil' | 'bell';
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell'];
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet';
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet'];
 
 export type PerkId = 'twin' | 'leads' | 'encore' | 'juice' | 'quality';
 
@@ -28,7 +28,9 @@ export interface CascadeResult {
   rootIdx: number;
   activations: Activation[];
   /** Every route emitted (including to already-visited gadgets), for drawing links. */
-  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' }[];
+  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' }[];
+  /** Magnet pulls performed during the cascade, in order. Caller applies them to the real grid. */
+  moves: { from: number; to: number; id: number }[];
   count: number;
   comboMult: number;
   total: number;

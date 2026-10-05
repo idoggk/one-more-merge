@@ -89,6 +89,10 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
   unreserved and not a Magnet. First eligible ray only; atomic move; BFS continues on the updated board. Never swaps,
   auto-merges, crosses occupied cells, moves queued gadgets, targets a Kickback reservation, or triggers activations by moving.
 
+- **Magnet implemented** as first unlock: challenge 'wake 3 cannons in one chain you started' → Magnet (2 tokens added to the bag),
+  switchable on the title screen. Sim: bots never plan pulls, so magnets only dilute supply (novice 82% → 54%, skilled unchanged).
+  Needs human testing: is pulling a satisfying set-up tool? If not, give magnets a small damage value or a smaller bag share.
+
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
 1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·
 3 two payload cannons in one chain: **Magnet** · 4 magnet makes a match: **Battery** · 5 battery discharge in a win: **Fan** ·
