@@ -43,13 +43,15 @@ interface Meta {
   wins: number;
   sound: boolean;
   hints: boolean;
+  hardUnlocked: boolean;
+  bestTimeHard: number | null;
 }
 
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
 
 function loadMeta(): Meta {
-  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true };
+  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, hardUnlocked: false, bestTimeHard: null };
   try {
     return { ...d, ...JSON.parse(localStorage.getItem(META_KEY) || '{}') };
   } catch {
@@ -86,6 +88,8 @@ export class GameScene extends Phaser.Scene {
 
   // ui
   target!: Phaser.GameObjects.Image;
+  stage!: Phaser.GameObjects.Image;
+  stageFrame!: Phaser.GameObjects.Graphics;
   targetBaseScale = 1;
   hpBar!: Phaser.GameObjects.Graphics;
   hpText!: Phaser.GameObjects.Text;
@@ -188,6 +192,11 @@ export class GameScene extends Phaser.Scene {
     if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
+    // stage backdrop (per opponent) in a rounded window behind the target
+    this.stage = this.add.image(W / 2, 236, 'dot').setVisible(false);
+    const sm = this.make.graphics({}, false).fillStyle(0xffffff).fillRoundedRect(70, 92, W - 140, 284, 26);
+    this.stage.setMask(sm.createGeometryMask());
+    this.stageFrame = this.add.graphics();
     // target
     this.target = this.add.image(W / 2, TARGET_Y, 'target_0');
     this.hpBar = this.add.graphics();
@@ -279,6 +288,12 @@ export class GameScene extends Phaser.Scene {
   setTargetTexture() {
     const key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
     this.target.setTexture(key);
+    const sk = `stage_${Math.max(0, this.s.target)}`;
+    if (this.hasArt(sk)) {
+      this.stage.setTexture(sk).setVisible(true);
+      this.stage.setScale(Math.max((W - 140) / this.stage.width, 284 / this.stage.height));
+      this.stageFrame.clear().lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(70, 92, W - 140, 284, 26);
+    }
     const tex = this.target.frame;
     this.targetBaseScale = Math.min(270 / tex.width, 260 / tex.height);
     this.target.setScale(this.targetBaseScale).setAngle(0).setAlpha(1).setPosition(W / 2, TARGET_Y);
@@ -301,7 +316,13 @@ export class GameScene extends Phaser.Scene {
     badge.fillStyle(0x2b1d2e, 1).fillCircle(38, 38, 17).fillStyle(col, 1).fillCircle(38, 38, 13);
     const label = g.rank >= MAX_RANK ? 'M' : String(g.rank);
     const t = this.add.text(38, 38, label, { fontFamily: 'Arial Black', fontSize: '18px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5);
-    c.add([img, badge, t]);
+    const parts: Phaser.GameObjects.GameObject[] = [img, badge, t];
+    if (g.rank >= MAX_RANK && this.hasArt('crown')) {
+      const cr = this.add.image(-30, -42, 'crown');
+      cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(-15);
+      parts.push(cr);
+    }
+    c.add(parts);
     c.setSize(CELL, CELL).setDepth(10);
     return c;
   }
@@ -484,6 +505,13 @@ export class GameScene extends Phaser.Scene {
     if (merging) {
       this.reconcile(false, undefined, cellXY(to));
       const nv = this.views.get(this.s.grid[to]!.id);
+      if (this.hasArt('starburst')) {
+        const { x, y } = cellXY(to);
+        const sb = this.add.image(x, y, 'starburst').setDepth(9);
+        const s0 = Math.min(150 / sb.width, 150 / sb.height);
+        sb.setScale(s0 * 0.4);
+        this.tweens.add({ targets: sb, scale: s0, angle: 90, alpha: 0, duration: 450, ease: 'Quad.Out', onComplete: () => sb.destroy() });
+      }
       if (nv) {
         nv.setScale(1.45);
         this.tweens.add({ targets: nv, scale: 1, duration: 260, ease: 'Back.Out' });
@@ -627,6 +655,7 @@ export class GameScene extends Phaser.Scene {
   drawHud(dms: number) {
     const s = this.s;
     const demo = s.target < 0;
+    this.headerText.setColor(s.hard ? '#b3201a' : '#3b2533');
     this.headerText.setText(demo ? 'WARM-UP' : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     const t = Math.ceil(s.timeLeft);
     this.timerText.setText(demo ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
@@ -997,16 +1026,22 @@ export class GameScene extends Phaser.Scene {
 
   button(c: Phaser.GameObjects.Container, x: number, y: number, w: number, label: string, color: number, cb: () => void) {
     const b = this.add.container(x, y);
-    const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-w / 2, -40, w, 86, 26).fillStyle(color, 1).fillRoundedRect(-w / 2 + 5, -36, w - 10, 74, 22);
+    const artKey = color === 0x5fbf4a ? 'btn_green' : color === 0x27a4c0 ? 'btn_blue' : color === 0xe8452c ? 'btn_red' : '';
+    const g: Phaser.GameObjects.GameObject =
+      artKey && this.hasArt(artKey)
+        ? this.add.image(0, 2, artKey).setDisplaySize(w + 20, 112)
+        : this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-w / 2, -40, w, 86, 26).fillStyle(color, 1).fillRoundedRect(-w / 2 + 5, -36, w - 10, 74, 22);
     const t = this.add.text(0, 0, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5);
     b.add([g, t]).setSize(w, 86).setInteractive({ useHandCursor: true });
     b.on('pointerdown', () => {
       unlockAudio();
       sfx.click();
       b.setScale(0.95);
+      if (g instanceof Phaser.GameObjects.Image && this.hasArt(artKey + '_pressed')) g.setTexture(artKey + '_pressed');
     });
     b.on('pointerup', () => {
       b.setScale(1);
+      if (g instanceof Phaser.GameObjects.Image) g.setTexture(artKey);
       cb();
     });
     c.add(b);
@@ -1053,11 +1088,18 @@ export class GameScene extends Phaser.Scene {
     const m = this.meta;
     m.runs++;
     let newBest = false;
+    let unlockedNow = false;
     if (won) {
       m.wins++;
-      if (!s.practice && (m.bestTime === null || s.elapsed < m.bestTime)) {
-        m.bestTime = s.elapsed;
+      const prev = s.hard ? m.bestTimeHard : m.bestTime;
+      if (!s.practice && (prev === null || s.elapsed < prev)) {
+        if (s.hard) m.bestTimeHard = s.elapsed;
+        else m.bestTime = s.elapsed;
         newBest = true;
+      }
+      if (!m.hardUnlocked) {
+        m.hardUnlocked = true;
+        unlockedNow = true;
       }
     }
     m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
@@ -1082,16 +1124,18 @@ export class GameScene extends Phaser.Scene {
     lines.push(`Biggest hit  ${fmt(s.stats.biggestHit)}`);
     lines.push(`Best gadget  rank ${s.stats.bestRank}`);
     if (s.perks.length) lines.push(`Perks  ${s.perks.map((p) => PERKS[p].name).join(', ')}`);
-    if (m.bestTime !== null) lines.push(`Record  ${m.bestTime.toFixed(1)}s`);
+    const rec = s.hard ? m.bestTimeHard : m.bestTime;
+    if (rec !== null) lines.push(`Record${s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
+    if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
     c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
     this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry());
   }
 
-  retry() {
+  retry(hard = this.s.hard) {
     this.closeModal();
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
-    this.startState(newGame(Date.now() >>> 0, false));
+    this.startState(newGame(Date.now() >>> 0, false, hard));
   }
 
   openTitle() {
@@ -1116,10 +1160,11 @@ export class GameScene extends Phaser.Scene {
     c.add(logo);
     this.tweens.add({ targets: logo, angle: { from: -2, to: 2 }, scale: '*=1.03', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     const m = this.meta;
-    const info = [m.bestTime !== null ? `Best time  ${m.bestTime.toFixed(1)}s` : 'Beat all 3 before the clock runs out!', m.bestChain ? `Biggest chain  x${m.bestChain}` : ''].filter(Boolean).join('\n');
-    c.add(this.add.text(W / 2, H - 330, info, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 8, align: 'center' }).setOrigin(0.5));
+    const info = [m.bestTime !== null ? `Best time  ${m.bestTime.toFixed(1)}s` : 'Beat all 3 before the clock runs out!', m.bestTimeHard !== null ? `Challenge best  ${m.bestTimeHard.toFixed(1)}s` : '', m.bestChain ? `Biggest chain  x${m.bestChain}` : ''].filter(Boolean).join('\n');
+    c.add(this.add.text(W / 2, H - 400, info, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 8, align: 'center' }).setOrigin(0.5));
     this.modal = c;
-    const play = this.button(c, W / 2, H - 200, 440, 'PLAY', 0x5fbf4a, () => this.closeModal());
+    const play = this.button(c, W / 2, H - (m.hardUnlocked ? 250 : 200), 440, 'PLAY', 0x5fbf4a, () => this.retry(false));
+    if (m.hardUnlocked) this.button(c, W / 2, H - 140, 440, 'CHALLENGE', 0xe8452c, () => this.retry(true));
     this.tweens.add({ targets: play, scale: 1.06, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
 

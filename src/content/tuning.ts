@@ -27,6 +27,7 @@ export const TUNING = {
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
   targetHp: [2250, 11250, 18000],
+  hardHpMult: 1.4,
   mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */

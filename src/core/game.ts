@@ -37,6 +37,8 @@ export interface GameState {
   seed: number;
   phase: Phase;
   practice: boolean;
+  /** Challenge mode: tougher targets. */
+  hard: boolean;
   grid: Grid;
   nextId: number;
   supplyRng: number;
@@ -79,12 +81,15 @@ const START: [number, number, Family][] = [
 
 export const idxOf = (r: number, c: number) => r * COLS + c;
 
-export function newGame(seed: number, tutorial = false): GameState {
+export const targetHp = (s: GameState, i: number) => Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1));
+
+export function newGame(seed: number, tutorial = false, hard = false): GameState {
   const s: GameState = {
     version: 1,
     seed: seed >>> 0,
     phase: tutorial ? 'tutorial' : 'playing',
     practice: tutorial,
+    hard,
     grid: new Array(ROWS * COLS).fill(null),
     nextId: 1,
     supplyRng: seed >>> 0,
@@ -94,8 +99,8 @@ export function newGame(seed: number, tutorial = false): GameState {
     supplyTimer: TUNING.supplyPeriod,
     shipments: 0,
     target: tutorial ? -1 : 0,
-    hp: tutorial ? TUNING.demoHp : TUNING.targetHp[0],
-    maxHp: tutorial ? TUNING.demoHp : TUNING.targetHp[0],
+    hp: tutorial ? TUNING.demoHp : Math.round(TUNING.targetHp[0] * (hard ? TUNING.hardHpMult : 1)),
+    maxHp: tutorial ? TUNING.demoHp : Math.round(TUNING.targetHp[0] * (hard ? TUNING.hardHpMult : 1)),
     thresholds: 0,
     pendingDamage: 0,
     timeLeft: TUNING.runTime,
@@ -248,7 +253,7 @@ export function choosePerk(s: GameState, perk: PerkId): CommandResult {
   }
   s.phase = 'playing';
   s.target++;
-  s.maxHp = s.hp = TUNING.targetHp[s.target];
+  s.maxHp = s.hp = targetHp(s, s.target);
   s.thresholds = 0;
   ev.push({ type: 'newTarget', target: s.target });
   const carry = s.pendingDamage;
@@ -318,7 +323,7 @@ function makeOffer(s: GameState): PerkId[] {
 function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
   s.phase = 'playing';
   s.target = 0;
-  s.hp = s.maxHp = TUNING.targetHp[0];
+  s.hp = s.maxHp = targetHp(s, 0);
   s.thresholds = 0;
   s.timeLeft = TUNING.runTime;
   s.elapsed = 0;
