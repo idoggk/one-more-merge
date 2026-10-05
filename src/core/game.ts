@@ -9,7 +9,7 @@ export type Phase = 'tutorial' | 'playing' | 'choice' | 'won' | 'lost';
 
 export type GameEvent =
   | { type: 'cascade'; result: CascadeResult; damage: number; overdriveStart: boolean; kickback: boolean }
-  | { type: 'kickbackIncoming' }
+  | { type: 'kickbackIncoming'; land: number; into: number }
   | { type: 'kickback'; idx: number; into: number; gadget: Gadget }
   | { type: 'shot'; idx: number; id: number; damage: number }
   | { type: 'delivery'; idx: number; gadget: Gadget }
@@ -59,7 +59,7 @@ export interface GameState {
   mergeCd: number;
   tutorialMerges: number;
   kickRng: number;
-  drops: { t: number; fuse: boolean }[];
+  drops: { t: number; fuse: boolean; plan?: DropPlan | null }[];
   /** Occupancy guard: deliveries wait in the tray while true. */
   trayHold: boolean;
   bigCd: number;
@@ -369,7 +369,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   for (const d of s.drops) d.t -= dt;
   while (s.drops.length && s.drops[0].t <= 0 && s.phase === 'playing') {
     const d = s.drops.shift()!;
-    landDrop(s, reserved, ev, d.fuse);
+    landDrop(s, reserved, ev, d.fuse, d.plan ?? null);
   }
   if (s.phase !== 'playing') return ev;
 
@@ -397,7 +397,8 @@ function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent
   if (occ >= TUNING.holdAt) s.trayHold = true;
   else if (occ <= TUNING.releaseAt) s.trayHold = false;
   if (!s.pending.length || s.trayHold) return;
-  const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i));
+  const promised = new Set(dropReserved(s));
+  const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i) && !promised.has(i));
   if (slot < 0) return;
   const g = s.pending.shift()!;
   s.grid[slot] = g;
@@ -438,32 +439,51 @@ export function deserialize(json: string): GameState | null {
 
 // ---------- kickback ----------
 
-function queueDrop(s: GameState, ev: GameEvent[], fuse: boolean) {
-  if (!TUNING.kickback || s.target < 0) return;
-  s.drops.push({ t: TUNING.kickbackFall, fuse: fuse && TUNING.kickbackFuse });
-  ev.push({ type: 'kickbackIncoming' });
-}
+type DropPlan = { idx: number; land: number; id: number };
 
-/** A loose part lands next to a lonely gadget and fuses with it (one bounded secondary cascade). */
-function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], fuse: boolean) {
-  const rng = new Rng(s.kickRng);
+/** Choose where a loose part will land (next to a lonely match). Consumes kickRng once. */
+function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
+  const taken = new Set<number>(reserved);
+  for (const d of s.drops) if (d.plan) taken.add(d.plan.idx).add(d.plan.land);
   const counts = new Map<string, number>();
   for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
-  const options: { idx: number; land: number }[] = [];
+  const options: DropPlan[] = [];
   s.grid.forEach((g, idx) => {
-    if (!g || g.rank >= MAX_RANK || reserved.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
+    if (!g || g.rank >= MAX_RANK || taken.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
     if (fuse && g.rank > TUNING.kickbackMaxRank) return;
     const r = Math.floor(idx / COLS), c = idx % COLS;
     for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
       const rr = r + dr, cc = c + dc;
       if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS) continue;
       const n = idxOf(rr, cc);
-      if (!s.grid[n] && !reserved.has(n)) options.push({ idx, land: n });
+      if (!s.grid[n] && !taken.has(n)) options.push({ idx, land: n, id: g.id });
     }
   });
-  if (options.length) {
-    const pick = options[rng.int(options.length)];
-    s.kickRng = rng.state;
+  if (!options.length) return null;
+  const rng = new Rng(s.kickRng);
+  const pick = options[rng.int(options.length)];
+  s.kickRng = rng.state;
+  return pick;
+}
+
+function queueDrop(s: GameState, ev: GameEvent[], fuse: boolean) {
+  if (!TUNING.kickback || s.target < 0) return;
+  const f = fuse && TUNING.kickbackFuse;
+  const plan = planDrop(s, new Set(), f);
+  s.drops.push({ t: TUNING.kickbackFall, fuse: f, plan });
+  ev.push({ type: 'kickbackIncoming', land: plan?.land ?? -1, into: f ? (plan?.idx ?? -1) : -1 });
+}
+
+/** Cells promised to falling parts; deliveries avoid them. */
+export function dropReserved(s: GameState): number[] {
+  return s.drops.flatMap((d) => (d.plan ? [d.plan.land] : []));
+}
+
+/** A loose part lands next to a lonely gadget and (threshold drops) fuses with it: one bounded secondary cascade. */
+function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], fuse: boolean, planned: DropPlan | null) {
+  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !s.grid[p.land] && !reserved.has(p.land);
+  const pick = valid(planned) ? planned : planDrop(s, reserved, fuse);
+  if (pick) {
     const old = s.grid[pick.idx]!;
     if (!fuse) {
       // plain drop: a matching part waits next to its partner for the player to merge
@@ -484,7 +504,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     applyDamage(s, result.total, ev, 'kick');
     return;
   }
-  // nothing lonely with room: drop a plain part
+  const rng = new Rng(s.kickRng);  // nothing lonely with room: drop a plain part
   const fam = (['cannon', 'coil', 'bell'] as Family[])[rng.int(3)];
   s.kickRng = rng.state;
   const g = makeGadget(s, fam, 1);

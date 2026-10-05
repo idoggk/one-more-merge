@@ -229,13 +229,16 @@ export class GameScene extends Phaser.Scene {
       emitting: false,
       blendMode: 'ADD',
     }).setDepth(50);
-    this.chunks = this.add.particles(0, 0, 'chunk', {
-      speed: { min: 250, max: 650 },
-      angle: { min: 200, max: 340 },
-      gravityY: 1400,
-      lifespan: 1200,
+    const debris = [0, 1, 2, 3, 4, 5].map((i) => `debris_${i}`).filter((k) => this.hasArt(k));
+    this.chunks = this.add.particles(0, 0, debris.length ? debris : 'chunk', {
+      speed: { min: 250, max: 600 },
+      angle: { min: 210, max: 330 },
+      gravityY: 1500,
+      lifespan: 800,
+      alpha: { start: 1, end: 0 },
+      tint: debris.length ? 0xffffff : [0x9aa4ad, 0x6c7680, 0xc9cfd4, 0xe8452c, 0x5a4a5a],
       rotate: { min: 0, max: 360 },
-      scale: { min: 0.8, max: 1.8 },
+      scale: debris.length ? { min: 0.12, max: 0.26 } : { min: 0.8, max: 1.6 },
       emitting: false,
     }).setDepth(45);
   }
@@ -681,33 +684,61 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'move':
           break;
-        case 'kickbackIncoming':
-          this.chunks.explode(10, this.target.x, this.target.y);
-          break;
-        case 'kickback': {
-          spawn.set(e.gadget.id, { x: this.target.x + Phaser.Math.Between(-60, 60), y: this.target.y });
-          sfx.kickback();
-          if (e.into >= 0) {
-            // falling part slams into its lonely match
-            const land = cellXY(e.idx);
-            const into = cellXY(e.into);
-            const part = this.add.image(this.target.x, this.target.y, `${e.gadget.family}_${e.gadget.rank - 1}`).setDepth(56);
-            part.setScale(Math.min(80 / part.width, 80 / part.height));
-            this.tweens.add({
-              targets: part,
-              x: land.x,
-              y: land.y,
-              angle: 540,
-              duration: 260,
-              ease: 'Quad.In',
-              onComplete: () => this.tweens.add({ targets: part, x: into.x, y: into.y, duration: 90, onComplete: () => part.destroy() }),
-            });
-            this.floatText(into.x, into.y - 60, 'KICKBACK!', '#ffcf33', 30);
-          }
-          needReconcile = true;
+        case 'kickbackIncoming': {
+          this.chunks.explode(12, this.target.x, this.target.y);
+          if (e.land < 0) break;
+          // telegraph: pulsing target marker on the landing cell + a part arcing down to it
+          const land = cellXY(e.land);
+          const fall = TUNING.kickbackFall * 1000;
+          const mk = this.add.graphics().setDepth(47).setPosition(land.x, land.y);
+          const col = e.into >= 0 ? 0xffcf33 : 0xffffff;
+          const o = { p: 0 };
+          this.tweens.add({
+            targets: o,
+            p: 1,
+            duration: fall,
+            onUpdate: () => {
+              const r = 52 - 14 * Math.abs(Math.sin(o.p * Math.PI * 3));
+              mk.clear().lineStyle(6, col, 0.9).strokeCircle(0, 0, r).fillStyle(col, 0.18).fillCircle(0, 0, r);
+            },
+            onComplete: () => mk.destroy(),
+          });
+          const g = e.into >= 0 ? this.s.grid[e.into] : null;
+          const key = g ? `${g.family}_${g.rank}` : 'chunk';
+          const part = this.add.image(this.target.x, this.target.y - 30, key).setDepth(56);
+          part.setScale(Math.min(76 / part.width, 76 / part.height));
+          const curve = new Phaser.Curves.QuadraticBezier(
+            new Phaser.Math.Vector2(part.x, part.y),
+            new Phaser.Math.Vector2((part.x + land.x) / 2 + Phaser.Math.Between(-120, 120), part.y - 160),
+            new Phaser.Math.Vector2(land.x, land.y),
+          );
+          const q = { t: 0 };
+          this.tweens.add({
+            targets: q,
+            t: 1,
+            duration: fall,
+            ease: 'Quad.In',
+            onUpdate: () => {
+              const p = curve.getPoint(q.t);
+              part.setPosition(p.x, p.y).setAngle(q.t * 540);
+            },
+            onComplete: () => part.destroy(),
+          });
           break;
         }
-        case 'threshold':
+        case 'kickback': {
+          const land = cellXY(e.idx);
+          sfx.kickback();
+          this.chunks.explode(8, land.x, land.y);
+          if (e.into >= 0) {
+            const into = cellXY(e.into);
+            spawn.set(e.gadget.id, land);
+            this.ring(into.x, into.y, 0xffcf33, 90, 14, 320);
+            this.floatText(into.x, into.y - 64, 'KICKBACK!', '#ffcf33', 32, 150);
+          } else spawn.set(e.gadget.id, { x: land.x, y: land.y - 80 });
+          needReconcile = true;
+          break;
+        }        case 'threshold':
           this.chunks.explode(18, this.target.x, this.target.y - 40);
           this.cameras.main.shake(140, 0.006);
           if (e.level >= 2) this.setTargetTexture();
