@@ -93,6 +93,8 @@ export class GameScene extends Phaser.Scene {
   stageFrame!: Phaser.GameObjects.Graphics;
   targetBaseScale = 1;
   hpBar!: Phaser.GameObjects.Graphics;
+  hpFill?: Phaser.GameObjects.Image;
+  gaugeImgs: Phaser.GameObjects.Image[] = [];
   hpText!: Phaser.GameObjects.Text;
   shownHp = 0;
   headerText!: Phaser.GameObjects.Text;
@@ -109,6 +111,7 @@ export class GameScene extends Phaser.Scene {
   trayBadge!: Phaser.GameObjects.Text;
   trayArc!: Phaser.GameObjects.Graphics;
   trayBox!: Phaser.GameObjects.Graphics;
+  trayPlate?: Phaser.GameObjects.Image;
   trayLabel!: Phaser.GameObjects.Text;
   pendingText!: Phaser.GameObjects.Text;
   scrapZone!: Phaser.GameObjects.Container;
@@ -202,6 +205,7 @@ export class GameScene extends Phaser.Scene {
     this.linkG = this.add.graphics().setDepth(30);
 
     // header
+    if (this.hasArt('hud_header')) this.add.image(W / 2, 46, 'hud_header').setDisplaySize(W - 8, 88);
     this.headerText = this.add.text(70, 27, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' });
     this.timerText = this.add.text(W - 28, 22, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#3b2533' }).setOrigin(1, 0);
     this.odGauge = this.add.graphics();
@@ -218,10 +222,16 @@ export class GameScene extends Phaser.Scene {
     this.target = this.add.image(W / 2, TARGET_Y, 'target_0');
     this.face = this.add.image(W / 2, TARGET_Y, 'dot').setVisible(false);
     this.hpBar = this.add.graphics();
+    if (this.hasArt('hp_frame') && this.hasArt('hp_fill')) {
+      this.hpFill = this.add.image(W / 2 - 220, 404, 'hp_fill').setOrigin(0, 0.5).setDisplaySize(440, 26);
+      this.add.image(W / 2, 404, 'hp_frame').setDisplaySize(476, 50);
+    }
     this.hpText = this.add.text(W / 2, 404, '', { fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5).setDepth(2);
 
     // tray
-    this.trayBox = this.add.graphics().fillStyle(0x8a5a35, 1).fillRoundedRect(BX, TRAY_Y - 38, 240, 76, 22).setDepth(1);
+    this.trayBox = this.add.graphics().setDepth(1);
+    if (this.hasArt('tray_plate')) this.trayPlate = this.add.image(BX + 120, TRAY_Y, 'tray_plate').setDisplaySize(250, 86).setDepth(1);
+    else this.trayBox.fillStyle(0x8a5a35, 1).fillRoundedRect(BX, TRAY_Y - 38, 240, 76, 22);
     this.trayLabel = 
     this.add.text(BX + 20, TRAY_Y, 'NEXT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fbe7c6' }).setOrigin(0, 0.5).setDepth(2);
     this.trayArc = this.add.graphics().setDepth(2);
@@ -231,7 +241,7 @@ export class GameScene extends Phaser.Scene {
 
     // scrap
     const sz = this.add.container(SCRAP_X, TRAY_Y).setDepth(2);
-    const sg = this.add.graphics().fillStyle(0x5a4a5a, 1).fillRoundedRect(-62, -38, 124, 76, 22);
+    const sg = this.hasArt('scrap_plate') ? this.add.image(0, 0, 'scrap_plate').setDisplaySize(134, 84) : this.add.graphics().fillStyle(0x5a4a5a, 1).fillRoundedRect(-62, -38, 124, 76, 22);
     const icon = this.textures.exists('icon_scrap') && this.textures.get('icon_scrap').key !== '__MISSING' ? this.add.image(-24, 0, 'icon_scrap').setDisplaySize(48, 48) : this.add.text(-24, 0, '🗑', { fontSize: '34px' }).setOrigin(0.5);
     const st = this.add.text(18, 0, 'SCRAP', { fontFamily: 'Arial Black', fontSize: '16px', color: '#fbe7c6' }).setOrigin(0.5);
     this.scrapRing = this.add.graphics();
@@ -242,7 +252,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorialText = this.add.text(W / 2, TRAY_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533', align: 'center' }).setOrigin(0.5).setDepth(40);
 
     // settings button
-    const gear = this.add.text(38, 20, '⏸', { fontSize: '40px', color: '#3b2533' }).setOrigin(0.5, 0).setInteractive({ useHandCursor: true });
+    const gear = (this.hasArt('icon_pause') ? this.add.image(38, 46, 'icon_pause').setDisplaySize(52, 52) : this.add.text(38, 20, '⏸', { fontSize: '40px', color: '#3b2533' }).setOrigin(0.5, 0)).setInteractive({ useHandCursor: true });
     gear.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       this.openPause();
@@ -331,10 +341,11 @@ export class GameScene extends Phaser.Scene {
     img.setScale(Math.min(SPRITE / f.width, SPRITE / f.height));
     const badge = this.add.graphics();
     const col = FAMILY_INFO[g.family].color;
-    badge.fillStyle(0x2b1d2e, 1).fillCircle(38, 38, 17).fillStyle(col, 1).fillCircle(38, 38, 13);
+    const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(38, 38, `badge_${g.family}`).setDisplaySize(40, 40) : null;
+    if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(38, 38, 17).fillStyle(col, 1).fillCircle(38, 38, 13);
     const label = g.rank >= MAX_RANK ? 'M' : String(g.rank);
     const t = this.add.text(38, 38, label, { fontFamily: 'Arial Black', fontSize: '18px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5);
-    const parts: Phaser.GameObjects.GameObject[] = [img, badge, t];
+    const parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
     if (g.rank >= MAX_RANK && this.hasArt('crown')) {
       const cr = this.add.image(-30, -42, 'crown');
       cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(-15);
@@ -687,9 +698,14 @@ export class GameScene extends Phaser.Scene {
     const frac = Math.max(0, this.shownHp / s.maxHp);
     const bw = 440;
     const hb = this.hpBar.clear();
+    if (this.hpFill) {
+      this.hpFill.setCrop(0, 0, this.hpFill.width * frac, this.hpFill.height);
+      this.hpFill.setTint(frac > 0.5 ? 0xffffff : frac > 0.25 ? 0xffd27a : 0xff8a7a);
+    } else {
     hb.fillStyle(0x2b1d2e, 1).fillRoundedRect(W / 2 - bw / 2 - 5, 386, bw + 10, 36, 18);
     hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, 391, bw, 26, 13);
     if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, 391, Math.max(26, bw * frac), 26, 13);
+    }
     this.hpText.setText(fmt(Math.max(0, s.hp)));
 
     // overdrive gauge
@@ -698,7 +714,14 @@ export class GameScene extends Phaser.Scene {
     const gx = 384;
     this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
     const active = s.odLeft > 0;
-    for (let i = 0; i < (demo ? 0 : need); i++) {
+    const gaugeArt = this.hasArt('gauge_off') && this.hasArt('gauge_on');
+    if (gaugeArt && !this.gaugeImgs.length) for (let i = 0; i < 6; i++) this.gaugeImgs.push(this.add.image(0, 46, 'gauge_off').setDisplaySize(24, 34));
+    this.gaugeImgs.forEach((g, i) => {
+      const on = i < need && !demo;
+      g.setVisible(on).setPosition(gx + i * 26 + 11, 46);
+      if (on) g.setTexture(active ? (this.hasArt('gauge_lit') ? 'gauge_lit' : 'gauge_on') : i < s.odCharge ? 'gauge_on' : 'gauge_off').setDisplaySize(24, 34);
+    });
+    for (let i = 0; i < (demo || gaugeArt ? 0 : need); i++) {
       const filled = active || i < s.odCharge;
       og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx + i * 26, 30, 22, 30, 6);
       og.fillStyle(filled ? (active ? 0xff6a00 : 0xffcf33) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
@@ -723,6 +746,7 @@ export class GameScene extends Phaser.Scene {
     this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : '');
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(!tut);
+    this.trayPlate?.setVisible(!tut);
     for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut);
     const sr = this.scrapRing.clear();
     if (this.dragIdx >= 0 && this.overScrapFlag) {
@@ -803,7 +827,7 @@ export class GameScene extends Phaser.Scene {
             const into = cellXY(e.into);
             spawn.set(e.gadget.id, land);
             this.ring(into.x, into.y, 0xffcf33, 90, 14, 320);
-            this.floatText(into.x, into.y - 64, 'KICKBACK!', '#ffcf33', 32, 150);
+            this.floatText(into.x, into.y - 64, 'KICKBACK!', '#ffcf33', 32, 150, 'sticker_kickback');
           } else spawn.set(e.gadget.id, { x: land.x, y: land.y - 80 });
           needReconcile = true;
           break;
@@ -835,8 +859,15 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0) {
-    const t = this.add.text(x, y, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5).setDepth(70);
+  floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
+    const label = this.add.text(0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
+    const t = this.add.container(x, y).setDepth(70);
+    if (banner && this.hasArt(banner)) {
+      const b = this.add.image(0, 4, banner);
+      b.setScale(Math.max((label.width + size * 2.2) / b.width, (label.height + size * 1.2) / b.height));
+      t.add(b);
+    }
+    t.add(label);
     t.setScale(0.3).setAngle(Phaser.Math.Between(-4, 4));
     this.tweens.add({ targets: t, scale: 1, duration: 160, ease: 'Back.Out' });
     this.tweens.add({ targets: t, y: y - 70, alpha: 0, delay: 220 + hold, duration: 700, ease: 'Quad.In', onComplete: () => t.destroy() });
@@ -976,7 +1007,7 @@ export class GameScene extends Phaser.Scene {
     const depthOf = new Map(r.activations.map((a) => [a.idx, a.depth]));
     if (odStart) {
       sfx.overdrive();
-      this.floatText(W / 2, BY + 40, 'OVERDRIVE!', '#ff6a00', 56, 300);
+      this.floatText(W / 2, BY + 40, 'OVERDRIVE!', '#ff6a00', 56, 300, 'banner_overdrive');
       this.cameras.main.flash(140, 255, 140, 0, false);
     }
     // root snap
@@ -1044,7 +1075,7 @@ export class GameScene extends Phaser.Scene {
       haptic(big ? 30 : 12);
       const huge = r.count >= 10;
       const label = r.count > 1 ? `x${r.count} CHAIN!\n${fmt(r.total)}` : fmt(r.total);
-      this.floatText(this.target.x, this.target.y - 20, label, huge ? '#ffcf33' : '#ffffff', huge ? 54 : 40, huge ? 250 : 0);
+      this.floatText(this.target.x, this.target.y - 20, label, huge ? '#ffcf33' : '#ffffff', huge ? 54 : 40, huge ? 250 : 0, huge ? 'banner_chain' : '');
     });
   }
 
@@ -1066,7 +1097,7 @@ export class GameScene extends Phaser.Scene {
         this.ring(tgt.x, tgt.y, 0xffffff, 180, 14, 300);
         this.cameras.main.shake(320, 0.014);
         haptic(60);
-        this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 60, 300);
+        this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 60, 300, 'banner_destroyed');
         this.tweens.add({
           targets: tgt,
           y: tgt.y + 60,

@@ -19,6 +19,28 @@ const targetOf = (n) => (/tin/.test(n) ? 0 : /fridge|kitchen/.test(n) ? 1 : /zil
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
   if (/app_?icon/.test(n)) return 'app_icon';
+  // round 4 HUD plates
+  if (/header/.test(n)) return 'hud_header';
+  if (/hp|health/.test(n) && /frame/.test(n)) return 'hp_frame';
+  if (/hp|health/.test(n) && /fill/.test(n)) return 'hp_fill';
+  if (/gauge|segment|pill/.test(n) && !/flame/.test(n)) return /lit|active/.test(n) ? 'gauge_lit' : /_on|on_|filled/.test(n) ? 'gauge_on' : 'gauge_off';
+  if (/tray/.test(n)) return 'tray_plate';
+  if (/scrap/.test(n) && /plate|button/.test(n)) return 'scrap_plate';
+  if (/pause/.test(n)) return 'icon_pause';
+  if (/badge/.test(n) && !/starburst/.test(n)) {
+    const fam = /red|cannon/.test(n) ? 'cannon' : /cyan|blue|coil/.test(n) ? 'coil' : /gold|yellow|bell/.test(n) ? 'bell' : null;
+    if (fam) return `badge_${fam}`;
+  }
+  if (/banner|ribbon|sticker/.test(n)) {
+    if (/kickback/.test(n)) return 'sticker_kickback';
+    if (/overdrive/.test(n)) return 'banner_overdrive';
+    if (/destroy/.test(n)) return 'banner_destroyed';
+    if (/chain/.test(n)) return 'banner_chain';
+  }
+  if (/magnet/.test(n)) {
+    const r = n.match(/(?:rank|r)[_-]?0?([1-6])/)?.[1];
+    if (r) return `magnet_${r}`;
+  }
   if (/logo|wordmark/.test(n)) return 'logo';
   if (/debris/.test(n)) return `debris_${debrisNames.indexOf(file)}`;
   if (/^vfx|vfx_/.test(n)) {
@@ -68,7 +90,7 @@ function keyFor(file) {
 
 /** Box (longest side) each key is normalised into; null = keep aspect at full width 720. */
 const SIZE = (key) => {
-  if (['bg', 'title', 'logo', 'vfx_flame'].includes(key) || key.startsWith('stage_')) return null;
+  if (['bg', 'title', 'logo', 'vfx_flame', 'hud_header', 'hp_frame', 'hp_fill'].includes(key) || key.startsWith('stage_') || key.startsWith('banner_')) return null;
   if (key === 'app_icon') return 1024;
   if (key.startsWith('target') || key === 'demo_can' || key === 'card' || key === 'victory' || key === 'defeat' || key.startsWith('btn_')) return 512;
   if (key.startsWith('debris')) return 128;
