@@ -126,6 +126,11 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     ensureTextures(this);
+    if (new URLSearchParams(location.search).has('reset')) {
+      store(SAVE_KEY, null);
+      store(META_KEY, null);
+      history.replaceState(null, '', location.pathname);
+    }
     this.meta = loadMeta();
     audioSettings.on = this.meta.sound;
     this.buildStatic();
@@ -157,7 +162,11 @@ export class GameScene extends Phaser.Scene {
   // ---------- setup ----------
 
   buildStatic() {
-    this.add.image(W / 2, H / 2, 'bg').setDisplaySize(W, H);
+    if (this.hasArt('slot') && this.textures.get('bg').source[0].height < H) {
+      // ChatGPT workbench: sand backdrop, bench anchored under the header, bottom bezel off-screen
+      this.add.rectangle(W / 2, H / 2, W, H, 0xf3cf9b);
+      this.add.image(W / 2, 62, 'bg').setOrigin(0.5, 0).setDisplaySize(W, 1300);
+    } else this.add.image(W / 2, H / 2, 'bg').setDisplaySize(W, H);
     for (let i = 0; i < ROWS * COLS; i++) {
       const { x, y } = cellXY(i);
       this.add.image(x, y, 'slot').setDisplaySize(CELL - 6, CELL - 6);

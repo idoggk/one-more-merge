@@ -41,7 +41,8 @@ for (const f of files) {
   }
   const dest = join(out, `${key}.png`);
   if (key === 'bg') {
-    await sharp(f).resize(720, 1280, { fit: 'cover' }).png({ compressionLevel: 9 }).toFile(dest);
+    const buf = await sharp(f).trim({ threshold: 10 }).png().toBuffer();
+    await sharp(buf).resize({ width: 720 }).png({ compressionLevel: 9 }).toFile(dest);
   } else {
     const s = SIZE(key);
     const trimmed = key === 'slot' || key === 'card' ? sharp(f) : sharp(f).trim({ threshold: 10 });
