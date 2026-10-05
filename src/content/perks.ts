@@ -1,11 +1,11 @@
 import type { PerkId } from '../core/types';
 
 export const PERKS: Record<PerkId, { name: string; text: string; icon: string }> = {
-  twin: { name: 'TWIN BURST', text: 'Cannons fire a bonus burst in chains: +40%', icon: 'cannon' },
+  twin: { name: 'TWIN BURST', text: 'Chain cannon shots +40%', icon: 'cannon' },
   leads: { name: 'LONG LEADS', text: 'Coils reach one extra tile', icon: 'coil' },
-  encore: { name: 'ENCORE', text: 'Long chains multiply harder', icon: 'bell' },
-  juice: { name: 'EXTRA JUICE', text: 'Overdrive: 5 merges, lasts 8s', icon: 'bolt' },
-  quality: { name: 'QUALITY PARTS', text: '1 in 4 parts arrives upgraded', icon: 'crate' },
+  encore: { name: 'ENCORE', text: 'Long chains hit harder', icon: 'bell' },
+  juice: { name: 'EXTRA JUICE', text: 'Overdrive sooner, lasts longer', icon: 'bolt' },
+  quality: { name: 'QUALITY PARTS', text: '1 in 4 parts arrive upgraded', icon: 'crate' },
 };
 
 export const FAMILY_INFO = {

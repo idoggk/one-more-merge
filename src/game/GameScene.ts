@@ -93,6 +93,7 @@ export class GameScene extends Phaser.Scene {
   headerText!: Phaser.GameObjects.Text;
   timerText!: Phaser.GameObjects.Text;
   odGauge!: Phaser.GameObjects.Graphics;
+  boltIcon?: Phaser.GameObjects.Image;
   odGlow!: Phaser.GameObjects.Graphics;
   overlayG!: Phaser.GameObjects.Graphics;
   previewText!: Phaser.GameObjects.Text;
@@ -144,7 +145,10 @@ export class GameScene extends Phaser.Scene {
     })();
     const loaded = saved ? deserialize(saved) : null;
     if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial')) this.startState(loaded);
-    else this.startState(newGame(Date.now() >>> 0, !this.meta.tutorialDone));
+    else {
+      this.startState(newGame(Date.now() >>> 0, !this.meta.tutorialDone));
+      if (this.meta.tutorialDone) this.openTitle();
+    }
 
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointermove', this.onMove, this);
@@ -180,6 +184,8 @@ export class GameScene extends Phaser.Scene {
     this.headerText = this.add.text(76, 24, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' });
     this.timerText = this.add.text(W - 28, 22, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#3b2533' }).setOrigin(1, 0);
     this.odGauge = this.add.graphics();
+    if (this.hasArt('icon_timer')) this.add.image(W - 150, 48, 'icon_timer').setDisplaySize(44, 44);
+    if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
     // target
@@ -446,6 +452,7 @@ export class GameScene extends Phaser.Scene {
     const a = this.s.grid[from];
     const b = this.s.grid[to];
     const merging = canMerge(a, b);
+    const prevBest = this.s.stats.bestRank;
     const res = drop(this.s, from, to, id);
     if (!res.ok) {
       sfx.invalid();
@@ -460,7 +467,16 @@ export class GameScene extends Phaser.Scene {
         nv.setScale(1.45);
         this.tweens.add({ targets: nv, scale: 1, duration: 260, ease: 'Back.Out' });
       }
-      sfx.merge(this.s.grid[to]!.rank);
+      const ng = this.s.grid[to]!;
+      sfx.merge(ng.rank);
+      if (ng.rank > prevBest && ng.rank >= 2) {
+        const { x, y } = cellXY(to);
+        this.time.delayedCall(120, () => {
+          sfx.rankUp(ng.rank);
+          this.floatText(x, y - 70, ng.rank >= MAX_RANK ? 'MAX RANK!' : `RANK ${ng.rank}!`, '#ffffff', 34, 200);
+          this.ring(x, y, FAMILY_INFO[ng.family].color, 110, 16, 420);
+        });
+      }
       haptic(15);
       if (this.s.phase === 'tutorial' || this.tutorialStep < 2) this.tutorialStep++;
     } else {
@@ -538,7 +554,29 @@ export class GameScene extends Phaser.Scene {
     }
     this.updateHints();
     this.drawHud(dms);
+    this.animateIdle();
     if (this.time.now - this.lastSave > 2000) this.save();
+  }
+
+  /** Cannons about to auto-fire puff up a little; everything breathes slightly. */
+  animateIdle() {
+    const t = this.time.now / 1000;
+    this.s.grid.forEach((g, idx) => {
+      if (!g) return;
+      const v = this.views.get(g.id);
+      if (!v || v === this.dragView || this.tweens.isTweening(v)) return;
+      const img = v.list[0] as Phaser.GameObjects.Image;
+      const base = (img.getData('base') as number) ?? img.scaleX;
+      img.setData('base', base);
+      let sx = 1 + Math.sin(t * 2.2 + idx) * 0.015;
+      let sy = 1 - Math.sin(t * 2.2 + idx) * 0.015;
+      if (g.family === 'cannon' && this.s.phase === 'playing' && g.cd < 0.35) {
+        const k = 1 - g.cd / 0.35;
+        sx += 0.06 * k;
+        sy -= 0.08 * k;
+      }
+      img.setScale(base * sx, base * sy);
+    });
   }
 
   updateHints() {
@@ -588,6 +626,7 @@ export class GameScene extends Phaser.Scene {
     const og = this.odGauge.clear();
     const need = odNeeded(s);
     const gx = W - 200 - need * 26;
+    this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
     const active = s.odLeft > 0;
     for (let i = 0; i < (demo ? 0 : need); i++) {
       const filled = active || i < s.odCharge;
@@ -695,33 +734,71 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  floatText(x: number, y: number, text: string, color = '#ffffff', size = 34) {
-    const t = this.add.text(x, y, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5).setDepth(70);
-    this.tweens.add({ targets: t, y: y - 70, alpha: 0, duration: 900, ease: 'Quad.Out', onComplete: () => t.destroy() });
+  floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0) {
+    const t = this.add.text(x, y, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5).setDepth(70);
+    t.setScale(0.3).setAngle(Phaser.Math.Between(-4, 4));
+    this.tweens.add({ targets: t, scale: 1, duration: 160, ease: 'Back.Out' });
+    this.tweens.add({ targets: t, y: y - 70, alpha: 0, delay: 220 + hold, duration: 700, ease: 'Quad.In', onComplete: () => t.destroy() });
     return t;
+  }
+
+  /** Expanding ring burst (merge snap, muzzle flash, impacts). */
+  ring(x: number, y: number, color: number, radius = 60, width = 10, dur = 260) {
+    const g = this.add.graphics().setDepth(48).setPosition(x, y);
+    const o = { r: radius * 0.3, a: 1 };
+    this.tweens.add({
+      targets: o,
+      r: radius,
+      a: 0,
+      duration: dur,
+      ease: 'Quad.Out',
+      onUpdate: () => g.clear().lineStyle(width * o.a + 1, color, o.a).strokeCircle(0, 0, o.r),
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  flash(x: number, y: number, size: number, color = 0xffffff) {
+    const c = this.add.image(x, y, 'dot').setTint(color).setDepth(49).setScale(size / 16).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: c, scale: (size * 1.6) / 16, alpha: 0, duration: 140, onComplete: () => c.destroy() });
   }
 
   hitTarget(big: boolean) {
     this.tweens.killTweensOf(this.target);
     const s = this.targetBaseScale;
-    this.target.setScale(s * (big ? 1.18 : 1.06), s * (big ? 0.85 : 0.95)).setAngle(Phaser.Math.Between(-6, 6));
-    this.tweens.add({ targets: this.target, scaleX: s, scaleY: s, angle: 0, duration: big ? 320 : 160, ease: 'Elastic.Out' });
+    this.target.setScale(s * (big ? 1.18 : 1.05), s * (big ? 0.85 : 0.96)).setAngle(Phaser.Math.Between(-6, 6)).setY(TARGET_Y);
+    this.tweens.add({ targets: this.target, scaleX: s, scaleY: s, angle: 0, duration: big ? 360 : 160, ease: 'Elastic.Out' });
+    if (big) {
+      this.target.setTintFill(0xffffff);
+      this.time.delayedCall(60, () => this.target.clearTint());
+    }
     sfx.hit(big);
   }
 
   shoot(fromX: number, fromY: number, color: number, delay: number, big: boolean, onHit?: () => void) {
     this.time.delayedCall(delay, () => {
-      const b = this.add.image(fromX, fromY, 'dot').setTint(color).setDepth(52).setScale(big ? 1.6 : 0.9);
+      const b = this.add.image(fromX, fromY, 'dot').setTint(color).setDepth(52).setScale(big ? 1.7 : 0.8);
+      const trail = big ? this.add.image(fromX, fromY, 'dot').setTint(0xffffff).setDepth(51).setScale(1).setAlpha(0.6) : null;
+      const tx = this.target.x + Phaser.Math.Between(-50, 50);
+      const ty = this.target.y + Phaser.Math.Between(-60, 50);
+      const midX = (fromX + tx) / 2 + Phaser.Math.Between(-60, 60);
+      const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(fromX, fromY), new Phaser.Math.Vector2(midX, Math.min(fromY, ty) - 40), new Phaser.Math.Vector2(tx, ty));
+      const o = { t: 0 };
       this.tweens.add({
-        targets: b,
-        x: this.target.x + Phaser.Math.Between(-50, 50),
-        y: this.target.y + Phaser.Math.Between(-60, 60),
-        duration: 200,
+        targets: o,
+        t: 1,
+        duration: big ? 230 : 200,
         ease: 'Quad.In',
+        onUpdate: () => {
+          const p = curve.getPoint(o.t);
+          if (trail) trail.setPosition(b.x, b.y);
+          b.setPosition(p.x, p.y);
+        },
         onComplete: () => {
           this.sparks.setParticleTint(color);
           this.sparks.explode(big ? 8 : 3, b.x, b.y);
+          if (big) this.ring(b.x, b.y, color, 46, 8, 200);
           b.destroy();
+          trail?.destroy();
           onHit?.();
         },
       });
@@ -737,10 +814,10 @@ export class GameScene extends Phaser.Scene {
     }
     sfx.cannon(0, false);
     this.passiveAcc += dmg;
-    this.shoot(x, y - 40, 0xff7a52, 0, false, () => {
+    this.shoot(x, y - 40, 0xff9a72, 0, false, () => {
       this.hitTarget(false);
-      if (this.time.now - this.passiveTimer > 450 && this.passiveAcc > 0) {
-        this.floatText(this.target.x + Phaser.Math.Between(-110, 110), this.target.y - 40, fmt(this.passiveAcc), '#ffe0d0', 24);
+      if (this.time.now - this.passiveTimer > 600 && this.passiveAcc > 0) {
+        this.floatText(this.target.x + Phaser.Math.Between(-120, 120), this.target.y - 40, fmt(this.passiveAcc), '#ffe0d0', 22);
         this.passiveAcc = 0;
         this.passiveTimer = this.time.now;
       }
@@ -749,81 +826,101 @@ export class GameScene extends Phaser.Scene {
 
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     const maxDepth = Math.max(...r.activations.map((a) => a.depth));
-    const step = maxDepth > 0 ? Math.min(55, 350 / maxDepth) : 0;
-    const lg = this.linkG;
-    const windup = kickback ? 260 : 90;
+    const step = maxDepth > 0 ? Math.min(70, 380 / maxDepth) : 0;
+    const windup = kickback ? 300 : 90;
+    const depthOf = new Map(r.activations.map((a) => [a.idx, a.depth]));
     if (odStart) {
       sfx.overdrive();
-      this.floatText(W / 2, BY + 40, 'OVERDRIVE!', '#ff6a00', 52);
-      this.cameras.main.flash(120, 255, 140, 0, false);
+      this.floatText(W / 2, BY + 40, 'OVERDRIVE!', '#ff6a00', 56, 300);
+      this.cameras.main.flash(140, 255, 140, 0, false);
     }
-    // links
-    this.time.delayedCall(windup, () => {
-      for (const e of r.edges) {
-        const a = cellXY(e.from);
-        const b = cellXY(e.to);
-        const col = e.kind === 'coil' ? 0x27c4e0 : e.kind === 'bell' ? 0xf2b521 : 0xffffff;
-        const d = (r.activations.find((x) => x.idx === e.from)?.depth ?? 0) * step;
-        this.time.delayedCall(d, () => {
-          lg.lineStyle(e.kind === 'spark' ? 6 : 9, col, 0.95).lineBetween(a.x, a.y, b.x, b.y);
-        });
-      }
-      this.time.delayedCall(maxDepth * step + 260, () => lg.clear());
-    });
-    r.activations.forEach((a, i) => {
+    // root snap
+    const root = cellXY(r.rootIdx);
+    this.ring(root.x, root.y, 0xffffff, 80, 14, 300);
+    this.flash(root.x, root.y, 70);
+    // links: a fading line + a travelling pulse per route
+    const lg = this.add.graphics().setDepth(30);
+    for (const e of r.edges) {
+      const a = cellXY(e.from);
+      const b = cellXY(e.to);
+      const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : 0xffffff;
+      const d = windup + (depthOf.get(e.from) ?? 0) * step;
+      this.time.delayedCall(d, () => {
+        lg.lineStyle(e.kind === 'spark' ? 5 : 8, col, 0.85).lineBetween(a.x, a.y, b.x, b.y);
+        const p = this.add.image(a.x, a.y, 'spark').setTint(col).setDepth(31).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: p, x: b.x, y: b.y, angle: 180, duration: Math.max(60, step), onComplete: () => p.destroy() });
+      });
+    }
+    this.tweens.add({ targets: lg, alpha: 0, delay: windup + maxDepth * step + 200, duration: 250, onComplete: () => lg.destroy() });
+
+    for (let d = 0; d <= maxDepth; d++) sfx.cascadeStep(Math.min(d * 2 + (r.count > 8 ? 2 : 0), 13), (windup + d * step) / 1000);
+    r.activations.forEach((a) => {
       const delay = windup + a.depth * step;
       const { x, y } = cellXY(a.idx);
       const color = FAMILY_INFO[a.family].color;
-      sfx.cascadeStep(Math.min(i, 13), (delay + 20) / 1000);
       this.time.delayedCall(delay, () => {
         const g = this.s.grid[a.idx];
         const v = g && g.id === a.id ? this.views.get(a.id) : undefined;
         if (v && v !== this.dragView) {
           this.tweens.killTweensOf(v);
-          v.setScale(1.28);
-          this.tweens.add({ targets: v, scale: 1, x, y, duration: 220, ease: 'Back.Out' });
+          v.setScale(1.3).setPosition(x, a.family === 'cannon' ? y + 12 : y);
+          this.tweens.add({ targets: v, scale: 1, x, y, duration: 240, ease: 'Back.Out' });
         }
         this.sparks.setParticleTint(color);
         this.sparks.explode(a.charge > 1 ? 10 : 5, x, y);
-        if (a.family === 'cannon') sfx.cannon(0, true);
+        if (a.charge > 1) this.ring(x, y, 0x5fe8ff, 56, 6, 220);
+        if (a.family === 'cannon') {
+          this.flash(x, y - 46, 40, 0xfff0a0);
+          sfx.cannon(0, true);
+        }
       });
       this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
     });
-    const end = windup + maxDepth * step + 240;
+    const end = windup + maxDepth * step + 260;
     this.time.delayedCall(end, () => {
       const big = r.count >= 6;
       this.hitTarget(true);
-      if (big) this.cameras.main.shake(160, 0.004 + Math.min(r.count, 30) * 0.0003);
+      if (r.count >= 3) sfx.chord(Math.min(r.count, 20));
+      if (big) this.cameras.main.shake(180, 0.004 + Math.min(r.count, 30) * 0.0003);
       haptic(big ? 30 : 12);
+      const huge = r.count >= 10;
       const label = r.count > 1 ? `x${r.count} CHAIN!\n${fmt(r.total)}` : fmt(r.total);
-      this.floatText(this.target.x, this.target.y - 20, label, r.count >= 10 ? '#ffcf33' : '#ffffff', r.count >= 10 ? 48 : 38);
+      this.floatText(this.target.x, this.target.y - 20, label, huge ? '#ffcf33' : '#ffffff', huge ? 54 : 40, huge ? 250 : 0);
     });
   }
 
   playKill(final: boolean, demo: boolean) {
     const tgt = this.target;
-    this.time.delayedCall(demo ? 350 : 300, () => {
-      sfx.kill();
-      this.chunks.explode(demo ? 20 : 60, tgt.x, tgt.y);
-      this.sparks.setParticleTint(0xffcf33);
-      this.sparks.explode(40, tgt.x, tgt.y);
-      this.cameras.main.shake(300, 0.012);
-      haptic(60);
-      this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 56);
-      this.tweens.add({
-        targets: tgt,
-        y: tgt.y + 40,
-        angle: 25,
-        alpha: 0,
-        scale: this.targetBaseScale * 0.5,
-        duration: 380,
-        onComplete: () => {
-          if (demo || this.s.target === -1) this.setTargetTexture();
-        },
+    this.time.delayedCall(demo ? 300 : 280, () => {
+      // wind-up: white flash + rattle, then blow apart
+      this.tweens.killTweensOf(tgt);
+      tgt.setTintFill(0xffffff);
+      this.tweens.add({ targets: tgt, x: { from: tgt.x - 8, to: tgt.x + 8 }, duration: 40, yoyo: true, repeat: demo ? 1 : 3 });
+      this.time.delayedCall(demo ? 120 : 260, () => {
+        tgt.clearTint().setX(W / 2);
+        sfx.kill();
+        this.chunks.explode(demo ? 20 : 70, tgt.x, tgt.y);
+        this.sparks.setParticleTint(0xffcf33);
+        this.sparks.explode(50, tgt.x, tgt.y);
+        this.ring(tgt.x, tgt.y, 0xffcf33, 260, 24, 420);
+        this.ring(tgt.x, tgt.y, 0xffffff, 180, 14, 300);
+        this.cameras.main.shake(320, 0.014);
+        haptic(60);
+        this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 60, 300);
+        this.tweens.add({
+          targets: tgt,
+          y: tgt.y + 60,
+          angle: 30,
+          alpha: 0,
+          scale: this.targetBaseScale * 0.4,
+          duration: 380,
+          onComplete: () => {
+            if (demo || this.s.target === -1) this.setTargetTexture();
+          },
+        });
       });
     });
   }
-
   introTarget() {
     this.time.delayedCall(80, () => {
       this.setTargetTexture();
@@ -870,21 +967,24 @@ export class GameScene extends Phaser.Scene {
   openChoice() {
     if (this.s.phase !== 'choice' || this.modal) return;
     this.cancelDrag();
-    const c = this.panel(760);
-    const top = H / 2 - 380;
-    c.add(this.add.text(W / 2, top + 60, 'PICK AN UPGRADE', { fontFamily: 'Lilita One, Arial Black', fontSize: '46px', color: '#3b2533' }).setOrigin(0.5));
+    const c = this.panel(470);
+    const top = H / 2 - 235;
+    c.add(this.add.text(W / 2, top + 62, 'PICK AN UPGRADE', { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
     this.s.offer.forEach((id: PerkId, i) => {
-      const y = top + 190 + i * 200;
-      const card = this.add.container(W / 2, y);
-      const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-280, -84, 560, 172, 26).fillStyle(0xffffff, 1).fillRoundedRect(-275, -79, 550, 162, 22);
+      const card = this.add.container(W / 2 + (i - 1) * 206, top + 280);
       const p = PERKS[id];
-      const iconKey = p.icon === 'bolt' ? 'icon_bolt' : p.icon === 'crate' ? 'cannon_2' : `${p.icon}_2`;
-      const icon = this.add.image(-200, 0, this.hasArt(iconKey) || iconKey.includes('_') ? iconKey : 'spark');
-      icon.setScale(Math.min(110 / icon.width, 110 / icon.height));
-      const n = this.add.text(-120, -34, p.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0, 0.5);
-      const t = this.add.text(-120, 22, p.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#5a4a5a', wordWrap: { width: 380 } }).setOrigin(0, 0.5);
-      card.add([g, icon, n, t]).setSize(560, 172).setInteractive({ useHandCursor: true });
-      card.setScale(0.6).setAlpha(0);
+      const parts: Phaser.GameObjects.GameObject[] = [];
+      if (this.hasArt('card')) {
+        parts.push(this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(-76, -94, 152, 198, 14));
+        parts.push(this.add.image(0, 0, 'card').setDisplaySize(322, 322));
+      } else parts.push(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-100, -135, 200, 270, 22).fillStyle(0xffffff, 1).fillRoundedRect(-95, -130, 190, 260, 18));
+      const iconKey = this.hasArt(`perk_${id}`) ? `perk_${id}` : p.icon === 'bolt' ? 'icon_bolt' : p.icon === 'crate' ? 'cannon_2' : `${p.icon}_2`;
+      const icon = this.add.image(0, -52, this.textures.exists(iconKey) ? iconKey : 'spark');
+      icon.setScale(Math.min(96 / icon.width, 96 / icon.height));
+      const n = this.add.text(0, 22, p.name.replace(' ', '\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533', align: 'center', lineSpacing: -6 }).setOrigin(0.5);
+      const t = this.add.text(0, 86, p.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '16px', color: '#5a4a5a', align: 'center', wordWrap: { width: 140 } }).setOrigin(0.5);
+      card.add([...parts, icon, n, t]).setSize(200, 270).setInteractive({ useHandCursor: true });
+      this.tweens.add({ targets: icon, y: -58, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: i * 200 });      card.setScale(0.6).setAlpha(0);
       this.tweens.add({ targets: card, scale: 1, alpha: 1, delay: 80 + i * 90, duration: 260, ease: 'Back.Out' });
       card.on('pointerup', () => {
         sfx.click();
@@ -915,8 +1015,16 @@ export class GameScene extends Phaser.Scene {
     store(META_KEY, JSON.stringify(m));
     store(SAVE_KEY, null);
     won ? sfx.win() : sfx.lose();
-    const c = this.panel(700);
-    const top = H / 2 - 350;
+    const art = won ? 'victory' : 'defeat';
+    const hasPic = this.hasArt(art);
+    const c = this.panel(hasPic ? 960 : 700);
+    const top = H / 2 - (hasPic ? 480 : 350) + (hasPic ? 250 : 0);
+    if (hasPic) {
+      const pic = this.add.image(W / 2, top - 110, art);
+      pic.setScale(Math.min(300 / pic.width, 270 / pic.height));
+      c.add(pic);
+      this.tweens.add({ targets: pic, scale: { from: pic.scale * 0.6, to: pic.scale }, duration: 400, ease: 'Back.Out' });
+    }
     c.add(this.add.text(W / 2, top + 80, won ? 'MACHINE WINS!' : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
     const lines: string[] = [];
     if (won) lines.push(`Time  ${s.elapsed.toFixed(1)}s${newBest ? '  NEW BEST!' : ''}${s.practice ? ' (practice)' : ''}`);
@@ -935,6 +1043,35 @@ export class GameScene extends Phaser.Scene {
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
     this.startState(newGame(Date.now() >>> 0, false));
+  }
+
+  openTitle() {
+    const c = this.add.container(0, 0).setDepth(100);
+    if (this.hasArt('title')) {
+      const img = this.add.image(W / 2, H / 2, 'title');
+      img.setScale(Math.max(W / img.width, H / img.height));
+      c.add(img);
+    } else c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.55).setInteractive());
+    c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive());
+    let logo: Phaser.GameObjects.GameObject;
+    if (this.hasArt('logo')) {
+      const l = this.add.image(W / 2, 250, 'logo');
+      l.setScale(Math.min(620 / l.width, 360 / l.height));
+      logo = l;
+    } else {
+      const l = this.add.text(W / 2, 250, 'ONE MORE\nMERGE', { fontFamily: 'Lilita One, Arial Black', fontSize: '112px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 16, align: 'center', lineSpacing: -18 }).setOrigin(0.5);
+      l.setShadow(0, 10, '#2b1d2e', 0, true, true);
+      logo = l;
+      c.add(this.add.text(W / 2, 410, 'JUNK MACHINE', { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
+    }
+    c.add(logo);
+    this.tweens.add({ targets: logo, angle: { from: -2, to: 2 }, scale: '*=1.03', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    const m = this.meta;
+    const info = [m.bestTime !== null ? `Best time  ${m.bestTime.toFixed(1)}s` : 'Beat all 3 before the clock runs out!', m.bestChain ? `Biggest chain  x${m.bestChain}` : ''].filter(Boolean).join('\n');
+    c.add(this.add.text(W / 2, H - 330, info, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 8, align: 'center' }).setOrigin(0.5));
+    this.modal = c;
+    const play = this.button(c, W / 2, H - 200, 440, 'PLAY', 0x5fbf4a, () => this.closeModal());
+    this.tweens.add({ targets: play, scale: 1.06, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
 
   openPause() {

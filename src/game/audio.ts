@@ -84,6 +84,14 @@ export const sfx = {
     noise(big ? 0.25 : 0.08, big ? 0.35 : 0.12, 0, 200);
     tone(big ? 90 : 140, big ? 0.3 : 0.1, 'sawtooth', big ? 0.2 : 0.08, 0, 40);
   },
+  chord: (n: number) => {
+    const base = 220 * Math.pow(2, Math.min(n, 20) / 24);
+    for (const m of [1, 1.25, 1.5, 2]) tone(base * m, 0.35, 'triangle', 0.1);
+    noise(0.2, 0.15, 0, 300);
+  },
+  rankUp: (rank: number) => {
+    for (let i = 0; i < 3; i++) tone(note(523, rank + i * 2), 0.12, 'square', 0.08, i * 0.06);
+  },
   delivery: () => tone(700, 0.04, 'sine', 0.06),
   scrap: () => noise(0.15, 0.2, 0, 1500),
   kill: () => {
