@@ -68,6 +68,13 @@ Ablation (matched seeds 1–200, rev3 HP unless stated). Wins / median winning t
 Watch-outs: Kickback is ~40% of skilled damage (ChatGPT: "don't let the free reward carry the run");
 under slow supply the random novice sometimes beats greedy merging — dense boards chain more ("hoarding").
 
+## Round 3
+- **Kickback rank cap** (ChatGPT's pick over 'reduced damage' / 'lowest rank'): threshold drops auto-fuse only into rank 1–2 pieces;
+  otherwise they become plain drops. Never skips the player's expensive upgrades. Kickback share of skilled damage 40% → 22%.
+- **Hoarding is fine** (ChatGPT): a crammed contraption going off is the fantasy. New 'hoard until 24 then merge' bot wins 0/200.
+- **Friendlier opening**: HP 2,250 / 11,250 / 18,000. 200 seeds: novice 78%/115 s, greedy 64%/111 s, cascade 98%/66 s, hoarder 0%, idle 0%.
+  Harder preset (HP ×1.33 = previous values) is the natural first 'challenge' unlock.
+
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
 1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·
 3 two payload cannons in one chain: **Magnet** · 4 magnet makes a match: **Battery** · 5 battery discharge in a win: **Fan** ·

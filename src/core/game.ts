@@ -452,6 +452,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
   const options: { idx: number; land: number }[] = [];
   s.grid.forEach((g, idx) => {
     if (!g || g.rank >= MAX_RANK || reserved.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
+    if (fuse && g.rank > TUNING.kickbackMaxRank) return;
     const r = Math.floor(idx / COLS), c = idx % COLS;
     for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
       const rr = r + dr, cc = c + dc;

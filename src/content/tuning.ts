@@ -26,7 +26,7 @@ export const TUNING = {
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
-  targetHp: [3000, 15000, 24000],
+  targetHp: [2250, 11250, 18000],
   mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
@@ -37,6 +37,8 @@ export const TUNING = {
   sameFamilyRelay: false,
   /** Threshold drops auto-fuse; big-cascade drops just land beside a match. */
   kickbackFuse: true,
+  /** Auto-fuse only into rank <= this, so Kickback never skips the player's expensive upgrades. */
+  kickbackMaxRank: 2,
   kickbackFall: 0.6,
   bigCascade: 8,
   bigCascadeCooldown: 8,

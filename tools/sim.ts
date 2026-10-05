@@ -41,6 +41,12 @@ const seeker: Policy = {
   },
 };
 
+const hoarder: Policy = {
+  name: 'hoard>=24 2.5s',
+  every: 2.5,
+  pick: (s, rng) => (s.grid.filter(Boolean).length >= 24 ? seeker.pick(s, rng) : null),
+};
+
 function play(seed: number, pol: Policy) {
   const s = newGame(seed);
   const rng = new Rng(seed * 7 + 1);
@@ -74,9 +80,9 @@ function play(seed: number, pol: Policy) {
 
 const median = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : NaN);
 
-function report(label: string, N = 120) {
+function report(label: string, N = 200) {
   console.log(`\n== ${label}`);
-  for (const pol of label.includes('SWEEP') ? [novice, greedy, seeker] : [idle, novice, greedy, seeker]) {
+  for (const pol of label.includes('SWEEP') ? [novice, greedy, seeker, hoarder] : [idle, novice, greedy, seeker, hoarder]) {
     const rs = Array.from({ length: N }, (_, i) => play(i + 1, pol));
     const wins = rs.filter((r) => r.won);
     console.log(
@@ -88,18 +94,12 @@ function report(label: string, N = 120) {
 const hp = (m: number) => TUNING.targetHp.map((h) => Math.round(h * m));
 const rev3 = { passiveMult: 1, kickback: false, sameFamilyRelay: true, supplyCurve: [] as [number, number][], supplyPeriod: 2.2, holdAt: 99, releaseAt: 99, targetHp: [3200, 16000, 26000] };
 const variants: [string, Partial<typeof TUNING>][] = [
-  ['A rev3 baseline', rev3],
-  ['B family filter only', { ...rev3, sameFamilyRelay: false }],
-  ['C payload only', { ...rev3, passiveMult: 0.33 }],
-  ['D threshold kickback only', { ...rev3, kickback: true, bigCascade: 99 }],
-  ['E pacing curve + guard only', { ...rev3, supplyCurve: TUNING.supplyCurve, supplyPeriod: 4.5, holdAt: 25, releaseAt: 22 }],
-  ['F full hybrid @ current HP', {}],
-  ['G full hybrid HPx0.85', { targetHp: hp(0.85) }],
-  ['H full hybrid HPx0.7', { targetHp: hp(0.7) }],
-  ...[0.65, 0.75, 0.85].flatMap((k) =>
-    [0.7, 0.85, 1].map((m): [string, Partial<typeof TUNING>] => [`
-SWEEP curve x${k} HPx${m}`, { supplyCurve: [[15, 2.8 * k], [45, 3.2 * k], [90, 3.8 * k]], supplyPeriod: 4.5 * k, targetHp: hp(m) }]),
-  ),];
+  ['R2 (fuse any rank)', { kickbackMaxRank: 6 }],
+  ['R3 fuse cap rank<=2', {}],
+  ['R3 cap HPx0.85', { targetHp: hp(0.85) }],
+  ['R3 cap HPx0.75', { targetHp: hp(0.75) }],
+  ['R3 cap HPx0.65', { targetHp: hp(0.65) }],
+  ['rev3 ref', rev3],];
 const base = { ...TUNING };
 const only = process.argv[2];
 for (const [label, v] of variants) {
