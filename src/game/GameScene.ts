@@ -21,6 +21,7 @@ import {
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { audioSettings, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
+import * as tlog from '../platform/telemetry';
 
 export const W = 720;
 export const H = 1280;
@@ -302,6 +303,7 @@ export class GameScene extends Phaser.Scene {
 
   startState(s: GameState) {
     this.closeModal();
+    if (s.elapsed === 0 && s.stats.merges === 0) tlog.newRun({ mode: s.hard ? 'challenge' : s.phase === 'tutorial' ? 'tutorial' : s.practice ? 'practice' : 'normal', toys: s.toys, seed: s.seed });
     for (const v of this.views.values()) v.destroy();
     this.views.clear();
     this.s = s;
@@ -530,6 +532,7 @@ export class GameScene extends Phaser.Scene {
     const res = drop(this.s, from, to, id);
     if (!res.ok) {
       sfx.invalid();
+      tlog.log('invalid');
       return false;
     }
     this.idleTime = 0;
@@ -549,6 +552,8 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: nv, scale: 1, duration: 260, ease: 'Back.Out' });
       }
       const ng = this.s.grid[to]!;
+      const ce = res.events.find((e) => e.type === 'cascade');
+      tlog.log('merge', { fam: ng.family, rank: ng.rank, chain: ce && ce.type === 'cascade' ? ce.result.count : 1, at: +this.s.elapsed.toFixed(1), occ: this.s.grid.filter(Boolean).length });
       sfx.merge(ng.rank);
       if (ng.rank > prevBest && ng.rank >= 2) {
         const { x, y } = cellXY(to);
@@ -562,6 +567,7 @@ export class GameScene extends Phaser.Scene {
       if (this.s.phase === 'tutorial' || this.tutorialStep < 2) this.tutorialStep++;
     } else {
       sfx.drop();
+      tlog.log('move', { swap: !!b });
       this.reconcile();
     }
     this.handleEvents(res.events);
@@ -572,6 +578,7 @@ export class GameScene extends Phaser.Scene {
   doScrap(idx: number, id: number) {
     const res = scrap(this.s, idx, id);
     if (!res.ok) return;
+    tlog.log('scrap', { rank: (res.events[0] as { gadget?: Gadget }).gadget?.rank });
     sfx.scrap();
     const v = this.views.get(id);
     if (v) {
@@ -825,6 +832,7 @@ export class GameScene extends Phaser.Scene {
         case 'kickback': {
           const land = cellXY(e.idx);
           sfx.kickback(e.into >= 0);
+          tlog.log('kickback', { fuse: e.into >= 0 });
           this.chunks.explode(8, land.x, land.y);
           if (e.into >= 0) {
             const into = cellXY(e.into);
@@ -841,6 +849,7 @@ export class GameScene extends Phaser.Scene {
           if (e.level >= 2) this.setTargetTexture();
           break;
         case 'kill':
+          if (!e.demo) tlog.log('kill', { target: e.target, at: +this.s.elapsed.toFixed(1) });
           this.playKill(e.final, e.demo);
           break;
         case 'newTarget':
@@ -852,6 +861,8 @@ export class GameScene extends Phaser.Scene {
           needReconcile = true;
           break;
         case 'end':
+          tlog.log('end', { won: e.won, targets: e.won ? 3 : this.s.target, elapsed: +this.s.elapsed.toFixed(1), chain: this.s.stats.biggestChain });
+          tlog.flush();
           this.time.delayedCall(e.won ? 900 : 300, () => this.openResult(e.won));
           break;
       }
@@ -1191,6 +1202,7 @@ export class GameScene extends Phaser.Scene {
       card.on('pointerup', () => {
         sfx.click();
         this.closeModal();
+        tlog.log('perk', { id });
         const res = choosePerk(this.s, id);
         this.handleEvents(res.events);
         this.floatText(W / 2, BY + 60, p.name + '!', '#ffcf33', 44);
@@ -1266,6 +1278,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   retry(hard = this.s.hard) {
+    tlog.log('retry', { hard });
     this.closeModal();
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
@@ -1331,11 +1344,26 @@ export class GameScene extends Phaser.Scene {
       (mus.list[1] as Phaser.GameObjects.Text).setText(`MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`);
     });
     this.button(c, W / 2, top + 520, 420, 'RESTART', 0xe8452c, () => this.retry());
+    const ex = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 740 : 640), 'export playtest log', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    ex.on('pointerup', () => {
+      try {
+        const blob = new Blob([tlog.exportText()], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `one-more-merge-playtest-${Date.now()}.json`;
+        a.click();
+        ex.setText('saved ✓');
+      } catch {
+        ex.setText('export failed');
+      }
+    });
+    c.add(ex);
     if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 630, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.retry());
   }
 
   save() {
     this.lastSave = this.time.now;
+    tlog.flush();
     if (this.s.phase === 'won' || this.s.phase === 'lost') return;
     if (this.s.phase !== 'tutorial' && !this.meta.tutorialDone) {
       this.meta.tutorialDone = true;

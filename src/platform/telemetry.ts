@@ -1,0 +1,80 @@
+// Local-only playtest log. Nothing leaves the device; export is a manual "copy/download" from the pause menu.
+const KEY = 'omm.telemetry.v1';
+const MAX = 4000;
+
+export interface TEvent {
+  t: number; // wall-clock ms
+  run: number; // run counter
+  e: string;
+  [k: string]: unknown;
+}
+
+let buf: TEvent[] = [];
+let run = 0;
+try {
+  buf = JSON.parse(localStorage.getItem(KEY) || '[]');
+  run = buf.length ? buf[buf.length - 1].run : 0;
+} catch {
+  buf = [];
+}
+
+let dirty = false;
+export function log(e: string, data: Record<string, unknown> = {}) {
+  buf.push({ t: Date.now(), run, e, ...data });
+  if (buf.length > MAX) buf = buf.slice(-MAX);
+  dirty = true;
+}
+
+export function newRun(data: Record<string, unknown> = {}) {
+  run++;
+  log('run_start', data);
+}
+
+export function flush() {
+  if (!dirty) return;
+  dirty = false;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(buf));
+  } catch {
+    /* storage full / unavailable */
+  }
+}
+
+/** Per-run summary for the playtest table (PLAYTEST.md). */
+export function summary() {
+  const runs = new Map<number, TEvent[]>();
+  for (const ev of buf) (runs.get(ev.run) ?? runs.set(ev.run, []).get(ev.run)!).push(ev);
+  return [...runs.entries()].map(([id, evs]) => {
+    const start = evs.find((x) => x.e === 'run_start');
+    const t0 = start?.t ?? evs[0].t;
+    const merges = evs.filter((x) => x.e === 'merge');
+    const end = evs.find((x) => x.e === 'end');
+    return {
+      run: id,
+      date: new Date(t0).toISOString(),
+      mode: start?.mode ?? '?',
+      firstMergeS: merges.length ? +((merges[0].t - t0) / 1000).toFixed(1) : null,
+      merges: merges.length,
+      moves: evs.filter((x) => x.e === 'move').length,
+      invalid: evs.filter((x) => x.e === 'invalid').length,
+      scraps: evs.filter((x) => x.e === 'scrap').length,
+      biggestChain: Math.max(0, ...merges.map((m) => Number(m.chain) || 0)),
+      kickbacks: evs.filter((x) => x.e === 'kickback').length,
+      result: end ? (end.won ? 'win' : 'loss') : 'quit',
+      targets: end?.targets ?? null,
+      activeS: end?.elapsed ?? null,
+      retriedAfter: evs.some((x) => x.e === 'retry'),
+    };
+  });
+}
+
+export function exportText(): string {
+  return JSON.stringify({ summary: summary(), events: buf }, null, 1);
+}
+
+export function clearLog() {
+  buf = [];
+  run = 0;
+  dirty = true;
+  flush();
+}
