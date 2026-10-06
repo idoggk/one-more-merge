@@ -427,6 +427,13 @@ export class GameScene extends Phaser.Scene {
     return c;
   }
 
+  /** Landing squash: quick flatten then springy settle. */
+  squash(v: Phaser.GameObjects.Container) {
+    if (!v.active) return;
+    v.setScale(1.14, 0.84);
+    this.tweens.add({ targets: v, scaleX: 1, scaleY: 1, duration: 260, ease: 'Back.Out' });
+  }
+
   /** Make sprites match the model grid. */
   reconcile(instant = false, spawnFrom?: Map<number, { x: number; y: number }>, mergeInto?: { x: number; y: number }) {
     const live = new Set<number>();
@@ -441,15 +448,29 @@ export class GameScene extends Phaser.Scene {
         const from = spawnFrom?.get(g.id);
         if (instant) v.setPosition(x, y);
         else if (from) {
-          v.setPosition(from.x, from.y).setScale(0.5);
-          this.tweens.add({ targets: v, x, y, scale: 1, duration: 260, ease: 'Back.Out' });
+          v.setPosition(from.x, from.y).setScale(0.45);
+          const vv = v;
+          const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(from.x, from.y), new Phaser.Math.Vector2((from.x + x) / 2, Math.min(from.y, y) - 140), new Phaser.Math.Vector2(x, y));
+          const o = { t: 0 };
+          this.tweens.add({
+            targets: o,
+            t: 1,
+            duration: 340,
+            ease: 'Sine.InOut',
+            onUpdate: () => {
+              const pt = curve.getPoint(o.t);
+              vv.setPosition(pt.x, pt.y).setScale(0.45 + 0.55 * o.t);
+            },
+            onComplete: () => this.squash(vv),
+          });
         } else {
           v.setPosition(x, y).setScale(0.2);
           this.tweens.add({ targets: v, scale: 1, duration: 280, ease: 'Back.Out' });
         }
       } else if (v !== this.dragView && (Math.abs(v.x - x) > 1 || Math.abs(v.y - y) > 1)) {
         this.tweens.killTweensOf(v);
-        this.tweens.add({ targets: v, x, y, scale: 1, duration: 140, ease: 'Quad.Out' });
+        const vv = v;
+        this.tweens.add({ targets: vv, x, y, scale: 1, angle: 0, duration: 150, ease: 'Quad.Out', onComplete: () => this.squash(vv) });
       }
     });
     for (const [id, v] of this.views) {
@@ -511,7 +532,12 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.dragView);
       this.tweens.add({ targets: this.dragView, scale: 1.15, duration: 80 });
     }
+    // weighty drag: piece leans into the motion and casts a shadow on the board
+    const dx = p.worldX - this.dragView.x;
     this.dragView.setPosition(p.worldX, p.worldY - 40);
+    this.dragView.setAngle(Phaser.Math.Linear(this.dragView.angle, Phaser.Math.Clamp(dx * 0.9, -14, 14), 0.35));
+    if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
+    this.dragShadow.setPosition(p.worldX, p.worldY + 22).setVisible(true);
     const h = this.cellAt(p.worldX, p.worldY);
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
@@ -523,6 +549,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
   overScrapFlag = false;
+  dragShadow?: Phaser.GameObjects.Ellipse;
 
   onUp(p: Phaser.Input.Pointer) {
     if (!this.canAct()) {
@@ -564,6 +591,8 @@ export class GameScene extends Phaser.Scene {
     const from = this.dragIdx;
     const id = this.dragId;
     const view = this.dragView;
+    this.dragShadow?.setVisible(false);
+    view?.setAngle(0);
     this.dragIdx = -1;
     this.hoverIdx = -1;
     if (view) view.setDepth(10);
@@ -582,7 +611,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   snapBack(view: GadgetView | null, idx: number) {
+    this.dragShadow?.setVisible(false);
     if (!view) return;
+    view.setAngle(0);
     const { x, y } = cellXY(idx);
     this.tweens.add({ targets: view, x, y, scale: 1, duration: 160, ease: 'Back.Out' });
   }
@@ -742,8 +773,19 @@ export class GameScene extends Phaser.Scene {
 
   /** Cannons about to auto-fire puff up a little; everything breathes slightly. */
   primeG!: Phaser.GameObjects.Graphics;
+  lastTickSec = -1;
   animateIdle() {
     const t = this.time.now / 1000;
+    if (this.target && !this.tweens.isTweening(this.target) && this.s.phase === 'playing') this.target.setAngle(Math.sin(t * 1.4) * 1.6);
+    if (this.s.phase === 'playing' && this.s.timeLeft < 10 && this.s.target >= 0) {
+      const sec = Math.ceil(this.s.timeLeft);
+      if (sec !== this.lastTickSec) {
+        this.lastTickSec = sec;
+        sfx.click();
+        this.timerText.setScale(1.35);
+        this.tweens.add({ targets: this.timerText, scale: 1, duration: 300, ease: 'Back.Out' });
+      }
+    }
     if (!this.primeG) this.primeG = this.add.graphics().setDepth(11);
     this.primeG.clear();
     this.s.grid.forEach((g, idx) => {
@@ -947,7 +989,7 @@ export class GameScene extends Phaser.Scene {
     hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, bw, 26, 13);
     if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, Math.max(26, bw * frac), 26, 13);
     }
-    this.hpText.setText(fmt(Math.max(0, s.hp)));
+    this.hpText.setText(fmt(Math.max(0, Math.round(this.shownHp))));
 
     // overdrive gauge
     const og = this.odGauge.clear();
@@ -1511,6 +1553,8 @@ export class GameScene extends Phaser.Scene {
     const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(40, H / 2 - h / 2 - 6, W - 80, h + 12, 36).fillStyle(0xfbe7c6, 1).fillRoundedRect(46, H / 2 - h / 2, W - 92, h, 32);
     c.add([dim, g]);
     this.modal = c;
+    c.setAlpha(0).setY(40);
+    this.tweens.add({ targets: c, alpha: 1, y: 0, duration: 220, ease: 'Quad.Out' });
     return c;
   }
 
