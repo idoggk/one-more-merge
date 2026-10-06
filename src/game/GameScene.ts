@@ -462,8 +462,6 @@ export class GameScene extends Phaser.Scene {
     if (this.coach.waitingTap && !this.modal) {
       sfx.click();
       this.coach.hide();
-      this.tutorialStep++;
-      this.time.delayedCall(150, () => this.runTutorial());
       return;
     }
     if (!this.canAct()) return;
@@ -581,6 +579,7 @@ export class GameScene extends Phaser.Scene {
   commitDrop(from: number, to: number, id: number): boolean {
     const a = this.s.grid[from];
     const b = this.s.grid[to];
+    if (this.s.phase === 'tutorial' && this.onTutorialMismatch(from, to)) return false;
     const merging = canMerge(a, b);
     this.pulledMerge = merging && (this.pulledIds.has(a!.id) || this.pulledIds.has(b!.id));
     const prevBest = this.s.stats.bestRank;
@@ -756,19 +755,33 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- guided tutorial (playtest: "I was missing a good tutorial") ----------
 
-  static TUTORIAL: { kind: 'merge' | 'tap'; text: string; prefer?: Family; focus?: 'chain' | 'target' | 'relays' | 'ranks' | 'cannons' }[] = [
-    { kind: 'merge', prefer: 'cannon', text: 'Drag a CANNON onto the other CANNON.\nSame gadget + same number = MERGE!' },
-    { kind: 'tap', focus: 'chain', text: 'BOOM! It got stronger and FIRED.\nIts neighbours fired too: a CHAIN!' },
-    { kind: 'tap', focus: 'target', text: 'Every gadget in a chain hits the monster.\nBigger chain = more damage!' },
-    { kind: 'tap', focus: 'relays', text: 'COILS zap the tiles next to them.\nBELLS ring their whole row.' },
-    { kind: 'merge', prefer: 'coil', text: 'Now merge the two COILS.\nHigher numbers reach farther!' },
-    { kind: 'tap', focus: 'ranks', text: 'The NUMBER is the rank. 1+1 makes 2.\nA 1 can NOT merge with a 2.' },
-    { kind: 'tap', focus: 'cannons', text: 'Cannons also fire on their own, slowly.\nWoken by a chain they hit HARD!' },
-    { kind: 'tap', text: 'Smash 3 junk monsters before the clock\nruns out. New parts keep arriving. GO!' },
+  // Script from ChatGPT round 8 (6 hands-on steps on the real start board, idx = row*5+col).
+  static TUTORIAL: { kind: 'merge' | 'mismatch'; pair: [number, number]; fam: Family; text: string; after?: string; focus?: 'target' | 'chain' | 'row' }[] = [
+    { kind: 'merge', pair: [21, 22], fam: 'cannon', text: 'Same machine, same number.\nDrag one onto its match!', after: 'It got stronger and FIRED!\nEvery machine that fires hits the monster.', focus: 'target' },
+    { kind: 'merge', pair: [6, 16], fam: 'coil', text: 'Merge to fire. Coils zap nearby\nmachines into a CHAIN.', after: 'That was a CHAIN: one merge\nset off its neighbours!', focus: 'chain' },
+    { kind: 'merge', pair: [8, 17], fam: 'bell', text: 'Bells wake machines across\ntheir whole row. Watch the cannon!', after: 'The bell rang its row\nand woke that cannon!', focus: 'row' },
+    { kind: 'mismatch', pair: [5, 22], fam: 'cannon', text: 'Different numbers can NOT merge.\nTry dragging this 1 onto the 2.' },
+    { kind: 'merge', pair: [5, 19], fam: 'cannon', text: 'Cannons fire alone, slowly.\nIn a chain they hit much harder!' },
+    { kind: 'merge', pair: [19, 22], fam: 'cannon', text: 'Two 2s make a 3! Bigger number,\nbigger blast.', after: 'Beat 3 monsters before the\nclock runs out. LET\'S PLAY!' },
   ];
 
   coachY() {
     return Math.max(STAGE_TOP + 90, HP_Y - 120);
+  }
+
+  /** Suggested pair for a step: the scripted cells if still valid, else any legal pair of that family. */
+  tutorialPair(step: (typeof GameScene.TUTORIAL)[number]): [number, number] | null {
+    const [a, b] = step.pair;
+    const ga = this.s.grid[a], gb = this.s.grid[b];
+    if (step.kind === 'mismatch') {
+      if (ga && gb && ga.family === gb.family && ga.rank !== gb.rank) return [a, b];
+      const cs = this.s.grid.flatMap((g, i) => (g && g.family === step.fam ? [{ g, i }] : []));
+      for (const x of cs) for (const y of cs) if (x.g.rank !== y.g.rank) return [x.i, y.i];
+      return null;
+    }
+    if (canMerge(ga, gb)) return [a, b];
+    const pairs = legalPairs(this.s);
+    return pairs.find(([p]) => this.s.grid[p]!.family === step.fam) ?? pairs[0] ?? null;
   }
 
   runTutorial() {
@@ -776,7 +789,7 @@ export class GameScene extends Phaser.Scene {
     const step = GameScene.TUTORIAL[this.tutorialStep];
     this.coach.clear();
     if (!step) {
-      // script done: the real run starts on the board they just improved
+      // script done: the real run starts on the board they just built
       const ev = finishTutorial(this.s);
       this.meta.tutorialDone = true;
       store(META_KEY, JSON.stringify(this.meta));
@@ -785,42 +798,62 @@ export class GameScene extends Phaser.Scene {
       this.showEvent('GO! Beat the TIN CAN', '#ffd24a', 2000);
       return;
     }
-    this.coach.say(step.text, this.coachY(), { tap: step.kind === 'tap' });
-    if (step.kind === 'merge') {
-      const dist = ([a, b]: [number, number]) => Math.abs((a % COLS) - (b % COLS)) + Math.abs(Math.floor(a / COLS) - Math.floor(b / COLS));
-      const pairs = legalPairs(this.s).sort((p, q) => dist(p) - dist(q));
-      const pair = pairs.find(([a]) => this.s.grid[a]!.family === step.prefer) ?? pairs[0];
-      if (pair) {
-        this.coach.drag(cellXY(pair[0]), cellXY(pair[1]));
-        this.coach.focus([cellXY(pair[0]), cellXY(pair[1])]);
-      }
+    this.coach.say(step.text, this.coachY());
+    const pair = this.tutorialPair(step);
+    if (!pair) {
+      this.tutorialStep++;
+      this.time.delayedCall(200, () => this.runTutorial());
       return;
     }
-    const cells = (pred: (g: Gadget) => boolean) => this.s.grid.flatMap((g, i) => (g && pred(g) ? [cellXY(i)] : []));
-    if (step.focus === 'chain' && this.lastCascade) this.coach.focus(this.lastCascade.activations.map((a) => cellXY(a.idx)));
-    if (step.focus === 'target') this.coach.focus([{ x: this.target.x, y: this.target.y, r: 120 }]);
-    if (step.focus === 'relays') this.coach.focus(cells((g) => g.family === 'coil' || g.family === 'bell'));
-    if (step.focus === 'cannons') this.coach.focus(cells((g) => g.family === 'cannon'));
-    if (step.focus === 'ranks') {
-      // two cannons with different numbers: ring their badges
-      const cs = this.s.grid.flatMap((g, i) => (g && g.family === 'cannon' ? [{ g, i }] : []));
-      const hi = cs.find((x) => x.g.rank > 1);
-      const lo = cs.find((x) => x.g.rank === 1);
-      const spots = [hi, lo].filter((x): x is { g: Gadget; i: number } => !!x).map((x) => ({ x: cellXY(x.i).x + 36, y: cellXY(x.i).y + 36, r: 34 }));
-      this.coach.focus(spots);
-      if (spots[0]) this.coach.point({ x: spots[0].x, y: spots[0].y + 10 });
-    }
+    this.coach.focus([cellXY(pair[0]), cellXY(pair[1])]);
+    // hand shows the move (repeats); ChatGPT: players should get a chance to try first, so it starts after a beat
+    this.time.delayedCall(this.tutorialStep === 0 ? 400 : 1600, () => {
+      if (GameScene.TUTORIAL[this.tutorialStep] === step && this.s.phase === 'tutorial') this.coach.drag(cellXY(pair[0]), cellXY(pair[1]));
+    });
   }
 
+  /** After a tutorial merge: short self-dismissing explanation, then the next step. */
   onTutorialMerge() {
     const step = GameScene.TUTORIAL[this.tutorialStep];
     if (!step || step.kind !== 'merge') return;
     this.coach.clear();
     this.tutorialStep++;
-    // let the chain play before explaining it
-    this.time.delayedCall(1300, () => this.runTutorial());
+    const next = () => this.runTutorial();
+    if (!step.after) {
+      this.time.delayedCall(1200, next);
+      return;
+    }
+    this.time.delayedCall(900, () => {
+      this.coach.say(step.after!, this.coachY(), { ms: 2600 });
+      if (step.focus === 'target') this.coach.focus([{ x: this.target.x, y: this.target.y, r: 120 }]);
+      if (step.focus === 'chain' && this.lastCascade) this.coach.focus(this.lastCascade.activations.map((a) => cellXY(a.idx)));
+      if (step.focus === 'row' && this.lastCascade) {
+        const row = Math.floor(this.lastCascade.rootIdx / COLS);
+        this.coach.focus(this.s.grid.flatMap((g, i) => (g && Math.floor(i / COLS) === row ? [cellXY(i)] : [])));
+      }
+      this.time.delayedCall(2800, next);
+    });
   }
 
+  /** Tutorial step 4: a mismatched drop bounces back (no swap) and teaches the rule. */
+  onTutorialMismatch(from: number, to: number): boolean {
+    const step = GameScene.TUTORIAL[this.tutorialStep];
+    const a = this.s.grid[from], b = this.s.grid[to];
+    if (this.s.phase !== 'tutorial' || !a || !b || a.family !== b.family || a.rank === b.rank) return false;
+    sfx.invalid();
+    for (const id of [a.id, b.id]) {
+      const rv = this.views.get(id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
+      if (rv) this.tweens.add({ targets: rv, scale: 1.7, duration: 150, yoyo: true, repeat: 2 });
+    }
+    this.showEvent(`Rank ${a.rank} ≠ Rank ${b.rank}: no merge`, '#ffd2c8', 2200);
+    if (step?.kind === 'mismatch') {
+      this.coach.clear();
+      this.coach.say('Right! Only the SAME number merges.', this.coachY(), { ms: 1800 });
+      this.tutorialStep++;
+      this.time.delayedCall(2000, () => this.runTutorial());
+    }
+    return true;
+  }
   /** First-time contextual tips (once per player). */
   tip(id: string, text: string, pointAt?: { x: number; y: number }) {
     if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
