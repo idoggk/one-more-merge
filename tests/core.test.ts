@@ -106,6 +106,44 @@ describe('cascade', () => {
     expect(r.moves).toEqual([]);
   });
 
+  it('battery primes an adjacent cannon; the prime discharges +50% on its next chain shot, once', () => {
+    const s = newGame(41, false, false, ['battery']);
+    s.grid.fill(null);
+    s.grid[idxOf(5, 0)] = g('battery');
+    s.grid[idxOf(5, 1)] = g('battery');
+    s.grid[idxOf(4, 0)] = g('cannon', 2); // up neighbour of the merge root (5,0)? root is (5,1)
+    s.grid[idxOf(4, 1)] = g('cannon', 2); // up neighbour of root (5,1) -> primed (and also sparked this cascade)
+    drop(s, idxOf(5, 0), idxOf(5, 1), s.grid[idxOf(5, 0)]!.id);
+    expect(s.grid[idxOf(4, 1)]!.primed).toBe(true);
+    // next cascade waking that cannon gets x1.5 and clears the prime
+    const base = resolveCascade(s.grid.map((x) => (x ? { ...x, primed: false } : x)), idxOf(4, 1), opts).total;
+    const r = resolveCascade(s.grid, idxOf(4, 1), opts);
+    expect(r.discharged).toEqual([s.grid[idxOf(4, 1)]!.id]);
+    expect(r.total).toBeGreaterThan(base);
+  });
+
+  it('fan pushes the first eligible neighbour one tile outward, never into reserved or occupied cells', () => {
+    const grid = empty();
+    const f = idxOf(2, 2);
+    grid[f] = g('fan');
+    grid[idxOf(1, 2)] = g('cannon'); // up: outward cell (0,2) reserved -> skip
+    grid[idxOf(2, 3)] = g('coil'); // right: outward (2,4) occupied -> skip
+    grid[idxOf(2, 4)] = g('bell');
+    grid[idxOf(3, 2)] = g('cannon'); // down: outward (4,2) empty -> push (but it's sparked => busy!)
+    grid[idxOf(2, 1)] = g('cannon'); // left: sparked too
+    const r = resolveCascade(grid, f, { perks: [], overdrive: false, reserved: new Set([idxOf(0, 2)]) });
+    // as merge root the fan's neighbours are all sparked (queued) first, so nothing is eligible
+    expect(r.moves).toEqual([]);
+    // woken by a relay instead: fan at (2,2) reached via bell row from (2,4)... use a non-root fan
+    const g2 = empty();
+    g2[idxOf(5, 0)] = g('cannon', 2); // root
+    g2[idxOf(5, 1)] = g('bell'); // sparked, rings row 5
+    g2[idxOf(5, 3)] = g('fan'); // rung by bell
+    g2[idxOf(4, 3)] = g('cannon'); // fan's up neighbour, unqueued -> pushed to (3,3)
+    const r2 = resolveCascade(g2, idxOf(5, 0), opts);
+    expect(r2.moves.map((m) => [m.from, m.to])).toEqual([[idxOf(4, 3), idxOf(3, 3)]]);
+  });
+
   it('merging magnets in-game moves the pulled sprite and keeps ids unique', () => {
     const s = newGame(31, false, false, ['magnet']);
     s.grid.fill(null);

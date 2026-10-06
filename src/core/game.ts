@@ -271,10 +271,13 @@ export function choosePerk(s: GameState, perk: PerkId): CommandResult {
 
 function applyMoves(s: GameState, r: CascadeResult) {
   for (const m of r.moves) {
-    if (s.grid[m.from]?.id !== m.id || s.grid[m.to]) throw new Error('magnet move desync');
+    if (s.grid[m.from]?.id !== m.id || s.grid[m.to]) throw new Error('magnet/fan move desync');
     s.grid[m.to] = s.grid[m.from];
     s.grid[m.from] = null;
   }
+  // discharge first (old primes fired), then new primes from batteries in this cascade
+  for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
+  for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
 }
 
 function enterOverdrive(s: GameState, dur: number) {

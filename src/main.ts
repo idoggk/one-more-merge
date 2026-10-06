@@ -11,6 +11,8 @@ async function boot() {
     backgroundColor: '#f3cf9b',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: W, height: H },
     input: { activePointers: 1 },
+    // dev aid: ?timer keeps the loop running in hidden/background tabs (automated checks)
+    fps: new URLSearchParams(location.search).has('timer') ? { forceSetTimeOut: true, target: 60 } : undefined,
     scene: [GameScene],
   });
   // expose for debugging / automated checks

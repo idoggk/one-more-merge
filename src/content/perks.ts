@@ -12,6 +12,8 @@ export const FAMILY_INFO = {
   cannon: { name: 'Cannon', color: 0xe8452c, text: 'Fires on its own. Fires hard when a chain wakes it.' },
   coil: { name: 'Coil', color: 0x27c4e0, text: 'Zaps neighbours and charges them. Rank 2+ reaches 2 tiles.' },
   bell: { name: 'Bell', color: 0xf2b521, text: 'Rings its whole row. Rank 2: +up/down. Rank 3+: +column.' },
+  battery: { name: 'Battery', color: 0x7ccf2e, text: 'When it fires, primes a cannon beside it: its next chain shot +50%.' },
+  fan: { name: 'Fan', color: 0x7fc8f0, text: 'When it fires, blows a neighbouring gadget one tile away.' },
   magnet: { name: 'Magnet', color: 0xc23fd1, text: 'When it fires, pulls a gadget up to 2 tiles into an empty spot beside it.' },
 } as const;
 

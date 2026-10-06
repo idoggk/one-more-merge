@@ -93,6 +93,13 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
   switchable on the title screen. Sim: bots never plan pulls, so magnets only dilute supply (novice 82% → 54%, skilled unchanged).
   Needs human testing: is pulling a satisfying set-up tool? If not, give magnets a small damage value or a smaller bag share.
   Round 5 (ChatGPT): keep 0 damage, 1 token per 13 → novice with magnets 66% (vs 82% without).
+- **Battery & Fan implemented** (ChatGPT round-5 rules): Battery primes the first adjacent unprimed Cannon (up/right/down/left);
+  primes present before a cascade discharge ×1.5 on that cannon's chain shot, then clear; never stack, never passive.
+  Fan pushes the first adjacent unqueued, unreserved non-fan gadget one cell outward into an empty unreserved cell.
+  Neither deals damage or wakes anything. Unlock chain: Magnet (3 cannons in a chain) → Battery (merge a magnet-pulled
+  gadget) → Fan (fire a primed cannon). Title shows toggles + next challenge.
+  Sim with all three toys on (bots never use toy abilities = worst case): novice 82% → 36%, cascade bot 63 → 78 s.
+  Toy damage 4 only recovers to 46%. Open question for humans: do toy abilities pay back their supply slot?
 - **Playtest kit**: local event log (pause → export playtest log) + PLAYTEST.md observation script.
 
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates

@@ -133,6 +133,9 @@ const rev3 = { passiveMult: 1, kickback: false, sameFamilyRelay: true, supplyCur
 const variants: [string, Partial<typeof TUNING>][] = [
   ['current', {}],
   ['current + MAGNETS', {}],
+  ['current + ALLTOYS', {}],
+  ['current + ALLTOYS dmg4', { base: { ...TUNING.base, magnet: 4, battery: 4, fan: 4 } }],
+  ['current + ALLTOYS hp0.85', { targetHp: hp(0.85) }],
   ['challenge (hard)', { hardHpMult: 1.4 }],
   ['HPx0.85', { targetHp: hp(0.85) }],
   ['rev3 ref', rev3],];
@@ -141,6 +144,6 @@ const only = process.argv[2];
 for (const [label, v] of variants) {
   if (only && !label.includes(only)) continue;
   Object.assign(TUNING, base, v);
-  simToys = label.includes('MAGNETS') ? ['magnet'] : [];
+  simToys = label.includes('MAGNETS') ? ['magnet'] : label.includes('ALLTOYS') ? ['magnet', 'battery', 'fan'] : [];
   report(label);
 }

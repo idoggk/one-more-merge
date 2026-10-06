@@ -28,6 +28,8 @@ const COLORS: Record<Family, [number, number, number]> = {
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
   magnet: [0xc23fd1, 0xef8cf7, 0x7a1f86],
+  battery: [0x7ccf2e, 0xc6f58a, 0x3f7a12],
+  fan: [0x7fc8f0, 0xe4f6ff, 0x3d7fa8],
 };
 
 /** Draw a chunky procedural gadget into a 128x128 texture. */
@@ -62,6 +64,24 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
     const r = 10 + rank * 2;
     g.fillStyle(light).fillCircle(64, 24, r).strokeCircle(64, 24, r);
     if (rank >= 3) g.fillStyle(main).fillCircle(64, 24, r * 0.5);
+  } else if (fam === 'battery') {
+    const h = 60 + rank * 5;
+    g.fillStyle(main).fillRoundedRect(38, 112 - h, 52, h, 10).strokeRoundedRect(38, 112 - h, 52, h, 10);
+    g.fillStyle(0xd9a63a).fillRect(54, 100 - h, 20, 12).strokeRect(54, 100 - h, 20, 12);
+    g.fillStyle(light).fillRect(46, 120 - h, 8, h - 20);
+    for (let i = 0; i < Math.min(rank, 5); i++) g.fillStyle(dark).fillRect(60, 104 - i * 12, 22, 8);
+    g.lineStyle(5, OUT, 1).lineBetween(64, 70 - h / 3, 58, 84 - h / 3).lineBetween(58, 84 - h / 3, 70, 84 - h / 3).lineBetween(70, 84 - h / 3, 62, 98 - h / 3);
+  } else if (fam === 'fan') {
+    g.fillStyle(0xdfe6ea).fillRoundedRect(52, 84, 24, 30, 6).strokeRoundedRect(52, 84, 24, 30, 6);
+    g.fillStyle(dark).fillRoundedRect(30, 108, 68, 12, 5).strokeRoundedRect(30, 108, 68, 12, 5);
+    const blades = 2 + Math.min(rank, 4);
+    const R = 32 + rank * 2;
+    for (let i = 0; i < blades; i++) {
+      const a = (i / blades) * Math.PI * 2;
+      g.fillStyle(main).fillEllipse(64 + Math.cos(a) * R * 0.5, 54 + Math.sin(a) * R * 0.5, R * 0.9, R * 0.45);
+    }
+    g.lineStyle(5, OUT, 1).strokeCircle(64, 54, R);
+    g.fillStyle(light).fillCircle(64, 54, 9).strokeCircle(64, 54, 9);
   } else if (fam === 'magnet') {
     // horseshoe magnet: thick U with silver tips; more ranks = wider + field lines
     const w = 22 + rank * 2;

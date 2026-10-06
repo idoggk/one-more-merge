@@ -81,9 +81,37 @@ export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, r
  * Pure, bounded BFS cascade from a freshly merged gadget at rootIdx.
  * Each gadget activates at most once; strongest direct Coil charge wins.
  */
+/** Fan: push the first adjacent eligible gadget (up/right/down/left) one cell outward into an empty, unreserved cell. */
+export function fanPush(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>): { from: number; to: number } | null {
+  const [r, c] = rc(idx);
+  for (const [dr, dc] of DIRS) {
+    if (!inside(r + dr, c + dc) || !inside(r + 2 * dr, c + 2 * dc)) continue;
+    const from = at(r + dr, c + dc);
+    const to = at(r + 2 * dr, c + 2 * dc);
+    const g = grid[from];
+    if (!g || busy.has(from) || reserved.has(from) || reserved.has(to) || grid[to] || g.family === 'fan') continue;
+    return { from, to };
+  }
+  return null;
+}
+
+/** Battery: prime the first adjacent unprimed Cannon (up/right/down/left). */
+export function batteryPrime(grid: Grid, idx: number, primed: ReadonlySet<number>): number | null {
+  const [r, c] = rc(idx);
+  for (const [dr, dc] of DIRS) {
+    if (!inside(r + dr, c + dc)) continue;
+    const g = grid[at(r + dr, c + dc)];
+    if (g && g.family === 'cannon' && !g.primed && !primed.has(g.id)) return g.id;
+  }
+  return null;
+}
+
 export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts): CascadeResult {
   const grid = input.slice(); // magnets may move pieces; later steps see the updated board
   const moves: CascadeResult['moves'] = [];
+  const primes: number[] = [];
+  // primes present BEFORE this cascade are the ones that can discharge now
+  const wasPrimed = new Set(input.filter((g) => g?.primed).map((g) => g!.id));
   const root = grid[rootIdx];
   if (!root) throw new Error('cascade root is empty');
   const visited = new Map<number, Activation>(); // by idx
@@ -114,6 +142,25 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
     if (a.family === 'cannon') continue;
+    if (a.family === 'fan') {
+      const p = fanPush(grid, idx, new Set(visited.keys()), opts.reserved ?? new Set());
+      if (p) {
+        moves.push({ ...p, id: grid[p.from]!.id });
+        edges.push({ from: p.from, to: p.to, kind: 'fan' });
+        grid[p.to] = grid[p.from];
+        grid[p.from] = null;
+      }
+      continue;
+    }
+    if (a.family === 'battery') {
+      const id = batteryPrime(grid, idx, new Set(primes));
+      if (id !== null) {
+        primes.push(id);
+        const to = grid.findIndex((g) => g?.id === id);
+        edges.push({ from: idx, to, kind: 'battery' });
+      }
+      continue;
+    }
     if (a.family === 'magnet') {
       const p = magnetPull(grid, idx, new Set(visited.keys()), opts.reserved ?? new Set());
       if (p) {
@@ -136,11 +183,14 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   }
 
   const acts = [...visited.values()];
+  const discharged: number[] = [];
   let sum = 0;
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
     const perk = a.family === 'cannon' && opts.perks.includes('twin') ? 1.4 : 1;
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk;
+    const prime = a.family === 'cannon' && wasPrimed.has(a.id) ? TUNING.batteryBonus : 1;
+    if (prime > 1) discharged.push(a.id);
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime;
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');
@@ -148,5 +198,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, count: acts.length, comboMult, total };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, count: acts.length, comboMult, total };
 }

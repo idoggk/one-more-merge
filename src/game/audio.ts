@@ -157,6 +157,13 @@ export const sfx = {
     tone(90, 0.3, 'sawtooth', 0.05, 0.05, 140);
   },
   click: () => bandNoise(0.02, 0.15, 0, 3000),
+  /** battery: quick charging zip-up */
+  battery: (delay = 0) => {
+    tone(220, 0.16, 'square', 0.04, delay, 880);
+    tone(880, 0.06, 'triangle', 0.08, delay + 0.15);
+  },
+  /** fan: soft whoosh */
+  fan: (delay = 0) => bandNoise(0.22, 0.14, delay, 700, 0.6),
   /** magnet: low hum swell + metallic clunk */
   magnet: (delay = 0) => {
     tone(110, 0.18, 'sawtooth', 0.05, delay, 220);

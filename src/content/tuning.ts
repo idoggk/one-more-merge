@@ -6,7 +6,7 @@ export const TICK = 0.05;
 
 export const TUNING = {
   rankMult: 2.25,
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -25,11 +25,13 @@ export const TUNING = {
   maxPending: 3,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   /** Unlocked toys add these tokens to the 12-token bag. */
-  toyBag: { magnet: 1 } as Record<string, number>,
+  toyBag: { magnet: 1, battery: 1, fan: 1 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
   targetHp: [1200, 11250, 18000],
   hardHpMult: 1.4,
+  /** Battery-primed cannon: next chain shot x this. */
+  batteryBonus: 1.5,
   mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
