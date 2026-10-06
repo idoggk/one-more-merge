@@ -16,6 +16,7 @@ for (const f of walk(src).filter((f) => extname(f).toLowerCase() === '.png').sor
 const files = [...byName.values()];
 
 const debrisNames = files.filter((f) => /debris/i.test(basename(f))).sort();
+const kickNames = files.filter((f) => /^kickback_/i.test(basename(f))).sort();
 const targetOf = (n) =>
   /vacuum|viper/.test(n) ? 3 : /toaster_?twins|twins/.test(n) ? 4 : /piano/.test(n) ? 5 : /tin/.test(n) ? 0 : /fridge|kitchen/.test(n) ? 1 : /zilla|junkyard|dusk/.test(n) ? 2 : -1;
 
@@ -23,6 +24,15 @@ const targetOf = (n) =>
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
   if (/app_?icon/.test(n)) return 'app_icon';
+  // round 6: remix
+  if (/^kickback_/.test(n)) {
+    const tg = targetOf(n);
+    const parts = kickNames.filter((k) => targetOf(basename(k, '.png').toLowerCase()) === tg);
+    if (tg >= 0) return `kick_${tg}_${parts.indexOf(file)}`;
+  }
+  if (/^telegraph_/.test(n)) return /piano|lock/.test(n) ? 'tg_piano' : /toaster|eject/.test(n) ? 'tg_twins' : /vacuum|suction/.test(n) ? 'tg_vacuum' : 'tg_cell';
+  if (/badge_remix|remix_badge/.test(n)) return 'badge_remix';
+  if (/plate_remix|record_plate|trophy/.test(n)) return 'plate_remix';
   // round 4 HUD plates
   if (/header/.test(n)) return 'hud_header';
   if (/hp|health/.test(n) && /frame/.test(n)) return 'hp_frame';
@@ -117,7 +127,7 @@ const SIZE = (key) => {
 };
 const NO_TRIM = new Set(['slot', 'card', 'app_icon', 'title']);
 /** Non-square UI pieces keep their own aspect ratio (no square padding). */
-const KEEP_ASPECT = (key) => /^(tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_)/.test(key);
+const KEEP_ASPECT = (key) => /^(tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_|plate_)/.test(key);
 for (const f of files) {
   const key = keyFor(f);
   if (!key) {

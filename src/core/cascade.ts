@@ -50,6 +50,8 @@ export interface CascadeOpts {
   overdrive: boolean;
   /** Cells promised to falling Kickback parts: magnets never pull into or out of them. */
   reserved?: ReadonlySet<number>;
+  /** Piano-locked cells: never relay targets; block helper rays like reserved cells. */
+  locked?: ReadonlySet<number>;
 }
 
 /**
@@ -137,8 +139,10 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   queue.push(rootIdx);
 
   // Root sparks to orthogonal neighbours, then its family routes (handled in the loop).
+  const lockedSet = opts.locked ?? new Set<number>();
+  const blockSet = new Set([...(opts.reserved ?? []), ...lockedSet]);
   for (const n of sparkCells(rootIdx)) {
-    if (!grid[n]) continue;
+    if (!grid[n] || lockedSet.has(n)) continue;
     edges.push({ from: rootIdx, to: n, kind: 'spark' });
     enqueue(rootIdx, n, 1);
   }
@@ -158,7 +162,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'fan') {
-      const p = fanPush(grid, idx, new Set(visited.keys()), opts.reserved ?? new Set());
+      const p = fanPush(grid, idx, new Set(visited.keys()), blockSet);
       if (p) {
         moves.push({ ...p, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'fan' });
@@ -168,7 +172,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'battery') {
-      const id = batteryPrime(grid, idx, primedNow, fired, opts.reserved ?? new Set());
+      const id = batteryPrime(grid, idx, primedNow, fired, blockSet);
       if (id !== null) {
         primes.push(id);
         primedNow.add(id);
@@ -178,7 +182,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'magnet') {
-      const p = magnetPull(grid, idx, new Set(visited.keys()), opts.reserved ?? new Set());
+      const p = magnetPull(grid, idx, new Set(visited.keys()), blockSet);
       if (p) {
         moves.push({ ...p, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'magnet' });
@@ -190,7 +194,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const kind = a.family;
     const coilMult = 1 + TUNING.coilChargePerRank * a.rank;
     for (const to of routeCells(idx, a.family, a.rank, opts.perks)) {
-      if (!grid[to] || to === idx) continue;
+      if (!grid[to] || to === idx || lockedSet.has(to)) continue;
       if (!TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
       edges.push({ from: idx, to, kind });
       if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));

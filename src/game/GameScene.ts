@@ -22,6 +22,7 @@ import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { audioSettings, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
+import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 
 export const W = 720;
 export const H = 1280;
@@ -49,13 +50,15 @@ interface Meta {
   bestTimeHard: number | null;
   /** Unlocked toys and whether each is switched on for runs. */
   toys: Partial<Record<Family, boolean>>;
+  /** Remix fastest wins keyed by opponent + helper loadout. */
+  remixBest: Record<string, number>;
 }
 
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
 
 function loadMeta(): Meta {
-  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {} };
+  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {}, remixBest: {} };
   try {
     return { ...d, ...JSON.parse(localStorage.getItem(META_KEY) || '{}') };
   } catch {
@@ -645,6 +648,7 @@ export class GameScene extends Phaser.Scene {
     this.drawHud(dms);
     this.animateIdle();
     this.updateFace();
+    this.drawRemix();
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -708,8 +712,9 @@ export class GameScene extends Phaser.Scene {
   drawHud(dms: number) {
     const s = this.s;
     const demo = s.target < 0;
-    this.headerText.setColor(s.hard ? '#b3201a' : '#3b2533');
-    this.headerText.setText(demo ? 'WARM-UP' : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setColor(s.hard ? '#b3201a' : s.remix ? '#1f6f8f' : '#3b2533');
+    this.headerText.setFontSize(this.headerText.text.length > 13 ? 24 : 30);
+    this.headerText.setText(demo ? 'WARM-UP' : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     const t = Math.ceil(s.timeLeft);
     this.timerText.setText(demo ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
     this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
@@ -820,7 +825,8 @@ export class GameScene extends Phaser.Scene {
             onComplete: () => mk.destroy(),
           });
           const g = e.into >= 0 ? this.s.grid[e.into] : null;
-          const key = g ? `${g.family}_${g.rank}` : 'chunk';
+          const themed = `kick_${Math.max(0, this.s.target)}_${Phaser.Math.Between(0, 1)}`;
+          const key = this.hasArt(themed) ? themed : g ? `${g.family}_${g.rank}` : 'chunk';
           const part = this.add.image(this.target.x, this.target.y - 30, key).setDepth(56);
           part.setScale(Math.min(76 / part.width, 76 / part.height));
           const curve = new Phaser.Curves.QuadraticBezier(
@@ -869,6 +875,36 @@ export class GameScene extends Phaser.Scene {
           this.introTarget();
           break;
         case 'overdriveEnd':
+          break;
+        case 'remixWarn':
+          sfx.invalid();
+          tlog.log('remix_warn', { kind: e.kind, cells: e.cells });
+          this.hitTarget(false);
+          break;
+        case 'remixHit': {
+          tlog.log('remix_hit', { kind: e.kind, outcome: e.outcome });
+          const c0 = cellXY(e.cells[0]);
+          if (e.kind === 'vacuum' && e.removedId !== undefined) {
+            const v = this.views.get(e.removedId);
+            if (v) {
+              this.views.delete(e.removedId);
+              this.tweens.add({ targets: v, x: this.target.x, y: this.target.y, scale: 0.1, angle: 720, duration: 420, ease: 'Quad.In', onComplete: () => v.destroy() });
+            }
+            sfx.scrap();
+            this.floatText(c0.x, c0.y - 60, 'SLURP!', '#ff6a6a', 34);
+          } else if (e.kind === 'twins' && e.outcome === 'hit') {
+            sfx.fan(0);
+            this.floatText(c0.x, c0.y - 60, 'SHOVE!', '#ffcf33', 32);
+          } else if (e.kind === 'piano' && e.outcome === 'hit') {
+            sfx.panelBreak(2);
+            this.cameras.main.shake(160, 0.006);
+            this.floatText(W / 2, cellXY(e.cells[0]).y - 70, 'LOCKED!', '#ffffff', 40);
+          } else this.floatText(c0.x, c0.y - 60, e.outcome === 'jam' ? 'JAMMED!' : 'MISSED!', '#9be05a', 30);
+          needReconcile = true;
+          break;
+        }
+        case 'remixUnlock':
+          sfx.click();
           break;
         case 'scrap':
           needReconcile = true;
@@ -1240,8 +1276,12 @@ export class GameScene extends Phaser.Scene {
     let unlockedNow = false;
     if (won) {
       m.wins++;
-      const prev = s.hard ? m.bestTimeHard : m.bestTime;
-      if (!s.practice && (prev === null || s.elapsed < prev)) {
+      const rkey = s.remix ? `${s.target}:${this.activeToys()[0] ?? 'none'}` : '';
+      const prev = s.remix ? (m.remixBest[rkey] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
+      if (s.remix && (prev === null || s.elapsed < prev)) {
+        m.remixBest[rkey] = s.elapsed;
+        newBest = true;
+      } else if (!s.remix && !s.practice && (prev === null || s.elapsed < prev)) {
         if (s.hard) m.bestTimeHard = s.elapsed;
         else m.bestTime = s.elapsed;
         newBest = true;
@@ -1268,13 +1308,14 @@ export class GameScene extends Phaser.Scene {
     c.add(this.add.text(W / 2, top + 80, won ? 'MACHINE WINS!' : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
     const lines: string[] = [];
     if (won) lines.push(`Time  ${s.elapsed.toFixed(1)}s${newBest ? '  NEW BEST!' : ''}${s.practice ? ' (practice)' : ''}`);
+    else if (s.remix) lines.push(`${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`);
     else lines.push(`Beat ${s.target} of 3  ·  ${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`);
     lines.push(`Biggest chain  x${s.stats.biggestChain}`);
     lines.push(`Biggest hit  ${fmt(s.stats.biggestHit)}`);
     lines.push(`Best gadget  rank ${s.stats.bestRank}`);
     if (s.perks.length) lines.push(`Perks  ${s.perks.map((p) => PERKS[p].name).join(', ')}`);
-    const rec = s.hard ? m.bestTimeHard : m.bestTime;
-    if (rec !== null) lines.push(`Record${s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
+    const rec = s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
+    if (rec !== null) lines.push(`Record${s.remix ? ' (remix)' : s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
     if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
     c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
     this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry());
@@ -1318,12 +1359,12 @@ export class GameScene extends Phaser.Scene {
     if (ch.toy === 'battery' && !kickback && this.pulledMerge) this.unlockToy('battery');
     if (ch.toy === 'fan' && r.discharged.length) this.unlockToy('fan');
   }
-  retry(hard = this.s.hard) {
+  retry(hard = this.s.hard, remixTarget = this.s.remix ? this.s.target : -1) {
     tlog.log('retry', { hard });
     this.closeModal();
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
-    this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys()));
+    this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys(), remixTarget));
   }
 
   openTitle() {
@@ -1351,8 +1392,17 @@ export class GameScene extends Phaser.Scene {
     const info = [m.bestTime !== null ? `Best time  ${m.bestTime.toFixed(1)}s` : 'Beat all 3 before the clock runs out!', m.bestTimeHard !== null ? `Challenge best  ${m.bestTimeHard.toFixed(1)}s` : '', m.bestChain ? `Biggest chain  x${m.bestChain}` : ''].filter(Boolean).join('\n');
     c.add(this.add.text(W / 2, H - 400, info, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 8, align: 'center' }).setOrigin(0.5));
     this.modal = c;
-    const play = this.button(c, W / 2, H - (m.hardUnlocked ? 250 : 200), 440, 'PLAY', 0x5fbf4a, () => this.retry(false));
-    if (m.hardUnlocked) this.button(c, W / 2, H - 140, 440, 'CHALLENGE', 0xe8452c, () => this.retry(true));
+    const play = this.button(c, W / 2, H - (m.hardUnlocked ? 250 : 200), 440, 'PLAY', 0x5fbf4a, () => this.retry(false, -1));
+    if (m.hardUnlocked) {
+      this.button(c, W / 2 - 162, H - 140, 300, 'CHALLENGE', 0xe8452c, () => this.retry(true, -1));
+      const rb = this.button(c, W / 2 + 162, H - 140, 300, 'REMIX', 0x27a4c0, () => this.openRemixPicker());
+      if (this.hasArt('badge_remix')) {
+        const bd = this.add.image(W / 2 + 290, H - 182, 'badge_remix');
+        bd.setScale(64 / Math.max(bd.width, bd.height));
+        c.add(bd);
+      }
+      void rb;
+    }
     // one helper toy per run (ChatGPT TOY_RULES: limit supply dilution until humans show the toys pay back)
     const unlocked = Object.keys(m.toys) as Family[];
     const toggles: Phaser.GameObjects.Container[] = [];
@@ -1372,6 +1422,102 @@ export class GameScene extends Phaser.Scene {
     const nc = this.nextChallenge();
     if (nc) c.add(this.add.text(W / 2, H - 590, `Next toy: ${nc.text}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#e07af0', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
     this.tweens.add({ targets: play, scale: 1.06, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  }
+
+  openRemixPicker() {
+    this.closeModal();
+    const c = this.panel(760);
+    const top = H / 2 - 380;
+    c.add(this.add.text(W / 2, top + 60, 'REMIX', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 108, 'One big junk monster. It fights back.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a' }).setOrigin(0.5));
+    const blurbs: Record<RemixKind, string> = {
+      vacuum: 'Sucks up your weakest part',
+      twins: 'Shoves your best part aside',
+      piano: 'Locks a whole row',
+    };
+    const loadout = this.activeToys()[0] ?? 'none';
+    REMIX_OPPONENTS.forEach((o, i) => {
+      const y = top + 220 + i * 175;
+      const card = this.add.container(W / 2, y);
+      const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-290, -78, 580, 156, 24).fillStyle(0xffffff, 1).fillRoundedRect(-285, -73, 570, 146, 20);
+      const key = `target_${o.target}`;
+      const img = this.add.image(-210, 0, this.textures.exists(key) ? key : 'target_0');
+      img.setScale(Math.min(130 / img.width, 130 / img.height));
+      const n = this.add.text(-130, -30, o.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0, 0.5);
+      const best = this.meta.remixBest[`${o.target}:${loadout}`];
+      const d = this.add.text(-130, 22, blurbs[o.kind] + (best ? `\nBest ${best.toFixed(1)}s` : ''), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#5a4a5a' }).setOrigin(0, 0.5);
+      card.add([g, img, n, d]).setSize(580, 156).setInteractive({ useHandCursor: true });
+      card.on('pointerup', () => {
+        sfx.click();
+        this.retry(false, o.target);
+      });
+      c.add(card);
+    });
+    this.button(c, W / 2, top + 700, 300, 'BACK', 0x8a6a4a, () => {
+      this.closeModal();
+      this.openTitle();
+    });
+  }
+
+  // ---------- remix telegraphs ----------
+  remixG!: Phaser.GameObjects.Graphics;
+  remixIcons: Phaser.GameObjects.Image[] = [];
+  remixText!: Phaser.GameObjects.Text;
+
+  drawRemix() {
+    const r = this.s.remix;
+    if (!this.remixG) {
+      this.remixG = this.add.graphics().setDepth(46);
+      this.remixText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff', stroke: '#b3201a', strokeThickness: 7 }).setOrigin(0.5).setDepth(47);
+    }
+    const g = this.remixG.clear();
+    for (const im of this.remixIcons) im.setVisible(false);
+    this.remixText.setVisible(false);
+    if (!r) return;
+    let used = 0;
+    const icon = (key: string, x: number, y: number, size: number, angle = 0, alpha = 1) => {
+      if (!this.hasArt(key)) return;
+      let im = this.remixIcons[used];
+      if (!im) this.remixIcons.push((im = this.add.image(0, 0, key).setDepth(47)));
+      used++;
+      im.setTexture(key).setPosition(x, y).setAngle(angle).setAlpha(alpha).setVisible(true);
+      im.setScale(size / Math.max(im.width, im.height));
+    };
+    const t = this.time.now / 1000;
+    if (r.pending) {
+      const left = Math.max(0, r.pending.deadline - this.s.elapsed);
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(t * (6 + (3 - left) * 3)));
+      for (const c of r.pending.cells) {
+        const { x, y } = cellXY(c);
+        g.fillStyle(0xff3b2a, 0.18 * pulse).fillRoundedRect(x - 58, y - 58, 116, 116, 20);
+        g.lineStyle(6, 0xff3b2a, pulse).strokeRoundedRect(x - 58, y - 58, 116, 116, 20);
+        if (r.kind === 'piano') icon('tg_piano', x, y, 60, 0, 0.85);
+      }
+      const c0 = cellXY(r.pending.cells[0]);
+      if (r.kind === 'vacuum') icon('tg_vacuum', c0.x, c0.y, 96, t * 200, 0.9);
+      if (r.kind === 'twins') {
+        // arrow toward the landing the engine would pick right now; dimmed + cross when jammed
+        const blocked = new Set([...this.s.drops.flatMap((d) => (d.plan ? [d.plan.land] : []))]);
+        const to = twinsDestination(this.s.grid, r.pending.cells[0], blocked);
+        if (to >= 0) {
+          const d = cellXY(to);
+          const ang = (Math.atan2(d.y - c0.y, d.x - c0.x) * 180) / Math.PI + 90;
+          icon('tg_twins', (c0.x + d.x) / 2, (c0.y + d.y) / 2, 80, ang);
+        } else {
+          icon('tg_twins', c0.x, c0.y - 40, 70, 0, 0.35);
+          g.lineStyle(8, 0xb3201a, 1).lineBetween(c0.x - 22, c0.y - 62, c0.x + 22, c0.y - 18).lineBetween(c0.x + 22, c0.y - 62, c0.x - 22, c0.y - 18);
+        }
+      }
+      icon('tg_cell', c0.x + 40, c0.y - 44, 46);
+      this.remixText.setText(Math.ceil(left).toString()).setPosition(c0.x, c0.y + 40).setVisible(true);
+    }
+    if (r.lock) {
+      for (const c of r.lock.cells) {
+        const { x, y } = cellXY(c);
+        g.fillStyle(0x2b1d2e, 0.45).fillRoundedRect(x - 58, y - 58, 116, 116, 20);
+        icon('tg_piano', x, y, 70, 0, 0.95);
+      }
+    }
   }
 
   openPause() {

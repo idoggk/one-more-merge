@@ -80,8 +80,9 @@ const hoarder: Policy = {
 };
 
 let simToys: Family[] = [];
+let simRemix = -1;
 function play(seed: number, pol: Policy) {
-  const s = newGame(seed, false, false, simToys);
+  const s = newGame(seed, false, false, simToys, simRemix);
   const rng = new Rng(seed * 7 + 1);
   let next = pol.every;
   let kickFuses = 0;
@@ -99,6 +100,7 @@ function play(seed: number, pol: Policy) {
       if (m) {
         const res = drop(s, m[0], m[1], s.grid[m[0]]!.id);
         const occ = s.grid.filter(Boolean).length;
+        for (const e of res.events) if (e.type === 'threshold' && firstKick < 0) firstKick = s.elapsed;
         for (const e of res.events) if (e.type === 'cascade') {
           casc++;
           if (e.result.count >= 0.8 * occ && occ >= 10) sat++;
@@ -133,6 +135,9 @@ const rev3 = { passiveMult: 1, kickback: false, sameFamilyRelay: true, supplyCur
 const variants: [string, Partial<typeof TUNING>][] = [
   ['current', {}],
   ['current + MAGNETS', {}],
+  ['REMIX vacuum', {}],
+  ['REMIX twins', {}],
+  ['REMIX piano', {}],
   ['current + ALLTOYS', {}],
   ['current + ALLTOYS dmg4', { base: { ...TUNING.base, magnet: 4, battery: 4, fan: 4 } }],
   ['current + ALLTOYS hp0.85', { targetHp: hp(0.85) }],
@@ -144,6 +149,7 @@ const only = process.argv[2];
 for (const [label, v] of variants) {
   if (only && !label.includes(only)) continue;
   Object.assign(TUNING, base, v);
+  simRemix = label.includes('REMIX') ? (label.includes('vacuum') ? 3 : label.includes('twins') ? 4 : 5) : -1;
   simToys = label.includes('MAGNETS') ? ['magnet'] : label.includes('ALLTOYS') ? ['magnet', 'battery', 'fan'] : [];
   report(label);
 }

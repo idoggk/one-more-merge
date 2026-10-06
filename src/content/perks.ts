@@ -17,4 +17,4 @@ export const FAMILY_INFO = {
   magnet: { name: 'Magnet', color: 0xc23fd1, text: 'When it fires, pulls a gadget up to 2 tiles into an empty spot beside it.' },
 } as const;
 
-export const TARGET_NAMES = ['TIN CAN', 'MAD FRIDGE', 'JUNKZILLA'];
+export const TARGET_NAMES = ['TIN CAN', 'MAD FRIDGE', 'JUNKZILLA', 'VACUUM VIPER', 'TOASTER TWINS', 'PIANO-SAURUS'];

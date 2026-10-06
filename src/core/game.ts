@@ -1,6 +1,7 @@
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
+import { lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import type { CascadeResult, Family, Gadget, Grid, PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -19,7 +20,8 @@ export type GameEvent =
   | { type: 'kill'; target: number; final: boolean; demo: boolean }
   | { type: 'newTarget'; target: number }
   | { type: 'overdriveEnd' }
-  | { type: 'end'; won: boolean };
+  | { type: 'end'; won: boolean }
+  | RemixEvent;
 
 export interface Stats {
   merges: number;
@@ -67,6 +69,8 @@ export interface GameState {
   /** Occupancy guard: deliveries wait in the tray while true. */
   trayHold: boolean;
   bigCd: number;
+  /** REMIX encounter (post-win mode), null in normal runs. */
+  remix: RemixState | null;
   stats: Stats;
 }
 
@@ -83,9 +87,11 @@ const START: [number, number, Family][] = [
 
 export const idxOf = (r: number, c: number) => r * COLS + c;
 
-export const targetHp = (s: GameState, i: number) => Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1));
+export const remixHp = () => Math.round(TUNING.targetHp.reduce((a, b) => a + b, 0));
+export const targetHp = (s: GameState, i: number) => (s.remix ? remixHp() : Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1)));
+export const locked = (s: GameState) => lockedCells(s.remix);
 
-export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = []): GameState {
+export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = [], remixTarget = -1): GameState {
   const s: GameState = {
     version: 1,
     seed: seed >>> 0,
@@ -118,10 +124,18 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     drops: [],
     trayHold: false,
     bigCd: 0,
+    remix: null,
     stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f, 1);
   s.supplyTimer = supplyPeriod(s);
+  const opp = REMIX_OPPONENTS.find((o) => o.target === remixTarget);
+  if (opp && !tutorial) {
+    s.remix = { kind: opp.kind, next: 0, pending: null, lock: null };
+    s.target = opp.target;
+    s.hard = false;
+    s.hp = s.maxHp = remixHp();
+  }
   return s;
 }
 
@@ -187,6 +201,8 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   if (from === to || from < 0 || to < 0 || from >= s.grid.length || to >= s.grid.length) return { ok: false, events: ev };
   const a = s.grid[from];
   if (!a || a.id !== fromId) return { ok: false, events: ev };
+  const lk = locked(s);
+  if (lk.has(from) || lk.has(to)) return { ok: false, events: ev };
   const b = s.grid[to];
   if (canMerge(a, b)) {
     if (s.mergeCd > 0) return { ok: false, events: ev };
@@ -225,7 +241,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)) });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s) });
   applyMoves(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
@@ -241,7 +257,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
 
 export function scrap(s: GameState, idx: number, id: number): CommandResult {
   const g = s.grid[idx];
-  if (s.phase !== 'playing' || !g || g.id !== id) return { ok: false, events: [] };
+  if (s.phase !== 'playing' || !g || g.id !== id || locked(s).has(idx)) return { ok: false, events: [] };
   s.grid[idx] = null;
   s.stats.scraps++;
   return { ok: true, events: [{ type: 'scrap', idx, gadget: g }] };
@@ -318,11 +334,12 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
     s.hp = s.maxHp = TUNING.demoHp;
     return;
   }
-  const final = s.target === TUNING.targetHp.length - 1;
+  const final = !!s.remix || s.target === TUNING.targetHp.length - 1;
   s.thresholds = 3;
   ev.push({ type: 'kill', target: s.target, final, demo: false });
   if (final) {
     s.phase = 'won';
+    if (s.remix) s.remix.pending = s.remix.lock = null;
     ev.push({ type: 'end', won: true });
     return;
   }
@@ -396,6 +413,9 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   }
   if (s.phase !== 'playing') return ev;
 
+  // Remix attacks (resolve before deliveries; warnings wait for falling Kickback parts)
+  if (s.remix) ev.push(...remixTick(s.remix, s.grid, s.elapsed, s.drops.length === 0, new Set([...reserved, ...dropReserved(s)])));
+
   // Supply
   admitPending(s, reserved, ev);
   if (s.pending.length < TUNING.maxPending) {
@@ -410,6 +430,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   if (s.timeLeft <= 1e-9) {
     s.timeLeft = 0;
     s.phase = 'lost';
+    if (s.remix) s.remix.pending = s.remix.lock = null;
     ev.push({ type: 'end', won: false });
   }
   return ev;
@@ -420,7 +441,7 @@ function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent
   if (occ >= TUNING.holdAt) s.trayHold = true;
   else if (occ <= TUNING.releaseAt) s.trayHold = false;
   if (!s.pending.length || s.trayHold) return;
-  const promised = new Set(dropReserved(s));
+  const promised = new Set([...dropReserved(s), ...locked(s)]);
   const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i) && !promised.has(i));
   if (slot < 0) return;
   const g = s.pending.shift()!;
@@ -443,7 +464,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)) });
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s) });
 }
 
 export function serialize(s: GameState): string {
@@ -466,7 +487,7 @@ type DropPlan = { idx: number; land: number; id: number };
 
 /** Choose where a loose part will land (next to a lonely match). Consumes kickRng once. */
 function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
-  const taken = new Set<number>(reserved);
+  const taken = new Set<number>([...reserved, ...locked(s)]);
   for (const d of s.drops) if (d.plan) taken.add(d.plan.idx).add(d.plan.land);
   const counts = new Map<string, number>();
   for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
@@ -522,7 +543,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)) });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s) });
     applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
