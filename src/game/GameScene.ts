@@ -20,7 +20,7 @@ import {
   type GameState,
 } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
-import { audioSettings, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
+import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
@@ -28,6 +28,7 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 
 export const W = 720;
 const CELL = 124;
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
 const SPRITE = 108;
 const SCRAP_X = W - 92;
@@ -1129,7 +1130,7 @@ export class GameScene extends Phaser.Scene {
         }        case 'threshold':
           sfx.panelBreak(e.target);
           this.chunks.explode(18, this.target.x, this.target.y - 40);
-          this.cameras.main.shake(140, 0.006);
+          this.shake(140, 0.006);
           if (e.level >= 2) this.setTargetTexture();
           break;
         case 'kill':
@@ -1163,7 +1164,7 @@ export class GameScene extends Phaser.Scene {
             this.showEvent('SHOVE!  Part pushed aside', '#ffd24a', 1400);
           } else if (e.kind === 'piano' && e.outcome === 'hit') {
             sfx.panelBreak(2);
-            this.cameras.main.shake(160, 0.006);
+            this.shake(160, 0.006);
             this.showEvent('ROW LOCKED  ·  4s', '#d9c2ff', 1200);
           } else this.showEvent(e.outcome === 'jam' ? 'JAMMED!  Nowhere to shove it' : 'MISSED!  You saved it', '#b8f07a', 1600);
           void c0;
@@ -1461,11 +1462,14 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(end, () => {
       const big = r.count >= 6;
       this.hitTarget(true);
-      if (r.count >= 3) sfx.chord(Math.min(r.count, 20));
+      if (r.count >= 3) {
+        sfx.chord(Math.min(r.count, 20));
+        duckMusic();
+      }
       // camera: no shake for small merges, a 1-2px kick for real payloads, a 3px hit when a MAX machine fired
       const hasMax = r.activations.some((a) => a.rank >= MAX_RANK);
-      if (hasMax) this.cameras.main.shake(100, 0.006);
-      else if (big) this.cameras.main.shake(70, 0.003);
+      if (hasMax) this.shake(100, 0.006);
+      else if (big) this.shake(70, 0.003);
       haptic(big ? 30 : 12);
       const huge = r.count >= 10;
       if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
@@ -1504,7 +1508,7 @@ export class GameScene extends Phaser.Scene {
     // 3) the big one: collapse, junk rains onto the board
     this.time.delayedCall(1350, () => {
       sfx.kill();
-      this.cameras.main.shake(450, 0.02);
+      this.shake(450, 0.02);
       this.ring(tgt.x, tgt.y, 0xffcf33, 320, 26, 520);
       this.ring(tgt.x, tgt.y, 0xffffff, 220, 16, 380);
       this.chunks.explode(90, tgt.x, tgt.y);
@@ -1564,7 +1568,7 @@ export class GameScene extends Phaser.Scene {
         this.sparks.explode(50, tgt.x, tgt.y);
         this.ring(tgt.x, tgt.y, 0xffcf33, 260, 24, 420);
         this.ring(tgt.x, tgt.y, 0xffffff, 180, 14, 300);
-        this.cameras.main.shake(320, 0.014);
+        this.shake(320, 0.014);
         haptic(60);
         this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 60, 300, 'banner_destroyed');
         this.tweens.add({
@@ -1597,8 +1601,17 @@ export class GameScene extends Phaser.Scene {
   // ---------- modals ----------
 
   closeModal() {
-    this.modal?.destroy();
+    const m = this.modal;
     this.modal = null;
+    if (!m) return;
+    // exit 140ms cubic-in (ChatGPT r9); input dies immediately so the next screen is live
+    m.each((o: Phaser.GameObjects.GameObject) => o.disableInteractive?.());
+    this.tweens.add({ targets: m, alpha: 0, y: 24, duration: 140, ease: 'Cubic.In', onComplete: () => m.destroy() });
+  }
+
+  /** Camera shake, skipped entirely under prefers-reduced-motion. */
+  shake(ms: number, intensity: number) {
+    if (!REDUCED_MOTION) this.cameras.main.shake(ms, intensity);
   }
 
   panel(h: number) {

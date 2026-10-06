@@ -197,6 +197,25 @@ export function haptic(ms = 10) {
 const music = { on: false, timer: 0 as unknown as ReturnType<typeof setInterval>, step: 0, next: 0, intense: false, bpm: 112 };
 const BASS = [0, 0, 7, 0, 5, 5, 3, 5]; // semitones over A1
 
+let bus: GainNode | null = null;
+/** Music runs through its own bus so big accents can duck it (ChatGPT r9: -3..4 dB in 25 ms, recover 180 ms). */
+function musicBus() {
+  if (!bus && ctx && master) {
+    bus = ctx.createGain();
+    bus.connect(master);
+  }
+  return bus!;
+}
+
+export function duckMusic() {
+  if (!ctx || !bus) return;
+  const t = ctx.currentTime;
+  bus.gain.cancelScheduledValues(t);
+  bus.gain.setValueAtTime(bus.gain.value, t);
+  bus.gain.linearRampToValueAtTime(0.65, t + 0.025);
+  bus.gain.linearRampToValueAtTime(1, t + 0.205);
+}
+
 function mtone(freq: number, t: number, dur: number, type: OscillatorType, vol: number, slideTo?: number) {
   if (!ctx || !master) return;
   const o = ctx.createOscillator();
@@ -207,7 +226,7 @@ function mtone(freq: number, t: number, dur: number, type: OscillatorType, vol: 
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(master);
+  o.connect(g).connect(musicBus());
   o.start(t);
   o.stop(t + dur + 0.02);
 }
@@ -224,7 +243,7 @@ function mnoise(t: number, dur: number, vol: number) {
   f.frequency.value = 6000;
   const g = ctx.createGain();
   g.gain.value = vol;
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(musicBus());
   src.start(t);
 }
 
