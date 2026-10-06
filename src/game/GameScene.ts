@@ -33,7 +33,7 @@ import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
-import { BOSSES, bossPhase, BOSS_WARN } from '../core/boss';
+import { BOSSES, bossBlocked, bossPhase, BOSS_WARN } from '../core/boss';
 
 export const W = 720;
 const CELL = 124;
@@ -885,6 +885,16 @@ export class GameScene extends Phaser.Scene {
     if (idx < 0 || !this.s.grid[idx]) {
       if (this.selectedIdx >= 0 && idx >= 0) return; // handled on up (move to empty)
       if (this.selectedIdx >= 0 && this.overScrap(p.worldX, p.worldY)) return;
+      return;
+    }
+    if (bossBlocked(this.s.boss).noDrag.has(idx)) {
+      // r23: a clamped machine explains itself when touched
+      const v = this.views.get(this.s.grid[idx]!.id);
+      if (v) this.tweens.add({ targets: v, x: v.x + 8, duration: 50, yoyo: true, repeat: 3 });
+      sfx.invalid();
+      const left = Math.max(0, (this.s.boss!.active!.until ?? 0) - this.s.elapsed);
+      const cp = cellXY(idx);
+      this.floatText(cp.x, cp.y - 40, `STUCK ${left.toFixed(1)}s`, '#ffd2c8', 34, 200);
       return;
     }
     this.dragIdx = idx;
@@ -1866,8 +1876,20 @@ Now beat the real level.`, this.coachY());
             this.showEvent('SLURPED!', '#ffd2c8', 1100);
           } else {
             sfx.panelBreak(1);
-            const nm = { clamp: 'CLAMPED', frost: 'ROW FROZEN', hot: 'HOT COLUMN', rest: 'RELAYS RESTING', split: 'BOARD SPLIT', suction: 'MISSED!' }[e.attack];
-            this.showEvent(nm, '#d9c2ff', 1100);
+            // r23: moving the machine away in time is the counter-play, so say it out loud
+            const dodged = e.attack === 'clamp' && (e.target.cells ?? []).every((c) => !this.s.grid[c]);
+            if (dodged) {
+              sfx.merge?.(2);
+              const cp = cellXY((e.target.cells ?? [0])[0]);
+              this.floatText(cp.x, cp.y - 30, 'DODGED!', '#8ef08a', 44, 500);
+              tlog.log('boss_dodge', { attack: e.attack });
+            } else {
+              const nm = { clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!' }[e.attack];
+              // the lane is busy with the attack line, so the hit word pops on the board where it happened
+              const tc = e.target.cells?.[0] ?? (e.target.row !== undefined ? e.target.row * COLS + 2 : e.target.col !== undefined ? 2 * COLS + e.target.col : 2 * COLS + 2);
+              const cp = cellXY(tc);
+              this.floatText(cp.x, cp.y - 30, nm, '#ffd2c8', 40, 400);
+            }
           }
           needReconcile = true;
           break;
@@ -3949,8 +3971,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
           im = this.add.image(0, 0, icon).setDepth(48);
           this.remixIcons.push(im);
         }
-        im.setVisible(true).setPosition(ac.x - CELL / 2 + 18, ac.y - CELL / 2 + 18);
-        im.setScale(44 / Math.max(im.width, im.height));
+        // r23: an active clamp physically sits ON the machine (big, centred); otherwise a corner badge
+        const onIt = !warn && atk === 'clamp';
+        im.setVisible(true).setPosition(onIt ? ac.x + 10 : ac.x - CELL / 2 + 18, onIt ? ac.y - 14 : ac.y - CELL / 2 + 18);
+        im.setScale((onIt ? CELL * 0.6 : 44) / Math.max(im.width, im.height));
       }
       const left = warn ? Math.max(0, (bs.pending!.deadline - this.s.elapsed)) : Math.max(0, bs.active!.until - this.s.elapsed);
       this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + CELL / 2 - 24, ac.y - CELL / 2 + 20).setFontSize(26).setVisible(true);
