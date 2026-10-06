@@ -15,6 +15,14 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   let trim = true;
   const m = n.match(/^hero_module_(\w+)_t([123])$/);
   if (m) [key, box] = [`hm_${m[1]}_${m[2]}`, 300];
+  else if (/^role_(\w+)_icon$/.test(n)) [key, box] = [`role_${n.match(/^role_(\w+)_icon$/)[1]}`, 128];
+  else if (/^rocket_r0([1-6])$/.test(n)) [key, box] = [`rocket_${n.match(/^rocket_r0([1-6])$/)[1]}`, 256];
+  else if (n === 'ui_coach_compact_plate') [key, box] = ['ui_coach_compact', 720];
+  else if (n === 'hero_workshop_button_plate') [key, box] = ['btn_workshop', 640];
+  else if (n === 'ui_secondary_brass_button_plate') [key, box] = ['btn_brass', 512];
+  else if (n === 'ui_team_builder_panel') [key, box] = ['ui_team_panel', 720];
+  else if (n === 'ui_team_slot_plate') [key, box] = ['ui_team_slot', 320];
+  else if (n === 'ui_team_slot_selected_frame') [key, box] = ['ui_team_slot_sel', 320];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];
   else if (n === 'hero_mount_socket') [key, box] = ['hero_socket', 160];

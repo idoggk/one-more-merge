@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { COLS, ROWS, TUNING } from '../src/content/tuning';
 import { rawDamage, resolveCascade } from '../src/core/cascade';
 import { choosePerk, drop, finishTutorial, idxOf, newGame, previewMerge, serialize, tick, type GameState } from '../src/core/game';
@@ -9,7 +9,9 @@ const g = (family: Family, rank = 1): Gadget => ({ id: id++, family, rank, cd: 3
 const empty = (): Grid => new Array(ROWS * COLS).fill(null);
 const opts = { perks: [], overdrive: false };
 
-describe('cascade', () => {
+describe('cascade (legacy ruleset)', () => {
+  beforeAll(() => void (TUNING.clarity = false));
+  afterAll(() => void (TUNING.clarity = true));
   it('isolated cannon merge activates only itself', () => {
     const grid = empty();
     grid[idxOf(5, 4)] = g('cannon', 2);

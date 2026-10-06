@@ -17,7 +17,8 @@ export function rawDamage(family: Family, rank: number): number {
 }
 
 export function coilReach(rank: number, perks: readonly PerkId[]): number {
-  return (rank >= 2 ? 2 : 1) + (perks.includes('leads') ? 1 : 0);
+  // clarity ruleset (ChatGPT r14): one fixed, visible 2-cell cross; rank only changes damage
+  return (TUNING.clarity || rank >= 2 ? 2 : 1) + (perks.includes('leads') ? 1 : 0);
 }
 
 /** Ordered list of cells a gadget routes to when activated in a cascade (may include empties; caller filters). */
@@ -30,6 +31,7 @@ export function routeCells(idx: number, family: Family, rank: number, perks: rea
       for (const [dr, dc] of DIRS) if (inside(r + dr * d, c + dc * d)) out.push(at(r + dr * d, c + dc * d));
   } else if (family === 'bell') {
     for (let cc = 0; cc < COLS; cc++) if (cc !== c) out.push(at(r, cc));
+    if (TUNING.clarity) return out; // clarity ruleset: a Bell rings its row, at every rank
     if (rank >= 3) {
       for (let rr = 0; rr < ROWS; rr++) if (rr !== r) out.push(at(rr, c));
     } else if (rank === 2) {
@@ -198,7 +200,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         discharged.push(a.id);
       }
       // MAX Backfire (ChatGPT r9): after its payload a rank-6 cannon wakes one adjacent Coil or Bell (U/R/D/L)
-      if (a.rank >= MAX_RANK) {
+      if (a.rank >= MAX_RANK && !TUNING.clarity) {
         for (const n of sparkCells(idx)) {
           const g = grid[n];
           if (!g || visited.has(n) || blockSet.has(n) || (g.family !== 'coil' && g.family !== 'bell')) continue;
@@ -210,7 +212,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'fan') {
-      const p = fanPush(grid, idx, new Set(visited.keys()), blockSet, a.rank >= MAX_RANK);
+      const p = fanPush(grid, idx, new Set(visited.keys()), blockSet, a.rank >= MAX_RANK && !TUNING.clarity);
       if (p) {
         moves.push({ ...p, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'fan' });
@@ -221,7 +223,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
     if (a.family === 'battery') {
       // MAX Split Charge (ChatGPT r9): run the primer selection twice (the first target is then ineligible)
-      for (let k = 0; k < (a.rank >= MAX_RANK ? 2 : 1); k++) {
+      for (let k = 0; k < (a.rank >= MAX_RANK && !TUNING.clarity ? 2 : 1); k++) {
         const id = batteryPrime(grid, idx, primedNow, fired, blockSet);
         if (id === null) break;
         primes.push(id);
@@ -235,7 +237,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       // MAX Twin Pull (ChatGPT r9): a second pull on the updated board, other direction, never the first moved piece
       let skip = -1;
       const busy = new Set(visited.keys());
-      for (let k = 0; k < (a.rank >= MAX_RANK ? 2 : 1); k++) {
+      for (let k = 0; k < (a.rank >= MAX_RANK && !TUNING.clarity ? 2 : 1); k++) {
         const p = magnetPull(grid, idx, busy, blockSet, skip);
         if (!p) break;
         moves.push({ from: p.from, to: p.to, id: grid[p.from]!.id });
@@ -248,7 +250,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     const kind = a.family;
-    const coilMult = 1 + TUNING.coilChargePerRank * a.rank;
+    const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
     for (const to of routeCells(idx, a.family, a.rank, opts.perks)) {
       if (!grid[to] || to === idx || lockedSet.has(to)) continue;
       if (!TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
@@ -256,7 +258,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
       enqueue(idx, to, a.depth + 1);
     }
-    if (a.rank >= MAX_RANK) maxSignature(idx, a);
+    if (a.rank >= MAX_RANK && !TUNING.clarity) maxSignature(idx, a);
   }
 
   const acts = [...visited.values()];

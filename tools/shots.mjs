@@ -60,6 +60,23 @@ const states = {
     2600,
   ],
   chain_card2: [(sc) => sc.nextExplain(), 1000],
+  inspect_coil: [
+    (sc) => {
+      sc.closeModal();
+      sc.coach.clear();
+      sc.explaining = false;
+      sc.explainQueue = [];
+      sc.retry(false, -1);
+      sc.finishIntro(true);
+      const s = sc.s;
+      const mk = (f, r) => ({ id: s.nextId++, family: f, rank: r, cd: 30 });
+      s.grid.fill(null);
+      Object.assign(s.grid, { 12: mk('coil', 2), 2: mk('cannon', 1), 14: mk('bell', 1), 22: mk('cannon', 3), 11: mk('bell', 1) });
+      sc.reconcile(true);
+      sc.openInspect(12);
+    },
+    500,
+  ],
   intro_mid: [
     (sc) => {
       sc.closeModal();

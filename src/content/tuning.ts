@@ -5,6 +5,9 @@ export const MAX_RANK = 6;
 export const TICK = 0.05;
 
 export const TUNING = {
+  /** Clarity ruleset (playtest: "I don't understand what each machine does"; ChatGPT r14): Coil = fixed 2-cell cross,
+   *  Bell = its row, no coil charge bonus, rank only changes damage, MAX signatures off (visual only). false = legacy. */
+  clarity: true,
   rankMult: 2.25,
   base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0 } as Record<string, number>,
   cannonPeriod: 3.0,

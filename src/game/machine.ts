@@ -70,3 +70,12 @@ export function buildMachine(
   c.setScale(width / 1000);
   return c;
 }
+
+/** Workshop finish: swap the chassis for its pre-rendered material variant (tools/make-finishes.py); tint fallback. */
+export function setFinish(mach: Phaser.GameObjects.Container, finishId: string | null, tint?: number) {
+  const ch = mach.list[0] as Phaser.GameObjects.Image;
+  const key = finishId ? `hero_chassis_${finishId}` : 'hero_chassis';
+  if (ch.scene.textures.exists(key)) ch.setTexture(key).clearTint();
+  else if (tint) ch.setTint(tint);
+  else ch.setTexture('hero_chassis').clearTint();
+}

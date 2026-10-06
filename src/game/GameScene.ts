@@ -20,7 +20,8 @@ import {
   type GameState,
 } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
-import { buildMachine, hasMachineArt } from './machine';
+import { buildMachine, hasMachineArt, setFinish } from './machine';
+import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
@@ -427,6 +428,74 @@ export class GameScene extends Phaser.Scene {
     if (s.phase === 'playing' && s.elapsed === 0 && s.stats.merges === 0) this.playRunIntro();
   }
 
+  // ---------- inspect card (ChatGPT r14: tap a gadget = what it does, its reach, its damage) ----------
+  inspectC: Phaser.GameObjects.Container | null = null;
+
+  openInspect(idx: number) {
+    const g = this.s.grid[idx];
+    if (!g) return;
+    this.closeInspect();
+    const info = FAMILY_INFO[g.family as keyof typeof FAMILY_INFO];
+    if (!info) return;
+    sfx.click();
+    tlog.log('inspect', { fam: g.family, rank: g.rank });
+    this.paused = true;
+    const cw = W - 60, ch = 330;
+    const cy = Math.max(STAGE_TOP + ch / 2 + 6, HP_Y - ch / 2 - 10);
+    const c = this.add.container(W / 2, cy).setDepth(96);
+    const bg = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 26).fillStyle(0xfbe7c6, 1).fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw - 10, ch - 10, 22);
+    c.add(bg);
+    const L = -cw / 2 + 30;
+    const role = info.role.toLowerCase();
+    if (this.hasArt(`role_${role}`)) {
+      const ic = this.add.image(L + 30, -ch / 2 + 50, `role_${role}`);
+      ic.setScale(56 / Math.max(ic.width, ic.height));
+      c.add(ic);
+    }
+    c.add(this.add.text(L + 72, -ch / 2 + 50, `${info.name.toUpperCase()}  ·  ${info.role}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0, 0.5));
+    c.add(this.add.text(cw / 2 - 30, -ch / 2 + 50, `Rank ${g.rank}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(1, 0.5));
+    const textW = cw - 250;
+    c.add(this.add.text(L, -ch / 2 + 92, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: textW }, lineSpacing: 4 }));
+    const raw = rawDamage(g.family, g.rank);
+    const dmg = g.family === 'cannon' ? `Auto shot ${Math.round(raw * TUNING.passiveMult)}  ·  Chain shot ${Math.round(raw)}` : raw > 0 ? `Hits for ${Math.round(raw)} in a chain` : 'No damage: it helps the others';
+    c.add(this.add.text(L, ch / 2 - 96, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
+    c.add(this.add.text(L, ch / 2 - 56, `Try: ${info.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '21px', color: '#7a5a4a', wordWrap: { width: cw - 70 } }));
+    // reach diagram: 5x5 mini board centred on this gadget
+    const mc = 30, ox = cw / 2 - 30 - mc * 5, oy = -ch / 2 + 86;
+    const dg = this.add.graphics();
+    const reach = new Set(g.family === 'coil' || g.family === 'bell' ? routeCells(idx, g.family, g.rank, this.s.perks) : []);
+    const r0 = Math.floor(idx / COLS), c0 = idx % COLS;
+    for (let dr = -2; dr <= 2; dr++)
+      for (let dc = -2; dc <= 2; dc++) {
+        const rr = r0 + dr, cc = c0 + dc;
+        const x = ox + (dc + 2) * mc, y = oy + (dr + 2) * mc;
+        const insideB = rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS;
+        const cell = rr * COLS + cc;
+        const col = !insideB ? 0xe8d8b8 : dr === 0 && dc === 0 ? info.color : reach.has(cell) || (g.family === 'bell' && dr === 0) ? 0xffcf33 : 0xffffff;
+        dg.fillStyle(col, insideB ? 1 : 0.4).fillRoundedRect(x + 2, y + 2, mc - 4, mc - 4, 5);
+      }
+    c.add(dg);
+    if (g.family === 'cannon') c.add(this.add.text(ox + mc * 2.5, oy - 4, '\u2191 monster', { fontFamily: 'Lilita One, Arial Black', fontSize: '18px', color: '#e8452c' }).setOrigin(0.5, 1));
+    const x = this.add.text(cw / 2 - 26, ch / 2 - 30, 'CLOSE', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: '#27a4c0', padding: { x: 14, y: 8 } }).setOrigin(1, 0.5);
+    c.add(x);
+    c.setAlpha(0).setScale(0.92);
+    this.tweens.add({ targets: c, alpha: 1, scale: 1, duration: 160, ease: 'Back.Out' });
+    // ring the inspected gadget so the card is clearly about IT
+    const { x: gx, y: gy } = cellXY(idx);
+    const ring = this.add.graphics().setDepth(95).lineStyle(6, 0xffcf33, 1).strokeCircle(gx, gy, 62);
+    c.setData('ring', ring);
+    this.inspectC = c;
+  }
+
+  closeInspect() {
+    const c = this.inspectC;
+    if (!c) return;
+    this.inspectC = null;
+    (c.getData('ring') as Phaser.GameObjects.Graphics | undefined)?.destroy();
+    this.tweens.add({ targets: c, alpha: 0, duration: 120, onComplete: () => c.destroy() });
+    if (!this.explaining && !this.introActive) this.paused = false;
+  }
+
   // ---------- level entry (playtest: "it just pops into a level") ----------
   slotImgs: Phaser.GameObjects.Image[] = [];
   introActive = false;
@@ -702,6 +771,10 @@ export class GameScene extends Phaser.Scene {
       this.finishIntro(true);
       return;
     }
+    if (this.inspectC) {
+      this.closeInspect();
+      return;
+    }
     if (this.explaining) return; // explainers advance only from their NEXT button
     if (this.coach.waitingTap && !this.modal) {
       sfx.click();
@@ -777,15 +850,9 @@ export class GameScene extends Phaser.Scene {
       const tapped = this.dragIdx;
       this.dragIdx = -1;
       this.dragView = null;
-      if (this.selectedIdx >= 0 && this.selectedIdx !== tapped) {
-        const from = this.selectedIdx;
-        this.selectedIdx = -1;
-        this.commitDrop(from, tapped, this.s.grid[from]?.id ?? -1);
-      } else {
-        this.selectedIdx = this.selectedIdx === tapped ? -1 : tapped;
-        if (this.selectedIdx >= 0) sfx.pickup();
-      }
+      this.selectedIdx = -1;
       this.drawHeld();
+      if (this.s.phase === 'playing') this.openInspect(tapped);
       return;
     }
     if (this.dragIdx < 0) {
@@ -965,6 +1032,16 @@ export class GameScene extends Phaser.Scene {
     if (src >= 0 && this.s.grid[src]) {
       const a = this.s.grid[src]!;
       const { x: sx, y: sy } = cellXY(src);
+      if (this.moved && (a.family === 'coil' || a.family === 'bell')) {
+        const at = this.hoverIdx >= 0 ? this.hoverIdx : src;
+        const col = FAMILY_INFO[a.family].color;
+        for (const cell of routeCells(at, a.family, a.rank, this.s.perks)) {
+          const { x, y } = cellXY(cell);
+          g.fillStyle(col, 0.2).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
+          const t = this.s.grid[cell];
+          if (t && cell !== src && t.family !== a.family) g.lineStyle(4, col, 0.65).strokeRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
+        }
+      }
       g.lineStyle(6, 0xffffff, 0.9).strokeRoundedRect(sx - CELL / 2 + 6, sy - CELL / 2 + 6, CELL - 12, CELL - 12, 20);
       this.s.grid.forEach((b, i) => {
         if (i === src || !canMerge(a, b)) return;
@@ -2464,9 +2541,7 @@ export class GameScene extends Phaser.Scene {
   /** Chassis finish: tints the chassis only, never the family modules. */
   applyFinish(mach: Phaser.GameObjects.Container) {
     const it = CATALOG.find((x) => x.id === this.meta.finish);
-    const ch = mach.list[0] as Phaser.GameObjects.Image;
-    if (it?.tint) ch.setTint(it.tint);
-    else ch.clearTint();
+    setFinish(mach, it?.id ?? null, it?.tint);
   }
 
   showToast(text: string) {
@@ -2572,7 +2647,7 @@ export class GameScene extends Phaser.Scene {
     const sel = preview ?? wallet.finish;
     const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1 }, this.activeToys()[0] ?? null)!;
     const it0 = CATALOG.find((x) => x.id === sel);
-    if (it0?.tint) (mach.list[0] as Phaser.GameObjects.Image).setTint(it0.tint);
+    setFinish(mach, it0?.slot === 'finish' ? it0.id : null, it0?.tint);
     c.add(mach);
     CATALOG.forEach((it, i) => {
       const x = W / 2 + (i % 2 ? 152 : -152);

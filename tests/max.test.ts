@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { TUNING } from '../src/content/tuning';
 import { resolveCascade } from '../src/core/cascade';
 import { idxOf } from '../src/core/game';
 import type { Family, Gadget, Grid } from '../src/core/types';
@@ -9,7 +10,9 @@ const empty = (): Grid => new Array(30).fill(null);
 const opts = { perks: [], overdrive: false };
 const ids = (r: ReturnType<typeof resolveCascade>) => r.activations.map((a) => a.idx);
 
-describe('MAX signatures (ChatGPT round 9)', () => {
+describe('MAX signatures (ChatGPT round 9, legacy ruleset / practice experimental)', () => {
+  beforeAll(() => void (TUNING.clarity = false));
+  afterAll(() => void (TUNING.clarity = true));
   it('Cannon Backfire: a rank-6 cannon wakes one adjacent relay after its shot', () => {
     const grid = empty();
     const root = idxOf(2, 2);
