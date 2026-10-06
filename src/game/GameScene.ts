@@ -2976,7 +2976,7 @@ export class GameScene extends Phaser.Scene {
     const PH = 900;
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
-    this.sheetTitle(c, top, `${m.bolts ?? 0} BOLTS`, 'Earn Bolts by clearing levels, new stars and the Daily.\nSpend them on boosters here or looks in the Workshop.');
+    this.sheetTitle(c, top, `${m.bolts ?? 0} BOLTS`, 'Earned from levels, new stars and the Daily');
     const lv = this.currentLevel();
     const items: [string, string, string, number, number, 'kits' | 'capsules', string][] = [
       ['booster_jumpstart', 'JUMPSTART KIT', 'Start a level with your 2 bottom\nshooters one rank higher.', PRICES.jumpstart_kit, BOOSTER_UNLOCK.jumpstart_kit, 'kits', 'Pick it on the level card'],
@@ -2984,7 +2984,7 @@ export class GameScene extends Phaser.Scene {
     ];
     const CAP = 5;
     items.forEach(([icon, name, desc, price, unlock, field, how], i) => {
-      const y = top + 300 + i * 230;
+      const y = top + 320 + i * 230;
       c.add(this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(50, y - 95, W - 100, 190, 24).lineStyle(4, 0x2b1d2e, 1).strokeRoundedRect(50, y - 95, W - 100, 190, 24));
       if (this.hasArt(icon)) {
         const ic = this.add.image(120, y - 10, icon);
