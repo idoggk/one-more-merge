@@ -13,7 +13,8 @@ const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirect
 const files = walk(src).filter((f) => extname(f).toLowerCase() === '.png');
 
 const debrisNames = files.filter((f) => /debris/i.test(basename(f))).sort();
-const targetOf = (n) => (/tin/.test(n) ? 0 : /fridge|kitchen/.test(n) ? 1 : /zilla|junkyard|dusk/.test(n) ? 2 : -1);
+const targetOf = (n) =>
+  /vacuum|viper/.test(n) ? 3 : /toaster_?twins|twins/.test(n) ? 4 : /piano/.test(n) ? 5 : /tin/.test(n) ? 0 : /fridge|kitchen/.test(n) ? 1 : /zilla|junkyard|dusk/.test(n) ? 2 : -1;
 
 /** Map a source filename to a game key. Ordered: specific asset kinds first, so e.g. "tin_can_alley" is a stage, not a target. */
 function keyFor(file) {
@@ -36,6 +37,16 @@ function keyFor(file) {
     if (/overdrive/.test(n)) return 'banner_overdrive';
     if (/destroy/.test(n)) return 'banner_destroyed';
     if (/chain/.test(n)) return 'banner_chain';
+  }
+  if (/screenshot|store_frame|store/.test(n)) {
+    const k = n.match(/(\d+)/)?.[1];
+    if (k) return `store_${k}`;
+  }
+  if (/practice_?bench|sandbox/.test(n)) return 'bg_practice';
+  if (/corner_?bench/.test(n)) return 'bg_corner';
+  for (const fam of ['battery', 'fan']) if (n.includes(fam)) {
+    const r = n.match(/(?:rank|r)[_-]?0?([1-6])/)?.[1];
+    if (r) return `${fam}_${r}`;
   }
   if (/magnet/.test(n)) {
     const r = n.match(/(?:rank|r)[_-]?0?([1-6])/)?.[1];
@@ -90,7 +101,8 @@ function keyFor(file) {
 
 /** Box (longest side) each key is normalised into; null = keep aspect at full width 720. */
 const SIZE = (key) => {
-  if (['bg', 'title', 'logo', 'vfx_flame', 'hud_header', 'hp_frame', 'hp_fill'].includes(key) || key.startsWith('stage_') || key.startsWith('banner_')) return null;
+  if (key.startsWith('store_')) return null;
+  if (['bg', 'bg_practice', 'bg_corner', 'title', 'logo', 'vfx_flame', 'hud_header', 'hp_frame', 'hp_fill'].includes(key) || key.startsWith('stage_') || key.startsWith('banner_')) return null;
   if (key === 'app_icon') return 1024;
   if (key.startsWith('target') || key === 'demo_can' || key === 'card' || key === 'victory' || key === 'defeat' || key.startsWith('btn_')) return 512;
   if (key.startsWith('debris')) return 128;
