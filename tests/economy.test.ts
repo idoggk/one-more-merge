@@ -35,6 +35,6 @@ describe('Bolts economy (ChatGPT r12)', () => {
     expect(buy(w, 'brass_kit')).toBe(true);
     expect(buy(w, 'brass_kit')).toBe(false);
     expect(w.bolts).toBe(10);
-    for (const c of CATALOG) expect(['finish', 'nameplate', 'ornament']).toContain(c.slot);
+    for (const c of CATALOG) expect(['finish', 'nameplate', 'ornament', 'stage']).toContain(c.slot);
   });
 });

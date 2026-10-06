@@ -49,7 +49,7 @@ export interface CatalogItem {
   id: string;
   name: string;
   price: number;
-  slot: 'finish' | 'nameplate' | 'ornament';
+  slot: 'finish' | 'nameplate' | 'ornament' | 'stage';
   /** Multiply tint for the chassis only (never the family modules). */
   tint?: number;
 }
@@ -66,6 +66,10 @@ export const CATALOG: CatalogItem[] = [
   { id: 'brass_whistle', name: 'Brass Whistle', price: 250, slot: 'ornament', tint: 0xe8b84a },
   { id: 'violet_pennant', name: 'Violet Pennant', price: 450, slot: 'ornament', tint: 0x8e58c9 },
   { id: 'clockwork_finial', name: 'Clockwork Finial', price: 700, slot: 'ornament', tint: 0x27a4c0 },
+  // r17/r18 workshop stages: MACHINE-tab backdrops only (never the gameplay board)
+  { id: 'mint', name: 'Mint Stage', price: 450, slot: 'stage', tint: 0xb4f5d2 },
+  { id: 'night_shift', name: 'Night Shift', price: 750, slot: 'stage', tint: 0x5a4a8a },
+  { id: 'showroom', name: 'Showroom', price: 1200, slot: 'stage', tint: 0xfff3dc },
 ];
 
 export interface Wallet {

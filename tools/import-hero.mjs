@@ -40,6 +40,8 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   else if (n === 'ui_keepsake_frame') [key, box] = ['keepsake', 512];
   else if (n === 'ui_primary_wide_plate') [key, box] = ['btn_wide', 720];
   else if (/^rocket_r0([78])$/.test(n)) [key, box] = [`rocket_${n.slice(-1)}`, 256];
+  else if (/^workshop_background_(\w+)$/.test(n)) [key, box, trim] = [`stagebg_${n.replace('workshop_background_', '')}`, 720, false];
+  else if (n === 'ui_secondary_brass_plate') [key, box] = ['btn_brass2', 512];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];
   else if (n === 'hero_mount_socket') [key, box] = ['hero_socket', 160];

@@ -83,6 +83,8 @@ const states = {
   machine_medals: [(sc) => { sc.meta.medals = { 1: true, 2: true }; sc.openTitle('machine'); }, 900],
   workshop_orn: [(sc) => { Object.assign(sc.meta, { bolts: 800, owned: ['brass_kit'], finish: 'brass_kit', ornament: null, mastery: { cannon: 4, coil: 3, bell: 5 } }); sc.openTitle('machine'); sc.openWorkshop('violet_pennant'); }, 800],
   showcase: [(sc) => { sc.meta.lessons = {}; sc.startShowcase(7, 21); }, 1500],
+  workshop_stage: [(sc) => { Object.assign(sc.meta, { bolts: 900 }); sc.openTitle('machine'); sc.openWorkshop('night_shift'); }, 800],
+  machine_night: [(sc) => { Object.assign(sc.meta, { stage: 'night_shift', ornament: 'violet_pennant' }); sc.openTitle('machine'); }, 900],
   stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [

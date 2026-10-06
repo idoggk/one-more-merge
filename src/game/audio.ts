@@ -72,6 +72,64 @@ function bandNoise(dur: number, vol: number, delay: number, freq: number, q = 1.
 }
 
 export const sfx = {
+  // ---- meta UI sounds (ChatGPT r18 recipes; UI bus ~10 dB under merge payloads) ----
+  /** Road node tap: woody physical tick. */
+  nodeTap: () => {
+    tone(600, 0.065, 'triangle', 0.06, 0, 420);
+    bandNoise(0.012, 0.05, 0, 1800);
+  },
+  /** Level card open: air sweep + muted arrival tap. */
+  cardOpen: () => {
+    bandNoise(0.14, 0.05, 0, 1600, 0.8);
+    tone(350, 0.08, 'sine', 0.05, 0.11);
+  },
+  /** Star k (0..2): 660/830/990 Hz, 140 ms apart by caller; the third adds a quiet 1320 Hz resolve. */
+  star: (k: number) => {
+    const f = [660, 830, 990][Math.min(2, k)];
+    tone(f, 0.13, 'triangle', 0.08);
+    tone(f * 2, 0.13, 'sine', 0.02);
+    if (k >= 2) tone(1320, 0.18, 'sine', 0.035, 0.14);
+  },
+  /** Chest: two woody knocks + rattle, then the open creak and a rounded thunk. */
+  chestShake: () => {
+    for (const d of [0, 0.09]) {
+      tone(200, 0.045, 'triangle', 0.08, d, 150);
+      bandNoise(0.04, 0.04, d, 3200, 3);
+    }
+  },
+  chestOpen: () => {
+    bandNoise(0.22, 0.05, 0, 900, 1.2);
+    tone(260, 0.2, 'sawtooth', 0.02, 0, 160);
+    tone(180, 0.18, 'sine', 0.1, 0.16);
+  },
+  /** Medal reveal: 523 -> 659 -> 784 Hz flourish, 75 ms apart, with a faint 1.5x partial. */
+  medal: () => {
+    [523, 659, 784].forEach((f, i) => {
+      tone(f, 0.26, 'triangle', 0.07, i * 0.075);
+      tone(f * 1.5, 0.2, 'sine', 0.015, i * 0.075);
+    });
+  },
+  /** Bolt roll-up: a few soft ticks (never one per Bolt) and a final clink. */
+  boltRoll: (ticks = 6) => {
+    const n = Math.min(8, ticks);
+    for (let i = 0; i < n; i++) tone(900 + Math.random() * 200, 0.025, 'square', 0.015, i * 0.06);
+    tone(660, 0.09, 'triangle', 0.05, n * 0.06);
+  },
+  /** Booster commits: Kit = ratchet + lift; Capsule = click + glassy swell. Cancelled holds make no success sound. */
+  kit: () => {
+    for (let i = 0; i < 4; i++) bandNoise(0.02, 0.05, i * 0.04, 2400, 4);
+    tone(300, 0.18, 'triangle', 0.06, 0.12, 600);
+  },
+  capsule: () => {
+    bandNoise(0.015, 0.06, 0, 3000);
+    tone(700, 0.25, 'sine', 0.06, 0.02, 1000);
+    tone(1400, 0.2, 'sine', 0.015, 0.05, 2000);
+  },
+  /** Lesson bubble appears: soft paper puff. */
+  lessonPop: () => {
+    bandNoise(0.08, 0.04, 0, 1200, 0.7);
+    tone(450, 0.06, 'sine', 0.025);
+  },
   pickup: () => bandNoise(0.03, 0.12, 0, 2500),
   drop: () => tone(300, 0.06, 'triangle', 0.12),
   invalid: () => tone(180, 0.12, 'square', 0.05, 0, 120),

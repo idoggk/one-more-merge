@@ -85,6 +85,8 @@ interface Meta {
   sound: boolean;
   hints: boolean;
   music: boolean;
+  /** Equipped MACHINE-tab stage backdrop (r18 Bolt sink). */
+  stage?: string | null;
   /** Equipped hero ornament (r17 Bolt sink). */
   ornament?: string | null;
   /** Bolts balance at the last Workshop visit (new-item dot). */
@@ -149,6 +151,8 @@ function dailySeed(date: string) {
   return DAILY_SEEDS[day % DAILY_SEEDS.length];
 }
 
+/** Which stage backdrop the Workshop preview shows: the previewed stage item, else the equipped one. */
+const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
 const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
@@ -1507,7 +1511,7 @@ Now beat the real level.`, this.coachY());
           this.meta.capsules = Math.max(0, (this.meta.capsules ?? 0) - 1);
           store(META_KEY, JSON.stringify(this.meta));
           tlog.log('booster', { kind: 'time_capsule', level: this.s.level, at: +this.s.elapsed.toFixed(1), left: this.meta.capsules });
-          sfx.rankUp(5);
+          sfx.capsule();
           this.floatText(this.timerText.x - 60, this.timerText.y + 60, '+15s', '#7fe0ff', 40, 300);
         });
       });
@@ -2496,10 +2500,11 @@ Now beat the real level.`, this.coachY());
       const sc = (k === 1 ? 120 : 100) / Math.max(st.width, st.height);
       st.setScale(0).setAlpha(k < got ? 1 : 0.22);
       c.add(st);
-      this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.rankUp(3 + k) });
+      this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.star(k) });
     }
     if (won && got < 3) c.add(this.add.text(W / 2, top + 360, `Next star: clear in ${Math.floor(def.time_seconds * (got === 1 ? 0.8 : 0.6))}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 410, [s.stats.biggestChain >= 2 && n >= 2 ? `Biggest chain x${s.stats.biggestChain}` : '', bolts > 0 ? `+${bolts} BOLTS` : ''].filter(Boolean).join('    '), { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0.5));
+    if (bolts > 0) this.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
     if (parts.length) c.add(this.add.text(W / 2, top + 448, parts.join('  \u00b7  '), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     if (lines.length) {
       c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 30 + lines.length * 36, 18));
@@ -2530,10 +2535,11 @@ Now beat the real level.`, this.coachY());
     o.add(medal);
     const cap = this.add.text(W / 2, H / 2 + 260, `Chapter ${chapter} medal added to your MACHINE\n(tap to continue)`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', align: 'center' }).setOrigin(0.5).setAlpha(0);
     o.add(cap);
-    sfx.rankUp(4);
+    sfx.chestShake();
     if (closed) this.tweens.add({ targets: closed, angle: { from: -4, to: 4 }, duration: 90, yoyo: true, repeat: 4 });
     this.time.delayedCall(700, () => {
-      sfx.win();
+      sfx.chestOpen();
+      this.time.delayedCall(250, () => sfx.medal());
       if (closed) this.tweens.add({ targets: closed, alpha: 0, duration: 200 });
       if (open) this.tweens.add({ targets: open, alpha: 1, duration: 200 });
       this.tweens.add({ targets: medal, alpha: 1, scale: 1, y: H / 2 - 170, duration: 520, ease: 'Back.Out' });
@@ -2691,7 +2697,8 @@ Now beat the real level.`, this.coachY());
     const room = feetY - (headY + 70);
     const mWidth = Math.min(W * 1.02, Math.max(380, room / 0.56));
     // background, pedestal aligned under the machine's feet
-    const bg = this.add.image(W / 2, 0, 'hero_bg').setOrigin(0.5, 0);
+    const stageKey = m.stage && this.hasArt(`stagebg_${m.stage}`) ? `stagebg_${m.stage}` : 'hero_bg';
+    const bg = this.add.image(W / 2, 0, stageKey).setOrigin(0.5, 0);
     const k = Math.max(W / bg.width, (feetY - 20) / (0.538 * bg.height), (H - feetY + 20) / (0.462 * bg.height));
     bg.setScale(k).setY(feetY - 20 - 0.538 * bg.height * k);
     c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
@@ -2701,10 +2708,11 @@ Now beat the real level.`, this.coachY());
     // identity
     const name = m.owned?.includes('nameplate') ? MACHINE_NAMES[(m.nameIdx ?? 0) % MACHINE_NAMES.length] : 'YOUR MACHINE';
     // ChatGPT r13: quieter identity on the quiet wall (no heavy sticker outline)
-    c.add(this.add.text(W / 2, headY, name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
+    const darkStage = m.stage === 'night_shift';
+    c.add(this.add.text(W / 2, headY, name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: darkStage ? '#fff0cf' : '#3b2533', stroke: darkStage ? '#2b1d2e' : '#fff0cf', strokeThickness: darkStage ? 8 : 4 }).setOrigin(0.5));
     const empty = !Object.values(m.mastery ?? {}).some((r) => (r ?? 0) > 0);
     const status = empty ? 'Starter kit  ·  upgrade it in runs' : m.bestChain ? `Best chain: x${m.bestChain}` : "Built from the gadgets you've merged";
-    c.add(this.add.text(W / 2, headY + 48, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, headY + 48, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: darkStage ? '#e8dcc8' : '#5a3a3a' }).setOrigin(0.5));
 
     // trophy shelf (r17): earned chapter medals, collection only
     const medals = Object.keys(m.medals ?? {}).map(Number).sort((a, b) => a - b);
@@ -2859,6 +2867,7 @@ Now beat the real level.`, this.coachY());
   lesson(id: string, c: Phaser.GameObjects.Container, text: string, at: { x: number; y: number; r: number }, bubbleY: number) {
     const m = this.meta;
     if ((m.lessons ??= {})[id]) return;
+    sfx.lessonPop();
     const ring = this.add.circle(at.x, at.y, at.r).setStrokeStyle(8, 0xffcf33, 1).setDepth(130);
     if (!REDUCED_MOTION) this.tweens.add({ targets: ring, scale: 1.12, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     const b = this.add.container(W / 2, bubbleY).setDepth(131);
@@ -2948,6 +2957,7 @@ Now beat the real level.`, this.coachY());
       hit.on('pointerup', () => {
         if (Math.abs(dragDist) > 12) return;
         if (n > cur) return this.showToast(`FINISH LEVEL ${cur} FIRST`);
+        sfx.nodeTap();
         this.openLevelSheet(n);
       });
       road.add(hit);
@@ -3071,7 +3081,7 @@ Now beat the real level.`, this.coachY());
 
   /** Level card (ChatGPT r15/r16): monster, ONE modifier sentence, star goals, Jumpstart switch, PLAY. */
   openLevelSheet(n: number) {
-    sfx.click();
+    sfx.cardOpen();
     const def = LEVELS[n - 1];
     if (!def) return;
     const m = this.meta;
@@ -3194,6 +3204,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (jumpstart && (m.kits ?? 0) > 0) {
       m.kits = (m.kits ?? 0) - 1;
       tlog.log('booster', { kind: 'jumpstart', level: n, left: m.kits });
+      sfx.kit();
     } else jumpstart = false;
     m.tutorialDone = true;
     store(META_KEY, JSON.stringify(m));
@@ -3452,33 +3463,45 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.sheetTitle(c, top, 'WORKSHOP');
     c.add(this.add.text(W / 2, top + 108, `${wallet.bolts} Bolts   ·   better parts come free from merging`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#7a5a4a' }).setOrigin(0.5));
     const sel = preview ?? wallet.finish;
+    // stage preview: the backdrop crop behind the machine (equipped or previewed)
+    const stageId = it0Stage(preview, m.stage ?? null);
+    if (stageId && this.hasArt(`stagebg_${stageId}`)) {
+      // the backdrop's pedestal (at ~54% of its height) sits under the preview machine's feet, masked to a window
+      const sb = this.add.image(W / 2, 0, `stagebg_${stageId}`).setOrigin(0.5, 0);
+      sb.setScale((W - 100) / sb.width);
+      sb.setY(top + 400 - sb.displayHeight * 0.54);
+      const win = this.add.graphics().setVisible(false).fillRoundedRect(50, top + 140, W - 100, 290, 20);
+      sb.setMask(win.createGeometryMask());
+      c.add(sb);
+    }
     const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1, [this.teamShooter()]: 1 }, this.activeToys()[0] ?? null, this.teamShooter())!;
     const it0 = CATALOG.find((x) => x.id === sel);
     setFinish(mach, it0?.slot === 'finish' ? it0.id : wallet.finish, CATALOG.find((x) => x.id === (it0?.slot === 'finish' ? it0.id : wallet.finish))?.tint);
     setOrnament(this, mach, it0?.slot === 'ornament' ? it0.id : (m.ornament ?? null));
     c.add(mach);
     CATALOG.forEach((it, i) => {
-      const x = W / 2 + (i % 2 ? 152 : -152);
-      const y = top + 460 + Math.floor(i / 2) * 104;
+      // 3 columns (r18: finishes + ornaments + stages no longer fit 2)
+      const x = W / 2 + ((i % 3) - 1) * 212;
+      const y = top + 456 + Math.floor(i / 3) * 96;
       const owned = wallet.owned.includes(it.id);
-      const equipped = it.slot === 'finish' ? wallet.finish === it.id : it.slot === 'ornament' ? m.ornament === it.id : owned;
+      const equipped = it.slot === 'finish' ? wallet.finish === it.id : it.slot === 'ornament' ? m.ornament === it.id : it.slot === 'stage' ? m.stage === it.id : owned;
       const card = this.add.container(x, y);
-      const g = this.add.graphics().fillStyle(preview === it.id ? 0xe8a33a : 0x2b1d2e, 1).fillRoundedRect(-144, -44, 288, 88, 18).fillStyle(preview === it.id ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-139, -39, 278, 78, 15);
-      const sw = this.add.circle(-104, 0, 20, it.tint ?? 0xd8c8b0).setStrokeStyle(4, 0x2b1d2e);
-      const nm = this.add.text(-74, -14, it.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0, 0.5);
-      const st = this.add.text(-74, 18, equipped ? 'EQUIPPED' : owned ? 'owned' : `${it.price} Bolts`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: equipped || owned ? '#2f8a3a' : '#b06a1a' }).setOrigin(0, 0.5);
-      card.add([g, sw, nm, st]).setSize(288, 88).setInteractive({ useHandCursor: true });
+      const g = this.add.graphics().fillStyle(preview === it.id ? 0xe8a33a : 0x2b1d2e, 1).fillRoundedRect(-102, -42, 204, 84, 16).fillStyle(preview === it.id ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-98, -38, 196, 76, 13);
+      const sw = this.add.circle(-74, 0, 15, it.tint ?? 0xd8c8b0).setStrokeStyle(3, 0x2b1d2e);
+      const nm = this.add.text(-52, -14, it.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#3b2533' }).setOrigin(0, 0.5);
+      const st = this.add.text(-52, 16, equipped ? 'EQUIPPED' : owned ? 'owned' : `${it.price}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '17px', color: equipped || owned ? '#2f8a3a' : '#b06a1a' }).setOrigin(0, 0.5);
+      card.add([g, sw, nm, st]).setSize(204, 84).setInteractive({ useHandCursor: true });
       card.on('pointerup', () => {
         tlog.log('preview', { id: it.id });
         this.openWorkshop(it.id);
       });
       c.add(card);
     });
-    const by = top + 460 + Math.ceil(CATALOG.length / 2) * 104 + 30;
+    const by = top + 456 + Math.ceil(CATALOG.length / 3) * 96 + 20;
     const pv = preview ? CATALOG.find((x) => x.id === preview) : undefined;
     if (pv) {
       const owned = wallet.owned.includes(pv.id);
-      const equipped = pv.slot === 'finish' ? wallet.finish === pv.id : pv.slot === 'ornament' ? m.ornament === pv.id : false;
+      const equipped = pv.slot === 'finish' ? wallet.finish === pv.id : pv.slot === 'ornament' ? m.ornament === pv.id : pv.slot === 'stage' ? m.stage === pv.id : false;
       const label = !owned ? `BUY  ·  ${pv.price}` : pv.slot === 'nameplate' ? 'NEW NAME' : equipped ? 'UNEQUIP' : 'EQUIP';
       const canAfford = owned || wallet.bolts >= pv.price;
       const b = this.button(c, W / 2, by, 420, label, 0x5fbf4a, () => {
@@ -3488,9 +3511,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
           m.owned = wallet.owned;
           if (pv.slot === 'finish') m.finish = pv.id;
           if (pv.slot === 'ornament') m.ornament = pv.id;
+          if (pv.slot === 'stage') m.stage = pv.id;
           m.workshopSeenBolts = m.bolts;
           tlog.log('purchase', { id: pv.id, price: pv.price, balance: m.bolts });
           sfx.rankUp(4);
+        } else if (pv.slot === 'stage') {
+          m.stage = equipped ? null : pv.id;
+          tlog.log('equip', { id: pv.id, on: !equipped });
         } else if (pv.slot === 'ornament') {
           m.ornament = equipped ? null : pv.id;
           tlog.log('equip', { id: pv.id, on: !equipped });
