@@ -25,14 +25,36 @@ import * as tlog from '../platform/telemetry';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 
 export const W = 720;
-export const H = 1280;
 const CELL = 124;
 const BX = (W - CELL * COLS) / 2;
-const BY = 446;
 const SPRITE = 108;
-const TARGET_Y = 245;
-const TRAY_Y = BY + CELL * ROWS + 44;
 const SCRAP_X = W - 92;
+// Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
+// so there are no letterbox bands. Header pinned top, tray pinned bottom, board + event lane above it, stage gets the rest.
+export let H = 1280;
+let BY = 446;
+let TRAY_Y = 1234;
+let EVENT_Y = 410;
+let HP_Y = 404;
+let STAGE_TOP = 92;
+let STAGE_H = 284;
+let TARGET_Y = 245;
+
+export const layoutHeight = (viewW: number, viewH: number) => Math.round(Math.min(1720, Math.max(1280, (W * viewH) / Math.max(1, viewW))));
+
+export function computeLayout(viewW: number, viewH: number) {
+  H = layoutHeight(viewW, viewH);
+  TRAY_Y = H - 66;
+  BY = TRAY_Y - 58 - CELL * ROWS;
+  EVENT_Y = BY - 34;
+  HP_Y = EVENT_Y - 54;
+  const top = 96;
+  const avail = HP_Y - 34 - top;
+  STAGE_H = Math.min(450, avail);
+  STAGE_TOP = top + (avail - STAGE_H) / 2;
+  TARGET_Y = STAGE_TOP + STAGE_H / 2 + 4;
+  return H;
+}
 
 const SAVE_KEY = 'omm.save.v1';
 const META_KEY = 'omm.meta.v1';
@@ -118,6 +140,10 @@ export class GameScene extends Phaser.Scene {
   trayArc!: Phaser.GameObjects.Graphics;
   trayBox!: Phaser.GameObjects.Graphics;
   trayPlate?: Phaser.GameObjects.Image;
+  laneBg!: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+  laneText!: Phaser.GameObjects.Text;
+  laneMsg = { text: '', color: '#fff0cf', until: 0 };
+  lastHeader = '';
   trayLabel!: Phaser.GameObjects.Text;
   pendingText!: Phaser.GameObjects.Text;
   scrapZone!: Phaser.GameObjects.Container;
@@ -188,8 +214,8 @@ export class GameScene extends Phaser.Scene {
   buildStatic() {
     if (this.hasArt('slot') && this.textures.get('bg').source[0].height < H) {
       // ChatGPT workbench: sand backdrop, bench anchored under the header, bottom bezel off-screen
-      this.add.rectangle(W / 2, H / 2, W, H, 0xf3cf9b);
-      this.add.image(W / 2, 62, 'bg').setOrigin(0.5, 0).setDisplaySize(W, 1300);
+      // full-bleed bench: stretched to the screen, header plate covers its very top
+      this.add.image(W / 2, 0, 'bg').setOrigin(0.5, 0).setDisplaySize(W, H + 40);
     } else this.add.image(W / 2, H / 2, 'bg').setDisplaySize(W, H);
     for (let i = 0; i < ROWS * COLS; i++) {
       const { x, y } = cellXY(i);
@@ -220,8 +246,8 @@ export class GameScene extends Phaser.Scene {
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
     // stage backdrop (per opponent) in a rounded window behind the target
-    this.stage = this.add.image(W / 2, 236, 'dot').setVisible(false);
-    const sm = this.make.graphics({}, false).fillStyle(0xffffff).fillRoundedRect(70, 92, W - 140, 284, 26);
+    this.stage = this.add.image(W / 2, STAGE_TOP + STAGE_H / 2, 'dot').setVisible(false);
+    const sm = this.make.graphics({}, false).fillStyle(0xffffff).fillRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
     this.stage.setMask(sm.createGeometryMask());
     this.stageFrame = this.add.graphics();
     // target
@@ -229,10 +255,15 @@ export class GameScene extends Phaser.Scene {
     this.face = this.add.image(W / 2, TARGET_Y, 'dot').setVisible(false);
     this.hpBar = this.add.graphics();
     if (this.hasArt('hp_frame') && this.hasArt('hp_fill')) {
-      this.hpFill = this.add.image(W / 2 - 220, 404, 'hp_fill').setOrigin(0, 0.5).setDisplaySize(440, 26);
-      this.add.image(W / 2, 404, 'hp_frame').setDisplaySize(476, 50);
+      this.hpFill = this.add.image(W / 2 - 220, HP_Y, 'hp_fill').setOrigin(0, 0.5).setDisplaySize(440, 26);
+      this.add.image(W / 2, HP_Y, 'hp_frame').setDisplaySize(476, 50);
     }
-    this.hpText = this.add.text(W / 2, 404, '', { fontFamily: 'Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5).setDepth(2);
+    this.hpText = this.add.text(W / 2, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#2a2233', stroke: '#fff0cf', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
+
+    // event lane (single place for chain results / warnings, never over the HP bar or gadgets)
+    this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
+    this.laneBg.setDepth(20).setAlpha(0);
+    this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -326,11 +357,11 @@ export class GameScene extends Phaser.Scene {
     const sk = `stage_${Math.max(0, this.s.target)}`;
     if (this.hasArt(sk)) {
       this.stage.setTexture(sk).setVisible(true);
-      this.stage.setScale(Math.max((W - 140) / this.stage.width, 284 / this.stage.height));
-      this.stageFrame.clear().lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(70, 92, W - 140, 284, 26);
+      this.stage.setScale(Math.max((W - 140) / this.stage.width, STAGE_H / this.stage.height));
+      this.stageFrame.clear().lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
     }
     const tex = this.target.frame;
-    this.targetBaseScale = Math.min(270 / tex.width, 260 / tex.height);
+    this.targetBaseScale = Math.min(280 / tex.width, (STAGE_H - 24) / tex.height);
     this.target.setScale(this.targetBaseScale).setAngle(0).setAlpha(1).setPosition(W / 2, TARGET_Y);
   }
 
@@ -563,7 +594,7 @@ export class GameScene extends Phaser.Scene {
         const { x, y } = cellXY(to);
         this.time.delayedCall(120, () => {
           sfx.rankUp(ng.rank);
-          this.floatText(x, y - 70, ng.rank >= MAX_RANK ? 'MAX RANK!' : `RANK ${ng.rank}!`, '#ffffff', 34, 200);
+          this.floatText(x, y + 46, ng.rank >= MAX_RANK ? 'MAX!' : `RANK ${ng.rank}`, '#ffffff', 28, 200);
           this.ring(x, y, FAMILY_INFO[ng.family].color, 110, 16, 420);
         });
       }
@@ -713,7 +744,13 @@ export class GameScene extends Phaser.Scene {
     const s = this.s;
     const demo = s.target < 0;
     this.headerText.setColor(s.hard ? '#b3201a' : s.remix ? '#1f6f8f' : '#3b2533');
-    this.headerText.setFontSize(this.headerText.text.length > 13 ? 24 : 30);
+    if (this.headerText.text !== this.lastHeader) {
+      // fixed header columns: the name gets x 70..350 and shrinks to fit
+      this.lastHeader = this.headerText.text;
+      let fs = 30;
+      this.headerText.setFontSize(fs);
+      while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
+    }
     this.headerText.setText(demo ? 'WARM-UP' : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     const t = Math.ceil(s.timeLeft);
     this.timerText.setText(demo ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
@@ -729,9 +766,9 @@ export class GameScene extends Phaser.Scene {
       this.hpFill.setCrop(0, 0, this.hpFill.width * frac, this.hpFill.height);
       this.hpFill.setTint(frac > 0.5 ? 0xffffff : frac > 0.25 ? 0xffd27a : 0xff8a7a);
     } else {
-    hb.fillStyle(0x2b1d2e, 1).fillRoundedRect(W / 2 - bw / 2 - 5, 386, bw + 10, 36, 18);
-    hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, 391, bw, 26, 13);
-    if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, 391, Math.max(26, bw * frac), 26, 13);
+    hb.fillStyle(0x2b1d2e, 1).fillRoundedRect(W / 2 - bw / 2 - 5, HP_Y - 18, bw + 10, 36, 18);
+    hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, bw, 26, 13);
+    if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, Math.max(26, bw * frac), 26, 13);
     }
     this.hpText.setText(fmt(Math.max(0, s.hp)));
 
@@ -761,11 +798,16 @@ export class GameScene extends Phaser.Scene {
       glow.lineStyle(14, 0xff6a00, a).strokeRoundedRect(BX - 14, BY - 14, CELL * COLS + 28, CELL * ROWS + 28, 30);
     }
 
+    // event lane (single place for chain results / warnings, never over the HP bar or gadgets)
+    this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
+    this.laneBg.setDepth(20).setAlpha(0);
+    this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
+
     // tray
     const nxt = peekNext(s);
     this.trayIcon.setTexture(`${nxt.family}_${nxt.rank}`);
     const f = this.trayIcon.frame;
-    this.trayIcon.setScale(Math.min(62 / f.width, 62 / f.height));
+    this.trayIcon.setScale(Math.min(54 / f.width, 54 / f.height));
     this.trayBadge.setText(nxt.rank > 1 ? String(nxt.rank) : '');
     const ta = this.trayArc.clear();
     const prog = s.pending.length >= TUNING.maxPending ? 1 : 1 - s.supplyTimer / supplyPeriod(s);
@@ -857,7 +899,7 @@ export class GameScene extends Phaser.Scene {
             const into = cellXY(e.into);
             spawn.set(e.gadget.id, land);
             this.ring(into.x, into.y, 0xffcf33, 90, 14, 320);
-            this.floatText(into.x, into.y - 64, 'KICKBACK!', '#ffcf33', 32, 150, 'sticker_kickback');
+            this.showEvent('KICKBACK!  A loose part upgraded yours', '#ffd24a', 1800);
           } else spawn.set(e.gadget.id, { x: land.x, y: land.y - 80 });
           needReconcile = true;
           break;
@@ -891,15 +933,16 @@ export class GameScene extends Phaser.Scene {
               this.tweens.add({ targets: v, x: this.target.x, y: this.target.y, scale: 0.1, angle: 720, duration: 420, ease: 'Quad.In', onComplete: () => v.destroy() });
             }
             sfx.scrap();
-            this.floatText(c0.x, c0.y - 60, 'SLURP!', '#ff6a6a', 34);
+            this.showEvent('SLURP!  The Viper ate a part', '#ffb0a0', 1600);
           } else if (e.kind === 'twins' && e.outcome === 'hit') {
             sfx.fan(0);
-            this.floatText(c0.x, c0.y - 60, 'SHOVE!', '#ffcf33', 32);
+            this.showEvent('SHOVE!  Part pushed aside', '#ffd24a', 1400);
           } else if (e.kind === 'piano' && e.outcome === 'hit') {
             sfx.panelBreak(2);
             this.cameras.main.shake(160, 0.006);
-            this.floatText(W / 2, cellXY(e.cells[0]).y - 70, 'LOCKED!', '#ffffff', 40);
-          } else this.floatText(c0.x, c0.y - 60, e.outcome === 'jam' ? 'JAMMED!' : 'MISSED!', '#9be05a', 30);
+            this.showEvent('ROW LOCKED  ·  4s', '#d9c2ff', 1200);
+          } else this.showEvent(e.outcome === 'jam' ? 'JAMMED!  Nowhere to shove it' : 'MISSED!  You saved it', '#b8f07a', 1600);
+          void c0;
           needReconcile = true;
           break;
         }
@@ -920,6 +963,23 @@ export class GameScene extends Phaser.Scene {
     if (this.s.phase === 'choice' && !this.modal && events.some((e) => e.type === 'kill' && !e.final && !e.demo)) {
       this.time.delayedCall(450, () => this.openChoice());
     }
+  }
+
+  /** Transient message in the event lane. Remix warnings (drawRemix) override it while active. */
+  showEvent(text: string, color = '#fff0cf', ms = 1400) {
+    this.laneMsg = { text, color, until: this.time.now + ms };
+    this.laneText.setScale(1.25);
+    this.tweens.add({ targets: this.laneText, scale: 1, duration: 180, ease: 'Back.Out' });
+  }
+
+  updateLane(persistent: string | null, color = '#ffd2c8') {
+    const msg = persistent ?? (this.time.now < this.laneMsg.until ? this.laneMsg.text : '');
+    const col = persistent ? color : this.laneMsg.color;
+    const on = !!msg;
+    if (msg) this.laneText.setText(msg).setColor(col);
+    const a = on ? 1 : Math.max(0, this.laneText.alpha - 0.08);
+    this.laneText.setAlpha(a);
+    this.laneBg.setAlpha(a * 0.95);
   }
 
   floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
@@ -1071,7 +1131,7 @@ export class GameScene extends Phaser.Scene {
     const depthOf = new Map(r.activations.map((a) => [a.idx, a.depth]));
     if (odStart) {
       sfx.overdrive();
-      this.floatText(W / 2, BY + 40, 'OVERDRIVE!', '#ff6a00', 56, 300, 'banner_overdrive');
+      this.showEvent('OVERDRIVE!  Cannons fire fast', '#ffb070', 2200);
       this.cameras.main.flash(140, 255, 140, 0, false);
     }
     // root snap
@@ -1141,8 +1201,9 @@ export class GameScene extends Phaser.Scene {
       if (big) this.cameras.main.shake(180, 0.004 + Math.min(r.count, 30) * 0.0003);
       haptic(big ? 30 : 12);
       const huge = r.count >= 10;
-      const label = r.count > 1 ? `x${r.count} CHAIN!\n${fmt(r.total)}` : fmt(r.total);
-      this.floatText(this.target.x, this.target.y - 20, label, huge ? '#ffcf33' : '#ffffff', huge ? 54 : 40, huge ? 250 : 0, huge ? 'banner_chain' : '');
+      if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
+      // damage number beside the opponent, never on its face
+      this.floatText(this.target.x + 150, this.target.y - 40, fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
     });
   }
 
@@ -1235,32 +1296,30 @@ export class GameScene extends Phaser.Scene {
   openChoice() {
     if (this.s.phase !== 'choice' || this.modal) return;
     this.cancelDrag();
-    const c = this.panel(470);
-    const top = H / 2 - 235;
-    c.add(this.add.text(W / 2, top + 62, 'PICK AN UPGRADE', { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    const c = this.panel(700);
+    const top = H / 2 - 350;
+    c.add(this.add.text(W / 2, top + 64, 'PICK AN UPGRADE', { fontFamily: 'Lilita One, Arial Black', fontSize: '46px', color: '#2a2233' }).setOrigin(0.5));
     this.s.offer.forEach((id: PerkId, i) => {
-      const card = this.add.container(W / 2 + (i - 1) * 206, top + 280);
+      // stacked full-width rows (ChatGPT round-7 review): big tap target, readable two-line text
+      const card = this.add.container(W / 2, top + 210 + i * 190);
       const p = PERKS[id];
       const parts: Phaser.GameObjects.GameObject[] = [];
-      if (this.hasArt('card')) {
-        parts.push(this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(-76, -94, 152, 198, 14));
-        parts.push(this.add.image(0, 0, 'card').setDisplaySize(322, 322));
-      } else parts.push(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-100, -135, 200, 270, 22).fillStyle(0xffffff, 1).fillRoundedRect(-95, -130, 190, 260, 18));
+      if (this.hasArt('ui_perk_row')) parts.push(this.add.image(0, 0, 'ui_perk_row').setDisplaySize(612, 172));
+      else parts.push(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-300, -82, 600, 164, 26).fillStyle(0xffffff, 1).fillRoundedRect(-294, -76, 588, 152, 22));
       const iconKey = this.hasArt(`perk_${id}`) ? `perk_${id}` : p.icon === 'bolt' ? 'icon_bolt' : p.icon === 'crate' ? 'cannon_2' : `${p.icon}_2`;
-      const icon = this.add.image(0, -52, this.textures.exists(iconKey) ? iconKey : 'spark');
-      icon.setScale(Math.min(96 / icon.width, 96 / icon.height));
-      const n = this.add.text(0, 22, p.name.replace(' ', '\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533', align: 'center', lineSpacing: -6 }).setOrigin(0.5);
-      const t = this.add.text(0, 86, p.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '16px', color: '#5a4a5a', align: 'center', wordWrap: { width: 140 } }).setOrigin(0.5);
-      card.add([...parts, icon, n, t]).setSize(200, 270).setInteractive({ useHandCursor: true });
-      this.tweens.add({ targets: icon, y: -58, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut', delay: i * 200 });      card.setScale(0.6).setAlpha(0);
-      this.tweens.add({ targets: card, scale: 1, alpha: 1, delay: 80 + i * 90, duration: 260, ease: 'Back.Out' });
-      card.on('pointerup', () => {
+      const icon = this.add.image(-220, 0, this.textures.exists(iconKey) ? iconKey : 'spark');
+      icon.setScale(Math.min(112 / icon.width, 112 / icon.height));
+      const n = this.add.text(-140, -28, p.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#2a2233' }).setOrigin(0, 0.5);
+      const t = this.add.text(-140, 26, p.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '27px', color: '#5a4a5a', wordWrap: { width: 400 }, maxLines: 2 }).setOrigin(0, 0.5);
+      card.add([...parts, icon, n, t]).setSize(612, 172).setInteractive({ useHandCursor: true });
+      card.setScale(0.7).setAlpha(0);
+      this.tweens.add({ targets: card, scale: 1, alpha: 1, delay: 60 + i * 80, duration: 240, ease: 'Back.Out' });      card.on('pointerup', () => {
         sfx.click();
         this.closeModal();
         tlog.log('perk', { id });
         const res = choosePerk(this.s, id);
         this.handleEvents(res.events);
-        this.floatText(W / 2, BY + 60, p.name + '!', '#ffcf33', 44);
+        this.showEvent(p.name + '  ·  ' + p.text, '#ffd24a', 2400);
         this.save();
       });
       c.add(card);
@@ -1346,7 +1405,7 @@ export class GameScene extends Phaser.Scene {
     tlog.log('unlock', { toy });
     this.time.delayedCall(900, () => {
       sfx.rankUp(6);
-      this.floatText(W / 2, BY + 120, `NEW TOY UNLOCKED!\n${FAMILY_INFO[toy].name.toUpperCase()} (next run)`, '#c23fd1', 40, 1400);
+      this.showEvent(`NEW TOY: ${FAMILY_INFO[toy].name.toUpperCase()}  ·  turn it on before your next run`, '#f0b8ff', 3200);
     });
   }
 
@@ -1377,8 +1436,8 @@ export class GameScene extends Phaser.Scene {
     c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive());
     let logo: Phaser.GameObjects.GameObject;
     if (this.hasArt('logo')) {
-      const l = this.add.image(W / 2, 250, 'logo');
-      l.setScale(Math.min(620 / l.width, 360 / l.height));
+      const l = this.add.image(W / 2, Math.min(250, (H - 560) * 0.32), 'logo');
+      l.setScale(Math.min(600 / l.width, 330 / l.height));
       logo = l;
     } else {
       const l = this.add.text(W / 2, 250, 'ONE MORE\nMERGE', { fontFamily: 'Lilita One, Arial Black', fontSize: '112px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 16, align: 'center', lineSpacing: -18 }).setOrigin(0.5);
@@ -1389,41 +1448,39 @@ export class GameScene extends Phaser.Scene {
     c.add(logo);
     this.tweens.add({ targets: logo, angle: { from: -2, to: 2 }, scale: '*=1.03', duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     const m = this.meta;
-    const info = [m.bestTime !== null ? `Best time  ${m.bestTime.toFixed(1)}s` : 'Beat all 3 before the clock runs out!', m.bestTimeHard !== null ? `Challenge best  ${m.bestTimeHard.toFixed(1)}s` : '', m.bestChain ? `Biggest chain  x${m.bestChain}` : ''].filter(Boolean).join('\n');
-    c.add(this.add.text(W / 2, H - 400, info, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 8, align: 'center' }).setOrigin(0.5));
     this.modal = c;
-    const play = this.button(c, W / 2, H - (m.hardUnlocked ? 250 : 200), 440, 'PLAY', 0x5fbf4a, () => this.retry(false, -1));
-    if (m.hardUnlocked) {
-      this.button(c, W / 2 - 162, H - 140, 300, 'CHALLENGE', 0xe8452c, () => this.retry(true, -1));
-      const rb = this.button(c, W / 2 + 162, H - 140, 300, 'REMIX', 0x27a4c0, () => this.openRemixPicker());
-      if (this.hasArt('badge_remix')) {
-        const bd = this.add.image(W / 2 + 290, H - 182, 'badge_remix');
-        bd.setScale(64 / Math.max(bd.width, bd.height));
-        c.add(bd);
-      }
-      void rb;
-    }
-    // one helper toy per run (ChatGPT TOY_RULES: limit supply dilution until humans show the toys pay back)
+    // quiet console behind all lower controls (ChatGPT round-7: readable labels over busy key art)
+    const consoleTop = H - 560;
+    if (this.hasArt('ui_console')) c.add(this.add.image(W / 2, consoleTop + 270, 'ui_console').setDisplaySize(676, 560));
+    else c.add(this.add.graphics().fillStyle(0x1e1826, 0.88).fillRoundedRect(22, consoleTop, W - 44, 540, 34));
+    const cream = { fontFamily: 'Lilita One, Arial Black', color: '#fff0cf' };
+    const recs = [m.bestTime !== null ? `Best ${m.bestTime.toFixed(1)}s` : 'Beat all 3 before the clock runs out', m.bestTimeHard !== null ? `Challenge ${m.bestTimeHard.toFixed(1)}s` : '', m.bestChain ? `Chain x${m.bestChain}` : ''].filter(Boolean).join('   ·   ');
+    c.add(this.add.text(W / 2, consoleTop + 58, recs, { ...cream, fontSize: '28px' }).setOrigin(0.5));
+    const nc = this.nextChallenge();
     const unlocked = Object.keys(m.toys) as Family[];
+    // one helper toy per run (ChatGPT TOY_RULES: limit supply dilution until humans show the toys pay back)
     const toggles: Phaser.GameObjects.Container[] = [];
-    const lbl = (toy: Family) => `${FAMILY_INFO[toy].name.toUpperCase()}: ${m.toys[toy] ? 'ON' : 'OFF'}`;
+    const lbl = (toy: Family) => `${FAMILY_INFO[toy].name.toUpperCase()} ${m.toys[toy] ? 'ON' : 'OFF'}`;
     unlocked.forEach((toy, i) => {
-      const x = W / 2 + (i - (unlocked.length - 1) / 2) * 220;
-      const tg = this.button(c, x, H - 520, 250, lbl(toy), 0x27a4c0, () => {
+      const x = W / 2 + (i - (unlocked.length - 1) / 2) * 206;
+      const tg = this.button(c, x, consoleTop + 140, 250, lbl(toy), 0x27a4c0, () => {
         const on = !m.toys[toy];
         for (const k of unlocked) m.toys[k] = false;
         m.toys[toy] = on;
         store(META_KEY, JSON.stringify(m));
         unlocked.forEach((k, j) => (toggles[j].list[1] as Phaser.GameObjects.Text).setText(lbl(k)));
       });
-      tg.setScale(0.75);
+      tg.setScale(0.72);
       toggles.push(tg);
     });
-    const nc = this.nextChallenge();
-    if (nc) c.add(this.add.text(W / 2, H - 590, `Next toy: ${nc.text}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#e07af0', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
-    this.tweens.add({ targets: play, scale: 1.06, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    if (nc) c.add(this.add.text(W / 2, consoleTop + (unlocked.length ? 200 : 140), `Next toy: ${nc.text}`, { ...cream, fontSize: '24px', color: '#e9c8ff' }).setOrigin(0.5));
+    const play = this.button(c, W / 2, consoleTop + 320, 560, 'PLAY', 0x5fbf4a, () => this.retry(false, -1));
+    if (m.hardUnlocked) {
+      this.button(c, W / 2 - 152, consoleTop + 450, 256, 'CHALLENGE', 0xe8452c, () => this.retry(true, -1));
+      this.button(c, W / 2 + 152, consoleTop + 450, 256, 'REMIX', 0x27a4c0, () => this.openRemixPicker());
+    } else c.add(this.add.text(W / 2, consoleTop + 450, 'Win once to unlock Challenge + Remix', { ...cream, fontSize: '24px', color: '#cdbfa8' }).setOrigin(0.5));
+    this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
-
   openRemixPicker() {
     this.closeModal();
     const c = this.panel(760);
@@ -1468,58 +1525,84 @@ export class GameScene extends Phaser.Scene {
     const r = this.s.remix;
     if (!this.remixG) {
       this.remixG = this.add.graphics().setDepth(46);
-      this.remixText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff', stroke: '#b3201a', strokeThickness: 7 }).setOrigin(0.5).setDepth(47);
+      this.remixText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#2a2233' }).setOrigin(0.5).setDepth(48);
     }
     const g = this.remixG.clear();
     for (const im of this.remixIcons) im.setVisible(false);
     this.remixText.setVisible(false);
-    if (!r) return;
+    if (!r) {
+      this.updateLane(null);
+      return;
+    }
     let used = 0;
-    const icon = (key: string, x: number, y: number, size: number, angle = 0, alpha = 1) => {
+    const icon = (key: string, x: number, y: number, size: number, angle = 0, alpha = 1, depth = 47) => {
       if (!this.hasArt(key)) return;
       let im = this.remixIcons[used];
-      if (!im) this.remixIcons.push((im = this.add.image(0, 0, key).setDepth(47)));
+      if (!im) this.remixIcons.push((im = this.add.image(0, 0, key)));
       used++;
-      im.setTexture(key).setPosition(x, y).setAngle(angle).setAlpha(alpha).setVisible(true);
+      im.setTexture(key).setPosition(x, y).setAngle(angle).setAlpha(alpha).setDepth(depth).setVisible(true);
       im.setScale(size / Math.max(im.width, im.height));
     };
     const t = this.time.now / 1000;
+    const HALF = CELL / 2 - 4;
+    const cellBox = (c: number, col: number, alpha: number, width = 5) => {
+      const { x, y } = cellXY(c);
+      g.lineStyle(width, col, alpha).strokeRoundedRect(x - HALF, y - HALF, HALF * 2, HALF * 2, 18);
+    };
+    /** small countdown bubble on the marked cell's own top-right corner (never on a neighbour); behaviour icon top-left */
+    const bubble = (c: number, secs: number, sideIcon: string) => {
+      const { x, y } = cellXY(c);
+      const bx = x + HALF - 6;
+      const by = y - HALF + 6;
+      if (this.hasArt('ui_bubble')) icon('ui_bubble', bx, by - 4, 50, 0, 1, 48);
+      else g.fillStyle(0xfff0cf, 1).fillCircle(bx, by, 22).lineStyle(4, 0x2a2233, 1).strokeCircle(bx, by, 22);
+      this.remixText.setText(String(secs)).setPosition(bx, by - 8).setFontSize(26).setVisible(true);
+      if (sideIcon) icon(sideIcon, x - HALF + 10, y - HALF + 10, 38, 0, 0.95, 48);
+    };    const coral = 0xf05c45;
+    const purple = 0x8e58c9;
+    let lane: string | null = null;
     if (r.pending) {
       const left = Math.max(0, r.pending.deadline - this.s.elapsed);
-      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(t * (6 + (3 - left) * 3)));
-      for (const c of r.pending.cells) {
-        const { x, y } = cellXY(c);
-        g.fillStyle(0xff3b2a, 0.18 * pulse).fillRoundedRect(x - 58, y - 58, 116, 116, 20);
-        g.lineStyle(6, 0xff3b2a, pulse).strokeRoundedRect(x - 58, y - 58, 116, 116, 20);
-        if (r.kind === 'piano') icon('tg_piano', x, y, 60, 0, 0.85);
-      }
-      const c0 = cellXY(r.pending.cells[0]);
-      if (r.kind === 'vacuum') icon('tg_vacuum', c0.x, c0.y, 96, t * 200, 0.9);
-      if (r.kind === 'twins') {
-        // arrow toward the landing the engine would pick right now; dimmed + cross when jammed
-        const blocked = new Set([...this.s.drops.flatMap((d) => (d.plan ? [d.plan.land] : []))]);
-        const to = twinsDestination(this.s.grid, r.pending.cells[0], blocked);
-        if (to >= 0) {
-          const d = cellXY(to);
-          const ang = (Math.atan2(d.y - c0.y, d.x - c0.x) * 180) / Math.PI + 90;
-          icon('tg_twins', (c0.x + d.x) / 2, (c0.y + d.y) / 2, 80, ang);
+      const secs = Math.ceil(left);
+      const pulse = 0.65 + 0.35 * Math.abs(Math.sin(t * (5 + (3 - left) * 3)));
+      const c0 = r.pending.cells[0];
+      if (r.kind === 'piano') {
+        // dashed warning perimeter around the row
+        const ys = cellXY(c0).y;
+        const x0 = BX + 6, x1 = BX + CELL * COLS - 6, y0 = ys - HALF, y1 = ys + HALF;
+        g.lineStyle(5, purple, pulse);
+        for (let x = x0; x < x1; x += 28) g.lineBetween(x, y0, Math.min(x + 16, x1), y0).lineBetween(x, y1, Math.min(x + 16, x1), y1);
+        g.lineBetween(x0, y0, x0, y1).lineBetween(x1, y0, x1, y1);
+        bubble(r.pending.cells[r.pending.cells.length - 1], secs, 'tg_piano');
+        lane = `ROW LOCK in ${secs}  ·  merge what you need now`;
+      } else {
+        cellBox(c0, coral, pulse);
+        if (r.kind === 'vacuum') {
+          bubble(c0, secs, 'tg_vacuum');
+          lane = `SUCTION in ${secs}  ·  move this part to save it`;
         } else {
-          icon('tg_twins', c0.x, c0.y - 40, 70, 0, 0.35);
-          g.lineStyle(8, 0xb3201a, 1).lineBetween(c0.x - 22, c0.y - 62, c0.x + 22, c0.y - 18).lineBetween(c0.x + 22, c0.y - 62, c0.x - 22, c0.y - 18);
+          const blocked = new Set([...this.s.drops.flatMap((d) => (d.plan ? [d.plan.land] : []))]);
+          const to = twinsDestination(this.s.grid, c0, blocked);
+          if (to >= 0) {
+            const a = cellXY(c0), d = cellXY(to);
+            cellBox(to, coral, 0.45, 3);
+            const ang = (Math.atan2(d.y - a.y, d.x - a.x) * 180) / Math.PI + 90;
+            icon('tg_twins', (a.x + d.x) / 2, (a.y + d.y) / 2, 54, ang, 0.95);
+            lane = `SHOVE in ${secs}  ·  open or block a side to steer it`;
+          } else lane = `SHOVE in ${secs}  ·  boxed in, it will jam`;
+          bubble(c0, secs, '');
         }
       }
-      icon('tg_cell', c0.x + 40, c0.y - 44, 46);
-      this.remixText.setText(Math.ceil(left).toString()).setPosition(c0.x, c0.y + 40).setVisible(true);
     }
     if (r.lock) {
-      for (const c of r.lock.cells) {
-        const { x, y } = cellXY(c);
-        g.fillStyle(0x2b1d2e, 0.45).fillRoundedRect(x - 58, y - 58, 116, 116, 20);
-        icon('tg_piano', x, y, 70, 0, 0.95);
-      }
+      const ys = cellXY(r.lock.cells[0]).y;
+      g.fillStyle(purple, 0.18).fillRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);
+      g.lineStyle(5, purple, 0.95).strokeRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);
+      icon('tg_piano', BX - 4, ys, 50, 0, 1, 48);
+      lane = `ROW LOCKED  ·  ${Math.max(0, r.lock.until - this.s.elapsed).toFixed(1)}s`;
     }
+    this.updateLane(lane, r.lock || r.kind === 'piano' ? '#d9c2ff' : '#ffd2c8');
   }
-
   openPause() {
     if (this.modal || this.s.phase === 'won' || this.s.phase === 'lost') return;
     this.cancelDrag();

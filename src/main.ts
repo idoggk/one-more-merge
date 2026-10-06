@@ -1,10 +1,19 @@
 import '@fontsource/lilita-one';
 import Phaser from 'phaser';
-import { GameScene, H, W } from './game/GameScene';
+import { computeLayout, GameScene, layoutHeight, W } from './game/GameScene';
 
 async function boot() {
   // make sure canvas text uses the real font from the first frame (never block more than 1.5 s)
   await Promise.race([document.fonts.load('40px "Lilita One"'), new Promise((r) => setTimeout(r, 1500))]).catch(() => {});
+  const H = computeLayout(window.innerWidth, window.innerHeight);
+  // a big aspect change (rotation, window resize) rebuilds the layout; the run is saved on hide/reload
+  let resizeT = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeT);
+    resizeT = window.setTimeout(() => {
+      if (Math.abs(layoutHeight(window.innerWidth, window.innerHeight) - H) > 60) location.reload();
+    }, 400);
+  });
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',

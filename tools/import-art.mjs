@@ -27,6 +27,13 @@ const targetOf = (n) =>
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
   if (/app_?icon/.test(n)) return 'app_icon';
+  // round 7: ui plates
+  if (n === 'board_slot_quiet') return 'slot';
+  if (n === 'board_slot_empty') return 'slot_old';
+  if (/^ui_title_console/.test(n)) return 'ui_console';
+  if (/^ui_countdown_bubble/.test(n)) return 'ui_bubble';
+  if (/^ui_event_ribbon/.test(n)) return 'ui_ribbon';
+  if (/^ui_perk_choice_row/.test(n)) return 'ui_perk_row';
   // round 6: remix
   if (/^kickback_/.test(n)) {
     const tg = targetOf(n);
@@ -124,13 +131,14 @@ const SIZE = (key) => {
   if (key.startsWith('store_')) return null;
   if (['bg', 'bg_practice', 'bg_corner', 'title', 'logo', 'vfx_flame', 'hud_header', 'hp_frame', 'hp_fill'].includes(key) || key.startsWith('stage_') || key.startsWith('banner_')) return null;
   if (key === 'app_icon') return 1024;
+  if (key.startsWith('ui_')) return 720;
   if (key.startsWith('target') || key === 'demo_can' || key === 'card' || key === 'victory' || key === 'defeat' || key.startsWith('btn_')) return 512;
   if (key.startsWith('debris')) return 128;
   return 256;
 };
 const NO_TRIM = new Set(['slot', 'card', 'app_icon', 'title']);
 /** Non-square UI pieces keep their own aspect ratio (no square padding). */
-const KEEP_ASPECT = (key) => /^(tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_|plate_)/.test(key);
+const KEEP_ASPECT = (key) => /^(ui_|tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_|plate_)/.test(key);
 for (const f of files) {
   const key = keyFor(f);
   if (!key) {
