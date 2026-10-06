@@ -261,15 +261,15 @@ export class GameScene extends Phaser.Scene {
     const addText = this.add.text.bind(this.add);
     (this.add as unknown as { text: typeof addText }).text = (x, y, txt, style = {}) => addText(x, y, txt, { resolution: RS, ...style });
     ensureTextures(this);
-    if (new URLSearchParams(location.search).has('reset')) {
+    const qp0 = new URLSearchParams(location.search); // read before ?reset strips the URL
+    if (qp0.has('reset')) {
       store(SAVE_KEY, null);
       store(META_KEY, null);
       history.replaceState(null, '', location.pathname);
     }
     this.meta = loadMeta();
     // r21 external-playtest configuration: ?playtest=1 hides Challenge/Remix, helpers and the cosmetics catalog
-    const qp = new URLSearchParams(location.search);
-    if (qp.has('playtest')) this.meta.playtestMode = qp.get('playtest') !== '0';
+    if (qp0.has('playtest')) this.meta.playtestMode = qp0.get('playtest') !== '0';
     store(META_KEY, JSON.stringify(this.meta));
     audioSettings.on = this.meta.sound;
     audioSettings.music = this.meta.music;
