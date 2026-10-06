@@ -87,6 +87,10 @@ interface Meta {
   music: boolean;
   /** Bolts balance at the last Workshop visit (new-item dot). */
   workshopSeenBolts?: number;
+  /** Chapter medals earned (chapter number -> true), r17. */
+  medals?: Record<string, boolean>;
+  /** One-time road / card / booster lessons (r17 onboarding). */
+  lessons?: Record<string, boolean>;
   /** SAGA progress: best stars per level number, dynamic resources, one-time grants. */
   levelStars?: Record<string, number>;
   kits?: number;
@@ -2388,6 +2392,7 @@ export class GameScene extends Phaser.Scene {
     const parts: string[] = [];
     let got = 0;
     let firstClear = false;
+    let chapterDone = 0;
     if (won) {
       m.wins++;
       got = starsFor(def, s.elapsed);
@@ -2422,6 +2427,11 @@ export class GameScene extends Phaser.Scene {
         grants.stars50 = true;
         m.capsules = (m.capsules ?? 0) + 1;
         lines.push('50 stars: +1 Time Capsule');
+      }
+      if (firstClear && n % 10 === 0 && !(m.medals ??= {})[String(n / 10)]) {
+        m.medals![String(n / 10)] = true;
+        chapterDone = n / 10;
+        tlog.log('chapter_reward_granted', { chapter: chapterDone });
       }
       if (n >= 5 && !m.hardUnlocked) {
         m.hardUnlocked = true;
@@ -2470,10 +2480,44 @@ export class GameScene extends Phaser.Scene {
       c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 30 + lines.length * 36, 18));
       c.add(this.add.text(W / 2, top + 500 + (lines.length * 36) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a', align: 'center' }).setOrigin(0.5));
     }
+    if (chapterDone) this.time.delayedCall(700, () => this.playChapterChest(chapterDone));
+    else if (won && n % 10 !== 0) {
+      const left = 10 - (n % 10);
+      c.add(this.add.text(W / 2, top + 600, `${left} level${left > 1 ? 's' : ''} until your Chapter ${Math.ceil(n / 10)} chest`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
+    }
     const nextN = Math.min(LEVELS.length, n + 1);
     if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road')), 1.1);
     else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => this.openLevelSheet(n), 1.1);
     this.button(c, W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
+  }
+
+  /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
+  playChapterChest(chapter: number) {
+    const o = this.add.container(0, 0).setDepth(140);
+    o.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive());
+    o.add(this.add.text(W / 2, H / 2 - 360, `CHAPTER ${chapter} COMPLETE!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
+    const closed = this.hasArt('chest_closed') ? this.add.image(W / 2, H / 2, 'chest_closed') : null;
+    const open = this.hasArt('chest_open') ? this.add.image(W / 2, H / 2, 'chest_open').setAlpha(0) : null;
+    for (const im of [closed, open]) if (im) im.setScale(300 / Math.max(im.width, im.height));
+    if (closed) o.add(closed);
+    if (open) o.add(open);
+    const medal = this.medalIcon(W / 2, H / 2 - 40, 220, chapter, true).setAlpha(0).setScale(0.4);
+    o.add(medal);
+    const cap = this.add.text(W / 2, H / 2 + 260, `Chapter ${chapter} medal added to your MACHINE\n(tap to continue)`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', align: 'center' }).setOrigin(0.5).setAlpha(0);
+    o.add(cap);
+    sfx.rankUp(4);
+    if (closed) this.tweens.add({ targets: closed, angle: { from: -4, to: 4 }, duration: 90, yoyo: true, repeat: 4 });
+    this.time.delayedCall(700, () => {
+      sfx.win();
+      if (closed) this.tweens.add({ targets: closed, alpha: 0, duration: 200 });
+      if (open) this.tweens.add({ targets: open, alpha: 1, duration: 200 });
+      this.tweens.add({ targets: medal, alpha: 1, scale: 1, y: H / 2 - 170, duration: 520, ease: 'Back.Out' });
+      this.tweens.add({ targets: cap, alpha: 1, delay: 400, duration: 300 });
+    });
+    o.list[0].on('pointerup', () => {
+      tlog.log('chapter_reward_presented', { chapter });
+      o.destroy();
+    });
   }
 
   /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
@@ -2637,6 +2681,9 @@ export class GameScene extends Phaser.Scene {
     const status = empty ? 'Starter kit  ·  upgrade it in runs' : m.bestChain ? `Best chain: x${m.bestChain}` : "Built from the gadgets you've merged";
     c.add(this.add.text(W / 2, headY + 48, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a' }).setOrigin(0.5));
 
+    // trophy shelf (r17): earned chapter medals, collection only
+    const medals = Object.keys(m.medals ?? {}).map(Number).sort((a, b) => a - b);
+    medals.slice(0, 6).forEach((ch, i) => c.add(this.medalIcon(W / 2 + (i - (Math.min(medals.length, 6) - 1) / 2) * 76, headY + 110, 70, ch, true)));
     // the machine
     const helper = this.activeToys()[0] ?? null;
     // day 0: three rank-1 starter modules instead of an empty chassis (display baseline, not earned mastery)
@@ -2755,6 +2802,54 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Chapter collection identity (r17): the medal portrait for chapters 1-6. */
+  static CHAPTER_MONSTER = [0, 1, 3, 4, 5, 2];
+
+  /** A chapter medal: the empty medal plate with the chapter's monster portrait and numeral composited in code. */
+  medalIcon(x: number, y: number, size: number, chapter: number, earned: boolean): Phaser.GameObjects.Container {
+    const c = this.add.container(x, y);
+    if (this.hasArt('medal')) {
+      const m = this.add.image(0, 0, 'medal');
+      m.setScale(size / Math.max(m.width, m.height));
+      if (!earned) m.setTint(0x777777).setAlpha(0.5);
+      c.add(m);
+    }
+    const tk = `target_${GameScene.CHAPTER_MONSTER[(chapter - 1) % 6]}`;
+    if (this.textures.exists(tk)) {
+      const p = this.add.image(0, -size * 0.06, tk);
+      p.setScale((size * 0.42) / Math.max(p.width, p.height));
+      if (!earned) p.setTint(0x333333).setAlpha(0.4);
+      c.add(p);
+    }
+    c.add(this.add.text(0, size * 0.3, String(chapter), { fontFamily: 'Lilita One, Arial Black', fontSize: `${Math.round(size * 0.18)}px`, color: '#3b2533' }).setOrigin(0.5));
+    return c;
+  }
+
+  /** One-time lesson bubble over a home screen (r17): text, a pulsing ring on the target, GOT IT. */
+  lesson(id: string, c: Phaser.GameObjects.Container, text: string, at: { x: number; y: number; r: number }, bubbleY: number) {
+    const m = this.meta;
+    if ((m.lessons ??= {})[id]) return;
+    const ring = this.add.circle(at.x, at.y, at.r).setStrokeStyle(8, 0xffcf33, 1).setDepth(130);
+    if (!REDUCED_MOTION) this.tweens.add({ targets: ring, scale: 1.12, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    const b = this.add.container(W / 2, bubbleY).setDepth(131);
+    const lines = text.split('\n').length;
+    const h = 70 + lines * 38;
+    b.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-(W - 60) / 2, -h / 2, W - 60, h, 24).fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 60) / 2 + 4, -h / 2 + 4, W - 68, h - 8, 21));
+    b.add(this.add.text(-(W - 60) / 2 + 30, -h / 2 + 22, text, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533', lineSpacing: 6, wordWrap: { width: W - 280 } }));
+    const ok = this.add.text((W - 60) / 2 - 30, h / 2 - 30, 'GOT IT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 16, y: 8 } }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+    b.add(ok);
+    const done = () => {
+      m.lessons![id] = true;
+      store(META_KEY, JSON.stringify(m));
+      tlog.log('lesson', { id });
+      ring.destroy();
+      b.destroy();
+    };
+    ok.on('pointerup', done);
+    c.add([ring, b]);
+    return done;
+  }
+
   /** Highest unlocked level (levels are sequential; stars never gate). */
   currentLevel() {
     const st = this.meta.levelStars ?? {};
@@ -2866,11 +2961,28 @@ export class GameScene extends Phaser.Scene {
       dragDist = 0;
     });
     this.drawWallet(c);
+    // chapter strip (r17): progress toward the chapter chest; tap previews the reward
+    const chapter = Math.ceil(cur / 10);
+    const doneInCh = Math.min(10, LEVELS.slice((chapter - 1) * 10, chapter * 10).filter((d) => stars[String(d.level)]).length);
+    const strip = this.add.container(W / 2, 140);
+    strip.add(this.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-(W - 60) / 2, -30, W - 60, 60, 20));
+    strip.add(this.add.text(-(W - 60) / 2 + 24, 0, `CHAPTER ${chapter}  \u00b7  ${doneInCh} of 10 cleared`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf' }).setOrigin(0, 0.5));
+    if (this.hasArt('chest_closed')) {
+      const ch = this.add.image((W - 60) / 2 - 40, -4, 'chest_closed');
+      ch.setScale(64 / Math.max(ch.width, ch.height));
+      strip.add(ch);
+    }
+    strip.setSize(W - 60, 60).setInteractive({ useHandCursor: true });
+    strip.on('pointerup', () => this.showToast(`CLEAR LEVEL ${chapter * 10} FOR THE CHAPTER ${chapter} MEDAL`));
+    c.add(strip);
     const def = LEVELS[cur - 1];
     const tag = def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
     const play = this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.drawNav(c, 'road');
+    // r17 lesson 1: first road visit
+    const curY = scrollY + nodeY(cur);
+    this.lesson('road', c, 'Tap the glowing level\nto see what comes next.', { x: xs[(cur - 1) % 4], y: curY, r: 80 }, Math.min(H - 360, curY + 170));
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
   }
@@ -2996,6 +3108,9 @@ export class GameScene extends Phaser.Scene {
       y += 110;
     }
     this.button(c, W / 2, top + PH - 90, 460, 'PLAY', 0x5fbf4a, () => this.startLevel(n, jump), 1.05);
+    // r17 lessons 2 + 3 (one at a time, never over a live clock)
+    if (!(m.lessons ?? {}).card) this.lesson('card', c, 'Clear to earn a star.\nFaster wins earn two more.', { x: W / 2, y: top + 470, r: 130 }, top + PH - 250);
+    else if (n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
     const close = this.add.text(W - 70, top + 44, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerup', () => this.openTitle());
     c.add(close);

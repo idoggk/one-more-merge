@@ -56,6 +56,8 @@ const states = {
     },
     900,
   ],
+  chest: [(sc) => { sc.meta.medals = { 1: true }; sc.openTitle('road'); sc.playChapterChest(1); }, 1600],
+  machine_medals: [(sc) => { sc.meta.medals = { 1: true, 2: true }; sc.openTitle('machine'); }, 900],
   stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [
