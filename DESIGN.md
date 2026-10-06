@@ -219,3 +219,11 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - ChatGPT: freeze the build once the stranger test starts; ship fixes only between cohorts.
 - **Difficulty re-based on a human pace (r22).** Finding: a random legal merge every 2 s won 100% of all 60 levels (incl. MEGA HARD and bosses) in ~30 s of a 65-90 s clock — calibration used a 5 s random bot, far slower than any person. L4-60 HP refit (`sim-levels.ts --every 3`, 100 seeds + held-out) to the same chapter rhythm for a random merge every 3 s; HP roughly ×2-2.5. L1-3 teaching levels unchanged.
 - **Star goals per level** (`tools/star-times.ts --write` → `star_times`): 2 stars = median clear of a random merge every 2 s; 3 stars = median clear of a best-chain merge every 1.5 s. A live star countdown (★★★ 12s) sits in the stage's top-left.
+
+### Round 23 (variety in the first 20 levels — spec in docs/ROUND23_FIRST_20.md)
+- Ido played to L11: fun, but L1-10 samey and easy; didn't understand the L10 boss attack. Wants L1-10 near-sure, ramp after.
+- **Goal levels** (`goal` in levels.json): MAKE RANK N (a player merge reaching rank N) and CHAIN xN (one player-rooted cascade of N). The goal replaces HP (monster HP 1e9, no HP-panel kickback, no damage numbers); the HP bar shows goal progress. L4/7/12 rank 4, L15/16 rank 5, L5 x12, L11 x16, L14 x18, L18 x16 (random-3s players reach x16 in ~80-97%, x20 in 20-70%; a fast greedy chain-seeker never reaches big chains — fast merging drains the board — so chain-goal 3 stars = 75% of the 2-star time).
+- **Behaviours**: chain shield (Fridge L8/13: damage x0.75 until a 4+ chain opens it for 6 s), light suction (Viper L9/14) and light frost (L19) reuse the boss system (`light`: first at 10 s, every 15 s, no armor phases).
+- **Twists earlier**: CORNERS at L7, new GAPS mask (2,1)+(2,3) at L15/18. **New machines earlier**: Rocket L6 (shooter override), Magnet L12, Battery L17 (`start_extra`).
+- Win targets (random-3s bot): L4-9 97%, L10 95%, L11/16 95%, ch.2 normals 90%, L14/19 80%, L20 85%.
+- **Boss clarity**: the first clamp is a guided dodge (sim frozen, arrow to a safe cell, only that move accepted); the clamp sits on the machine; touching a clamped machine says STUCK; DODGED! when the cell was emptied; deliveries and kickback never refill a cell marked by a pending clamp/suction.

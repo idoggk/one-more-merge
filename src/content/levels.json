@@ -265,13 +265,13 @@
         "lesson": "Break a panel. Its part falls onto your board."
       },
       "star_times": [
-        24,
+        23,
         17
       ]
     },
     {
       "level": 4,
-      "monster": "mad_fridge",
+      "monster": "tin_can",
       "hp": 4600,
       "time_seconds": 50,
       "modifier": "NONE",
@@ -282,9 +282,13 @@
       "seed": 150004,
       "ordinary_copy_rank_cap": 1,
       "star_times": [
-        29,
-        22
-      ]
+        15,
+        13
+      ],
+      "goal": {
+        "kind": "rank",
+        "n": 4
+      }
     },
     {
       "level": 5,
@@ -292,21 +296,25 @@
       "hp": 5250,
       "time_seconds": 50,
       "modifier": "NONE",
-      "difficulty": "HARD",
+      "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
       "starting_rank": 1,
       "seed": 150005,
       "ordinary_copy_rank_cap": 1,
       "star_times": [
-        37,
-        25
-      ]
+        15,
+        11
+      ],
+      "goal": {
+        "kind": "chain",
+        "n": 12
+      }
     },
     {
       "level": 6,
-      "monster": "tin_can",
-      "hp": 5100,
+      "monster": "toaster_twins",
+      "hp": 5150,
       "time_seconds": 50,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -316,16 +324,17 @@
       "seed": 150006,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        29,
-        22
-      ]
+        27,
+        20
+      ],
+      "shooter": "rocket"
     },
     {
       "level": 7,
-      "monster": "mad_fridge",
+      "monster": "tin_can",
       "hp": 6000,
       "time_seconds": 55,
-      "modifier": "NONE",
+      "modifier": "CORNERS_4",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -333,14 +342,18 @@
       "seed": 150007,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        35,
-        21
-      ]
+        17,
+        14
+      ],
+      "goal": {
+        "kind": "rank",
+        "n": 4
+      }
     },
     {
       "level": 8,
-      "monster": "vacuum_viper",
-      "hp": 6300,
+      "monster": "mad_fridge",
+      "hp": 5450,
       "time_seconds": 55,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -350,16 +363,17 @@
       "seed": 150008,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        37,
+        35,
         19
-      ]
+      ],
+      "behaviour": "shield"
     },
     {
       "level": 9,
       "monster": "vacuum_viper",
-      "hp": 6800,
+      "hp": 6250,
       "time_seconds": 60,
-      "modifier": "SUCTION",
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -367,16 +381,17 @@
       "seed": 150009,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        37,
-        25
-      ]
+        35,
+        23
+      ],
+      "behaviour": "suction"
     },
     {
       "level": 10,
-      "monster": "toaster_twins",
-      "hp": 13650,
+      "monster": "tin_can",
+      "hp": 11650,
       "time_seconds": 60,
-      "modifier": "JAM",
+      "modifier": "NONE",
       "difficulty": "MEGA_HARD",
       "boss_node": true,
       "starting_board": "PAIR8",
@@ -384,13 +399,13 @@
       "seed": 150010,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        63,
-        37
+        57,
+        32
       ]
     },
     {
       "level": 11,
-      "monster": "grand_piano_saurus",
+      "monster": "toaster_twins",
       "hp": 6200,
       "time_seconds": 55,
       "modifier": "NONE",
@@ -401,16 +416,59 @@
       "seed": 150011,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        35,
-        26
+        21,
+        16
+      ],
+      "shooter": "rocket",
+      "goal": {
+        "kind": "chain",
+        "n": 16
+      },
+      "start_extra": [
+        [
+          "coil",
+          1,
+          0,
+          2
+        ],
+        [
+          "coil",
+          1,
+          5,
+          2
+        ],
+        [
+          "bell",
+          1,
+          2,
+          4
+        ],
+        [
+          "bell",
+          1,
+          2,
+          0
+        ],
+        [
+          "cannon",
+          1,
+          5,
+          1
+        ],
+        [
+          "cannon",
+          1,
+          0,
+          3
+        ]
       ]
     },
     {
       "level": 12,
-      "monster": "grand_piano_saurus",
+      "monster": "tin_can",
       "hp": 6450,
       "time_seconds": 60,
-      "modifier": "CORNERS_2",
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -418,16 +476,28 @@
       "seed": 150012,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        37,
-        22
+        21,
+        16
+      ],
+      "goal": {
+        "kind": "rank",
+        "n": 4
+      },
+      "start_extra": [
+        [
+          "magnet",
+          1,
+          2,
+          2
+        ]
       ]
     },
     {
       "level": 13,
-      "monster": "grand_piano_saurus",
-      "hp": 6300,
+      "monster": "mad_fridge",
+      "hp": 6550,
       "time_seconds": 60,
-      "modifier": "ROW_GAPS",
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -435,47 +505,58 @@
       "seed": 150013,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        39,
-        23
-      ]
+        37,
+        22
+      ],
+      "shooter": "rocket",
+      "behaviour": "shield"
     },
     {
       "level": 14,
-      "monster": "mad_fridge",
+      "monster": "vacuum_viper",
       "hp": 7200,
       "time_seconds": 60,
-      "modifier": "CORNERS_2",
-      "difficulty": "NORMAL",
+      "modifier": "NONE",
+      "difficulty": "HARD",
       "boss_node": false,
       "starting_board": "PAIR8",
       "starting_rank": 1,
       "seed": 150014,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        39,
+        29,
         22
-      ]
+      ],
+      "behaviour": "suction",
+      "goal": {
+        "kind": "chain",
+        "n": 18
+      }
     },
     {
       "level": 15,
-      "monster": "vacuum_viper",
+      "monster": "grand_piano_saurus",
       "hp": 8400,
       "time_seconds": 60,
-      "modifier": "SUCTION",
-      "difficulty": "HARD",
+      "modifier": "GAPS",
+      "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
       "starting_rank": 1,
       "seed": 150015,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        43,
+        33,
         28
-      ]
+      ],
+      "goal": {
+        "kind": "rank",
+        "n": 5
+      }
     },
     {
       "level": 16,
-      "monster": "toaster_twins",
+      "monster": "tin_can",
       "hp": 7450,
       "time_seconds": 60,
       "modifier": "NONE",
@@ -486,16 +567,46 @@
       "seed": 150016,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        37,
-        23
+        21,
+        13
+      ],
+      "goal": {
+        "kind": "rank",
+        "n": 5
+      },
+      "start_extra": [
+        [
+          "cannon",
+          3,
+          0,
+          0
+        ],
+        [
+          "cannon",
+          3,
+          5,
+          4
+        ],
+        [
+          "coil",
+          3,
+          0,
+          4
+        ],
+        [
+          "coil",
+          3,
+          5,
+          0
+        ]
       ]
     },
     {
       "level": 17,
-      "monster": "toaster_twins",
-      "hp": 9400,
+      "monster": "mad_fridge",
+      "hp": 9100,
       "time_seconds": 65,
-      "modifier": "JAM",
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -503,16 +614,24 @@
       "seed": 150017,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        41,
-        23
+        47,
+        26
+      ],
+      "start_extra": [
+        [
+          "battery",
+          1,
+          4,
+          3
+        ]
       ]
     },
     {
       "level": 18,
-      "monster": "grand_piano_saurus",
+      "monster": "toaster_twins",
       "hp": 8850,
       "time_seconds": 65,
-      "modifier": "ROW_GAPS",
+      "modifier": "GAPS",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -520,33 +639,39 @@
       "seed": 150018,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        41,
-        29
-      ]
+        29,
+        22
+      ],
+      "shooter": "rocket",
+      "goal": {
+        "kind": "chain",
+        "n": 16
+      }
     },
     {
       "level": 19,
-      "monster": "junkzilla",
-      "hp": 8950,
+      "monster": "mad_fridge",
+      "hp": 9250,
       "time_seconds": 70,
       "modifier": "NONE",
-      "difficulty": "NORMAL",
+      "difficulty": "HARD",
       "boss_node": false,
       "starting_board": "PAIR8",
       "starting_rank": 1,
       "seed": 150019,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        41,
+        43,
         26
-      ]
+      ],
+      "behaviour": "frost"
     },
     {
       "level": 20,
-      "monster": "junkzilla",
-      "hp": 15450,
+      "monster": "mad_fridge",
+      "hp": 13700,
       "time_seconds": 75,
-      "modifier": "CORNERS_4",
+      "modifier": "NONE",
       "difficulty": "MEGA_HARD",
       "boss_node": true,
       "starting_board": "PAIR8",
@@ -555,7 +680,7 @@
       "ordinary_copy_rank_cap": 2,
       "star_times": [
         55,
-        37
+        31
       ]
     },
     {
@@ -571,7 +696,7 @@
       "seed": 150021,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        39,
+        37,
         31
       ]
     },
@@ -622,7 +747,7 @@
       "seed": 150024,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        41,
+        39,
         26
       ]
     },
@@ -996,7 +1121,7 @@
       "seed": 150046,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        47,
+        46,
         26
       ]
     },
@@ -1013,7 +1138,7 @@
       "seed": 150047,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        41,
+        43,
         38
       ]
     },
@@ -1081,7 +1206,7 @@
       "seed": 150051,
       "ordinary_copy_rank_cap": 7,
       "star_times": [
-        51,
+        52,
         20
       ]
     },

@@ -4,7 +4,11 @@ import raw from './levels.json';
 import econ from './levelEconomy.json';
 
 export type Difficulty = 'NORMAL' | 'HARD' | 'MEGA_HARD';
-export type LevelModifier = 'NONE' | 'SUCTION' | 'JAM' | 'ROW_GAPS' | 'CORNERS_2' | 'CORNERS_4';
+export type LevelModifier = 'NONE' | 'SUCTION' | 'JAM' | 'ROW_GAPS' | 'CORNERS_2' | 'CORNERS_4' | 'GAPS';
+/** r23 goal levels: the goal replaces defeating the monster. */
+export type LevelGoal = { kind: 'rank' | 'chain'; n: number };
+/** r23 ordinary-monster behaviours (one per level). */
+export type Behaviour = 'shield' | 'suction' | 'frost';
 export interface LevelDef {
   level: number;
   monster: string;
@@ -19,6 +23,12 @@ export interface LevelDef {
   /** Teaching level (ChatGPT r18): scripted-but-real start board, optional delivery bag, features held back. */
   /** Seconds for 2 and 3 stars (tools/star-times.ts: ordinary human pace / skilled chain-seeker medians). */
   star_times?: [number, number];
+  goal?: LevelGoal;
+  behaviour?: Behaviour;
+  /** Shooter family override for this level (r23: Rocket joins at L6). */
+  shooter?: string;
+  /** Extra starting pieces placed after the chapter starters: [family, rank, row, col]. */
+  start_extra?: [string, number, number, number][];
   teach?: { start: [string, number, number, number][]; bag?: Record<string, number>; no_kickback?: boolean; no_overdrive?: boolean; lesson: string };
 }
 
@@ -39,7 +49,17 @@ export const MODIFIER_TEXT: Record<LevelModifier, string> = {
   ROW_GAPS: 'Row gaps: every 20s it blocks the empty cells of a row for 4s.',
   CORNERS_2: 'Two corners of the board are blocked.',
   CORNERS_4: 'All four corners of the board are blocked.',
+  GAPS: 'Two holes in the middle of the board.',
 };
+
+/** r23 behaviour card copy (ChatGPT). */
+export const BEHAVIOUR_TEXT: Record<Behaviour, string> = {
+  shield: 'Its shield blocks a quarter of your damage. Chains of 4 open it.',
+  suction: 'Move marked machines before it slurps them.',
+  frost: 'Frozen rows cannot receive machines. Build elsewhere.',
+};
+
+export const goalText = (g: LevelGoal) => (g.kind === 'rank' ? `MAKE A RANK ${g.n} MACHINE` : `FIRE A CHAIN OF ${g.n}`);
 
 /** Stars: 1 clear, 2 if elapsed <= 80% of the level time, 3 if <= 60%. */
 /** [2-star, 3-star] clear-time goals in seconds. */

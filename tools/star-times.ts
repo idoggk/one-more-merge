@@ -12,6 +12,13 @@ const N = Number(args[args.indexOf('--n') + 1]) || 40;
 const pick = (s: GameState, rng: Rng, chain: boolean): [number, number] | null => {
   const p = legalPairs(s);
   if (!p.length) return null;
+  // r23 goal levels: everyone aims at the goal (rank: highest pair; chain: the ordinary player sees 30% of chains)
+  if (s.goal?.kind === 'rank') {
+    const top = Math.max(...p.map(([a]) => s.grid[a]!.rank));
+    const c = p.filter(([a]) => s.grid[a]!.rank === top);
+    return c[rng.int(c.length)];
+  }
+  if (s.goal?.kind === 'chain' && !chain && rng.next() < 0.3) chain = true;
   if (!chain) return p[rng.int(p.length)];
   let best = p[0], bd = -1;
   for (const [a, b] of p) for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
@@ -42,20 +49,23 @@ function clears(L: number, every: number, chain: boolean): { win: number; t: num
   return { win: wins / N, t: median(times) };
 }
 const out: Record<number, [number, number]> = {};
+const only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',').map(Number) : null;
 for (const def of LEVELS) {
   const L = def.level;
+  if (only && !only.includes(L)) continue;
   const T = L % 10 === 0 ? 90 : def.time_seconds;
   const steady = clears(L, 2, false), fast = clears(L, 1.5, true);
   // never stricter than the bots managed; never looser than the old fractions
   const s2 = Math.min(Math.floor(T * 0.8), Math.ceil(steady.t || T * 0.8));
-  const s3 = Math.min(s2 - 2, Math.floor(T * 0.6), Math.ceil(fast.t || T * 0.6));
+  // chain goals: fast merging drains the board, so the chain-seeker bot is no 3-star model there; use 75% of the 2-star time
+  const s3 = def.goal?.kind === 'chain' ? Math.min(s2 - 2, Math.round(s2 * 0.75)) : Math.min(s2 - 2, Math.floor(T * 0.6), Math.ceil(fast.t || T * 0.6));
   out[L] = [s2, s3];
   console.log(`L${String(L).padStart(2)} T=${T}s  human2s win ${Math.round(steady.win * 100)}% ${steady.t.toFixed(1)}s  chain1.5 win ${Math.round(fast.win * 100)}% ${fast.t.toFixed(1)}s  -> stars ${s2}s / ${s3}s (old ${Math.floor(T * 0.8)} / ${Math.floor(T * 0.6)})`);
 }
 if (args.includes('--write')) {
   const path = 'src/content/levels.json';
   const raw = JSON.parse(readFileSync(path, 'utf8'));
-  for (const lv of raw.levels) lv.star_times = out[lv.level];
+  for (const lv of raw.levels) if (out[lv.level]) lv.star_times = out[lv.level];
   writeFileSync(path, JSON.stringify(raw, null, 2) + '\n');
   console.log('wrote star_times');
 }

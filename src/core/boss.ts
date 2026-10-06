@@ -42,6 +42,8 @@ export interface BossState {
   active: (BossTarget & { until: number }) | null;
   /** Highest phase already announced (0..2): ARMOR BROKEN fires on increase. */
   phaseShown: number;
+  /** r23: an ordinary monster's light version (first at 10 s, every 15 s, one target, 2 s, no armor phases). */
+  light?: boolean;
 }
 
 export type BossEvent =
@@ -63,6 +65,12 @@ export function bossBlocked(b: BossState | null | undefined): { noDrop: Set<numb
   if (atk === 'clamp') for (const c of a.cells ?? []) noDrop.add(c), noDrag.add(c);
   if (atk === 'frost' && a.row !== undefined) for (let c = 0; c < COLS; c++) noDrop.add(a.row * COLS + c);
   return { noDrop, noDrag };
+}
+
+/** Cells marked by a pending clamp/suction: deliveries must not refill a cell the player just emptied to dodge (r23). */
+export function bossPendingCells(b: BossState | null | undefined): number[] {
+  const atk = b?.pending ? BOSSES[b.def].attack : null;
+  return atk === 'clamp' || atk === 'suction' ? (b!.pending!.cells ?? []) : [];
 }
 
 /** Cascade modifiers while an effect is active (hot column / resting row / split boundary). */
@@ -143,7 +151,7 @@ function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: 
 export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>): BossEvent[] {
   const ev: BossEvent[] = [];
   const atk = BOSSES[b.def].attack;
-  const ph = bossPhase(hp, maxHp);
+  const ph = b.light ? 0 : bossPhase(hp, maxHp);
   if (ph > b.phaseShown) {
     b.phaseShown = ph;
     ev.push({ type: 'bossPhase', phase: ph });
@@ -171,7 +179,7 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
       ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'hit' });
     }
   }
-  const due = BOSS_FIRST + b.next * BOSS_EVERY;
+  const due = b.light ? 10 + b.next * 15 : BOSS_FIRST + b.next * BOSS_EVERY;
   if (elapsed >= due - 1e-9) {
     b.next++;
     if (!b.pending && !b.active) {

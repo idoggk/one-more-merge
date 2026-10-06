@@ -2,7 +2,7 @@ import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
-import { bossBlocked, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
+import { bossBlocked, bossPendingCells, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 import { isShooter, type CascadeResult, type Family, type Gadget, type Grid, type PerkId } from './types';
 
@@ -23,6 +23,8 @@ export type GameEvent =
   | { type: 'newTarget'; target: number }
   | { type: 'overdriveEnd' }
   | { type: 'end'; won: boolean }
+  | { type: 'goal'; kind: 'rank' | 'chain'; n: number; idx: number }
+  | { type: 'shield'; open: boolean; until: number }
   | RemixEvent
   | BossEvent;
 
@@ -100,6 +102,10 @@ export interface GameState {
   noOverdrive?: boolean;
   /** Chapter boss fight (r20): levels 10/20/30/40/50/60. */
   boss?: BossState | null;
+  /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
+  goal?: { kind: 'rank' | 'chain'; n: number; best: number } | null;
+  /** r23 chain shield: undefined = no shield; otherwise elapsed time until which it is open. */
+  shieldUntil?: number;
   /** Untimed, unrewarded high-rank introduction (r17). */
   showcase?: boolean;
   /** Jumpstart applied this attempt. */
@@ -178,7 +184,7 @@ export const shooterOf = (s: GameState): Family => s.shooter ?? 'cannon';
 
 /** A SAGA level (ChatGPT r15): one monster, one clock, PAIR8 starting board at the level's starting rank. */
 export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Family; jumpstart?: boolean } = {}): GameState {
-  const s = newGame(def.seed, false, false, opts.toys ?? [], -1, opts.shooter ?? 'cannon');
+  const s = newGame(def.seed, false, false, opts.toys ?? [], -1, (def.shooter as Family | undefined) ?? opts.shooter ?? 'cannon');
   s.level = def.level;
   s.levelTime = def.time_seconds;
   s.timeLeft = def.time_seconds;
@@ -206,7 +212,12 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     }
     s.jumpstart = true;
   }
+  for (const [fam, rank, r, c] of def.start_extra ?? []) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : (fam as Family), rank);
   const mod = def.modifier;
+  if (mod === 'GAPS') {
+    s.masked = [idxOf(2, 1), idxOf(2, 3)];
+    for (const c of s.masked) s.grid[c] = null;
+  }
   if (mod === 'SUCTION') s.remix = levelModifierState('vacuum');
   else if (mod === 'JAM') s.remix = levelModifierState('jam');
   else if (mod === 'ROW_GAPS') s.remix = levelModifierState('gaps');
@@ -231,8 +242,35 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
       if (k < empties.length) s.grid[empties[k]] = makeGadget(s, f, def.starting_rank);
     });
   }
+  // r23 behaviours + goals
+  if (def.behaviour === 'shield') s.shieldUntil = -1;
+  if (def.behaviour === 'suction' || def.behaviour === 'frost') {
+    const bi = BOSSES.findIndex((b) => b.attack === def.behaviour);
+    s.boss = { def: bi, next: 0, pending: null, active: null, phaseShown: 0, light: true };
+  }
+  if (def.goal) {
+    s.goal = { ...def.goal, best: 0 };
+    s.hp = s.maxHp = 1e9; // no finite defeat HP: the goal is the win
+  }
   s.supplyTimer = supplyPeriod(s);
   return s;
+}
+
+/** Shield multiplier on all damage while closed (r23). */
+const shieldMult = (s: GameState) => (s.shieldUntil !== undefined && s.elapsed >= s.shieldUntil ? 0.75 : 1);
+
+/** r23 goal check after a PLAYER merge (starters, deliveries and kickback fuses never count). */
+function checkGoal(s: GameState, ev: GameEvent[], rank: number, chain: number, idx: number) {
+  const gl = s.goal;
+  if (!gl || s.phase !== 'playing') return;
+  const v = gl.kind === 'rank' ? rank : chain;
+  gl.best = Math.max(gl.best, v);
+  if (v < gl.n) return;
+  s.phase = 'won';
+  if (s.remix) s.remix.pending = s.remix.lock = null;
+  if (s.boss) s.boss.pending = s.boss.active = null;
+  ev.push({ type: 'goal', kind: gl.kind, n: gl.n, idx });
+  ev.push({ type: 'end', won: true });
 }
 
 /** Time Capsule: +15 s once per attempt while the level is live (no revive after the clock hits 0). */
@@ -441,7 +479,13 @@ function merge(s: GameState, from: number, to: number): CommandResult {
     s.bigCd = TUNING.bigCascadeCooldown;
     queueDrop(s, ev, false);
   }
+  // r23 chain shield: a player-rooted cascade of 4+ opens it for 6 s, and that whole cascade counts at full
+  if (s.shieldUntil !== undefined && result.count >= 4) {
+    s.shieldUntil = s.elapsed + 6;
+    ev.push({ type: 'shield', open: true, until: s.shieldUntil });
+  }
   applyDamage(s, result.total, ev, 'player');
+  checkGoal(s, ev, g.rank, result.count, to);
   return { ok: true, events: ev };
 }
 
@@ -502,11 +546,12 @@ type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
 
 function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
   if (dmg <= 0) return;
+  dmg = Math.round(dmg * shieldMult(s));
   s.stats.totalDamage += dmg;
   s.stats.dmgBy[src] = (s.stats.dmgBy[src] ?? 0) + dmg;
   const before = s.hp;
   s.hp -= dmg;
-  if (s.target >= 0) {
+  if (s.target >= 0 && !s.goal) {
     const frac = Math.max(0, s.hp) / s.maxHp;
     const lvl = frac <= 0.25 ? 3 : frac <= 0.5 ? 2 : frac <= 0.75 ? 1 : 0;
     if (lvl > s.thresholds && s.hp > 0) {
@@ -645,7 +690,7 @@ function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent
   if (occ >= TUNING.holdAt) s.trayHold = true;
   else if (occ <= TUNING.releaseAt) s.trayHold = false;
   if (!s.pending.length || s.trayHold) return;
-  const promised = new Set([...dropReserved(s), ...locked(s), ...bossBlocked(s.boss).noDrop]);
+  const promised = new Set([...dropReserved(s), ...locked(s), ...bossBlocked(s.boss).noDrop, ...bossPendingCells(s.boss)]);
   const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i) && !promised.has(i));
   if (slot < 0) return;
   const g = s.pending.shift()!;
@@ -692,7 +737,7 @@ type DropPlan = { idx: number; land: number; id: number };
 
 /** Choose where a loose part will land (next to a lonely match). Consumes kickRng once. */
 function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
-  const taken = new Set<number>([...reserved, ...locked(s)]);
+  const taken = new Set<number>([...reserved, ...locked(s), ...bossPendingCells(s.boss)]);
   for (const d of s.drops) if (d.plan) taken.add(d.plan.idx).add(d.plan.land);
   const counts = new Map<string, number>();
   for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
@@ -730,7 +775,7 @@ export function dropReserved(s: GameState): number[] {
 
 /** A loose part lands next to a lonely gadget and (threshold drops) fuses with it: one bounded secondary cascade. */
 function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], fuse: boolean, planned: DropPlan | null) {
-  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !s.grid[p.land] && !reserved.has(p.land);
+  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !s.grid[p.land] && !reserved.has(p.land) && !bossPendingCells(s.boss).includes(p.land);
   const pick = valid(planned) ? planned : planDrop(s, reserved, fuse);
   if (pick) {
     const old = s.grid[pick.idx]!;
@@ -760,7 +805,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
   s.kickRng = rng.state;
   const g = makeGadget(s, fam, 1);
   const lk = locked(s); // never drop a part into a blocked corner / locked row (bug found by the r19 fast-bot sweep)
-  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i) && !lk.has(i));
+  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i) && !lk.has(i) && !bossPendingCells(s.boss).includes(i));
   if (slot >= 0) {
     s.grid[slot] = g;
     ev.push({ type: 'kickback', idx: slot, into: -1, gadget: g });
