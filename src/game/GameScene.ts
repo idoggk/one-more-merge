@@ -233,10 +233,9 @@ export class GameScene extends Phaser.Scene {
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
-    if (this.hasArt('tray_plate')) this.trayPlate = this.add.image(BX + 120, TRAY_Y, 'tray_plate').setDisplaySize(250, 86).setDepth(1);
+    if (this.hasArt('tray_plate')) this.trayPlate = this.add.image(BX + 125, TRAY_Y, 'tray_plate').setDisplaySize(262, 72).setDepth(1);
     else this.trayBox.fillStyle(0x8a5a35, 1).fillRoundedRect(BX, TRAY_Y - 38, 240, 76, 22);
-    this.trayLabel = 
-    this.add.text(BX + 20, TRAY_Y, 'NEXT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fbe7c6' }).setOrigin(0, 0.5).setDepth(2);
+    this.trayLabel = this.add.text(BX + 28, TRAY_Y, 'NEXT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: this.trayPlate ? '#5a3a2a' : '#fbe7c6' }).setOrigin(0, 0.5).setDepth(2);
     this.trayArc = this.add.graphics().setDepth(2);
     this.trayIcon = this.add.image(BX + 150, TRAY_Y, 'cannon_1').setDisplaySize(62, 62).setDepth(2);
     this.trayBadge = this.add.text(BX + 176, TRAY_Y + 18, '', { fontFamily: 'Arial Black', fontSize: '18px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5).setDepth(3);
@@ -244,9 +243,9 @@ export class GameScene extends Phaser.Scene {
 
     // scrap
     const sz = this.add.container(SCRAP_X, TRAY_Y).setDepth(2);
-    const sg = this.hasArt('scrap_plate') ? this.add.image(0, 0, 'scrap_plate').setDisplaySize(134, 84) : this.add.graphics().fillStyle(0x5a4a5a, 1).fillRoundedRect(-62, -38, 124, 76, 22);
-    const icon = this.textures.exists('icon_scrap') && this.textures.get('icon_scrap').key !== '__MISSING' ? this.add.image(-24, 0, 'icon_scrap').setDisplaySize(48, 48) : this.add.text(-24, 0, '🗑', { fontSize: '34px' }).setOrigin(0.5);
-    const st = this.add.text(18, 0, 'SCRAP', { fontFamily: 'Arial Black', fontSize: '16px', color: '#fbe7c6' }).setOrigin(0.5);
+    const sg = this.hasArt('scrap_plate') ? this.add.image(0, 0, 'scrap_plate').setDisplaySize(150, 82) : this.add.graphics().fillStyle(0x5a4a5a, 1).fillRoundedRect(-62, -38, 124, 76, 22);
+    const icon = this.textures.exists('icon_scrap') && this.textures.get('icon_scrap').key !== '__MISSING' ? this.add.image(-34, 0, 'icon_scrap').setDisplaySize(44, 44) : this.add.text(-24, 0, '🗑', { fontSize: '34px' }).setOrigin(0.5);
+    const st = this.add.text(20, 0, 'SCRAP', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5);
     this.scrapRing = this.add.graphics();
     sz.add([sg, icon, st, this.scrapRing]);
     this.scrapZone = sz;
@@ -933,10 +932,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Face patches (face_<target>_<hit|angry|dizzy>) cover the sprite's own face; offsets are fractions of the sprite box. */
+  // calibrated against ChatGPT's sprites (fractions of the 512px target box; patch boxes are 256px with ~0.83 fill)
   static FACE = [
     { x: 0, y: -0.02, w: 0.42 },
-    { x: 0.02, y: -0.08, w: 0.4 },
-    { x: 0, y: -0.2, w: 0.36 },
+    { x: -0.07, y: -0.075, w: 0.59 },
+    { x: 0.235, y: -0.255, w: 0.5 },
   ];
 
   showFace(mood: 'hit' | 'angry' | 'dizzy' | null, ms = 0) {
@@ -1173,7 +1173,10 @@ export class GameScene extends Phaser.Scene {
     const artKey = color === 0x5fbf4a ? 'btn_green' : color === 0x27a4c0 ? 'btn_blue' : color === 0xe8452c ? 'btn_red' : '';
     const g: Phaser.GameObjects.GameObject =
       artKey && this.hasArt(artKey)
-        ? this.add.image(0, 2, artKey).setDisplaySize(w + 20, 112)
+        ? (() => {
+            const im = this.add.image(0, 4, artKey);
+            return im.setScale(Math.min((w + 30) / im.width, 108 / im.height));
+          })()
         : this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-w / 2, -40, w, 86, 26).fillStyle(color, 1).fillRoundedRect(-w / 2 + 5, -36, w - 10, 74, 22);
     const t = this.add.text(0, 0, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5);
     b.add([g, t]).setSize(w, 86).setInteractive({ useHandCursor: true });

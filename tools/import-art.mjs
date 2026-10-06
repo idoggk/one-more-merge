@@ -10,7 +10,10 @@ const out = 'src/assets/art';
 mkdirSync(out, { recursive: true });
 
 const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
-const files = walk(src).filter((f) => extname(f).toLowerCase() === '.png');
+// de-duplicate by file name (packs overlap); later paths win
+const byName = new Map();
+for (const f of walk(src).filter((f) => extname(f).toLowerCase() === '.png').sort()) byName.set(basename(f).toLowerCase(), f);
+const files = [...byName.values()];
 
 const debrisNames = files.filter((f) => /debris/i.test(basename(f))).sort();
 const targetOf = (n) =>
@@ -24,7 +27,7 @@ function keyFor(file) {
   if (/header/.test(n)) return 'hud_header';
   if (/hp|health/.test(n) && /frame/.test(n)) return 'hp_frame';
   if (/hp|health/.test(n) && /fill/.test(n)) return 'hp_fill';
-  if (/gauge|segment|pill/.test(n) && !/flame/.test(n)) return /lit|active/.test(n) ? 'gauge_lit' : /_on|on_|filled/.test(n) ? 'gauge_on' : 'gauge_off';
+  if (/gauge|pill/.test(n) && !/flame|vfx/.test(n)) return /lit|active/.test(n) ? 'gauge_lit' : /_on|on_|filled/.test(n) ? 'gauge_on' : 'gauge_off';
   if (/tray/.test(n)) return 'tray_plate';
   if (/scrap/.test(n) && /plate|button/.test(n)) return 'scrap_plate';
   if (/pause/.test(n)) return 'icon_pause';
@@ -42,8 +45,8 @@ function keyFor(file) {
     const k = n.match(/(\d+)/)?.[1];
     if (k) return `store_${k}`;
   }
-  if (/practice_?bench|sandbox/.test(n)) return 'bg_practice';
-  if (/corner_?bench/.test(n)) return 'bg_corner';
+  if (/practice_?bench|sandbox|workbench_practice/.test(n)) return 'bg_practice';
+  if (/corner_?bench|workbench_corner/.test(n)) return 'bg_corner';
   for (const fam of ['battery', 'fan']) if (n.includes(fam)) {
     const r = n.match(/(?:rank|r)[_-]?0?([1-6])/)?.[1];
     if (r) return `${fam}_${r}`;
@@ -68,7 +71,7 @@ function keyFor(file) {
   }
   if (/face|expression/.test(n)) {
     const tg = targetOf(n);
-    const mood = /hit|ouch/.test(n) ? 'hit' : /angry|mad|rage/.test(n) ? 'angry' : /dizzy|daze|ko/.test(n) ? 'dizzy' : null;
+    const mood = /_(hit|ouch)$/.test(n) ? 'hit' : /_(dizzy|daze|ko)$/.test(n) ? 'dizzy' : /_(angry|rage)$/.test(n) ? 'angry' : null;
     if (tg >= 0 && mood) return `face_${tg}_${mood}`;
   }
   if (/stage|backdrop|scene_bg|alley|kitchen|junkyard/.test(n) && !/target/.test(n)) {
@@ -76,15 +79,19 @@ function keyFor(file) {
     if (tg >= 0) return `stage_${tg}`;
   }
   if (/title|key_?art/.test(n)) return 'title';
-  if (/victory|win/.test(n)) return 'victory';
-  if (/defeat|lose|sad/.test(n)) return 'defeat';
+  if (/^target_/.test(n) && !/practice/.test(n)) {
+    const tg = targetOf(n);
+    if (tg >= 0) return `target_${tg}${/damag|broken|dmg/.test(n) ? '_dmg' : ''}`;
+  }
+  if (/victory/.test(n)) return 'victory';
+  if (/defeat/.test(n)) return 'defeat';
   if (/starburst|rank_?up/.test(n)) return 'starburst';
   if (/crown|max/.test(n)) return 'crown';
   if (/button|btn/.test(n)) {
     const col = /red/.test(n) ? 'red' : /green/.test(n) ? 'green' : /blue/.test(n) ? 'blue' : null;
     if (col) return `btn_${col}${/press|down/.test(n) ? '_pressed' : ''}`;
   }
-  if (/practice|demo|friendly/.test(n)) return 'demo_can';
+  if (/practice_tin|demo|friendly/.test(n)) return 'demo_can';
   const fam = ['cannon', 'coil', 'bell'].find((f) => n.includes(f));
   const rank = n.match(/(?:rank|r)[_-]?0?([1-6])/)?.[1] ?? n.match(/_0?([1-6])(?:_|$)/)?.[1];
   if (fam && rank) return `${fam}_${rank}`;
@@ -109,6 +116,8 @@ const SIZE = (key) => {
   return 256;
 };
 const NO_TRIM = new Set(['slot', 'card', 'app_icon', 'title']);
+/** Non-square UI pieces keep their own aspect ratio (no square padding). */
+const KEEP_ASPECT = (key) => /^(tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_)/.test(key);
 for (const f of files) {
   const key = keyFor(f);
   if (!key) {
@@ -117,7 +126,10 @@ for (const f of files) {
   }
   const dest = join(out, `${key}.png`);
   const s = SIZE(key);
-  if (s === null) {
+  if (s !== null && KEEP_ASPECT(key)) {
+    const buf = await sharp(f).trim({ threshold: 10 }).png().toBuffer();
+    await sharp(buf).resize(s, s, { fit: 'inside' }).png({ compressionLevel: 9 }).toFile(dest);
+  } else if (s === null) {
     const src = NO_TRIM.has(key) ? sharp(f) : sharp(f).trim({ threshold: 10 });
     const buf = await src.png().toBuffer();
     await sharp(buf).resize({ width: 720 }).png({ compressionLevel: 9 }).toFile(dest);
