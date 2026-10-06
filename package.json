@@ -8,7 +8,8 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "sim": "vite-node tools/sim.ts"
+    "sim": "vite-node tools/sim.ts",
+    "artifact": "vite build && node tools/make-artifact.mjs"
   },
   "keywords": [],
   "author": "",

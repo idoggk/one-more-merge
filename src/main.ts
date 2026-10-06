@@ -12,7 +12,7 @@ async function boot() {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: W, height: H },
     input: { activePointers: 1 },
     // dev aid: ?timer keeps the loop running in hidden/background tabs (automated checks)
-    fps: new URLSearchParams(location.search).has('timer') ? { forceSetTimeOut: true, target: 60 } : undefined,
+    fps: new URLSearchParams(location.search).has('timer') || (window as unknown as { __OMM_TIMER?: boolean }).__OMM_TIMER ? { forceSetTimeOut: true, target: 60 } : undefined,
     scene: [GameScene],
   });
   // expose for debugging / automated checks
