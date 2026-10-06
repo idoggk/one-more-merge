@@ -1249,7 +1249,7 @@ export class GameScene extends Phaser.Scene {
         }        case 'threshold':
           sfx.panelBreak(e.target);
           this.chunks.explode(18, this.target.x, this.target.y - 40);
-          this.shake(90, 0.0025);
+          this.hitTarget(true, 1);
           if (e.level >= 2) this.setTargetTexture();
           break;
         case 'kill':
@@ -1283,7 +1283,6 @@ export class GameScene extends Phaser.Scene {
             this.showEvent('SHOVE!  Part pushed aside', '#ffd24a', 1400);
           } else if (e.kind === 'piano' && e.outcome === 'hit') {
             sfx.panelBreak(2);
-            this.shake(90, 0.0025);
             this.showEvent('ROW LOCKED  ·  4s', '#d9c2ff', 1200);
           } else this.showEvent(e.outcome === 'jam' ? 'JAMMED!  Nowhere to shove it' : 'MISSED!  You saved it', '#b8f07a', 1600);
           void c0;
@@ -1425,17 +1424,34 @@ export class GameScene extends Phaser.Scene {
     this.showFace(s.target >= 0 && s.phase === 'playing' && s.hp / s.maxHp < 0.25 ? 'angry' : null);
   }
 
-  hitTarget(big: boolean) {
+  hitTarget(big: boolean, tier: 0 | 1 = 0) {
     if (big) this.showFace('hit', 380);
-    this.tweens.killTweensOf(this.target);
+    const t = this.target;
+    this.tweens.killTweensOf(t);
     const s = this.targetBaseScale;
-    this.target.setScale(s * (big ? 1.18 : 1.05), s * (big ? 0.85 : 0.96)).setAngle(Phaser.Math.Between(-6, 6)).setY(TARGET_Y);
-    this.tweens.add({ targets: this.target, scaleX: s, scaleY: s, angle: 0, duration: big ? 360 : 160, ease: 'Elastic.Out' });
-    if (big) {
-      this.target.setTintFill(0xffffff);
-      this.time.delayedCall(60, () => this.target.clearTint());
-    }
+    const k = tier === 1 ? { sq: 0.07, kb: 9, inn: 45, out: 170, ease: 'Cubic.Out', tint: 0.3, tout: 110 } : { sq: big ? 0.025 : 0.015, kb: big ? 4 : 2, inn: 35, out: 100, ease: 'Sine.Out', tint: big ? 0.18 : 0, tout: 75 };
+    if (REDUCED_MOTION) k.sq = k.kb = 0;
+    // squash + knockback away from the board (up), then recover
+    t.setAngle(0).setY(TARGET_Y);
+    this.tweens.chain({
+      targets: t,
+      tweens: [
+        { scaleX: s * (1 + k.sq), scaleY: s * (1 - k.sq), y: TARGET_Y - k.kb, duration: k.inn, ease: 'Quad.Out' },
+        { scaleX: s, scaleY: s, y: TARGET_Y, duration: k.out, ease: k.ease },
+      ],
+    });
+    if (k.tint > 0) this.silhouetteFlash(0xffe2a8, k.tint, k.tout);
     sfx.hit(big);
+  }
+
+  /** Warm partial tint over the monster only (stage-local flash; no full-screen white). */
+  silhouetteFlash(color: number, alpha: number, outMs: number) {
+    const t = this.target;
+    const f = this.add.image(t.x, t.y, t.texture.key).setOrigin(t.originX, t.originY).setScale(t.scaleX, t.scaleY).setAngle(t.angle).setTintFill(color).setAlpha(0).setDepth(t.depth + 0.5);
+    if (t.mask) f.setMask(t.mask);
+    const follow = () => f.setPosition(t.x, t.y).setScale(t.scaleX, t.scaleY);
+    this.tweens.add({ targets: f, alpha, duration: 25, onUpdate: follow });
+    this.tweens.add({ targets: f, alpha: 0, delay: 25, duration: outMs, ease: 'Quad.Out', onUpdate: follow, onComplete: () => f.destroy() });
   }
 
   shoot(fromX: number, fromY: number, color: number, delay: number, big: boolean, onHit?: () => void) {
@@ -1580,17 +1596,15 @@ export class GameScene extends Phaser.Scene {
     });
     const end = windup + maxDepth * step + 260;
     this.time.delayedCall(end, () => {
-      const big = r.count >= 6;
-      this.hitTarget(true);
+      this.hitTarget(true, r.count >= 10 ? 1 : 0);
       if (r.count >= 3) {
         sfx.chord(Math.min(r.count, 20));
         duckMusic();
       }
-      // camera: no shake for small merges, a 1-2px kick for real payloads, a 3px hit when a MAX machine fired
+      // camera stays still (playtest 2 + ChatGPT r11); only a MAX machine gives a tiny kick, and Shake can switch it off
       const hasMax = r.activations.some((a) => a.rank >= MAX_RANK);
-      if (hasMax) this.shake(90, 0.003);
-      else if (big) this.shake(60, 0.0015);
-      haptic(big ? 30 : 12);
+      if (hasMax) this.shake(80, 0.002);
+      if (r.count >= 10) haptic(10);
       const huge = r.count >= 10;
       if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
       // damage number beside the opponent, never on its face
@@ -1608,11 +1622,13 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(250, () => {
       this.softFlash(0xffffff, 0.35, 200);
       this.tweens.add({ targets: tgt, scale: this.targetBaseScale * 1.12, duration: 260, ease: 'Quad.Out' });
-      haptic(80);
+      haptic(18);
       this.tweens.killTweensOf(tgt);
+      this.silhouetteFlash(0xffe2a8, 0.35, 140);
       if (this.hasArt(`target_${this.s.target}_dmg`)) tgt.setTexture(`target_${this.s.target}_dmg`);
       this.showFace('dizzy', 3000);
-      this.tweens.add({ targets: tgt, x: { from: tgt.x - 10, to: tgt.x + 10 }, angle: { from: -4, to: 4 }, duration: 55, yoyo: true, repeat: 10 });
+      this.tweens.add({ targets: tgt, x: { from: tgt.x - 5, to: tgt.x + 5 }, angle: { from: -2, to: 2 }, duration: 60, yoyo: true, repeat: 8 });
+      this.boardGoldWave();
     });
     // 2) rolling explosions across the body
     for (let i = 0; i < 7; i++) {
@@ -1628,7 +1644,6 @@ export class GameScene extends Phaser.Scene {
     // 3) the big one: collapse, junk rains onto the board
     this.time.delayedCall(1350, () => {
       sfx.kill();
-      this.shake(200, 0.005);
       this.ring(tgt.x, tgt.y, 0xffcf33, 320, 26, 520);
       this.ring(tgt.x, tgt.y, 0xffffff, 220, 16, 380);
       this.chunks.explode(90, tgt.x, tgt.y);
@@ -1658,18 +1673,38 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(1900, () => {
       this.floatText(W / 2, STAGE_TOP + STAGE_H / 2, `${name}\nDOWN!`, '#ffcf33', 74, 1100, 'banner_destroyed');
       sfx.win();
-      this.s.grid.forEach((g, idx) => {
-        const v = g ? this.views.get(g.id) : undefined;
-        if (!v) return;
-        const row = Math.floor(idx / COLS);
-        this.tweens.add({ targets: v, y: v.y - 34, scale: 1.18, duration: 160, delay: row * 70, yoyo: true, ease: 'Quad.Out' });
-      });
-      for (let i = 0; i < 6; i++)
-        this.time.delayedCall(i * 160, () => {
-          this.sparks.setParticleTint([0xe8452c, 0x27c4e0, 0xf2b521, 0x9be05a, 0xc23fd1, 0xffffff][i]);
-          this.sparks.explode(26, Phaser.Math.Between(80, W - 80), Phaser.Math.Between(BY, BY + CELL * ROWS));
-        });
     });
+  }
+
+  /** ChatGPT r11: on the killing hit the board says "my contraption did this": the winning merge gets a gold rim,
+   *  then the gadgets that fired pulse once in activation order (1.035, 60/100ms, 20ms stagger, max 8 groups). */
+  boardGoldWave() {
+    const r = this.lastCascade;
+    if (!r) return;
+    const root = cellXY(r.rootIdx);
+    const g = this.add.graphics().setDepth(30);
+    g.lineStyle(8, 0xffcf33, 1).strokeRoundedRect(root.x - CELL / 2 + 6, root.y - CELL / 2 + 6, CELL - 12, CELL - 12, 20);
+    this.tweens.add({ targets: g, alpha: 0, delay: 120, duration: 260, onComplete: () => g.destroy() });
+    if (REDUCED_MOTION) return;
+    const depths = [...new Set(r.activations.map((a) => a.depth))].sort((a, b) => a - b).slice(0, 8);
+    this.time.delayedCall(120, () =>
+      depths.forEach((d, gi) =>
+        r.activations
+          .filter((a) => a.depth === d)
+          .forEach((a) => {
+            const cur = this.s.grid[a.idx];
+            const v = cur && cur.id === a.id ? this.views.get(a.id) : undefined;
+            if (!v || v === this.dragView) return;
+            this.tweens.chain({
+              targets: v,
+              tweens: [
+                { scale: 1.035, duration: 60, delay: gi * 20, ease: 'Quad.Out' },
+                { scale: 1, duration: 100, ease: 'Quad.In' },
+              ],
+            });
+          }),
+      ),
+    );
   }
 
   playKill(final: boolean, demo: boolean) {
@@ -1688,8 +1723,7 @@ export class GameScene extends Phaser.Scene {
         this.sparks.explode(50, tgt.x, tgt.y);
         this.ring(tgt.x, tgt.y, 0xffcf33, 260, 24, 420);
         this.ring(tgt.x, tgt.y, 0xffffff, 180, 14, 300);
-        this.shake(150, 0.004);
-        haptic(60);
+        haptic(18);
         this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 60, 300, 'banner_destroyed');
         this.tweens.add({
           targets: tgt,
