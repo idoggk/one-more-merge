@@ -19,9 +19,9 @@ export class Coach {
       ? scene.add.image(0, 0, 'ui_coach').setDisplaySize(width - 70, ((width - 70) * 257) / 720)
       : scene.add.graphics().fillStyle(0x2a2233, 0.94).fillRoundedRect(-(width - 60) / 2, -80, width - 60, 160, 28).lineStyle(5, 0xffcf33, 1).strokeRoundedRect(-(width - 60) / 2, -80, width - 60, 160, 28);
     this.text = scene.add
-      .text(0, -8, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '31px', color: hasPlate ? '#2a2233' : '#fff0cf', align: 'center', wordWrap: { width: width - 140 }, lineSpacing: 2 })
+      .text(0, -24, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '31px', color: hasPlate ? '#2a2233' : '#fff0cf', align: 'center', wordWrap: { width: width - 140 }, lineSpacing: 2 })
       .setOrigin(0.5);
-    this.tapText = scene.add.text(0, 56, 'tap to continue', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: hasPlate ? '#7a5a4a' : '#cdbfa8' }).setOrigin(0.5);
+    this.tapText = scene.add.text(0, 42, 'tap to continue', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: hasPlate ? '#7a5a4a' : '#cdbfa8' }).setOrigin(0.5);
     this.box = scene.add.container(width / 2, 0, [this.plate, this.text, this.tapText]).setDepth(90).setVisible(false);
     this.rings = scene.add.graphics().setDepth(89);
     const art = scene.textures.exists('ui_hand');
