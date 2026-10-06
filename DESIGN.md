@@ -136,6 +136,14 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
   2 gadgets per 1.8-2.6 s beat; monster sway ±0.5°; 12% cream wash on the stage; a 180 ms cue on a Kickback's match;
   ONE MORE! scaled to ≥52 px. No new art needed.
 
+## Rounds 11-12 + playtest 3: impact, Daily, merges, explainers, HOME + Bolts
+- **Impact without shake** (r11): monster squash/knockback tiers, a warm silhouette flash, and a gold wave over the board on a boss kill. The camera stays still (only MAX keeps a tiny kick); Shake can be toggled.
+- **Daily Bench** (r11): one validated seed per local date (tools/daily-seeds.ts: a novice bot must win 2 of 3 attempts and the cascade bot must win), normal rules, no helper, unlimited retries, today's best only.
+- **Playtest 3 (merges)**: a moved/swapped piece stayed where the finger let go, because reconcile() skipped the drag view and dragView was cleared after commitDrop. Targeting now uses the nearest cell to the held PIECE (40 px above the finger), with hysteresis and no dead zones, plus a safety net for a lost pointerup.
+- **Explainers that stop the clock**: the first chain, the first Kickback fuse and the first spare part; the HP bar shows chunk marks at 75/50/25%.
+- **HOME** (r12): wallet bar, YOUR MACHINE (layered v10 art; per-family mastery = highest rank ever merged/fused; tiers 1-2/3-4/5-6), helper row, PLAY, Daily/Challenge/Remix, Workshop, Records/How to play. The result screen shows this run's machine instead of the old illustration.
+- **Bolts** (r12, src/core/economy.ts + tests): 6 base (30 s + 3 merges) + 4/boss + chain bonus 2/4/6 + 8 full clear; +8 first Daily; 12 onboarding once. Cosmetic chassis finishes only (20-140), so balance and records stay fair. Finishes are chassis tints for now; proper material masks are still to request from ChatGPT.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

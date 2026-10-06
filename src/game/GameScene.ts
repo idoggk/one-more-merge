@@ -21,6 +21,7 @@ import {
 } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { buildMachine, hasMachineArt } from './machine';
+import { buy, CATALOG, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
@@ -89,6 +90,17 @@ interface Meta {
   remixBest: Record<string, number>;
   /** First-time contextual tips already shown. */
   tips: Record<string, boolean>;
+  /** Bolts wallet (the only spendable resource; cosmetics only). */
+  bolts?: number;
+  owned?: string[];
+  finish?: string | null;
+  nameIdx?: number;
+  /** One-time entitlements / settlement guards. */
+  onboarded?: boolean;
+  dailyPaid?: Record<string, boolean>;
+  lastSettle?: string;
+  /** Mastery as last seen on the home page (improved modules get a highlight). */
+  homeSeen?: Partial<Record<Family, number>>;
   /** Highest rank ever created per family by a player merge or Kickback fuse: builds YOUR MACHINE. */
   mastery?: Partial<Record<Family, number>>;
   /** Daily Bench personal bests by local date (only recent days kept). */
@@ -114,6 +126,7 @@ function dailySeed(date: string) {
   return DAILY_SEEDS[day % DAILY_SEEDS.length];
 }
 
+const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
 
@@ -389,6 +402,8 @@ export class GameScene extends Phaser.Scene {
 
   startState(s: GameState) {
     this.runBest = {};
+    if (this.homeC?.active) this.homeC.destroy();
+    this.homeC = null;
     this.closeModal();
     if (s.elapsed === 0 && s.stats.merges === 0) tlog.newRun({ mode: s.hard ? 'challenge' : s.phase === 'tutorial' ? 'tutorial' : s.practice ? 'practice' : 'normal', toys: s.toys, seed: s.seed });
     for (const v of this.views.values()) v.destroy();
@@ -1998,6 +2013,7 @@ export class GameScene extends Phaser.Scene {
         mastery[fam] = r;
       }
     }
+    const pay = this.settleBolts(won);
     const daily = s.daily ? this.recordDaily(won) : null;
     if (daily) newBest = false;
     store(META_KEY, JSON.stringify(m));
@@ -2043,9 +2059,32 @@ export class GameScene extends Phaser.Scene {
     const rec = s.daily ? null : s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
     if (rec !== null) lines.push(`Record${s.remix ? ' (remix)' : s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
     if (newBests.length) lines.push(`New best!  ${newBests.slice(0, 3).join(' · ')}`);
+    if (pay && pay.total > 0) lines.push(`+${pay.total} BOLTS${pay.onboarding ? '  (incl. welcome gift)' : ''}`);
     if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
     c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
-    this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.2);
+    this.button(c, W / 2 + 70, top + 560, 400, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.15);
+    this.button(c, W / 2 - 230, top + 560, 150, 'HOME', 0x27a4c0, () => this.openTitle(), 0.9);
+  }
+
+  /** Pays Bolts once per finished run (guarded by a settlement id so a reload cannot pay twice). */
+  settleBolts(won: boolean): Payout | null {
+    const s = this.s;
+    const m = this.meta;
+    if (s.phase === 'tutorial') return null;
+    const id = `${s.seed}:${s.stats.merges}:${s.elapsed.toFixed(2)}`;
+    if (m.lastSettle === id) return null;
+    m.lastSettle = id;
+    const bosses = s.remix ? (won ? 1 : 0) : won ? 3 : Math.max(0, s.target);
+    const date = s.daily;
+    const pay = runPayout(
+      { activeSec: s.elapsed, merges: s.stats.merges, bossesDefeated: bosses, fullClear: won, bestChain: s.stats.biggestChain, completed: true },
+      { dailyUnclaimed: !!date && !m.dailyPaid?.[date], onboardingUnclaimed: !m.onboarded },
+    );
+    if (pay.daily && date) (m.dailyPaid ??= {})[date] = true;
+    if (pay.onboarding) m.onboarded = true;
+    m.bolts = (m.bolts ?? 0) + pay.total;
+    tlog.log('bolts_earned', { ...pay, balance: m.bolts });
+    return pay;
   }
 
   activeToys(): Family[] {
@@ -2127,7 +2166,285 @@ export class GameScene extends Phaser.Scene {
     return [all[date], improved];
   }
 
+  /** HOME (ChatGPT r12): wallet bar, YOUR MACHINE as the hero, helper, PLAY, modes, workshop, utilities. */
   openTitle() {
+    this.closeModal();
+    if (!hasMachineArt(this) || !this.hasArt('hero_bg')) return this.openLegacyTitle();
+    const m = this.meta;
+    const c = this.add.container(0, 0).setDepth(100);
+    if (this.homeC?.active) this.homeC.destroy();
+    this.homeC = c;
+    this.modal = c;
+    const u = W / 390; // design spec is in CSS px at 390 wide
+    const bottom = H;
+    // layout: top-anchored header, bottom-anchored controls, the machine fills what is left
+    const helperY = bottom - 547;
+    const feetY = Math.min(helperY - 70, bottom - 600);
+    const headY = 150;
+    const room = feetY - (headY + 70);
+    const mWidth = Math.min(W * 1.02, Math.max(380, room / 0.56));
+    // background, pedestal aligned under the machine's feet
+    const bg = this.add.image(W / 2, 0, 'hero_bg').setOrigin(0.5, 0);
+    const k = Math.max(W / bg.width, (feetY - 20) / (0.538 * bg.height), (H - feetY + 20) / (0.462 * bg.height));
+    bg.setScale(k).setY(feetY - 20 - 0.538 * bg.height * k);
+    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
+
+    // wallet bar
+    const barY = 62;
+    const bar = this.add.image(W / 2, barY, 'res_bar').setDisplaySize(W - 50, 104);
+    const boltIcon = this.add.image(84, barY, 'bolt');
+    boltIcon.setScale(58 / Math.max(boltIcon.width, boltIcon.height));
+    const boltTxt = this.add.text(124, barY, `${m.bolts ?? 0}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#3b2533' }).setOrigin(0, 0.5);
+    const wallet = this.add.zone(200, barY, 330, 96).setInteractive({ useHandCursor: true });
+    wallet.on('pointerup', () => this.openWalletInfo());
+    const gear = this.add.text(W - 84, barY, '\u2699', { fontFamily: 'Arial', fontSize: '54px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    gear.on('pointerup', () => this.openSettings());
+    c.add([bar, boltIcon, boltTxt, wallet, gear]);
+
+    // identity
+    const name = m.owned?.includes('nameplate') ? MACHINE_NAMES[(m.nameIdx ?? 0) % MACHINE_NAMES.length] : 'YOUR MACHINE';
+    c.add(this.add.text(W / 2, headY, name, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
+    const empty = !Object.values(m.mastery ?? {}).some((r) => (r ?? 0) > 0);
+    const status = empty ? 'Merge gadgets in a run to build it!' : m.bestChain ? `Built from the gadgets you've merged · Best chain x${m.bestChain}` : "Built from the gadgets you've merged";
+    c.add(this.add.text(W / 2, headY + 50, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
+
+    // the machine
+    const helper = this.activeToys()[0] ?? null;
+    const mach = buildMachine(this, W / 2, feetY, mWidth, m.mastery ?? {}, helper)!;
+    this.applyFinish(mach);
+    c.add(mach);
+    const hit = this.add.zone(W / 2, feetY - mWidth * 0.25, mWidth * 0.95, mWidth * 0.5).setInteractive({ useHandCursor: true });
+    hit.on('pointerup', () => this.openWorkshop());
+    c.add(hit);
+    // idle: 1% breath over 2400ms; newly improved modules get one 180ms highlight
+    if (!REDUCED_MOTION) this.tweens.add({ targets: mach, scaleY: mach.scaleY * 1.01, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    const seen = m.homeSeen ?? {};
+    for (const f of ['cannon', 'coil', 'bell'] as Family[]) {
+      if ((m.mastery?.[f] ?? 0) > (seen[f] ?? 0)) {
+        const part = mach.getByName(f) as Phaser.GameObjects.Image | null;
+        if (part) {
+          const s0 = part.scale;
+          this.tweens.chain({ targets: part, tweens: [{ scale: s0 * 1.12, duration: 180, delay: 350, ease: 'Quad.Out' }, { scale: s0, duration: 220, ease: 'Sine.Out' }] });
+        }
+      }
+    }
+    m.homeSeen = { ...(m.mastery ?? {}) };
+    store(META_KEY, JSON.stringify(m));
+
+    // helper row
+    const unlocked = Object.keys(m.toys) as Family[];
+    const hy = helperY;
+    const hg = this.add.graphics().fillStyle(0x2b1d2e, 0.82).fillRoundedRect(44, hy - 46, W - 88, 92, 26);
+    c.add(hg);
+    const nc = this.nextChallenge();
+    const hl = unlocked.length ? `Helper:  ${helper ? FAMILY_INFO[helper].name : 'None'}` : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
+    const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: unlocked.length ? '30px' : '22px', color: '#fff0cf', wordWrap: { width: unlocked.length ? 380 : W - 170 } }).setOrigin(0, 0.5);
+    c.add(ht);
+    if (unlocked.length) this.button(c, W - 150, hy, 220, 'CHANGE', 0x27a4c0, () => this.openHelperSheet(), 0.62);
+
+    // PLAY (always normal mode)
+    const play = this.button(c, W / 2, bottom - 410, 600, 'PLAY', 0x5fbf4a, () => this.retry(false, -1), 1.1);
+    if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.13, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+
+    // modes: three equal buttons; locked ones explain themselves
+    const today = m.daily?.[localDate()];
+    if (m.hardUnlocked) tlog.log('daily_offer_view', { date: localDate(), done: !!today });
+    const locked = () => this.showToast('Win one normal run to unlock'.toUpperCase());
+    const modes: [string, number, () => void][] = [
+      [today ? 'DAILY \u2713' : 'DAILY', 0x5fbf4a, () => (m.hardUnlocked ? this.startDaily() : locked())],
+      ['CHALLENGE', 0xe8452c, () => (m.hardUnlocked ? this.retry(true, -1) : locked())],
+      ['REMIX', 0x27a4c0, () => (m.hardUnlocked ? this.openRemixPicker() : locked())],
+    ];
+    modes.forEach(([label, col, cb], i) => {
+      const bt = this.button(c, W / 2 + (i - 1) * 222, bottom - 266, 250, label, col, cb, 0.82);
+      if (!m.hardUnlocked) bt.setAlpha(0.55);
+    });
+
+    // workshop
+    this.button(c, W / 2, bottom - 140, 600, 'WORKSHOP', 0x8a6a4a, () => this.openWorkshop(), 0.85);
+    const affordable = CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0));
+    if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 172, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
+
+    // utilities
+    const util = this.add.text(W / 2, bottom - 44, 'Records   ·   How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    util.on('pointerup', (p: Phaser.Input.Pointer) => {
+      sfx.click();
+      if (p.worldX < W / 2) this.openRecords();
+      else this.openHowTo(0, () => this.openTitle());
+    });
+    c.add(util);
+    void u;
+    c.setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
+  }
+
+  homeC: Phaser.GameObjects.Container | null = null;
+  /** A sheet over the home: replaces any other sheet, keeps the home underneath. */
+  sheet(h: number) {
+    if (this.modal && this.modal !== this.homeC) {
+      const old = this.modal;
+      this.modal = null;
+      old.destroy();
+    }
+    return this.panel(h);
+  }
+
+  /** Chassis finish: tints the chassis only, never the family modules. */
+  applyFinish(mach: Phaser.GameObjects.Container) {
+    const it = CATALOG.find((x) => x.id === this.meta.finish);
+    const ch = mach.list[0] as Phaser.GameObjects.Image;
+    if (it?.tint) ch.setTint(it.tint);
+    else ch.clearTint();
+  }
+
+  showToast(text: string) {
+    const t = this.add.text(W / 2, H / 2, text, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', backgroundColor: '#2b1d2e', padding: { x: 24, y: 14 }, align: 'center' }).setOrigin(0.5).setDepth(130);
+    this.tweens.add({ targets: t, alpha: 0, y: H / 2 - 40, delay: 1100, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  sheetTitle(c: Phaser.GameObjects.Container, top: number, title: string, sub?: string) {
+    c.add(this.add.text(W / 2, top + 64, title, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    if (sub) c.add(this.add.text(W / 2, top + 112, sub, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+  }
+
+  openWalletInfo() {
+    sfx.click();
+    const c = this.sheet(560);
+    const top = H / 2 - 280;
+    this.sheetTitle(c, top, `${this.meta.bolts ?? 0} BOLTS`, 'Earn Bolts by playing: every run, each monster you beat,\nbig chains, full clears and the Daily Bench.\n\nSpend them in the WORKSHOP on looks for your machine.\nThey never make runs easier, so every record is fair.');
+    this.button(c, W / 2, top + 470, 300, 'OK', 0x5fbf4a, () => this.openTitle());
+  }
+
+  openSettings() {
+    sfx.click();
+    const c = this.sheet(680);
+    const top = H / 2 - 340;
+    this.sheetTitle(c, top, 'SETTINGS');
+    const m = this.meta;
+    const toggles: [string, () => boolean, () => void][] = [
+      ['SOUND', () => m.sound, () => ((m.sound = !m.sound), (audioSettings.on = m.sound))],
+      ['MUSIC', () => m.music, () => ((m.music = !m.music), (audioSettings.music = m.music))],
+      ['SHAKE', () => m.shake !== false, () => (m.shake = m.shake === false)],
+    ];
+    toggles.forEach(([label, get, flip], i) => {
+      const b = this.button(c, W / 2, top + 180 + i * 110, 420, `${label}: ${get() ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
+        flip();
+        store(META_KEY, JSON.stringify(m));
+        (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
+      });
+    });
+    const rt = this.add.text(W / 2, top + 520, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    rt.on('pointerup', () => this.startTutorial());
+    c.add(rt);
+    this.button(c, W / 2, top + 600, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+  }
+
+  openHelperSheet() {
+    sfx.click();
+    const m = this.meta;
+    const all: Family[] = ['magnet', 'battery', 'fan'];
+    const c = this.sheet(760);
+    const top = H / 2 - 380;
+    this.sheetTitle(c, top, 'HELPER', 'One helper joins your next run.\nIt mixes its own parts into the deliveries.');
+    const pick = (f: Family | null) => {
+      for (const k of Object.keys(m.toys) as Family[]) m.toys[k] = false;
+      if (f) m.toys[f] = true;
+      store(META_KEY, JSON.stringify(m));
+      this.openTitle();
+    };
+    this.button(c, W / 2, top + 230, 440, 'NONE', 0x8a6a4a, () => pick(null), 0.85);
+    all.forEach((f, i) => {
+      const y = top + 340 + i * 110;
+      if (f in m.toys) this.button(c, W / 2, y, 440, `${FAMILY_INFO[f].name.toUpperCase()}${m.toys[f] ? '  \u2713' : ''}`, 0x27a4c0, () => pick(f), 0.85);
+      else c.add(this.add.text(W / 2, y, `${FAMILY_INFO[f].name}: locked`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));
+    });
+    const nc = this.nextChallenge();
+    if (nc) c.add(this.add.text(W / 2, top + 670, `Next unlock: ${nc.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5));
+  }
+
+  openRecords() {
+    const m = this.meta;
+    const c = this.sheet(720);
+    const top = H / 2 - 360;
+    this.sheetTitle(c, top, 'RECORDS');
+    const d = m.daily?.[localDate()];
+    const rb = Object.entries(m.remixBest);
+    const fam = (['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan'] as Family[]).filter((f) => (m.mastery?.[f] ?? 0) > 0);
+    const lines = [
+      `Fastest win   ${m.bestTime !== null ? m.bestTime.toFixed(1) + 's' : '-'}`,
+      `Challenge   ${m.bestTimeHard !== null ? m.bestTimeHard.toFixed(1) + 's' : '-'}`,
+      `Biggest chain   x${m.bestChain}`,
+      `Today's Daily   ${d ? (d.targets === 3 ? d.time + 's' : `${d.targets}/3`) : '-'}`,
+      `Remix wins   ${rb.length}`,
+      `Wins / runs   ${m.wins} / ${m.runs}`,
+      fam.length ? `Best ranks   ${fam.map((f) => `${FAMILY_INFO[f].name} ${m.mastery![f]}`).join(' · ')}` : '',
+    ].filter(Boolean);
+    c.add(this.add.text(W / 2, top + 140, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '27px', color: '#3b2533', align: 'center', lineSpacing: 16, wordWrap: { width: W - 140 } }).setOrigin(0.5, 0));
+    this.button(c, W / 2, top + 640, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+  }
+
+  /** WORKSHOP: mastery is free (it IS the machine); Bolts buy chassis finishes. Preview -> Buy -> Equip. */
+  openWorkshop(preview: string | null = null) {
+    sfx.click();
+    const m = this.meta;
+    const wallet: Wallet = { bolts: m.bolts ?? 0, owned: m.owned ?? [], finish: m.finish ?? null };
+    const c = this.sheet(Math.min(H - 80, 1180));
+    const top = H / 2 - Math.min(H - 80, 1180) / 2;
+    this.sheetTitle(c, top, 'WORKSHOP');
+    const pv = preview && !wallet.owned.includes(preview) ? CATALOG.find((x) => x.id === preview) : undefined;
+    const sub = pv ? `Previewing ${pv.name}: tap it again to buy (${pv.price})` : `Bolts: ${wallet.bolts}   ·   Better parts come free from merging`;
+    c.add(this.add.text(W / 2, top + 108, sub, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: pv ? '#b06a1a' : '#7a5a4a' }).setOrigin(0.5));
+    // live preview of the machine with the previewed (or equipped) finish
+    const mach = buildMachine(this, W / 2, top + 400, 460, m.mastery ?? {}, this.activeToys()[0] ?? null)!;
+    const show = preview ?? wallet.finish;
+    const it0 = CATALOG.find((x) => x.id === show);
+    const ch = mach.list[0] as Phaser.GameObjects.Image;
+    if (it0?.tint) ch.setTint(it0.tint);
+    c.add(mach);
+    const items = CATALOG;
+    items.forEach((it, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = W / 2 + (col ? 150 : -150);
+      const y = top + 470 + row * 140;
+      const owned = wallet.owned.includes(it.id);
+      const equipped = it.slot === 'finish' ? wallet.finish === it.id : owned;
+      const card = this.add.container(x, y);
+      const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-140, -58, 280, 116, 20).fillStyle(preview === it.id ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-136, -54, 272, 108, 17);
+      const sw = this.add.circle(-98, -14, 20, it.tint ?? 0xd8c8b0).setStrokeStyle(4, 0x2b1d2e);
+      const nm = this.add.text(-68, -14, it.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0, 0.5);
+      const state = equipped ? 'EQUIPPED' : owned ? 'tap to EQUIP' : `${it.price} bolts`;
+      const st = this.add.text(-68, 22, state, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: owned ? '#2f8a3a' : it.price <= wallet.bolts ? '#b06a1a' : '#9a8a7a' }).setOrigin(0, 0.5);
+      card.add([g, sw, nm, st]).setSize(280, 116).setInteractive({ useHandCursor: true });
+      card.on('pointerup', () => {
+        if (owned) {
+          if (it.slot === 'finish') m.finish = equipped ? null : it.id;
+          else m.nameIdx = (m.nameIdx ?? 0) + 1; // nameplate: tap cycles the name
+          tlog.log('equip', { id: it.id, on: !equipped });
+          store(META_KEY, JSON.stringify(m));
+          return this.openWorkshop();
+        }
+        if (preview !== it.id) {
+          tlog.log('preview', { id: it.id });
+          return this.openWorkshop(it.id);
+        }
+        if (!buy(wallet, it.id)) return this.showToast(`Need ${it.price - wallet.bolts} more bolts`);
+        m.bolts = wallet.bolts;
+        m.owned = wallet.owned;
+        if (it.slot === 'finish') m.finish = it.id;
+        tlog.log('purchase', { id: it.id, price: it.price, balance: m.bolts });
+        store(META_KEY, JSON.stringify(m));
+        sfx.rankUp(4);
+        this.openWorkshop();
+      });
+      c.add(card);
+    });
+    const by = top + 470 + Math.ceil(items.length / 2) * 140 + 20;
+    this.button(c, W / 2, Math.min(by, top + Math.min(H - 80, 1180) - 70), 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+  }
+
+  /** Pre-v10 title console (fallback when the home art is missing). */
+  openLegacyTitle() {
     const c = this.add.container(0, 0).setDepth(100);
     if (this.hasArt('title')) {
       const img = this.add.image(W / 2, H / 2, 'title');
