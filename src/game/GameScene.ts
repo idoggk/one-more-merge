@@ -2504,7 +2504,10 @@ export class GameScene extends Phaser.Scene {
       { activeSec: s.elapsed, merges: s.stats.merges, bossesDefeated: bosses, fullClear: won, bestChain: s.stats.biggestChain, completed },
       { dailyUnclaimed: !!date && !m.dailyPaid?.[date], onboardingUnclaimed: !m.onboarded },
     );
-    if (pay.daily && date) (m.dailyPaid ??= {})[date] = true;
+    if (pay.daily && date) {
+      (m.dailyPaid ??= {})[date] = true;
+      m.kits = (m.kits ?? 0) + 1; // r15: the Daily bonus also grants one Jumpstart Kit
+    }
     if (pay.onboarding) m.onboarded = true;
     m.bolts = (m.bolts ?? 0) + pay.total;
     tlog.log('bolts_earned', { ...pay, balance: m.bolts });
@@ -2767,7 +2770,7 @@ export class GameScene extends Phaser.Scene {
     if (this.homeC?.active) this.homeC.destroy();
     this.homeC = c;
     this.modal = c;
-    const bg = this.add.image(W / 2, 0, 'hero_bg').setOrigin(0.5, 0);
+    const bg = this.add.image(W / 2, 0, this.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
     bg.setScale(Math.max(W / bg.width, H / bg.height));
     c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
     const top = 128, bottom = H - 250; // road viewport (sticky PLAY + nav below)
@@ -2879,26 +2882,35 @@ export class GameScene extends Phaser.Scene {
     if (this.homeC?.active) this.homeC.destroy();
     this.homeC = c;
     this.modal = c;
-    const bg = this.add.image(W / 2, 0, 'hero_bg').setOrigin(0.5, 0);
+    const bg = this.add.image(W / 2, 0, this.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
     bg.setScale(Math.max(W / bg.width, H / bg.height));
     c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
     this.drawWallet(c);
     c.add(this.add.text(W / 2, 170, 'EVENTS', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     const lv = this.currentLevel() - 1; // levels cleared
     const today = m.daily?.[localDate()];
-    const cards: [string, string, number, boolean, () => void][] = [
-      [today ? 'DAILY BENCH \u2713' : 'DAILY BENCH', 'Same board for everyone today. New tomorrow.', 0x5fbf4a, lv >= 3 || m.hardUnlocked, () => this.startDaily()],
-      ['CHALLENGE', 'The classic 3-monster run, tougher. No boosters.', 0xe8452c, lv >= 5 || m.hardUnlocked, () => this.retry(true, -1)],
-      ['REMIX', 'One big junk monster that fights back.', 0x27a4c0, lv >= 10 || m.hardUnlocked, () => this.openRemixPicker()],
-      ['JUNK RUN', '3 monsters, one 135s clock, perks between.', 0x8a6a4a, true, () => this.retry(false, -1)],
-    ];
-    const need = [3, 5, 10, 0];
-    cards.forEach(([label, sub, col, open, cb], i) => {
-      const y = 300 + i * 200;
-      const b = this.button(c, W / 2, y, 560, label, col, open ? cb : () => this.showToast(`UNLOCKS AT LEVEL ${need[i]}`), 0.95);
+    const paid = !!m.dailyPaid?.[localDate()];
+    const card = (y: number, h: number, title: string, lines: string[], col: number, open: boolean, need: number, cb: () => void, extra?: [string, () => void]) => {
+      const cc = this.add.container(W / 2, y);
+      if (this.hasArt('ui_card')) cc.add(this.add.image(0, 0, 'ui_card').setDisplaySize(W - 50, h));
+      else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
+      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 40, title, { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' }).setOrigin(0, 0.5));
+      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 72, open ? lines.join('\n') : `Unlocks after level ${need}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6, wordWrap: { width: W - 330 } }));
+      const b = this.button(cc, (W - 50) / 2 - 130, h / 2 - 56, 200, open ? 'PLAY' : 'LOCKED', col, open ? cb : () => this.showToast(`UNLOCKS AT LEVEL ${need}`), 0.72);
       if (!open) b.setAlpha(0.5);
-      c.add(this.add.text(W / 2, y + 68, open ? sub : `Unlocks after level ${need[i]}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
-    });
+      if (extra && open) {
+        const t = this.add.text(-(W - 50) / 2 + 44, h / 2 - 50, extra[0], { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a' }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+        t.on('pointerup', extra[1]);
+        cc.add(t);
+      }
+      c.add(cc);
+    };
+    const now = new Date();
+    const hrs = 23 - now.getHours();
+    const mins = 59 - now.getMinutes();
+    card(370, 262, today ? 'DAILY BENCH ✓' : 'DAILY BENCH', [paid ? 'Bonus collected for today' : "Today's bonus: +8 Bolts +1 Kit", `New bench in ${hrs}h ${mins}m${today ? `  ·  best ${today.targets === 3 ? `${today.time}s` : `${today.targets}/3`}` : ''}`], 0x5fbf4a, lv >= 3 || m.hardUnlocked, 3, () => this.startDaily());
+    card(640, 240, 'CHALLENGE', ['3 monsters, one 135s clock, tougher.', 'No boosters. Pure skill.'], 0xe8452c, lv >= 5 || m.hardUnlocked, 5, () => this.retry(true, -1), ['Classic run ›', () => this.retry(false, -1)]);
+    card(900, 240, 'REMIX', ['One big junk monster with a', 'board-attacking trick.'], 0x27a4c0, lv >= 10 || m.hardUnlocked, 10, () => this.openRemixPicker());
     this.drawNav(c, 'events');
   }
 

@@ -28,6 +28,10 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   else if (n === 'path_star_filled') [key, box] = ['star', 96];
   else if (/^path_worker_(\w+)$/.test(n)) [key, box] = [`worker_${n.match(/^path_worker_(\w+)$/)[1]}`, 200];
   else if (/^booster_(\w+)_icon$/.test(n)) [key, box] = [`booster_${n.match(/^booster_(\w+)_icon$/)[1]}`, 128];
+  else if (n === 'home_road_background_v14') [key, box, trim] = ['road_bg', 720, false];
+  else if (n === 'ui_event_card_plate') [key, box] = ['ui_card', 720];
+  else if (n === 'ui_consumable_button_plate') [key, box] = ['ui_consumable', 320];
+  else if (/^rocket_r0([78])$/.test(n)) [key, box] = [`rocket_${n.slice(-1)}`, 256];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];
   else if (n === 'hero_mount_socket') [key, box] = ['hero_socket', 160];
