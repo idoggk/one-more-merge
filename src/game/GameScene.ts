@@ -20,6 +20,7 @@ import {
   type GameState,
 } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
+import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
@@ -85,6 +86,27 @@ interface Meta {
   remixBest: Record<string, number>;
   /** First-time contextual tips already shown. */
   tips: Record<string, boolean>;
+  /** Daily Bench personal bests by local date (only recent days kept). */
+  daily?: Record<string, DailyBest>;
+}
+
+/** Daily Bench result, ordered: more opponents beaten > (cleared: faster) > more damage on the opponent reached. */
+interface DailyBest {
+  v: number;
+  targets: number;
+  time: number | null;
+  dmg: number;
+  attempts: number;
+}
+const dailyBetter = (a: DailyBest, b: DailyBest | undefined) =>
+  !b || a.targets > b.targets || (a.targets === b.targets && (a.targets === 3 ? (a.time ?? 1e9) < (b.time ?? 1e9) : a.dmg > b.dmg));
+export function localDate(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function dailySeed(date: string) {
+  const [y, m, d] = date.split('-').map(Number);
+  const day = Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+  return DAILY_SEEDS[day % DAILY_SEEDS.length];
 }
 
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
@@ -1871,6 +1893,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
+    const daily = s.daily ? this.recordDaily(won) : null;
+    if (daily) newBest = false;
     store(META_KEY, JSON.stringify(m));
     store(SAVE_KEY, null);
     won ? sfx.win() : sfx.lose();
@@ -1897,7 +1921,12 @@ export class GameScene extends Phaser.Scene {
     lines.push(`Biggest hit  ${fmt(s.stats.biggestHit)}`);
     lines.push(`Best gadget  rank ${s.stats.bestRank}`);
     if (s.perks.length) lines.push(`Perks  ${s.perks.map((p) => PERKS[p].name).join(', ')}`);
-    const rec = s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
+    if (daily) {
+      const [b, improved] = daily;
+      lines.unshift(`Daily best  ${b.targets === 3 ? `${b.time}s` : `${b.targets}/3 + ${fmt(b.dmg)}`}${improved ? '  NEW!' : ''}`);
+      lines.push('New bench tomorrow');
+    }
+    const rec = s.daily ? null : s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
     if (rec !== null) lines.push(`Record${s.remix ? ' (remix)' : s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
     if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
     c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
@@ -1942,12 +1971,45 @@ export class GameScene extends Phaser.Scene {
     if (ch.toy === 'battery' && !kickback && this.pulledMerge) this.unlockToy('battery');
     if (ch.toy === 'fan' && r.discharged.length) this.unlockToy('fan');
   }
-  retry(hard = this.s.hard, remixTarget = this.s.remix ? this.s.target : -1) {
+  retry(hardArg?: boolean, remixArg?: number) {
+    // "again" (ONE MORE / RESTART, no args) repeats the same mode; a Daily repeats today's bench
+    if (hardArg === undefined && this.s.daily) return this.startDaily();
+    const hard = hardArg ?? this.s.hard;
+    const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
     tlog.log('retry', { hard });
     this.closeModal();
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
     this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys(), remixTarget));
+  }
+
+  /** Daily Bench (ChatGPT r11): today's validated seed, normal rules, no helper toy, unlimited retries. */
+  startDaily() {
+    this.closeModal();
+    const date = localDate();
+    const seed = dailySeed(date);
+    const s = newGame(seed, false, false, [], -1);
+    s.daily = date;
+    const prev = this.meta.daily?.[date];
+    tlog.log('daily_start', { rules: DAILY_VERSION, seed, date, attempt: (prev?.attempts ?? 0) + 1 });
+    this.startState(s);
+    this.showEvent('DAILY BENCH  ·  same board for everyone today', '#ffd24a', 2200);
+  }
+
+  /** Records a finished Daily attempt on its ORIGINAL date (even past midnight). Returns [best, improved]. */
+  recordDaily(won: boolean): [DailyBest, boolean] {
+    const s = this.s;
+    const date = s.daily!;
+    const all = (this.meta.daily ??= {});
+    const prev = all[date];
+    const hpMax = s.target >= 0 && s.target < 3 ? s.maxHp : 1;
+    const cur: DailyBest = { v: DAILY_VERSION, targets: won ? 3 : Math.max(0, s.target), time: won ? +s.elapsed.toFixed(1) : null, dmg: won ? 0 : Math.round(hpMax - s.hp), attempts: (prev?.attempts ?? 0) + 1 };
+    const improved = dailyBetter(cur, prev);
+    all[date] = improved ? cur : { ...prev!, attempts: cur.attempts };
+    for (const k of Object.keys(all).sort().slice(0, -14)) delete all[k];
+    tlog.log('daily_end', { rules: DAILY_VERSION, seed: s.seed, date, attempt: cur.attempts, targets: cur.targets, time: cur.time, dmg: cur.dmg });
+    if (improved) tlog.log('daily_best_improved', { date, targets: cur.targets, time: cur.time, dmg: cur.dmg });
+    return [all[date], improved];
   }
 
   openTitle() {
@@ -2007,8 +2069,11 @@ export class GameScene extends Phaser.Scene {
     });
     const play = this.button(c, W / 2, consoleTop + 320, 560, 'PLAY', 0x5fbf4a, () => this.retry(false, -1));
     if (m.hardUnlocked) {
-      this.button(c, W / 2 - 152, consoleTop + 450, 256, 'CHALLENGE', 0xe8452c, () => this.retry(true, -1));
-      this.button(c, W / 2 + 152, consoleTop + 450, 256, 'REMIX', 0x27a4c0, () => this.openRemixPicker());
+      const today = m.daily?.[localDate()];
+      tlog.log('daily_offer_view', { date: localDate(), done: !!today });
+      this.button(c, W / 2 - 222, consoleTop + 450, 250, 'CHALLENGE', 0xe8452c, () => this.retry(true, -1), 0.82);
+      this.button(c, W / 2, consoleTop + 450, 250, today ? 'DAILY ✓' : 'DAILY', 0x5fbf4a, () => this.startDaily(), 0.82);
+      this.button(c, W / 2 + 222, consoleTop + 450, 250, 'REMIX', 0x27a4c0, () => this.openRemixPicker(), 0.82);
     } else c.add(this.add.text(W / 2, consoleTop + 450, 'Win once to unlock Challenge + Remix', { ...cream, fontSize: '24px', color: '#cdbfa8' }).setOrigin(0.5));
     this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }

@@ -39,6 +39,8 @@ export interface GameState {
   seed: number;
   phase: Phase;
   practice: boolean;
+  /** Daily Bench: the local calendar date (YYYY-MM-DD) this run belongs to. Presentation-only; rules are the normal run. */
+  daily?: string;
   /** Challenge mode: tougher targets. */
   hard: boolean;
   /** Unlocked extra families mixed into the supply bag (e.g. magnet). */
