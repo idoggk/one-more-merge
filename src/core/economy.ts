@@ -49,7 +49,7 @@ export interface CatalogItem {
   id: string;
   name: string;
   price: number;
-  slot: 'finish' | 'nameplate';
+  slot: 'finish' | 'nameplate' | 'ornament';
   /** Multiply tint for the chassis only (never the family modules). */
   tint?: number;
 }
@@ -62,6 +62,10 @@ export const CATALOG: CatalogItem[] = [
   { id: 'copper_kit', name: 'Copper Kit', price: 90, slot: 'finish', tint: 0xffbf94 },
   { id: 'night_paint', name: 'Night Paint', price: 110, slot: 'finish', tint: 0xb8a0d8 },
   { id: 'master_finish', name: 'Master Finish', price: 140, slot: 'finish', tint: 0xfff0a0 },
+  // r17 long-term sinks: hero-only ornaments (never deliveries, no battle effect)
+  { id: 'brass_whistle', name: 'Brass Whistle', price: 250, slot: 'ornament', tint: 0xe8b84a },
+  { id: 'violet_pennant', name: 'Violet Pennant', price: 450, slot: 'ornament', tint: 0x8e58c9 },
+  { id: 'clockwork_finial', name: 'Clockwork Finial', price: 700, slot: 'ornament', tint: 0x27a4c0 },
 ];
 
 export interface Wallet {

@@ -74,6 +74,16 @@ export function buildMachine(
   return c;
 }
 
+/** Hero-only ornament on its own mount (back-left corner of the chassis), separate from gameplay mounts (r17). */
+export function setOrnament(scene: Phaser.Scene, mach: Phaser.GameObjects.Container, ornamentId: string | null) {
+  (mach.getByName('ornament') as Phaser.GameObjects.Image | null)?.destroy();
+  const key = ornamentId ? `orn_${ornamentId}` : '';
+  if (!key || !scene.textures.exists(key)) return;
+  const o = scene.add.image(150 - FEET.x, 470 - FEET.y, key).setOrigin(0.5, 1).setName('ornament');
+  o.setScale(Math.min(120 / o.width, 160 / o.height));
+  mach.addAt(o, 1);
+}
+
 /** Workshop finish: swap the chassis for its pre-rendered material variant (tools/make-finishes.py); tint fallback. */
 export function setFinish(mach: Phaser.GameObjects.Container, finishId: string | null, tint?: number) {
   const ch = mach.list[0] as Phaser.GameObjects.Image;

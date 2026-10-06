@@ -58,6 +58,7 @@ const states = {
   ],
   chest: [(sc) => { sc.meta.medals = { 1: true }; sc.openTitle('road'); sc.playChapterChest(1); }, 1600],
   machine_medals: [(sc) => { sc.meta.medals = { 1: true, 2: true }; sc.openTitle('machine'); }, 900],
+  workshop_orn: [(sc) => { Object.assign(sc.meta, { bolts: 800, owned: ['brass_kit'], finish: 'brass_kit', ornament: null, mastery: { cannon: 4, coil: 3, bell: 5 } }); sc.openTitle('machine'); sc.openWorkshop('violet_pennant'); }, 800],
   stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [

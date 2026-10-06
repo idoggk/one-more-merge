@@ -23,7 +23,7 @@ import {
   type GameState,
 } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
-import { buildMachine, hasMachineArt, setFinish } from './machine';
+import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
@@ -85,6 +85,8 @@ interface Meta {
   sound: boolean;
   hints: boolean;
   music: boolean;
+  /** Equipped hero ornament (r17 Bolt sink). */
+  ornament?: string | null;
   /** Bolts balance at the last Workshop visit (new-item dot). */
   workshopSeenBolts?: number;
   /** Chapter medals earned (chapter number -> true), r17. */
@@ -3145,6 +3147,7 @@ export class GameScene extends Phaser.Scene {
   applyFinish(mach: Phaser.GameObjects.Container) {
     const it = CATALOG.find((x) => x.id === this.meta.finish);
     setFinish(mach, it?.id ?? null, it?.tint);
+    setOrnament(this, mach, this.meta.ornament ?? null);
   }
 
   showToast(text: string) {
@@ -3382,13 +3385,14 @@ export class GameScene extends Phaser.Scene {
     const sel = preview ?? wallet.finish;
     const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1, [this.teamShooter()]: 1 }, this.activeToys()[0] ?? null, this.teamShooter())!;
     const it0 = CATALOG.find((x) => x.id === sel);
-    setFinish(mach, it0?.slot === 'finish' ? it0.id : null, it0?.tint);
+    setFinish(mach, it0?.slot === 'finish' ? it0.id : wallet.finish, CATALOG.find((x) => x.id === (it0?.slot === 'finish' ? it0.id : wallet.finish))?.tint);
+    setOrnament(this, mach, it0?.slot === 'ornament' ? it0.id : (m.ornament ?? null));
     c.add(mach);
     CATALOG.forEach((it, i) => {
       const x = W / 2 + (i % 2 ? 152 : -152);
       const y = top + 460 + Math.floor(i / 2) * 104;
       const owned = wallet.owned.includes(it.id);
-      const equipped = it.slot === 'finish' ? wallet.finish === it.id : owned;
+      const equipped = it.slot === 'finish' ? wallet.finish === it.id : it.slot === 'ornament' ? m.ornament === it.id : owned;
       const card = this.add.container(x, y);
       const g = this.add.graphics().fillStyle(preview === it.id ? 0xe8a33a : 0x2b1d2e, 1).fillRoundedRect(-144, -44, 288, 88, 18).fillStyle(preview === it.id ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-139, -39, 278, 78, 15);
       const sw = this.add.circle(-104, 0, 20, it.tint ?? 0xd8c8b0).setStrokeStyle(4, 0x2b1d2e);
@@ -3405,7 +3409,7 @@ export class GameScene extends Phaser.Scene {
     const pv = preview ? CATALOG.find((x) => x.id === preview) : undefined;
     if (pv) {
       const owned = wallet.owned.includes(pv.id);
-      const equipped = pv.slot === 'finish' ? wallet.finish === pv.id : false;
+      const equipped = pv.slot === 'finish' ? wallet.finish === pv.id : pv.slot === 'ornament' ? m.ornament === pv.id : false;
       const label = !owned ? `BUY  ·  ${pv.price}` : pv.slot === 'nameplate' ? 'NEW NAME' : equipped ? 'UNEQUIP' : 'EQUIP';
       const canAfford = owned || wallet.bolts >= pv.price;
       const b = this.button(c, W / 2, by, 420, label, 0x5fbf4a, () => {
@@ -3414,9 +3418,13 @@ export class GameScene extends Phaser.Scene {
           m.bolts = wallet.bolts;
           m.owned = wallet.owned;
           if (pv.slot === 'finish') m.finish = pv.id;
+          if (pv.slot === 'ornament') m.ornament = pv.id;
           m.workshopSeenBolts = m.bolts;
           tlog.log('purchase', { id: pv.id, price: pv.price, balance: m.bolts });
           sfx.rankUp(4);
+        } else if (pv.slot === 'ornament') {
+          m.ornament = equipped ? null : pv.id;
+          tlog.log('equip', { id: pv.id, on: !equipped });
         } else if (pv.slot === 'finish') {
           m.finish = equipped ? null : pv.id;
           tlog.log('equip', { id: pv.id, on: !equipped });
@@ -3426,7 +3434,9 @@ export class GameScene extends Phaser.Scene {
       }, 0.85);
       if (!canAfford) b.setAlpha(0.6);
     } else c.add(this.add.text(W / 2, by, 'Tap a finish to preview it on your machine', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-    this.button(c, W / 2, Math.min(by + 110, top + PH - 60), 260, 'CLOSE', 0x27a4c0, () => this.openTitle(), 0.75);
+    const close = this.add.text(W - 70, top + 44, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    close.on('pointerup', () => this.openTitle());
+    c.add(close);
   }
 
 

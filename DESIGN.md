@@ -168,6 +168,13 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **Ranks 7-8** (Saga L21+ only): damaging core families cap at 8 (2.25×/rank as before); helpers, events and the classic run stay at 6. In Saga, two cap pieces compact into one cap piece (frees a cell, fires once). Copy caps 4/5/6/7 for L21-30/31-40/41-50/51-60. Showcase: L21 starts with a rank-6 shooter pair and L41 with rank 7, so those two calibrate to ~3× the HP of their neighbours (the opening merge is a huge hit).
 - UI: short HUD names, Time Capsule in the bottom lane with a 350 ms hold, level card (no HP, star outlines with goals, Jumpstart switch), result Bolts breakdown, curved road, quiet road background, EVENTS cards, Daily +1 Kit, shop caps 3 kits / 2 capsules.
 
+## Round 17: meta loop
+- **Chapters**: the first clear of each chapter-end level (10, 20, ...) awards a chapter medal (collection only, no battle effect), shown with a chest-opening presentation and on a medal shelf in MACHINE. The road strip shows chapter progress and previews the chest.
+- **Bolt sinks**: hero ornaments Brass Whistle 250 / Violet Pennant 450 / Clockwork Finial 700, on their own mount (never deliveries). Backdrops and weekly keepsakes are deferred until they have art.
+- **High ranks**: the numeral always shows and a crown marks the cap; rank 7/8 dice plates. The L21/L41 showcase overrides were removed (ordinary chapter starters; refit to ordinary HP). An optional showcase practice is still to do.
+- **Onboarding**: three one-time lessons (road, star goals, boosters).
+- **Playtest**: an in-game Playtest Stats page (Settings). r17's human plan: Ido as the expert, 5 friends as the novice cohort; first-try clear rate by chapter position, spike follow-through, booster purchase rate, owned-booster use rate, high-rank payoff rating.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.
