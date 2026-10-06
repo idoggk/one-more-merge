@@ -584,6 +584,11 @@ export class GameScene extends Phaser.Scene {
     const r = Math.floor((y - BY) / CELL);
     return c >= 0 && c < COLS && r >= 0 && r < ROWS ? r * COLS + c : -1;
   }
+  /** Centre of a board cell in world px (also used by tools/touch-test.mjs). */
+  cellCenter(i: number) {
+    return cellXY(i);
+  }
+
   /** Cell nearest to (x, y) within reach, else -1. Hysteresis: the current target is kept until another cell is clearly closer. */
   targetCell(x: number, y: number) {
     let best = -1;
@@ -650,14 +655,15 @@ export class GameScene extends Phaser.Scene {
       this.dragView.setDepth(55);
       this.tweens.killTweensOf(this.dragView);
       this.tweens.add({ targets: this.dragView, scale: 1.08, duration: 75, ease: 'Cubic.Out' });
+      // the piece starts where it was grabbed and glides up above the finger (no 40px jump)
+      this.grabOff = { x: p.worldX - this.dragView.x, y: p.worldY - this.dragView.y };
+      this.liftAt = this.time.now;
     }
-    // weighty drag: piece leans into the motion and casts a shadow on the board
     const dx = p.worldX - this.dragView.x;
-    this.dragView.setPosition(p.worldX, p.worldY - DRAG_LIFT);
+    this.placeDrag(p);
+    // weighty drag: piece leans into the motion
     this.dragView.setAngle(Phaser.Math.Linear(this.dragView.angle, Phaser.Math.Clamp(dx * 0.9, -14, 14), 0.35));
-    if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
-    this.dragShadow.setPosition(p.worldX, p.worldY + 22).setVisible(true);
-    const h = this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
+    const h = this.targetCell(this.dragView.x, this.dragView.y);
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
       this.drawHeld();
@@ -669,6 +675,17 @@ export class GameScene extends Phaser.Scene {
   }
   overScrapFlag = false;
   dragShadow?: Phaser.GameObjects.Ellipse;
+  grabOff = { x: 0, y: 0 };
+  liftAt = 0;
+  /** Held piece position: eases from the grab point to DRAG_LIFT above the finger over 90ms (cubic-out). */
+  placeDrag(p: Phaser.Input.Pointer) {
+    if (!this.dragView) return;
+    const t = Math.min(1, (this.time.now - this.liftAt) / 90);
+    const k = 1 - Math.pow(1 - t, 3);
+    this.dragView.setPosition(p.worldX - this.grabOff.x * (1 - k), p.worldY - this.grabOff.y * (1 - k) - DRAG_LIFT * k);
+    if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
+    this.dragShadow.setPosition(this.dragView.x, this.dragView.y + 62).setVisible(true);
+  }
 
   onUp(p: Phaser.Input.Pointer) {
     if (!this.canAct()) {
@@ -711,7 +728,7 @@ export class GameScene extends Phaser.Scene {
     const id = this.dragId;
     const view = this.dragView;
     // the piece is drawn above the finger: target where the PIECE is, same rule as the live highlight
-    const dest = this.hoverIdx >= 0 ? this.hoverIdx : this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
+    const dest = this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
     this.dragShadow?.setVisible(false);
     view?.setAngle(0);
     this.dragIdx = -1;
@@ -936,6 +953,7 @@ export class GameScene extends Phaser.Scene {
       if (this.s.phase === 'playing') this.idleTime += dms / 1000;
     }
     if (this.dragIdx >= 0 && !this.input.activePointer.isDown) this.onUp(this.input.activePointer);
+    else if (this.dragIdx >= 0 && this.moved && this.time.now - this.liftAt < 120) this.placeDrag(this.input.activePointer);
     this.updateHints();
     this.drawHud(dms);
     this.animateIdle();
