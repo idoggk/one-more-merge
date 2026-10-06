@@ -3814,7 +3814,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const cellsOf = (): number[] => (tgt.cells ? tgt.cells : tgt.row !== undefined ? [0, 1, 2, 3, 4].map((c) => tgt.row! * COLS + c) : tgt.col !== undefined ? [0, 1, 2, 3, 4, 5].map((r) => r * COLS + tgt.col!) : []);
       for (const c of cellsOf()) {
         const { x, y } = cellXY(c);
-        if (!warn) g.fillStyle(col, 0.22).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
+        if (!warn) g.fillStyle(col, 0.36).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
         g.lineStyle(warn ? 5 : 4, col, pulse).strokeRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
       }
       if (tgt.boundary !== undefined) {
