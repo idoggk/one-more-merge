@@ -202,7 +202,9 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
 function merge(s: GameState, from: number, to: number): CommandResult {
   const ev: GameEvent[] = [];
   const a = s.grid[from]!;
+  const b = s.grid[to]!;
   const g = makeGadget(s, a.family, a.rank + 1);
+  if (a.primed || b.primed) g.primed = true; // primer transfers (OR), never stacks
   s.grid[from] = null;
   s.grid[to] = g;
   s.stats.merges++;
@@ -275,9 +277,9 @@ function applyMoves(s: GameState, r: CascadeResult) {
     s.grid[m.to] = s.grid[m.from];
     s.grid[m.from] = null;
   }
-  // discharge first (old primes fired), then new primes from batteries in this cascade
-  for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
+  // new primes first, then discharges (a cannon primed earlier in this cascade may already have used it)
   for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
+  for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
 }
 
 function enterOverdrive(s: GameState, dur: number) {
@@ -515,6 +517,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     }
     s.stats.kickFuses++;
     const g = makeGadget(s, old.family, old.rank + 1);
+    if (old.primed) g.primed = true;
     if (g.family === 'cannon') g.cd = cannonPeriod(s);
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);

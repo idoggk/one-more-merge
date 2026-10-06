@@ -106,22 +106,40 @@ describe('cascade', () => {
     expect(r.moves).toEqual([]);
   });
 
-  it('battery primes an adjacent cannon; the prime discharges +50% on its next chain shot, once', () => {
+  it('battery: a queued cannon uses the primer in the same chain (x1.5, once)', () => {
     const s = newGame(41, false, false, ['battery']);
     s.grid.fill(null);
     s.grid[idxOf(5, 0)] = g('battery');
     s.grid[idxOf(5, 1)] = g('battery');
-    s.grid[idxOf(4, 0)] = g('cannon', 2); // up neighbour of the merge root (5,0)? root is (5,1)
-    s.grid[idxOf(4, 1)] = g('cannon', 2); // up neighbour of root (5,1) -> primed (and also sparked this cascade)
-    drop(s, idxOf(5, 0), idxOf(5, 1), s.grid[idxOf(5, 0)]!.id);
-    expect(s.grid[idxOf(4, 1)]!.primed).toBe(true);
-    // next cascade waking that cannon gets x1.5 and clears the prime
-    const base = resolveCascade(s.grid.map((x) => (x ? { ...x, primed: false } : x)), idxOf(4, 1), opts).total;
-    const r = resolveCascade(s.grid, idxOf(4, 1), opts);
-    expect(r.discharged).toEqual([s.grid[idxOf(4, 1)]!.id]);
-    expect(r.total).toBeGreaterThan(base);
+    s.grid[idxOf(4, 1)] = g('cannon', 2); // sparked by the root (queued), primed by the root battery before its turn
+    const res = drop(s, idxOf(5, 0), idxOf(5, 1), s.grid[idxOf(5, 0)]!.id);
+    const c = res.events.find((e) => e.type === 'cascade');
+    const r = c && c.type === 'cascade' ? c.result : null;
+    const cid = s.grid[idxOf(4, 1)]!.id;
+    expect(r!.primes).toEqual([cid]);
+    expect(r!.discharged).toEqual([cid]);
+    expect(r!.activations.find((x) => x.id === cid)!.contribution).toBeCloseTo(22.5 * 1.5);
+    expect(s.grid[idxOf(4, 1)]!.primed).toBe(false);
   });
 
+  it('battery: an unreached cannon keeps the primer for a later chain; merge transfers it (OR)', () => {
+    const s = newGame(42, false, false, ['battery']);
+    s.grid.fill(null);
+    s.grid[idxOf(5, 0)] = g('cannon', 2); // merge pair -> root at (5,0)
+    s.grid[idxOf(4, 0)] = g('cannon', 2);
+    s.grid[idxOf(5, 1)] = g('bell'); // sparked by root, rings row 5
+    s.grid[idxOf(5, 3)] = g('battery'); // rung by bell -> primes (4,3)
+    s.grid[idxOf(4, 3)] = g('cannon'); // not reached by anything -> stays primed
+    drop(s, idxOf(4, 0), idxOf(5, 0), s.grid[idxOf(4, 0)]!.id);
+    expect(s.grid[idxOf(4, 3)]!.primed).toBe(true);
+    // a primed cannon merged with an unprimed twin -> result primed, consumed by its own root payload
+    s.grid[idxOf(3, 3)] = g('cannon');
+    s.mergeCd = 0;
+    const res = drop(s, idxOf(3, 3), idxOf(4, 3), s.grid[idxOf(3, 3)]!.id);
+    const c = res.events.find((e) => e.type === 'cascade');
+    expect(c && c.type === 'cascade' && c.result.discharged.length).toBe(1);
+    expect(s.grid[idxOf(4, 3)]!.primed).toBe(false);
+  });
   it('fan pushes the first eligible neighbour one tile outward, never into reserved or occupied cells', () => {
     const grid = empty();
     const f = idxOf(2, 2);

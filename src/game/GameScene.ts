@@ -1296,6 +1296,7 @@ export class GameScene extends Phaser.Scene {
 
   unlockToy(toy: Family) {
     if (toy in this.meta.toys) return;
+    for (const k of Object.keys(this.meta.toys) as Family[]) this.meta.toys[k] = false;
     this.meta.toys[toy] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('unlock', { toy });
@@ -1349,16 +1350,21 @@ export class GameScene extends Phaser.Scene {
     this.modal = c;
     const play = this.button(c, W / 2, H - (m.hardUnlocked ? 250 : 200), 440, 'PLAY', 0x5fbf4a, () => this.retry(false));
     if (m.hardUnlocked) this.button(c, W / 2, H - 140, 440, 'CHALLENGE', 0xe8452c, () => this.retry(true));
+    // one helper toy per run (ChatGPT TOY_RULES: limit supply dilution until humans show the toys pay back)
     const unlocked = Object.keys(m.toys) as Family[];
+    const toggles: Phaser.GameObjects.Container[] = [];
+    const lbl = (toy: Family) => `${FAMILY_INFO[toy].name.toUpperCase()}: ${m.toys[toy] ? 'ON' : 'OFF'}`;
     unlocked.forEach((toy, i) => {
       const x = W / 2 + (i - (unlocked.length - 1) / 2) * 220;
-      const lbl = () => `${FAMILY_INFO[toy].name.toUpperCase()}: ${m.toys[toy] ? 'ON' : 'OFF'}`;
-      const tg = this.button(c, x, H - 520, 250, lbl(), 0x27a4c0, () => {
-        m.toys[toy] = !m.toys[toy];
+      const tg = this.button(c, x, H - 520, 250, lbl(toy), 0x27a4c0, () => {
+        const on = !m.toys[toy];
+        for (const k of unlocked) m.toys[k] = false;
+        m.toys[toy] = on;
         store(META_KEY, JSON.stringify(m));
-        (tg.list[1] as Phaser.GameObjects.Text).setText(lbl());
+        unlocked.forEach((k, j) => (toggles[j].list[1] as Phaser.GameObjects.Text).setText(lbl(k)));
       });
       tg.setScale(0.75);
+      toggles.push(tg);
     });
     const nc = this.nextChallenge();
     if (nc) c.add(this.add.text(W / 2, H - 590, `Next toy: ${nc.text}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#e07af0', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));

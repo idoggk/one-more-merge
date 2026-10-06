@@ -100,6 +100,9 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
   gadget) → Fan (fire a primed cannon). Title shows toggles + next challenge.
   Sim with all three toys on (bots never use toy abilities = worst case): novice 82% → 36%, cascade bot 63 → 78 s.
   Toy damage 4 only recovers to 46%. Open question for humans: do toy abilities pay back their supply slot?
+  → Aligned with ChatGPT's TOY_RULES.md: one helper toy per run (exclusive toggles; = magnet case, novice 66%);
+  Battery may prime a *queued* cannon, which spends it on its turn in the same chain; fired cannons are ineligible;
+  merges transfer primers with OR; primers survive moves; Fan never moves queued/activated pieces.
 - **Playtest kit**: local event log (pause → export playtest log) + PLAYTEST.md observation script.
 
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates

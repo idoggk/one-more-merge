@@ -95,13 +95,17 @@ export function fanPush(grid: Grid, idx: number, busy: ReadonlySet<number>, rese
   return null;
 }
 
-/** Battery: prime the first adjacent unprimed Cannon (up/right/down/left). */
-export function batteryPrime(grid: Grid, idx: number, primed: ReadonlySet<number>): number | null {
+/**
+ * Battery (TOY_RULES): prime the first adjacent Cannon (up/right/down/left) that has not activated in this cascade,
+ * is not already primed and is not reserved. A queued-but-not-yet-fired Cannon IS eligible (it uses the charge on its turn).
+ */
+export function batteryPrime(grid: Grid, idx: number, primed: ReadonlySet<number>, fired: ReadonlySet<number>, reserved: ReadonlySet<number>): number | null {
   const [r, c] = rc(idx);
   for (const [dr, dc] of DIRS) {
     if (!inside(r + dr, c + dc)) continue;
-    const g = grid[at(r + dr, c + dc)];
-    if (g && g.family === 'cannon' && !g.primed && !primed.has(g.id)) return g.id;
+    const cell = at(r + dr, c + dc);
+    const g = grid[cell];
+    if (g && g.family === 'cannon' && !primed.has(g.id) && !fired.has(g.id) && !reserved.has(cell)) return g.id;
   }
   return null;
 }
@@ -110,8 +114,11 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const grid = input.slice(); // magnets may move pieces; later steps see the updated board
   const moves: CascadeResult['moves'] = [];
   const primes: number[] = [];
-  // primes present BEFORE this cascade are the ones that can discharge now
-  const wasPrimed = new Set(input.filter((g) => g?.primed).map((g) => g!.id));
+  // live primer state during the cascade: starts from the board, batteries add, cannon payloads consume
+  const primedNow = new Set(input.filter((g) => g?.primed).map((g) => g!.id));
+  const fired = new Set<number>(); // ids dequeued (activated) so far
+  const bonus = new Set<number>(); // cannon ids whose payload consumed a primer
+  const discharged: number[] = [];
   const root = grid[rootIdx];
   if (!root) throw new Error('cascade root is empty');
   const visited = new Map<number, Activation>(); // by idx
@@ -141,7 +148,15 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if (++guard > ROWS * COLS + 1) throw new Error('cascade bound violated');
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
-    if (a.family === 'cannon') continue;
+    fired.add(a.id);
+    if (a.family === 'cannon') {
+      if (primedNow.has(a.id)) {
+        primedNow.delete(a.id);
+        bonus.add(a.id);
+        discharged.push(a.id);
+      }
+      continue;
+    }
     if (a.family === 'fan') {
       const p = fanPush(grid, idx, new Set(visited.keys()), opts.reserved ?? new Set());
       if (p) {
@@ -153,9 +168,10 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'battery') {
-      const id = batteryPrime(grid, idx, new Set(primes));
+      const id = batteryPrime(grid, idx, primedNow, fired, opts.reserved ?? new Set());
       if (id !== null) {
         primes.push(id);
+        primedNow.add(id);
         const to = grid.findIndex((g) => g?.id === id);
         edges.push({ from: idx, to, kind: 'battery' });
       }
@@ -183,13 +199,11 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   }
 
   const acts = [...visited.values()];
-  const discharged: number[] = [];
   let sum = 0;
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
     const perk = a.family === 'cannon' && opts.perks.includes('twin') ? 1.4 : 1;
-    const prime = a.family === 'cannon' && wasPrimed.has(a.id) ? TUNING.batteryBonus : 1;
-    if (prime > 1) discharged.push(a.id);
+    const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
     a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime;
     sum += a.contribution;
   }
