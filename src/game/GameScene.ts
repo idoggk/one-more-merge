@@ -1405,13 +1405,15 @@ Now beat the real level.`, this.coachY());
     }
   }
 
-  explainQueue: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[] }[] = [];
+  explainQueue: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[] = [];
   explainTotal = 0;
   explainOverlay: Phaser.GameObjects.GameObject[] = [];
   explaining = false;
   /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). */
-  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[] }[]) {
+  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]) {
     if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
+    // r22 (ChatGPT): boss fights show only the boss-warning lesson; other lessons stay unseen until a normal level
+    if (this.s.boss && id !== 'x_boss') return;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
@@ -1437,7 +1439,7 @@ Now beat the real level.`, this.coachY());
     this.coach.focus(c.spots);
     const left = this.explainQueue.length;
     const page = `${this.explainTotal - left}/${this.explainTotal}`;
-    this.coach.say(c.text, this.coachY(), { next: { page, label: left ? 'NEXT \u203a' : 'GOT IT', onNext: () => (sfx.click(), this.nextExplain()) } });
+    this.coach.say(c.text, c.y ?? this.coachY(), { next: { page, label: left ? 'NEXT \u203a' : 'GOT IT', onNext: () => (sfx.click(), this.nextExplain()) } });
     if (c.draw) this.explainOverlay = c.draw();
   }
 
@@ -1470,7 +1472,7 @@ Now beat the real level.`, this.coachY());
 
   checkTips() {
     const s = this.s;
-    if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase) return;
+    if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase || s.boss) return; // r22: boss levels keep the stage clear (own explainers only)
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 5 && s.elapsed < 12) this.tip('delivery', 'NEXT brings another gadget.\nMatch its machine and number.', { x: BX + 150, y: TRAY_Y - 30 });
     if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
@@ -1796,7 +1798,7 @@ Now beat the real level.`, this.coachY());
           tlog.log('boss_warn', { attack: e.attack });
           // first-ever boss warning: stop the clock and show what to do (r20)
           const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
-          if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)) }]);
+          if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]); // r22: bubble in the bottom lane, clear of stage and board
           break;
         }
         case 'bossHit': {
@@ -1866,7 +1868,7 @@ Now beat the real level.`, this.coachY());
     const on = !!msg;
     if (msg && msg !== this.laneText.text) {
       this.laneText.setFontSize(28).setText(msg);
-      if (this.laneText.width > 610) this.laneText.setFontSize(Math.max(18, Math.floor((28 * 610) / this.laneText.width)));
+      if (this.laneText.width > 610) this.laneText.setFontSize(Math.max(26, Math.floor((28 * 610) / this.laneText.width)));
     }
     if (msg) this.laneText.setColor(col);
     const a = on ? 1 : Math.max(0, this.laneText.alpha - 0.08);
@@ -2226,6 +2228,8 @@ Now beat the real level.`, this.coachY());
     // 4) your machine celebrates: a bounce wave row by row + banner + confetti
     this.time.delayedCall(1900, () => {
       // r21: keep the whole stage visible (Ido: "I want to see me winning the boss"); the words go in the lane
+      this.explainQueue = [];
+      this.coach.clear(); // defeat cancels any pending coach display
       this.showEvent(`${name} DOWN!`, '#ffd24a', 2400);
       this.laneText.setScale(1.4);
       this.tweens.add({ targets: this.laneText, scale: 1, duration: 260, ease: 'Back.Out' });
@@ -3894,7 +3898,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const left = warn ? Math.max(0, (bs.pending!.deadline - this.s.elapsed)) : Math.max(0, bs.active!.until - this.s.elapsed);
       this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + CELL / 2 - 24, ac.y - CELL / 2 + 20).setFontSize(26).setVisible(true);
       const what = { clamp: 'CLAMP', frost: 'FROST', suction: 'SUCTION', hot: 'HOT COLUMN', rest: 'REST ROW', split: 'SPLIT' }[atk];
-      const why = { clamp: 'marked machine gets stuck', frost: 'no parts land in the row', suction: 'marked machines get eaten', hot: 'shots hit half as hard', rest: 'relays wake nobody', split: 'links cannot cross' }[atk];
+      const why = { clamp: 'marked machine gets stuck', frost: 'no parts land here', suction: 'marked machines vanish', hot: 'shots hit half as hard', rest: 'relays wake nobody', split: 'links cannot cross' }[atk];
       this.updateLane(warn ? `${what} IN ${left.toFixed(1)}s  \u00b7  ${why}` : `${what}  \u00b7  ${why}  \u00b7  ${left.toFixed(1)}s`, '#ffd2c8');
       void BOSS_WARN;
       return;

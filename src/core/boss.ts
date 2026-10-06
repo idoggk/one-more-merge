@@ -15,9 +15,9 @@ export interface BossDef {
 }
 /** Chapter 1..6 bosses (levels 10, 20, 30, 40, 50, 60). */
 export const BOSSES: BossDef[] = [
-  { id: 'tin_can_king', name: 'TIN CAN KING', attack: 'clamp', copy: 'Marked cells get clamped. Move machines away before it closes.' },
+  { id: 'tin_can_king', name: 'TIN CAN KING', attack: 'clamp', copy: 'Move or merge the marked machine before the clamp closes.' },
   { id: 'fridge_overlord', name: 'FRIDGE OVERLORD', attack: 'frost', copy: 'The frozen row cannot receive parts. Build on another row.' },
-  { id: 'viper_queen', name: 'VIPER QUEEN', attack: 'suction', copy: 'Marked cells lose their machines. Move or merge away.' },
+  { id: 'viper_queen', name: 'VIPER QUEEN', attack: 'suction', copy: 'Move or merge the marked machines before they vanish.' },
   { id: 'twin_toasters', name: 'TWIN TOASTERS', attack: 'hot', copy: 'Shooters in the hot column hit weaker. Move them out.' },
   { id: 'piano_saurus_rex', name: 'PIANO-SAURUS REX', attack: 'rest', copy: 'Relays in the resting row cannot wake neighbours.' },
   { id: 'junkzilla', name: 'JUNKZILLA', attack: 'split', copy: 'The divider blocks relay links. Build a chain on one side.' },
