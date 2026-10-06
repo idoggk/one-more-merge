@@ -401,6 +401,8 @@ export class GameScene extends Phaser.Scene {
     return 'debris_atlas';
   }
 
+  streak = 0;
+  lastMergeAt = -1e9;
   /** Best rank created this run per family (merges + Kickback fuses) — the machine shown on the result screen. */
   runBest: Partial<Record<Family, number>> = {};
   noteRank(fam: Family, rank: number) {
@@ -977,6 +979,16 @@ export class GameScene extends Phaser.Scene {
       const ce = res.events.find((e) => e.type === 'cascade');
       tlog.log('merge', { fam: ng.family, rank: ng.rank, chain: ce && ce.type === 'cascade' ? ce.result.count : 1, at: +this.s.elapsed.toFixed(1), occ: this.s.grid.filter(Boolean).length });
       sfx.merge(ng.rank);
+      // merge fest feedback (cosmetic): quick consecutive merges build a streak with a rising note
+      const now = this.time.now;
+      this.streak = now - this.lastMergeAt < 2500 ? this.streak + 1 : 1;
+      this.lastMergeAt = now;
+      if (this.streak >= 2) {
+        const { x, y } = cellXY(to);
+        sfx.cascadeStep(Math.min(this.streak - 2, 3), 0.05);
+        this.floatText(x, y - 70, `MERGE x${this.streak}!`, this.streak >= 5 ? '#ffcf33' : '#ffffff', this.streak >= 5 ? 34 : 28, 0);
+        if (this.streak === 5 || this.streak === 10) this.showEvent(this.streak >= 10 ? 'MERGE FEST!!' : 'MERGE STREAK!', '#ffd24a', 1200);
+      }
       if (ng.rank > prevBest && ng.rank >= 2) {
         const { x, y } = cellXY(to);
         this.time.delayedCall(120, () => {
