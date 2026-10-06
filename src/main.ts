@@ -48,3 +48,8 @@ async function boot() {
 }
 
 void boot();
+
+// home-screen app: offline cache (only on the real HTTPS site, never inside the claude.ai artifact iframe)
+if ('serviceWorker' in navigator && import.meta.env.PROD && location.protocol === 'https:' && window.top === window.self) {
+  navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+}
