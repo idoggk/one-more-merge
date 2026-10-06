@@ -315,7 +315,6 @@ export class GameScene extends Phaser.Scene {
       const mk = (x: number, y: number, len: number, ang: number) => this.add.image(x, y, 'vfx_flame').setAngle(ang).setDisplaySize(len, 60).setDepth(4).setVisible(false);
       this.flames = [
         mk(W / 2, BY - 22, bw, 180),
-        mk(W / 2, BY + CELL * ROWS + 22, bw, 0),
         mk(BX - 22, BY + (CELL * ROWS) / 2, bh, 90),
         mk(BX + CELL * COLS + 22, BY + (CELL * ROWS) / 2, bh, -90),
       ];
@@ -1010,14 +1009,17 @@ export class GameScene extends Phaser.Scene {
       if (this.streak >= 2) {
         const { x, y } = cellXY(to);
         sfx.cascadeStep(Math.min(this.streak - 2, 3), 0.05);
-        this.floatText(x, y - 70, `MERGE x${this.streak}!`, this.streak >= 5 ? '#ffcf33' : '#ffffff', this.streak >= 5 ? 34 : 28, 0);
-        if (this.streak === 5 || this.streak === 10) this.showEvent(this.streak >= 10 ? 'MERGE FEST!!' : 'MERGE STREAK!', '#ffd24a', 1200);
+        void x;
+        void y;
+        this.showEvent(this.streak >= 10 ? `MERGE FEST!!  x${this.streak}` : this.streak >= 5 ? `MERGE STREAK  x${this.streak}` : `MERGE x${this.streak}`, this.streak >= 5 ? '#ffd24a' : '#fff0cf', 900);
       }
       if (ng.rank > prevBest && ng.rank >= 2) {
         const { x, y } = cellXY(to);
         this.time.delayedCall(120, () => {
           sfx.rankUp(ng.rank);
-          this.floatText(x, y + 46, ng.rank >= capOf(this.s, ng.family) ? 'MAX!' : `RANK ${ng.rank}`, '#ffffff', 28, 200);
+          if (ng.rank >= capOf(this.s, ng.family)) this.floatText(x, y - 64, 'MAX!', '#ffcf33', 30, 200);
+          const rv = this.views.get(ng.id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
+          if (rv) this.tweens.add({ targets: rv, scale: 1.5, duration: 90, yoyo: true, ease: 'Quad.Out' });
           this.ring(x, y, FAMILY_INFO[ng.family].color, 110, 16, 420);
         });
       }
@@ -1959,11 +1961,10 @@ Now beat the real level.`, this.coachY());
     this.passiveAcc += dmg;
     this.shoot(x, y - 40, 0xff9a72, 0, false, () => {
       this.hitTarget(false);
-      if (this.time.now - this.passiveTimer > 600 && this.passiveAcc > 0) {
-        this.floatText(this.target.x + Phaser.Math.Between(-120, 120), this.target.y - 40, fmt(this.passiveAcc), '#ffe0d0', 22);
-        this.passiveAcc = 0;
-        this.passiveTimer = this.time.now;
-      }
+      // r19: passive hits = particles only; numbers are reserved for chain payloads
+      this.sparks.setParticleTint(0xffc0a0);
+      this.sparks.explode(4, this.target.x + Phaser.Math.Between(-60, 60), this.target.y + Phaser.Math.Between(-40, 30));
+      this.passiveAcc = 0;
     });
   }
 

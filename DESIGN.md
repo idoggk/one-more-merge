@@ -180,6 +180,13 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **Teaching levels** (levels.json `teach`): L1 = cannons only (board + bag), no kickback/overdrive ("Merge matching cannons. The new cannon fires."). L2 = a board where either coil merge fires exactly 3 (coil -> same-row bell -> cannon; engine-tested both directions), no kickback/overdrive. L3 = 7 starters incl. a lone cannon rank 2, kickback on ("Break a panel. Its part falls onto your board."). HP refit to the 97% novice target (L1 780, L2 800, L3 1950).
 - **Progressive reveal**: header Kits after the first kit, Capsules after L4; chapter strip after L3; overdrive from L3; scrap from L4; Workshop after L5; L1 result has no chain stat and no chest countdown; the Kit row on the level card only once a kit is owned; the delivery tip comes later ("NEXT brings another gadget").
 
+## Round 19: the drained board
+- Finding (tools/occupancy.ts): a fast player (1 merge/s) ran the board at ~5/30 cells with chains of ~3, while 5s novices ran ~17/30 with chains of 6-7, so the big moments rewarded slow play. Cause: supply 0.42-0.59 parts/s < 1 merge/s, and matchmaker copies pair instantly.
+- Fix (ChatGPT r19 pick): **packet controller**. Same deadlines; 3 parts below round(14·C/30) occupied, 2 below round(18·C/30), else 1 (C = usable cells). L1 off, L2 after its first chain, others after 8 s. Extras are ordinary bag tokens (never copies).
+- Result: novice boards ~20-23 with chains 8-11 (p90 16-21); fast chain-seeking clears 12-34% faster than fast greedy (skill pays). Fast players still finish early levels in 15-20 s.
+- Bug found by the fast-bot sweep: the kickback plain-part fallback could land in a CORNERS-masked/locked cell (stuck, unmergeable). Fixed; legalPairs ignores locked cells; regression test plays full levels.
+- All 60 levels recalibrated (400 + 400 held-out seeds). UI: flames off the bottom lane, no floating RANK text (badge pulse), passive hits are particles only, the merge streak lives in the lane, the ornament stands on the chassis.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

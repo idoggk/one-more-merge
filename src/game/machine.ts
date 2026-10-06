@@ -79,7 +79,7 @@ export function setOrnament(scene: Phaser.Scene, mach: Phaser.GameObjects.Contai
   (mach.getByName('ornament') as Phaser.GameObjects.Image | null)?.destroy();
   const key = ornamentId ? `orn_${ornamentId}` : '';
   if (!key || !scene.textures.exists(key)) return;
-  const o = scene.add.image(150 - FEET.x, 470 - FEET.y, key).setOrigin(0.5, 1).setName('ornament');
+  const o = scene.add.image(132 - FEET.x, 548 - FEET.y, key).setOrigin(0.5, 1).setName('ornament');
   o.setScale(Math.min(120 / o.width, 160 / o.height));
   mach.addAt(o, 1);
 }
