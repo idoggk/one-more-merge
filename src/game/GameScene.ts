@@ -3831,6 +3831,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   // ---------- remix telegraphs ----------
   remixG!: Phaser.GameObjects.Graphics;
+  remixUnder!: Phaser.GameObjects.Graphics;
   remixIcons: Phaser.GameObjects.Image[] = [];
   remixText!: Phaser.GameObjects.Text;
 
@@ -3838,9 +3839,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const r = this.s.remix;
     if (!this.remixG) {
       this.remixG = this.add.graphics().setDepth(46);
+      this.remixUnder = this.add.graphics().setDepth(5); // r22: tints sit UNDER the machines so rank badges stay readable
       this.remixText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#2a2233' }).setOrigin(0.5).setDepth(49);
     }
     const g = this.remixG.clear();
+    const gu = this.remixUnder.clear();
     for (const im of this.remixIcons) im.setVisible(false);
     this.remixText.setVisible(false);
     // BOSS telegraph + active effect (r20): one icon + the exact shape; countdown bubble; no full-board wash
@@ -3859,14 +3862,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
         const x0 = x - CELL / 2 + 6, y0 = y - CELL / 2 + 6, sz = CELL - 12;
         if (warn) {
           // dashed coral boundary, pulsing 2 Hz
-          g.lineStyle(5, coral, pulse);
+          gu.lineStyle(5, coral, pulse);
           for (let d = 0; d < sz; d += 22) {
-            g.lineBetween(x0 + d, y0, Math.min(x0 + d + 12, x0 + sz), y0).lineBetween(x0 + d, y0 + sz, Math.min(x0 + d + 12, x0 + sz), y0 + sz);
-            g.lineBetween(x0, y0 + d, x0, Math.min(y0 + d + 12, y0 + sz)).lineBetween(x0 + sz, y0 + d, x0 + sz, Math.min(y0 + d + 12, y0 + sz));
+            gu.lineBetween(x0 + d, y0, Math.min(x0 + d + 12, x0 + sz), y0).lineBetween(x0 + d, y0 + sz, Math.min(x0 + d + 12, x0 + sz), y0 + sz);
+            gu.lineBetween(x0, y0 + d, x0, Math.min(y0 + d + 12, y0 + sz)).lineBetween(x0 + sz, y0 + d, x0 + sz, Math.min(y0 + d + 12, y0 + sz));
           }
         } else {
-          g.fillStyle(plum, 0.3).fillRoundedRect(x0, y0, sz, sz, 16);
-          g.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
+          gu.fillStyle(plum, 0.55).fillRoundedRect(x0, y0, sz, sz, 16);
+          gu.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
         }
         void col;
       }
@@ -3973,13 +3976,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (r.lock && (r.kind === 'jam' || r.kind === 'gaps')) {
       for (const c of r.lock.cells) {
         const { x, y } = cellXY(c);
-        g.fillStyle(purple, 0.35).fillRoundedRect(x - HALF, y - HALF, HALF * 2, HALF * 2, 18);
+        gu.fillStyle(purple, 0.5).fillRoundedRect(x - HALF, y - HALF, HALF * 2, HALF * 2, 18);
         g.lineStyle(6, purple, 0.9).lineBetween(x - 26, y - 26, x + 26, y + 26).lineBetween(x + 26, y - 26, x - 26, y + 26);
       }
       lane = `BLOCKED  ·  ${Math.max(0, r.lock.until - this.s.elapsed).toFixed(1)}s`;
     } else if (r.lock) {
       const ys = cellXY(r.lock.cells[0]).y;
-      g.fillStyle(purple, 0.18).fillRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);
+      gu.fillStyle(purple, 0.3).fillRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);
       g.lineStyle(5, purple, 0.95).strokeRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);
       icon('tg_piano', BX - 4, ys, 50, 0, 1, 48);
       lane = `ROW LOCKED  ·  ${Math.max(0, r.lock.until - this.s.elapsed).toFixed(1)}s`;
