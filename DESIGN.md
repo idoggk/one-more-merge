@@ -217,3 +217,5 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Boss levels show only the first-ever boss-warning lesson (in the bottom lane, sim paused); every other tip/lesson is deferred to a normal level; defeat clears the coach. No star/booster lessons on boss cards.
 - Boss card: a 5×2 mini-board diagram of the attack shape (dashed coral = warning), plus the escape arrow for clamp/suction.
 - ChatGPT: freeze the build once the stranger test starts; ship fixes only between cohorts.
+- **Difficulty re-based on a human pace (r22).** Finding: a random legal merge every 2 s won 100% of all 60 levels (incl. MEGA HARD and bosses) in ~30 s of a 65-90 s clock — calibration used a 5 s random bot, far slower than any person. L4-60 HP refit (`sim-levels.ts --every 3`, 100 seeds + held-out) to the same chapter rhythm for a random merge every 3 s; HP roughly ×2-2.5. L1-3 teaching levels unchanged.
+- **Star goals per level** (`tools/star-times.ts --write` → `star_times`): 2 stars = median clear of a random merge every 2 s; 3 stars = median clear of a best-chain merge every 1.5 s. A live star countdown (★★★ 12s) sits in the stage's top-left.

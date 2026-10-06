@@ -11,6 +11,8 @@ const dry = args.includes('--dry');
 const from = Number(args[args.indexOf('--from') + 1]) || 1;
 const to = Number(args[args.indexOf('--to') + 1]) || LEVELS.length;
 const N = Number(args[args.indexOf('--n') + 1]) || 40;
+// r22: seconds between the calibration bot's random merges (5 = legacy novice; 3 = relaxed human pace)
+const EVERY = Number(args[args.indexOf('--every') + 1]) || 3;
 // chapter rhythm (ChatGPT r16): ramp inside each chapter, relief right after the Hard (p5) and Mega (p10)
 const RHYTHM = [0.95, 0.93, 0.91, 0.88, 0.72, 0.95, 0.91, 0.88, 0.85, 0.57];
 
@@ -24,14 +26,14 @@ function novice(s: GameState, rng: Rng): [number, number] | null {
 function play(def: LevelDef, botSeed: number, idle = false): boolean {
   const s = newLevel(def);
   const rng = new Rng(botSeed);
-  let next = 5;
+  let next = EVERY;
   while (s.phase === 'playing' || s.phase === 'choice') {
     if (s.phase === 'choice') {
       choosePerk(s, s.offer[0]);
       continue;
     }
     if (!idle && s.elapsed >= next) {
-      next += 5;
+      next += EVERY;
       const m = novice(s, rng);
       if (m) drop(s, m[0], m[1], s.grid[m[0]]!.id);
     }
@@ -69,5 +71,5 @@ for (const def of LEVELS) {
   console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}  novice ${(before * 100).toFixed(0)}% -> held-out ${(after * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)${idleWins ? '  IDLE WINS!' : ''}`);
   out.levels[def.level - 1].hp = hp;
 }
-out.balance_status = 'CALIBRATED_NOVICE_BOT (tools/sim-levels.ts)';
+out.balance_status = `CALIBRATED_RANDOM_BOT_${EVERY}S (tools/sim-levels.ts)`;
 if (!dry) writeFileSync('src/content/levels.json', JSON.stringify(out, null, 2) + '\n');

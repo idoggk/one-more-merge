@@ -27,7 +27,7 @@ import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
-import { BOOSTER_UNLOCK, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starsFor } from '../content/levels';
+import { BOOSTER_UNLOCK, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starGoals, starsFor } from '../content/levels';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
@@ -211,6 +211,7 @@ export class GameScene extends Phaser.Scene {
   shownHp = 0;
   headerText!: Phaser.GameObjects.Text;
   timerText!: Phaser.GameObjects.Text;
+  starChase: Phaser.GameObjects.Text | null = null;
   odGauge!: Phaser.GameObjects.Graphics;
   boltIcon?: Phaser.GameObjects.Image;
   flames: Phaser.GameObjects.Image[] = [];
@@ -1602,6 +1603,17 @@ Now beat the real level.`, this.coachY());
     this.timerText.setText(demo || s.showcase ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
     this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
     this.practiceText.setVisible(s.practice && !demo);
+    // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
+    const ldef = s.level !== undefined && !s.showcase ? LEVELS[s.level - 1] : undefined;
+    if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
+    if (ldef && s.phase === 'playing' && !demo) {
+      const [g2, g3] = starGoals(ldef);
+      const goal = s.elapsed <= g3 ? 3 : s.elapsed <= g2 ? 2 : 0;
+      const left = Math.ceil((goal === 3 ? g3 : g2) - s.elapsed);
+      const txt = goal ? `${'★'.repeat(goal)} ${left}s` : '';
+      if (txt !== this.starChase.text) this.starChase.setText(txt).setColor(left <= 5 ? '#ff8a5c' : '#ffcf33');
+      this.starChase.setVisible(!!goal);
+    } else this.starChase.setVisible(false);
 
     // smooth HP
     this.shownHp += (s.hp - this.shownHp) * Math.min(1, dms / 120);
@@ -2633,7 +2645,7 @@ Now beat the real level.`, this.coachY());
       c.add(st);
       this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.star(k) });
     }
-    if (won && got < 3) c.add(this.add.text(W / 2, top + 360, `Next star: clear in ${Math.floor(def.time_seconds * (got === 1 ? 0.8 : 0.6))}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+    if (won && got < 3) c.add(this.add.text(W / 2, top + 360, `Next star: clear in ${starGoals(def)[got === 1 ? 0 : 1]}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 410, [s.stats.biggestChain >= 2 && n >= 2 ? `Biggest chain x${s.stats.biggestChain}` : '', bolts > 0 ? `+${bolts} BOLTS` : ''].filter(Boolean).join('    '), { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0.5));
     if (bolts > 0) this.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
     if (parts.length) c.add(this.add.text(W / 2, top + 448, parts.join('  \u00b7  '), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
@@ -3269,8 +3281,8 @@ Now beat the real level.`, this.coachY());
     // star goals: outlines until earned, with the goal under each
     const have = (m.levelStars ?? {})[String(n)] ?? 0;
     const sg = this.add.graphics();
-    const T = bossDef ? 90 : def.time_seconds;
-    const goals = ['Clear', `≤${Math.floor(T * 0.8)}s`, `≤${Math.floor(T * 0.6)}s`];
+    const [g2, g3] = starGoals(def);
+    const goals = ['Clear', `≤${g2}s`, `≤${g3}s`];
     for (let k = 0; k < 3; k++) {
       const sx = W / 2 + (k - 1) * 110;
       this.starShape(sg, sx, y + 40, 30, k < have);

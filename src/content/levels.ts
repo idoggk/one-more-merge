@@ -17,6 +17,8 @@ export interface LevelDef {
   seed: number;
   ordinary_copy_rank_cap: number;
   /** Teaching level (ChatGPT r18): scripted-but-real start board, optional delivery bag, features held back. */
+  /** Seconds for 2 and 3 stars (tools/star-times.ts: ordinary human pace / skilled chain-seeker medians). */
+  star_times?: [number, number];
   teach?: { start: [string, number, number, number][]; bag?: Record<string, number>; no_kickback?: boolean; no_overdrive?: boolean; lesson: string };
 }
 
@@ -40,10 +42,17 @@ export const MODIFIER_TEXT: Record<LevelModifier, string> = {
 };
 
 /** Stars: 1 clear, 2 if elapsed <= 80% of the level time, 3 if <= 60%. */
-export function starsFor(def: LevelDef, elapsed: number): number {
+/** [2-star, 3-star] clear-time goals in seconds. */
+export function starGoals(def: LevelDef): [number, number] {
+  if (def.star_times) return def.star_times;
   const T = def.level % 10 === 0 ? 90 : def.time_seconds; // boss fights run a 90 s clock (r20)
-  if (elapsed <= T * 0.6) return 3;
-  if (elapsed <= T * 0.8) return 2;
+  return [Math.floor(T * 0.8), Math.floor(T * 0.6)];
+}
+
+export function starsFor(def: LevelDef, elapsed: number): number {
+  const [two, three] = starGoals(def);
+  if (elapsed <= three) return 3;
+  if (elapsed <= two) return 2;
   return 1;
 }
 
