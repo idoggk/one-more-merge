@@ -20,6 +20,31 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Each state: a function run in the page (gets the scene) + how long to let animations play. */
 const states = {
+  road: [
+    (sc) => {
+      Object.assign(sc.meta, { tutorialDone: true, hardUnlocked: true, bolts: 120, kits: 2, capsules: 1, levelStars: { 1: 3, 2: 2, 3: 3, 4: 1, 5: 2, 6: 1 } });
+      sc.openTitle('road');
+    },
+    900,
+  ],
+  level_sheet: [(sc) => sc.openLevelSheet(7), 600],
+  level_play: [
+    (sc) => {
+      sc.startLevel(9);
+      sc.finishIntro(true);
+    },
+    1500,
+  ],
+  level_result: [
+    (sc) => {
+      sc.s.elapsed = 31;
+      sc.s.stats.merges = 12;
+      sc.s.phase = 'won';
+      sc.openResult(true);
+    },
+    1400,
+  ],
+  events: [(sc) => sc.openTitle('events'), 700],
   home: [
     (sc) => {
       const m = sc.meta;

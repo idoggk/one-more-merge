@@ -23,6 +23,11 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   else if (n === 'ui_team_builder_panel') [key, box] = ['ui_team_panel', 720];
   else if (n === 'ui_team_slot_plate') [key, box] = ['ui_team_slot', 320];
   else if (n === 'ui_team_slot_selected_frame') [key, box] = ['ui_team_slot_sel', 320];
+  else if (/^path_node_(\w+)$/.test(n)) [key, box] = [`node_${n.match(/^path_node_(\w+)$/)[1]}`, 200];
+  else if (n === 'path_road_segment') [key, box] = ['road_seg', 400];
+  else if (n === 'path_star_filled') [key, box] = ['star', 96];
+  else if (/^path_worker_(\w+)$/.test(n)) [key, box] = [`worker_${n.match(/^path_worker_(\w+)$/)[1]}`, 200];
+  else if (/^booster_(\w+)_icon$/.test(n)) [key, box] = [`booster_${n.match(/^booster_(\w+)_icon$/)[1]}`, 128];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];
   else if (n === 'hero_mount_socket') [key, box] = ['hero_socket', 160];

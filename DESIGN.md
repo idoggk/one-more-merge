@@ -155,6 +155,13 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - UI: tap a gadget for an inspect card (role icon, one power line, reach mini-map, damage, try-this; pauses the clock). A held Coil/Bell shades its reach.
 - Sim: without the coil bonus the novice bot fell to 20%. HP ×0.55 (800 / 7400 / 11900) restores ~86% (interpolated from ×0.6 = 82% and ×0.5 = 92%). Daily seeds v3.
 
+## SAGA (ChatGPT r15 + Ido: a level path, harder levels, core + dynamic resources)
+- **Levels** (src/content/levels.json, 60): one monster, one board (PAIR8 at the level's starting rank), one clock. Supply phases 1.7/1.9/2.1/2.4 s at 0/25/50/75% of the level time. Matchmaker ordinary copies are capped at a per-level rank. Modifiers: SUCTION (vacuum: unpaired rank ≤2), JAM (one empty cell for 5 s, every 16 s), ROW_GAPS (a row's empty cells for 4 s, every 20 s), CORNERS_2/4 (permanent). Stars: clear / ≤80% time / ≤60% time.
+- **Calibration** (tools/sim-levels.ts): r15's HP table was untested (novice won 100% early and 5% late). Each level's HP is binary-searched to novice-bot targets: L1-3 97%, Normal 90%, Hard 72%, Mega 57%. Idle never wins.
+- **Economy**: core = Bolts. Dynamic = Jumpstart Kit (pre-level: starter shooter pair +1 rank) and Time Capsule (+15 s once in a level 4+). Level rewards from levelEconomy.json (first clear / replay cap / new stars / free kits and capsules / star milestones / eligible fail 4 Bolts once per level per day).
+- **Home** = ROAD (scrolling path, HARD/MEGA HARD tags, workers, sticky PLAY LEVEL N) / MACHINE (team, workshop, mastery) / EVENTS (Daily L3, Challenge L5, Remix L10, Junk Run). The tutorial leads straight into level 1. Rocket and events also unlock by clearing level 5.
+- Not yet: ranks 7-8 (art imported in v13; MAX_RANK stays 6 for now), the 2-piece rescue delivery, and buying kits/capsules with Bolts in the Workshop.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

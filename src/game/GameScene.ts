@@ -9,6 +9,8 @@ import {
   drop,
   legalPairs,
   newGame,
+  newLevel,
+  useTimeCapsule,
   odNeeded,
   peekNext,
   previewMerge,
@@ -22,8 +24,9 @@ import {
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { buildMachine, hasMachineArt, setFinish } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
-import { buy, CATALOG, runPayout, type Payout, type Wallet } from '../core/economy';
+import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
+import { BOOSTER_UNLOCK, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starsFor } from '../content/levels';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
@@ -83,6 +86,12 @@ interface Meta {
   music: boolean;
   /** Bolts balance at the last Workshop visit (new-item dot). */
   workshopSeenBolts?: number;
+  /** SAGA progress: best stars per level number, dynamic resources, one-time grants. */
+  levelStars?: Record<string, number>;
+  kits?: number;
+  capsules?: number;
+  grants?: Record<string, boolean>;
+  failPaid?: Record<string, string>;
   /** Team shooter slot (Cannon, or Rocket once unlocked by the first full clear). */
   shooter?: Family;
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
@@ -181,6 +190,7 @@ export class GameScene extends Phaser.Scene {
   hpBar!: Phaser.GameObjects.Graphics;
   hpFill?: Phaser.GameObjects.Image;
   hpTicks?: Phaser.GameObjects.Graphics;
+  capsuleBtn?: Phaser.GameObjects.Container;
   gaugeImgs: Phaser.GameObjects.Image[] = [];
   hpText!: Phaser.GameObjects.Text;
   shownHp = 0;
@@ -532,7 +542,7 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: t, x: W / 2, duration: 450, delay: 300, ease: 'Back.Out' });
     at(760, () => {
       sfx.panelBreak(0);
-      const label = this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -1223,7 +1233,7 @@ export class GameScene extends Phaser.Scene {
     { kind: 'merge', pair: [8, 17], fam: 'bell', text: 'Bells wake machines across\ntheir whole row. Watch the cannon!', after: 'The bell rang its row\nand woke that cannon!', focus: 'row' },
     { kind: 'mismatch', pair: [5, 22], fam: 'cannon', text: 'Different numbers can NOT merge.\nTry dragging this 1 onto the 2.' },
     { kind: 'merge', pair: [5, 19], fam: 'cannon', text: 'Cannons fire alone, slowly.\nIn a chain they hit much harder!' },
-    { kind: 'merge', pair: [19, 22], fam: 'cannon', text: 'Two 2s make a 3! Bigger number,\nbigger blast.', after: 'Beat 3 monsters before the\nclock runs out. LET\'S PLAY!' },
+    { kind: 'merge', pair: [19, 22], fam: 'cannon', text: 'Two 2s make a 3! Bigger number,\nbigger blast.', after: 'Now clear levels on the road:\none monster, one clock. LET\'S PLAY!' },
   ];
 
   coachY() {
@@ -1255,8 +1265,9 @@ export class GameScene extends Phaser.Scene {
       this.meta.tutorialDone = true;
       store(META_KEY, JSON.stringify(this.meta));
       tlog.log('tutorial_done');
-      this.handleEvents(ev);
-      this.showEvent('GO! Beat the TIN CAN', '#ffd24a', 2000);
+      void ev;
+      // the saga starts: level 1 on the road (ChatGPT r15)
+      this.time.delayedCall(400, () => this.startLevel(1));
       return;
     }
     this.coach.say(step.text, this.coachY());
@@ -1431,7 +1442,31 @@ export class GameScene extends Phaser.Scene {
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `LV ${s.level} ${TARGET_NAMES[s.target]}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
+    const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
+    if (capOk && !this.capsuleBtn) {
+      const b = this.add.container(W - 120, 104).setDepth(60);
+      const bgp = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-82, -30, 164, 60, 26).fillStyle(0x27a4c0, 1).fillRoundedRect(-78, -26, 156, 52, 22);
+      b.add(bgp);
+      if (this.hasArt('booster_time_capsule')) {
+        const ic = this.add.image(-48, 0, 'booster_time_capsule');
+        ic.setScale(48 / Math.max(ic.width, ic.height));
+        b.add(ic);
+      }
+      b.add(this.add.text(14, 0, '+15s', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#ffffff' }).setOrigin(0.5));
+      b.setSize(164, 60).setInteractive({ useHandCursor: true });
+      b.on('pointerup', () => {
+        if (!useTimeCapsule(this.s)) return;
+        this.meta.capsules = Math.max(0, (this.meta.capsules ?? 0) - 1);
+        store(META_KEY, JSON.stringify(this.meta));
+        tlog.log('booster', { kind: 'time_capsule', level: this.s.level, at: +this.s.elapsed.toFixed(1), left: this.meta.capsules });
+        sfx.rankUp(5);
+        this.floatText(W - 120, 150, '+15s', '#7fe0ff', 40, 300);
+      });
+      this.capsuleBtn = b;
+    }
+    this.capsuleBtn?.setVisible(capOk);
     const t = Math.ceil(s.timeLeft);
     this.timerText.setText(demo ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
     this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
@@ -2227,6 +2262,7 @@ export class GameScene extends Phaser.Scene {
 
   openResult(won: boolean) {
     if (this.modal) this.closeModal();
+    if (this.s.level !== undefined) return this.openLevelResult(won);
     const s = this.s;
     const m = this.meta;
     m.runs++;
@@ -2307,6 +2343,106 @@ export class GameScene extends Phaser.Scene {
     this.button(c, W / 2, top + 932, 260, 'HOME', 0x27a4c0, () => this.openTitle(), 0.78);
   }
 
+  /** SAGA level result: stars, Bolts (first clear / replay / new stars / eligible fail), free boosters, next step. */
+  openLevelResult(won: boolean) {
+    const s = this.s;
+    const m = this.meta;
+    const n = s.level!;
+    const def = LEVELS[n - 1];
+    m.runs++;
+    const key = String(n);
+    const stars = (m.levelStars ??= {});
+    const grants = (m.grants ??= {});
+    const id = `L${n}:${s.seed}:${s.stats.merges}:${s.elapsed.toFixed(2)}`;
+    const fresh = m.lastSettle !== id;
+    m.lastSettle = id;
+    const lines: string[] = [];
+    let bolts = 0;
+    let got = 0;
+    let firstClear = false;
+    if (won) {
+      m.wins++;
+      got = starsFor(def, s.elapsed);
+      const prev = stars[key] ?? 0;
+      firstClear = prev === 0;
+      const rw = levelReward(def);
+      if (fresh) {
+        bolts += firstClear ? rw.win_bolts + rw.first_clear_bolts : Math.min(rw.win_bolts, Math.floor(0.15 * s.elapsed));
+        bolts += Math.max(0, got - prev) * rw.new_star_bolts;
+        if (firstClear && rw.free_jumpstart && !grants[`kit${n}`]) {
+          grants[`kit${n}`] = true;
+          m.kits = (m.kits ?? 0) + rw.free_jumpstart;
+          lines.push(`+${rw.free_jumpstart} Jumpstart Kit`);
+        }
+        if (firstClear && rw.free_time_capsule && !grants[`cap${n}`]) {
+          grants[`cap${n}`] = true;
+          m.capsules = (m.capsules ?? 0) + rw.free_time_capsule;
+          lines.push(`+${rw.free_time_capsule} Time Capsule`);
+        }
+      }
+      stars[key] = Math.max(prev, got);
+      const total = Object.values(stars).reduce((a, b) => a + b, 0);
+      if (total >= 25 && !grants.stars25) {
+        grants.stars25 = true;
+        m.kits = (m.kits ?? 0) + 1;
+        lines.push('25 stars: +1 Jumpstart Kit');
+      }
+      if (total >= 50 && !grants.stars50) {
+        grants.stars50 = true;
+        m.capsules = (m.capsules ?? 0) + 1;
+        lines.push('50 stars: +1 Time Capsule');
+      }
+      if (n >= 5 && !m.hardUnlocked) {
+        m.hardUnlocked = true;
+        lines.push('\u2605 Rocket + all events unlocked \u2605');
+      }
+    } else if (fresh && s.elapsed >= 30 && s.stats.merges >= 3) {
+      const day = localDate();
+      const fp = (m.failPaid ??= {});
+      if (fp[key] !== day) {
+        fp[key] = day;
+        bolts += 4;
+      }
+    }
+    if (fresh && !m.onboarded && (won || (s.elapsed >= 30 && s.stats.merges >= 3))) {
+      m.onboarded = true;
+      bolts += ONBOARDING_BOLTS;
+      lines.push('Welcome gift: +12 Bolts');
+    }
+    m.bolts = (m.bolts ?? 0) + bolts;
+    // mastery (the home machine) grows from this attempt's merges either way
+    const mastery = (m.mastery ??= {});
+    for (const [fam, r] of Object.entries(this.runBest) as [Family, number][]) if (r > (mastery[fam] ?? 0)) mastery[fam] = r;
+    m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
+    tlog.log('level_end', { level: n, won, stars: got, elapsed: +s.elapsed.toFixed(1), bolts, jumpstart: !!s.jumpstart, capsule: !!s.capsuleUsed, firstClear });
+    store(META_KEY, JSON.stringify(m));
+    store(SAVE_KEY, null);
+    won ? sfx.win() : sfx.lose();
+    const PH = 860;
+    const c = this.panel(PH);
+    const top = H / 2 - PH / 2;
+    const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
+    c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 140, won ? `${TARGET_NAMES[s.target]} down in ${s.elapsed.toFixed(1)}s` : `${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
+    for (let k = 0; k < 3; k++) {
+      const st = this.add.image(W / 2 + (k - 1) * 130, top + 270 + (k === 1 ? -14 : 0), 'star');
+      const sc = (k === 1 ? 120 : 100) / Math.max(st.width, st.height);
+      st.setScale(0).setAlpha(k < got ? 1 : 0.22);
+      c.add(st);
+      this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.rankUp(3 + k) });
+    }
+    if (won) c.add(this.add.text(W / 2, top + 360, `\u2605\u2605 under ${Math.floor(def.time_seconds * 0.8)}s  ·  \u2605\u2605\u2605 under ${Math.floor(def.time_seconds * 0.6)}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 420, `Biggest chain x${s.stats.biggestChain}    ${bolts > 0 ? `+${bolts} BOLTS` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0.5));
+    if (lines.length) {
+      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 465, W - 140, 30 + lines.length * 36, 18));
+      c.add(this.add.text(W / 2, top + 480 + (lines.length * 36) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a', align: 'center' }).setOrigin(0.5));
+    }
+    const nextN = Math.min(LEVELS.length, n + 1);
+    if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road')), 1.1);
+    else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => this.openLevelSheet(n), 1.1);
+    this.button(c, W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
+  }
+
   /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
   quitHome() {
     const s = this.s;
@@ -2384,6 +2520,7 @@ export class GameScene extends Phaser.Scene {
   retry(hardArg?: boolean, remixArg?: number) {
     // "again" (ONE MORE / RESTART, no args) repeats the same mode; a Daily repeats today's bench
     if (hardArg === undefined && this.s.daily) return this.startDaily();
+    if (hardArg === undefined && this.s.level !== undefined) return this.startLevel(this.s.level);
     const hard = hardArg ?? this.s.hard;
     const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
     tlog.log('retry', { hard });
@@ -2422,10 +2559,19 @@ export class GameScene extends Phaser.Scene {
     return [all[date], improved];
   }
 
-  /** HOME (ChatGPT r12): wallet bar, YOUR MACHINE as the hero, helper, PLAY, modes, workshop, utilities. */
-  openTitle() {
-    this.closeModal();
+  homeTab: 'road' | 'machine' | 'events' = 'road';
+  /** HOME (ChatGPT r15): ROAD (the level saga) / MACHINE (team, workshop, mastery) / EVENTS (daily, challenge, remix). */
+  openTitle(tab: 'road' | 'machine' | 'events' = this.homeTab) {
+    this.homeTab = tab;
     if (!hasMachineArt(this) || !this.hasArt('hero_bg')) return this.openLegacyTitle();
+    if (tab === 'road' && this.hasArt('node_normal')) return this.openRoadTab();
+    if (tab === 'events') return this.openEventsTab();
+    return this.openMachineTab();
+  }
+
+  /** MACHINE tab: YOUR MACHINE as the hero, team, PLAY (current level), workshop, utilities. */
+  openMachineTab() {
+    this.closeModal();
     const m = this.meta;
     const c = this.add.container(0, 0).setDepth(100);
     if (this.homeC?.active) this.homeC.destroy();
@@ -2445,17 +2591,7 @@ export class GameScene extends Phaser.Scene {
     bg.setScale(k).setY(feetY - 20 - 0.538 * bg.height * k);
     c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
 
-    // wallet bar
-    const barY = 62;
-    const bar = this.add.image(W / 2, barY, 'res_bar').setDisplaySize(W - 50, 104);
-    const boltIcon = this.add.image(84, barY, 'bolt');
-    boltIcon.setScale(58 / Math.max(boltIcon.width, boltIcon.height));
-    const boltTxt = this.add.text(124, barY, `${m.bolts ?? 0}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#3b2533' }).setOrigin(0, 0.5);
-    const wallet = this.add.zone(200, barY, 330, 96).setInteractive({ useHandCursor: true });
-    wallet.on('pointerup', () => this.openWalletInfo());
-    const gear = this.add.text(W - 84, barY, '\u2699', { fontFamily: 'Arial', fontSize: '54px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    gear.on('pointerup', () => this.openSettings());
-    c.add([bar, boltIcon, boltTxt, wallet, gear]);
+    this.drawWallet(c);
 
     // identity
     const name = m.owned?.includes('nameplate') ? MACHINE_NAMES[(m.nameIdx ?? 0) % MACHINE_NAMES.length] : 'YOUR MACHINE';
@@ -2503,8 +2639,8 @@ export class GameScene extends Phaser.Scene {
     c.add(ht);
     if (teamOn) this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
 
-    // PLAY (always normal mode)
-    const play = this.button(c, W / 2, bottom - 410, 600, 'PLAY', 0x5fbf4a, () => this.retry(false, -1), 1.1);
+    // PLAY = the current saga level
+    const play = this.button(c, W / 2, bottom - 410, 600, `PLAY  LEVEL ${this.currentLevel()}`, 0x5fbf4a, () => this.openLevelSheet(this.currentLevel()), 1.1);
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.13, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
     // modes: three equal buttons; locked ones explain themselves
@@ -2516,34 +2652,293 @@ export class GameScene extends Phaser.Scene {
       ['CHALLENGE', 0xe8452c, () => (m.hardUnlocked ? this.retry(true, -1) : locked())],
       ['REMIX', 0x27a4c0, () => (m.hardUnlocked ? this.openRemixPicker() : locked())],
     ];
-    if (m.hardUnlocked)
-      modes.forEach(([label, col, cb], i) => {
-        this.button(c, W / 2 + (i - 1) * 222, bottom - 266, 250, label, col, cb, 0.82);
-      });
-    else {
-      // before the first win: one quiet line instead of three dead buttons
-      const more = this.add.text(W / 2, bottom - 266, 'More modes unlock as you play  ⓘ', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      more.on('pointerup', locked);
-      c.add(more);
-    }
+    void modes;
+    void locked;
 
     // workshop
-    this.button(c, W / 2, bottom - 140, 600, 'WORKSHOP', 0x8a6a4a, () => this.openWorkshop(), 0.85);
+    this.button(c, W / 2, bottom - 280, 600, 'WORKSHOP', 0x8a6a4a, () => this.openWorkshop(), 0.85);
     // dot only for genuinely new options: something became affordable since the last Workshop visit
     const affordable = CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
-    if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 172, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
+    if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 312, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
 
     // utilities
-    const util = this.add.text(W / 2, bottom - 44, 'Records   ·   How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const util = this.add.text(W / 2, bottom - 175, 'Records   ·   How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     util.on('pointerup', (p: Phaser.Input.Pointer) => {
       sfx.click();
       if (p.worldX < W / 2) this.openRecords();
       else this.openHowTo(0, () => this.openTitle());
     });
     c.add(util);
+    this.drawNav(c, 'machine');
     void u;
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
+  }
+
+  /** Header: Bolts (core) + Jumpstart Kits + Time Capsules (dynamic) + settings. */
+  drawWallet(c: Phaser.GameObjects.Container) {
+    const m = this.meta;
+    const barY = 62;
+    c.add(this.add.image(W / 2, barY, 'res_bar').setDisplaySize(W - 50, 104));
+    const item = (key: string, x: number, val: number) => {
+      if (this.hasArt(key)) {
+        const ic = this.add.image(x, barY, key);
+        ic.setScale(54 / Math.max(ic.width, ic.height));
+        c.add(ic);
+      }
+      c.add(this.add.text(x + 34, barY, String(val), { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' }).setOrigin(0, 0.5));
+    };
+    item('bolt', 84, m.bolts ?? 0);
+    item('booster_jumpstart', 290, m.kits ?? 0);
+    item('booster_time_capsule', 440, m.capsules ?? 0);
+    const wallet = this.add.zone(W / 2 - 40, barY, W - 220, 96).setInteractive({ useHandCursor: true });
+    wallet.on('pointerup', () => this.openWalletInfo());
+    const gear = this.add.text(W - 84, barY, '\u2699', { fontFamily: 'Arial', fontSize: '54px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    gear.on('pointerup', () => this.openSettings());
+    c.add([wallet, gear]);
+  }
+
+  /** Bottom navigation: ROAD / MACHINE / EVENTS. */
+  drawNav(c: Phaser.GameObjects.Container, active: 'road' | 'machine' | 'events') {
+    const y = H - 62;
+    c.add(this.add.graphics().fillStyle(0x2b1d2e, 0.92).fillRoundedRect(20, y - 50, W - 40, 100, 30));
+    (['road', 'machine', 'events'] as const).forEach((t, i) => {
+      const x = W / 2 + (i - 1) * 226;
+      const on = t === active;
+      if (on) c.add(this.add.graphics().fillStyle(0xffcf33, 1).fillRoundedRect(x - 100, y - 40, 200, 80, 22));
+      const lb = this.add.text(x, y, t.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: on ? '#2b1d2e' : '#fff0cf' }).setOrigin(0.5);
+      if (t === 'events' && !this.meta.hardUnlocked && this.currentLevel() < 3) lb.setAlpha(0.5);
+      const z = this.add.zone(x, y, 210, 96).setInteractive({ useHandCursor: true });
+      z.on('pointerup', () => {
+        if (t !== active) {
+          sfx.click();
+          this.openTitle(t);
+        }
+      });
+      c.add([lb, z]);
+    });
+  }
+
+  /** Highest unlocked level (levels are sequential; stars never gate). */
+  currentLevel() {
+    const st = this.meta.levelStars ?? {};
+    let n = 1;
+    while (st[String(n)] && n < LEVELS.length) n++;
+    return n;
+  }
+
+  /** ROAD tab (ChatGPT r15): a scrolling path of numbered levels, HARD / MEGA HARD tags, little machines at work. */
+  openRoadTab() {
+    this.closeModal();
+    const m = this.meta;
+    const c = this.add.container(0, 0).setDepth(100);
+    if (this.homeC?.active) this.homeC.destroy();
+    this.homeC = c;
+    this.modal = c;
+    const bg = this.add.image(W / 2, 0, 'hero_bg').setOrigin(0.5, 0);
+    bg.setScale(Math.max(W / bg.width, H / bg.height));
+    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
+    const top = 128, bottom = H - 250; // road viewport (sticky PLAY + nav below)
+    const cur = this.currentLevel();
+    const SPACING = 170;
+    const xs = [W / 2 - 190, W / 2, W / 2 + 190, W / 2];
+    const nodeY = (n: number) => -(n - 1) * SPACING; // in road space, level 1 at 0, going up
+    const road = this.add.container(0, 0);
+    const g = this.add.graphics();
+    road.add(g);
+    for (let n = 1; n < LEVELS.length; n++) {
+      const a = { x: xs[(n - 1) % 4], y: nodeY(n) }, b = { x: xs[n % 4], y: nodeY(n + 1) };
+      g.lineStyle(30, 0x2b1d2e, 0.9).lineBetween(a.x, a.y, b.x, b.y).lineStyle(20, n < cur ? 0xffcf33 : 0xf3e3c8, 1).lineBetween(a.x, a.y, b.x, b.y);
+    }
+    const stars = m.levelStars ?? {};
+    for (const def of LEVELS) {
+      const n = def.level;
+      const x = xs[(n - 1) % 4], y = nodeY(n);
+      const done = !!stars[String(n)];
+      const key = done ? 'node_completed' : n > cur ? 'node_locked' : def.boss_node ? 'node_boss' : def.difficulty === 'MEGA_HARD' ? 'node_mega_hard' : def.difficulty === 'HARD' ? 'node_hard' : 'node_normal';
+      const size = def.boss_node ? 150 : def.difficulty === 'MEGA_HARD' ? 134 : def.difficulty === 'HARD' ? 126 : 116;
+      const node = this.add.image(x, y, key);
+      node.setScale(size / Math.max(node.width, node.height));
+      road.add(node);
+      const ny = y - node.displayHeight * (done ? 0.095 : 0.07);
+      road.add(this.add.text(x, ny, String(n), { fontFamily: 'Lilita One, Arial Black', fontSize: n >= 10 ? '40px' : '46px', color: n > cur ? '#8a7a8a' : '#3b2533' }).setOrigin(0.5));
+      if (done)
+        for (let k = 0; k < 3; k++) {
+          const st = this.add.image(x + (k - 1) * 30, y + node.displayHeight * 0.25 + (k === 1 ? 4 : 0), 'star');
+          st.setScale(30 / Math.max(st.width, st.height)).setAlpha(k < stars[String(n)] ? 1 : 0.25);
+          road.add(st);
+        }
+      if (def.difficulty !== 'NORMAL' && n >= cur) {
+        const side = x > W / 2 ? -1 : 1;
+        const tag = this.add.text(x + side * (size / 2 + 12), y, def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
+        road.add(tag);
+      }
+      if (n === cur) {
+        const ring = this.add.circle(x, y, size * 0.62).setStrokeStyle(8, 0xffcf33, 1);
+        road.add(ring);
+        if (!REDUCED_MOTION) this.tweens.add({ targets: ring, scale: 1.12, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      }
+      const hit = this.add.zone(x, y, size + 20, size + 20).setInteractive({ useHandCursor: true });
+      hit.on('pointerup', () => {
+        if (Math.abs(dragDist) > 12) return;
+        if (n > cur) return this.showToast(`FINISH LEVEL ${cur} FIRST`);
+        this.openLevelSheet(n);
+      });
+      road.add(hit);
+    }
+    // two little machines at work beside the road (one restrained fidget every 3-5 s)
+    const workers = ['worker_cannon', 'worker_coil', 'worker_bell'].filter((k) => this.hasArt(k));
+    workers.slice(0, 3).forEach((k, i) => {
+      const n = Math.max(1, cur - 1 + i * 2);
+      const wx = xs[(n - 1) % 4] > W / 2 ? 80 : W - 80;
+      const w = this.add.image(wx, nodeY(n) - 60, k);
+      w.setScale(84 / Math.max(w.width, w.height));
+      road.add(w);
+      if (!REDUCED_MOTION) this.tweens.add({ targets: w, angle: { from: -4, to: 4 }, y: w.y - 6, duration: 420, yoyo: true, repeat: -1, repeatDelay: 2600 + i * 900, ease: 'Sine.InOut' });
+    });
+    // scrolling: road space -> screen; centre the current level
+    const minScroll = bottom - 90, maxScroll = top + 90 + (LEVELS.length - 1) * SPACING;
+    let scrollY = Phaser.Math.Clamp((top + bottom) / 2 + (cur - 1) * SPACING, minScroll, maxScroll);
+    road.setY(scrollY);
+    const mask = this.add.graphics().setVisible(false).fillRect(0, top, W, bottom - top);
+    road.setMask(mask.createGeometryMask());
+    c.add(road);
+    let dragStart = 0, startScroll = 0, dragDist = 0;
+    const area = this.add.zone(W / 2, (top + bottom) / 2, W, bottom - top).setInteractive();
+    c.addAt(area, 2);
+    area.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      dragStart = p.worldY;
+      startScroll = scrollY;
+      dragDist = 0;
+    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (!p.isDown || this.homeC !== c || !c.active) return;
+      if (p.worldY < top - 40 || p.worldY > bottom + 40) return;
+      dragDist = p.worldY - dragStart;
+      scrollY = Phaser.Math.Clamp(startScroll + dragDist, minScroll, maxScroll);
+      road.setY(scrollY);
+    });
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.homeC !== c || !c.active) return;
+      dragStart = p.worldY;
+      startScroll = scrollY;
+      dragDist = 0;
+    });
+    this.drawWallet(c);
+    const def = LEVELS[cur - 1];
+    const tag = def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
+    const play = this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
+    if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.drawNav(c, 'road');
+    c.setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
+  }
+
+  /** EVENTS tab: Daily (level 3), Challenge (level 5), Remix (level 10), plus the classic 3-monster run. */
+  openEventsTab() {
+    this.closeModal();
+    const m = this.meta;
+    const c = this.add.container(0, 0).setDepth(100);
+    if (this.homeC?.active) this.homeC.destroy();
+    this.homeC = c;
+    this.modal = c;
+    const bg = this.add.image(W / 2, 0, 'hero_bg').setOrigin(0.5, 0);
+    bg.setScale(Math.max(W / bg.width, H / bg.height));
+    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
+    this.drawWallet(c);
+    c.add(this.add.text(W / 2, 170, 'EVENTS', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
+    const lv = this.currentLevel() - 1; // levels cleared
+    const today = m.daily?.[localDate()];
+    const cards: [string, string, number, boolean, () => void][] = [
+      [today ? 'DAILY BENCH \u2713' : 'DAILY BENCH', 'Same board for everyone today. New tomorrow.', 0x5fbf4a, lv >= 3 || m.hardUnlocked, () => this.startDaily()],
+      ['CHALLENGE', 'The classic 3-monster run, tougher. No boosters.', 0xe8452c, lv >= 5 || m.hardUnlocked, () => this.retry(true, -1)],
+      ['REMIX', 'One big junk monster that fights back.', 0x27a4c0, lv >= 10 || m.hardUnlocked, () => this.openRemixPicker()],
+      ['JUNK RUN', '3 monsters, one 135s clock, perks between.', 0x8a6a4a, true, () => this.retry(false, -1)],
+    ];
+    const need = [3, 5, 10, 0];
+    cards.forEach(([label, sub, col, open, cb], i) => {
+      const y = 300 + i * 200;
+      const b = this.button(c, W / 2, y, 560, label, col, open ? cb : () => this.showToast(`UNLOCKS AT LEVEL ${need[i]}`), 0.95);
+      if (!open) b.setAlpha(0.5);
+      c.add(this.add.text(W / 2, y + 68, open ? sub : `Unlocks after level ${need[i]}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
+    });
+    this.drawNav(c, 'events');
+  }
+
+  /** Level card (ChatGPT r15): monster, ONE modifier sentence, stars, team, optional Jumpstart, PLAY. */
+  openLevelSheet(n: number) {
+    sfx.click();
+    const def = LEVELS[n - 1];
+    if (!def) return;
+    const m = this.meta;
+    const PH = 900;
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    const diff = def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
+    this.sheetTitle(c, top, `LEVEL ${n}${diff}`);
+    const ti = MONSTER_INDEX[def.monster] ?? 0;
+    const tk = `target_${ti}`;
+    if (this.textures.exists(tk)) {
+      const im = this.add.image(W / 2, top + 250, tk);
+      im.setScale(220 / Math.max(im.width, im.height));
+      c.add(im);
+    }
+    c.add(this.add.text(W / 2, top + 385, `${TARGET_NAMES[ti]}  ·  ${def.hp.toLocaleString()} HP  ·  ${def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' }).setOrigin(0.5));
+    const mt = MODIFIER_TEXT[def.modifier];
+    if (mt) c.add(this.add.text(W / 2, top + 432, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8e58c9', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    const have = (m.levelStars ?? {})[String(n)] ?? 0;
+    for (let k = 0; k < 3; k++) {
+      const st = this.add.image(W / 2 + (k - 1) * 70, top + 520, 'star');
+      st.setScale(56 / Math.max(st.width, st.height)).setAlpha(k < have ? 1 : 0.25);
+      c.add(st);
+    }
+    c.add(this.add.text(W / 2, top + 565, `\u2605\u2605 under ${Math.floor(def.time_seconds * 0.8)}s   \u2605\u2605\u2605 under ${Math.floor(def.time_seconds * 0.6)}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+    // Jumpstart Kit (opt-in, unlocked level 2): the starter shooter pair arrives one rank higher
+    let jump = false;
+    if (n >= BOOSTER_UNLOCK.jumpstart_kit) {
+      const kits = m.kits ?? 0;
+      const row = this.add.container(W / 2, top + 640);
+      const box = this.add.graphics();
+      const draw = () => box.clear().fillStyle(jump ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-280, -42, 560, 84, 20).lineStyle(4, jump ? 0x5fbf4a : 0x2b1d2e, 1).strokeRoundedRect(-280, -42, 560, 84, 20);
+      draw();
+      row.add(box);
+      if (this.hasArt('booster_jumpstart')) {
+        const ic = this.add.image(-236, 0, 'booster_jumpstart');
+        ic.setScale(60 / Math.max(ic.width, ic.height));
+        row.add(ic);
+      }
+      const lab = this.add.text(-190, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0, 0.5);
+      const setLab = () => lab.setText(kits > 0 ? `Jumpstart: 2 stronger shooters (${kits})   ${jump ? '\u2713 ON' : 'OFF'}` : `Jumpstart Kit: ${PRICES.jumpstart_kit} Bolts in the Workshop`);
+      setLab();
+      lab.setFontSize(kits > 0 ? 21 : 22);
+      row.add(lab);
+      row.setSize(560, 84).setInteractive({ useHandCursor: true });
+      row.on('pointerup', () => {
+        if (kits <= 0) return this.showToast('GET KITS FROM LEVELS OR THE WORKSHOP');
+        jump = !jump;
+        draw();
+        setLab();
+      });
+      c.add(row);
+    }
+    this.button(c, W / 2, top + 770, 460, 'PLAY', 0x5fbf4a, () => this.startLevel(n, jump), 1.05);
+    const close = this.add.text(W - 70, top + 40, '\u2715', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    close.on('pointerup', () => this.openTitle());
+    c.add(close);
+  }
+
+  startLevel(n: number, jumpstart = false) {
+    const def = LEVELS[n - 1];
+    if (!def) return;
+    const m = this.meta;
+    if (jumpstart && (m.kits ?? 0) > 0) {
+      m.kits = (m.kits ?? 0) - 1;
+      tlog.log('booster', { kind: 'jumpstart', level: n, left: m.kits });
+    } else jumpstart = false;
+    m.tutorialDone = true;
+    store(META_KEY, JSON.stringify(m));
+    tlog.log('level_start', { level: n, jumpstart });
+    this.startState(newLevel(def, { toys: this.activeToys(), shooter: this.teamShooter(), jumpstart }));
   }
 
   homeC: Phaser.GameObjects.Container | null = null;
