@@ -80,7 +80,7 @@ let st = await state();
 check('move into empty cell lands exactly', st.cells[7] === 'b1' && st.cells[0] === '.' && !st.off.length && st.views === st.live, st);
 await drag(12, 13, { x: -30, y: 10 });
 st = await state();
-check('drop on a different piece swaps and both land exactly', st.cells[13] === 'c2' && st.cells[12] === 'c3' && !st.off.length, st);
+check('drop on a non-matching piece bounces back, nothing moves', st.cells[12] === 'c2' && st.cells[13] === 'c3' && !st.off.length, st);
 await drag(20, 24, { x: 0, y: 0 });
 st = await state();
 check('merge lands exactly, one sprite per gadget', st.cells[24] === 'b3' && st.cells[20] === '.' && !st.off.length && st.views === st.live, st);

@@ -80,6 +80,8 @@ interface Meta {
   sound: boolean;
   hints: boolean;
   music: boolean;
+  /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
+  swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
   shake?: boolean;
   hardUnlocked: boolean;
@@ -775,6 +777,23 @@ export class GameScene extends Phaser.Scene {
     const b = this.s.grid[to];
     if (this.s.phase === 'tutorial' && this.onTutorialMismatch(from, to)) return false;
     const merging = canMerge(a, b);
+    // ChatGPT r13: an occupied mismatch BOUNCES (silent swaps punished the exact mistake Ido reported). Swapping is opt-in.
+    if (a && b && !merging && !this.meta.swapMismatch) {
+      sfx.invalid();
+      tlog.log('mismatch_bounce', { a: `${a.family}${a.rank}`, b: `${b.family}${b.rank}` });
+      const msg = a.family === b.family ? `Rank ${a.rank} ≠ Rank ${b.rank}: merge the SAME number` : 'Merge the SAME gadget with the SAME number';
+      this.showEvent(msg, '#ffd2c8', 1600);
+      for (const g of a.family === b.family ? [a, b] : []) {
+        const rv = this.views.get(g.id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
+        if (rv) this.tweens.add({ targets: rv, scale: 1.5, duration: 140, yoyo: true, repeat: 1 });
+      }
+      const bv = this.views.get(b.id);
+      if (bv && !REDUCED_MOTION) {
+        const c = cellXY(to);
+        this.tweens.chain({ targets: bv, tweens: [{ x: c.x + 4, duration: 45 }, { x: c.x - 4, duration: 45 }, { x: c.x, duration: 45 }] });
+      }
+      return false;
+    }
     this.pulledMerge = merging && (this.pulledIds.has(a!.id) || this.pulledIds.has(b!.id));
     const prevBest = this.s.stats.bestRank;
     const res = drop(this.s, from, to, id);
@@ -2350,14 +2369,15 @@ export class GameScene extends Phaser.Scene {
 
   openSettings() {
     sfx.click();
-    const c = this.sheet(680);
-    const top = H / 2 - 340;
+    const c = this.sheet(800);
+    const top = H / 2 - 400;
     this.sheetTitle(c, top, 'SETTINGS');
     const m = this.meta;
     const toggles: [string, () => boolean, () => void][] = [
       ['SOUND', () => m.sound, () => ((m.sound = !m.sound), (audioSettings.on = m.sound))],
       ['MUSIC', () => m.music, () => ((m.music = !m.music), (audioSettings.music = m.music))],
       ['SHAKE', () => m.shake !== false, () => (m.shake = m.shake === false)],
+      ['SWAP ON DROP', () => !!m.swapMismatch, () => (m.swapMismatch = !m.swapMismatch)],
     ];
     toggles.forEach(([label, get, flip], i) => {
       const b = this.button(c, W / 2, top + 180 + i * 110, 420, `${label}: ${get() ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
@@ -2366,10 +2386,10 @@ export class GameScene extends Phaser.Scene {
         (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
       });
     });
-    const rt = this.add.text(W / 2, top + 520, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const rt = this.add.text(W / 2, top + 630, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     rt.on('pointerup', () => this.startTutorial());
     c.add(rt);
-    this.button(c, W / 2, top + 600, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    this.button(c, W / 2, top + 720, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
   }
 
   openHelperSheet() {
