@@ -27,6 +27,13 @@ const targetOf = (n) =>
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
   if (/app_?icon/.test(n)) return 'app_icon';
+  // round 9: MAX signature effects (+ _v9 gadget redraws handled by the family/rank rule; later folders win)
+  if (/backfire/.test(n)) return 'max_backfire';
+  if (/bridge/.test(n)) return 'max_bridge';
+  if (/chime/.test(n)) return 'max_chime';
+  if (/twin_?pull|attraction/.test(n)) return 'max_twin';
+  if (/split|charge_branch/.test(n)) return 'max_split';
+  if (/gust/.test(n)) return 'max_gust';
   // round 8: rank dice + tutorial
   { const m = n.match(/^rank_dice_0?([1-6])$/); if (m) return `dice_${m[1]}`; }
   if (/pointing_hand/.test(n)) return 'ui_hand';

@@ -1239,8 +1239,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** MAX signature visuals: reveal the resolver's chosen target (Backfire puff, Arc Bridge bolt, Cross Chime ring). */
-  signatureFx(kind: 'backfire' | 'bridge' | 'chime', a: { x: number; y: number }, b: { x: number; y: number }) {
-    const key = kind === 'backfire' ? 'max_backfire' : kind === 'bridge' ? 'max_bridge' : 'max_chime';
+  signatureFx(kind: 'backfire' | 'bridge' | 'chime' | 'magnet' | 'battery' | 'fan', a: { x: number; y: number }, b: { x: number; y: number }) {
+    const key = { backfire: 'max_backfire', bridge: 'max_bridge', chime: 'max_chime', magnet: 'max_twin', battery: 'max_split', fan: 'max_gust' }[kind];
     const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
     if (this.hasArt(key)) {
       const im = this.add.image((a.x + b.x) / 2, (a.y + b.y) / 2, key).setDepth(32).setAngle(kind === 'chime' ? 0 : ang);
@@ -1248,10 +1248,10 @@ export class GameScene extends Phaser.Scene {
       im.setScale((kind === 'chime' ? 150 : len + 40) / im.width);
       this.tweens.add({ targets: im, alpha: 0, delay: 200, duration: 260, onComplete: () => im.destroy() });
     } else {
-      const col = kind === 'backfire' ? 0xff5a3c : kind === 'bridge' ? 0x6ff3ff : 0xffe066;
+      const col = kind === 'backfire' ? 0xff5a3c : kind === 'bridge' ? 0x6ff3ff : kind === 'magnet' ? 0xe07af0 : kind === 'battery' ? 0x9be05a : kind === 'fan' ? 0xbfe8ff : 0xffe066;
       this.ring(b.x, b.y, col, 70, 10, 260);
     }
-    const label = kind === 'backfire' ? 'BACKFIRE!' : kind === 'bridge' ? 'ARC BRIDGE!' : 'CROSS CHIME!';
+    const label = { backfire: 'BACKFIRE!', bridge: 'ARC BRIDGE!', chime: 'CROSS CHIME!', magnet: 'TWIN PULL!', battery: 'SPLIT CHARGE!', fan: 'LONG GUST!' }[kind];
     this.floatText(b.x, b.y - 50, label, '#ffffff', 24, 150);
   }
 
@@ -1375,6 +1375,7 @@ export class GameScene extends Phaser.Scene {
     const step = maxDepth > 0 ? Math.min(70, 380 / maxDepth) : 0;
     const windup = kickback ? 300 : 90;
     const depthOf = new Map(r.activations.map((a) => [a.idx, a.depth]));
+    const maxToys = new Set(r.activations.filter((a) => a.rank >= MAX_RANK && (a.family === 'magnet' || a.family === 'battery' || a.family === 'fan')).map((a) => a.family as string));
     if (odStart) {
       sfx.overdrive();
       this.showEvent('OVERDRIVE!  Cannons fire fast', '#ffb070', 2200);
@@ -1393,6 +1394,7 @@ export class GameScene extends Phaser.Scene {
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
         if (e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime') this.signatureFx(e.kind, a, b);
+        else if ((e.kind === 'magnet' || e.kind === 'battery' || e.kind === 'fan') && maxToys.has(e.kind)) this.signatureFx(e.kind, a, b);
         if ((e.kind === 'coil' || e.kind === 'bridge') && this.hasArt('vfx_arc')) {
           const arc = this.add.image((a.x + b.x) / 2, (a.y + b.y) / 2, 'vfx_arc').setDepth(30);
           const len = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
