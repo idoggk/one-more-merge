@@ -1649,6 +1649,9 @@ export class GameScene extends Phaser.Scene {
           } else if (e.kind === 'twins' && e.outcome === 'hit') {
             sfx.fan(0);
             this.showEvent('SHOVE!  Part pushed aside', '#ffd24a', 1400);
+          } else if ((e.kind === 'jam' || e.kind === 'gaps') && e.outcome === 'hit') {
+            sfx.invalid();
+            this.showEvent(e.kind === 'jam' ? 'CELL JAMMED  ·  5s' : 'ROW GAPS BLOCKED  ·  4s', '#d9c2ff', 1200);
           } else if (e.kind === 'piano' && e.outcome === 'hit') {
             sfx.panelBreak(2);
             this.showEvent('ROW LOCKED  ·  4s', '#d9c2ff', 1200);
@@ -2917,6 +2920,8 @@ export class GameScene extends Phaser.Scene {
       vacuum: 'Sucks up your weakest part',
       twins: 'Shoves your best part aside',
       piano: 'Locks a whole row',
+      jam: 'Jams an empty cell',
+      gaps: 'Blocks the gaps of a row',
     };
     const loadout = this.activeToys()[0] ?? 'none';
     REMIX_OPPONENTS.forEach((o, i) => {
@@ -2956,6 +2961,12 @@ export class GameScene extends Phaser.Scene {
     const g = this.remixG.clear();
     for (const im of this.remixIcons) im.setVisible(false);
     this.remixText.setVisible(false);
+    // CORNERS modifiers: permanently blocked cells
+    for (const c of this.s.masked ?? []) {
+      const { x, y } = cellXY(c);
+      g.fillStyle(0x2b1d2e, 0.72).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 18);
+      g.lineStyle(6, 0x8a6a4a, 1).lineBetween(x - 24, y - 24, x + 24, y + 24).lineBetween(x + 24, y - 24, x - 24, y + 24);
+    }
     if (!r) {
       this.updateLane(null);
       return;
@@ -2992,7 +3003,11 @@ export class GameScene extends Phaser.Scene {
       const secs = Math.ceil(left);
       const pulse = 0.65 + 0.35 * Math.abs(Math.sin(t * (5 + (3 - left) * 3)));
       const c0 = r.pending.cells[0];
-      if (r.kind === 'piano') {
+      if (r.kind === 'jam' || r.kind === 'gaps') {
+        for (const c of r.pending.cells) cellBox(c, purple, pulse);
+        bubble(r.pending.cells[r.pending.cells.length - 1], secs, 'tg_piano');
+        lane = r.kind === 'jam' ? `JAM in ${secs}  ·  this cell gets blocked` : `ROW GAPS in ${secs}  ·  these empty cells get blocked`;
+      } else if (r.kind === 'piano') {
         // dashed warning perimeter around the row
         const ys = cellXY(c0).y;
         const x0 = BX + 6, x1 = BX + CELL * COLS - 6, y0 = ys - HALF, y1 = ys + HALF;
@@ -3020,7 +3035,14 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    if (r.lock) {
+    if (r.lock && (r.kind === 'jam' || r.kind === 'gaps')) {
+      for (const c of r.lock.cells) {
+        const { x, y } = cellXY(c);
+        g.fillStyle(purple, 0.35).fillRoundedRect(x - HALF, y - HALF, HALF * 2, HALF * 2, 18);
+        g.lineStyle(6, purple, 0.9).lineBetween(x - 26, y - 26, x + 26, y + 26).lineBetween(x + 26, y - 26, x - 26, y + 26);
+      }
+      lane = `BLOCKED  ·  ${Math.max(0, r.lock.until - this.s.elapsed).toFixed(1)}s`;
+    } else if (r.lock) {
       const ys = cellXY(r.lock.cells[0]).y;
       g.fillStyle(purple, 0.18).fillRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);
       g.lineStyle(5, purple, 0.95).strokeRoundedRect(BX + 6, ys - HALF, CELL * COLS - 12, HALF * 2, 18);

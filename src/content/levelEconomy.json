@@ -1,0 +1,192 @@
+{
+  "prices": {
+    "jumpstart_kit": 60,
+    "time_capsule": 90
+  },
+  "unlock_levels": {
+    "jumpstart_kit": 2,
+    "time_capsule": 4
+  },
+  "levels": [
+    {
+      "level": 1,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 2,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 1,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 3,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 4,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 1
+    },
+    {
+      "level": 5,
+      "win_bolts": 10,
+      "first_clear_bolts": 18,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 34,
+      "free_jumpstart": 1,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 6,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 7,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 8,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 9,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 10,
+      "win_bolts": 12,
+      "first_clear_bolts": 28,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 46,
+      "free_jumpstart": 1,
+      "free_time_capsule": 1
+    },
+    {
+      "level": 11,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 12,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 13,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 14,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 15,
+      "win_bolts": 10,
+      "first_clear_bolts": 18,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 34,
+      "free_jumpstart": 1,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 16,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 17,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 18,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 19,
+      "win_bolts": 8,
+      "first_clear_bolts": 12,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 26,
+      "free_jumpstart": 0,
+      "free_time_capsule": 0
+    },
+    {
+      "level": 20,
+      "win_bolts": 12,
+      "first_clear_bolts": 28,
+      "new_star_bolts": 3,
+      "first_clear_two_stars_total": 46,
+      "free_jumpstart": 1,
+      "free_time_capsule": 1
+    }
+  ]
+}

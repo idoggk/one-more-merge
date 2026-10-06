@@ -1,8 +1,9 @@
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
-import { lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
-import type { CascadeResult, Family, Gadget, Grid, PerkId } from './types';
+import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
+import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
+import { isShooter, type CascadeResult, type Family, type Gadget, type Grid, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
 
@@ -73,8 +74,20 @@ export interface GameState {
   /** Occupancy guard: deliveries wait in the tray while true. */
   trayHold: boolean;
   bigCd: number;
-  /** REMIX encounter (post-win mode), null in normal runs. */
+  /** REMIX encounter (post-win mode), null in normal runs. Also carries a SAGA level's timed modifier. */
   remix: RemixState | null;
+  /** SAGA level number (one monster, one clock); undefined for the classic 3-monster run. */
+  level?: number;
+  /** Base time of the level (supply phases + stars are fractions of it). */
+  levelTime?: number;
+  /** Matchmaker: highest rank an ordinary copy may have on this level. */
+  copyCap?: number;
+  /** Permanently blocked cells (CORNERS modifiers). */
+  masked?: number[];
+  /** Time Capsule used this attempt. */
+  capsuleUsed?: boolean;
+  /** Jumpstart applied this attempt. */
+  jumpstart?: boolean;
   stats: Stats;
 }
 
@@ -93,7 +106,7 @@ export const idxOf = (r: number, c: number) => r * COLS + c;
 
 export const remixHp = () => Math.round(TUNING.targetHp.reduce((a, b) => a + b, 0));
 export const targetHp = (s: GameState, i: number) => (s.remix ? remixHp() : Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1)));
-export const locked = (s: GameState) => lockedCells(s.remix);
+export const locked = (s: GameState): ReadonlySet<number> => (s.masked?.length ? new Set([...lockedCells(s.remix), ...s.masked]) : lockedCells(s.remix));
 
 export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = [], remixTarget = -1, shooter: Family = 'cannon'): GameState {
   const s: GameState = {
@@ -147,6 +160,48 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
 /** The run's shooter family (Cannon unless the team picked Rocket). */
 export const shooterOf = (s: GameState): Family => s.shooter ?? 'cannon';
 
+/** A SAGA level (ChatGPT r15): one monster, one clock, PAIR8 starting board at the level's starting rank. */
+export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Family; jumpstart?: boolean } = {}): GameState {
+  const s = newGame(def.seed, false, false, opts.toys ?? [], -1, opts.shooter ?? 'cannon');
+  s.level = def.level;
+  s.levelTime = def.time_seconds;
+  s.timeLeft = def.time_seconds;
+  s.target = MONSTER_INDEX[def.monster] ?? 0;
+  s.hp = s.maxHp = def.hp;
+  s.copyCap = def.ordinary_copy_rank_cap;
+  s.grid.fill(null);
+  s.nextId = 1;
+  for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
+    for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'shooter' ? shooterOf(s) : (fam as Family), def.starting_rank);
+  // Jumpstart Kit: the designated starter shooter pair (4,1),(4,2) arrives one rank higher. No shot, no merge.
+  if (opts.jumpstart) {
+    for (const [r, c] of [[4, 1], [4, 2]]) {
+      const g = s.grid[idxOf(r, c)];
+      if (g) g.rank = Math.min(MAX_RANK, g.rank + 1);
+    }
+    s.jumpstart = true;
+  }
+  const mod = def.modifier;
+  if (mod === 'SUCTION') s.remix = levelModifierState('vacuum');
+  else if (mod === 'JAM') s.remix = levelModifierState('jam');
+  else if (mod === 'ROW_GAPS') s.remix = levelModifierState('gaps');
+  else if (mod === 'CORNERS_2' || mod === 'CORNERS_4') {
+    const corners = mod === 'CORNERS_2' ? [idxOf(0, 0), idxOf(5, 4)] : [idxOf(0, 0), idxOf(0, 4), idxOf(5, 0), idxOf(5, 4)];
+    s.masked = corners;
+    for (const c of corners) s.grid[c] = null;
+  }
+  s.supplyTimer = supplyPeriod(s);
+  return s;
+}
+
+/** Time Capsule: +15 s once per attempt while the level is live (no revive after the clock hits 0). */
+export function useTimeCapsule(s: GameState): boolean {
+  if (s.level === undefined || s.capsuleUsed || s.phase !== 'playing' || s.timeLeft <= 0) return false;
+  s.capsuleUsed = true;
+  s.timeLeft += 15;
+  return true;
+}
+
 function makeGadget(s: GameState, family: Family, rank: number): Gadget {
   return { id: s.nextId++, family, rank, cd: family === 'cannon' ? cannonPeriod(s) : 0 };
 }
@@ -172,7 +227,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!TUNING.matchShare) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= MAX_RANK) continue;
+    if (!g || g.rank >= MAX_RANK || !(isShooter(g.family) || g.family === 'coil' || g.family === 'bell')) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -183,8 +238,11 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!lonely.length) return null;
   const noPair = !groups.some((e) => e.n >= 2);
   if (!noPair && (hash2(s.seed, ordinal) % 1000) / 1000 >= TUNING.matchShare) return null;
+  // ordinary copies respect the level's rank cap; a rescue (no legal pair) may copy anything lonely
+  const capped = noPair ? lonely : lonely.filter((e) => e.rank <= (s.copyCap ?? MAX_RANK));
+  if (!capped.length) return null;
   // bias toward low ranks so the board keeps flowing, but sometimes feed a high piece toward MAX
-  const pool = lonely.slice(0, Math.min(lonely.length, 3));
+  const pool = capped.slice(0, Math.min(capped.length, 3));
   return pool[hash2(s.seed ^ 0x5bd1e995, ordinal) % pool.length];
 }
 
@@ -228,6 +286,14 @@ function generateShipment(s: GameState): Gadget {
 }
 
 export function supplyPeriod(s: GameState): number {
+  if (s.levelTime) {
+    const f = s.elapsed / s.levelTime;
+    let p = SUPPLY_SECONDS[0];
+    SUPPLY_FRACTIONS.forEach((fr, i) => {
+      if (f >= fr) p = SUPPLY_SECONDS[i];
+    });
+    return p;
+  }
   for (const [until, p] of TUNING.supplyCurve) if (s.elapsed < until) return p;
   return TUNING.supplyPeriod;
 }
@@ -381,7 +447,7 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
     s.hp = s.maxHp = TUNING.demoHp;
     return;
   }
-  const final = !!s.remix || s.target === TUNING.targetHp.length - 1;
+  const final = !!s.remix || s.level !== undefined || s.target === TUNING.targetHp.length - 1;
   s.thresholds = 3;
   ev.push({ type: 'kill', target: s.target, final, demo: false });
   if (final) {
