@@ -197,6 +197,13 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
   - L60 Junkzilla SPLIT (no relay wake crosses the divider)
 - Presentation: boss name-card intro, BUILD YOUR MACHINE, telegraph icon + shape + countdown, a first-ever boss-warning explainer, a BOSS tag on the road and level card, the boss rule on the card. Calibrated: L10 81%, L20-60 69-78% novice (400 + held-out). Tested: setup, clamp, the three cascade modifiers, suction, full fights with no duplicate ids.
 
+## Round 21: boss critique + external-playtest configuration
+- Boss fixes: no ordinary face patches on boss sprites (the Twins had a third head); one telegraph language (warning = dashed coral + countdown + consequence; active = plum fill, solid coral/cream border, duration + consequence); split icon at the top of the divider (never on the HP bar); the defeat line goes in the lane so the whole stage stays visible; HUD bottom controls fade; boss cards carry the attack icon and never show the star lesson.
+- Road: the first-visit lesson is dismissed by tapping the glowing node (no GOT IT), shown only for levels <= 3; floating worker decorations removed.
+- **Playtest mode** (`?playtest=1`, persisted; `?playtest=0` turns it off): EVENTS shows only Daily (after L10); helpers are hidden and never enter runs; the cosmetics Workshop is hidden. Bolts, Kits and Capsules stay.
+- Merge-intent telemetry: `drag_end` {from, to, highlighted, legal, kind move/merge/mismatch, hold ms} separates intended drops from input failures.
+- r21 plan for 20 strangers: 5 diagnostic sessions, fix, then 15 validation sessions. Gates: 12/15 explain matching, 10/15 show a chain, zero stuck sprites or duplicate merges. A separate first-boss trial on a copied save. Track voluntary next-level starts, occupancy and chains by human merge speed, fail -> retry/booster/exit, and return within 24-48 h.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

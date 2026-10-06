@@ -104,6 +104,8 @@ interface Meta {
   failPaid?: Record<string, string>;
   /** Team shooter slot (Cannon, or Rocket once unlocked by the first full clear). */
   shooter?: Family;
+  /** Simplified configuration for the stranger playtest (ChatGPT r21). */
+  playtestMode?: boolean;
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
   swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
@@ -154,6 +156,7 @@ function dailySeed(date: string) {
 
 /** Which stage backdrop the Workshop preview shows: the previewed stage item, else the equipped one. */
 const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
+const warnColor = (atk: string) => ({ clamp: 0x8e58c9, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 })[atk] ?? 0xff684a;
 const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
@@ -264,6 +267,10 @@ export class GameScene extends Phaser.Scene {
       history.replaceState(null, '', location.pathname);
     }
     this.meta = loadMeta();
+    // r21 external-playtest configuration: ?playtest=1 hides Challenge/Remix, helpers and the cosmetics catalog
+    const qp = new URLSearchParams(location.search);
+    if (qp.has('playtest')) this.meta.playtestMode = qp.get('playtest') !== '0';
+    store(META_KEY, JSON.stringify(this.meta));
     audioSettings.on = this.meta.sound;
     audioSettings.music = this.meta.music;
     this.buildStatic();
@@ -923,6 +930,8 @@ export class GameScene extends Phaser.Scene {
     const view = this.dragView;
     // the piece is drawn above the finger: target where the PIECE is, same rule as the live highlight
     const dest = this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
+    const ga = this.s.grid[from], gb = dest >= 0 ? this.s.grid[dest] : null;
+    tlog.log('drag_end', { from, to: dest, highlighted: this.hoverIdx, legal: !!(ga && gb && canMerge(ga, gb, this.s)), kind: !gb ? 'move' : ga && canMerge(ga, gb, this.s) ? 'merge' : 'mismatch', ms: Math.round(this.time.now - this.liftAt) });
     this.dragShadow?.setVisible(false);
     view?.setAngle(0);
     this.dragIdx = -1;
@@ -1931,7 +1940,7 @@ Now beat the real level.`, this.coachY());
 
   showFace(mood: 'hit' | 'angry' | 'dizzy' | null, ms = 0) {
     const ti = this.s.target;
-    const key = ti >= 0 && mood ? `face_${ti}_${mood}` : '';
+    const key = ti >= 0 && mood && !this.s.boss ? `face_${ti}_${mood}` : '';
     if (!key || !this.hasArt(key)) {
       this.face.setVisible(false);
       return;
@@ -2209,7 +2218,11 @@ Now beat the real level.`, this.coachY());
     });
     // 4) your machine celebrates: a bounce wave row by row + banner + confetti
     this.time.delayedCall(1900, () => {
-      this.floatText(W / 2, STAGE_TOP + STAGE_H / 2, `${name}\nDOWN!`, '#ffcf33', 74, 1100, 'banner_destroyed');
+      // r21: keep the whole stage visible (Ido: "I want to see me winning the boss"); the words go in the lane
+      this.showEvent(`${name} DOWN!`, '#ffd24a', 2400);
+      this.laneText.setScale(1.4);
+      this.tweens.add({ targets: this.laneText, scale: 1, duration: 260, ease: 'Back.Out' });
+      this.tweens.add({ targets: [this.scrapZone, this.trayPlate, this.trayLabel].filter(Boolean), alpha: 0.25, duration: 120 });
       sfx.win();
     });
   }
@@ -2658,6 +2671,7 @@ Now beat the real level.`, this.coachY());
   }
 
   activeToys(): Family[] {
+    if (this.meta.playtestMode) return [];
     return (Object.entries(this.meta.toys) as [Family, boolean][]).filter(([, on]) => on).map(([f]) => f);
   }
 
@@ -2820,7 +2834,7 @@ Now beat the real level.`, this.coachY());
     const hl = teamOn ? `Team:  ${shooterName} + ${helper ? FAMILY_INFO[helper].name : 'no helper'}` : empty || !m.bestChain ? 'Merge your first gadgets: tap PLAY!' : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
     const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: teamOn ? '28px' : '22px', color: '#fff0cf', wordWrap: { width: teamOn ? 400 : W - 170 } }).setOrigin(0, 0.5);
     c.add(ht);
-    if (teamOn) this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
+    if (teamOn && !(m.playtestMode && !m.hardUnlocked)) this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
 
     // PLAY = the current saga level
     const play = this.button(c, W / 2, bottom - 410, 600, `PLAY  LEVEL ${this.currentLevel()}`, 0x5fbf4a, () => this.openLevelSheet(this.currentLevel()), 1.1);
@@ -2839,8 +2853,8 @@ Now beat the real level.`, this.coachY());
     void locked;
 
     // workshop
-    const wsOpen = this.currentLevel() > 5 || !!m.hardUnlocked || (m.owned?.length ?? 0) > 0;
-    const ws = this.button(c, W / 2, bottom - 280, 600, wsOpen ? 'WORKSHOP' : 'WORKSHOP  \u00b7  level 5', 0x8a6a4a, () => (wsOpen ? this.openWorkshop() : this.showToast('THE WORKSHOP OPENS AFTER LEVEL 5')), 0.85);
+    const wsOpen = !m.playtestMode && (this.currentLevel() > 5 || !!m.hardUnlocked || (m.owned?.length ?? 0) > 0);
+    const ws = this.button(c, W / 2, bottom - 280, 600, wsOpen ? 'WORKSHOP' : m.playtestMode ? 'WORKSHOP  \u00b7  soon' : 'WORKSHOP  \u00b7  level 5', 0x8a6a4a, () => (wsOpen ? this.openWorkshop() : this.showToast('THE WORKSHOP OPENS AFTER LEVEL 5')), 0.85);
     if (!wsOpen) ws.setAlpha(0.6);
     // dot only for genuinely new options: something became affordable since the last Workshop visit
     const affordable = wsOpen && CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
@@ -2931,7 +2945,8 @@ Now beat the real level.`, this.coachY());
   }
 
   /** One-time lesson bubble over a home screen (r17): text, a pulsing ring on the target, GOT IT. */
-  lesson(id: string, c: Phaser.GameObjects.Container, text: string, at: { x: number; y: number; r: number }, bubbleY: number) {
+  roadLessonDone: (() => void) | null = null;
+  lesson(id: string, c: Phaser.GameObjects.Container, text: string, at: { x: number; y: number; r: number }, bubbleY: number, noButton = false) {
     const m = this.meta;
     if ((m.lessons ??= {})[id]) return;
     sfx.lessonPop();
@@ -2942,7 +2957,7 @@ Now beat the real level.`, this.coachY());
     const h = 70 + lines * 38;
     b.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-(W - 60) / 2, -h / 2, W - 60, h, 24).fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 60) / 2 + 4, -h / 2 + 4, W - 68, h - 8, 21));
     b.add(this.add.text(-(W - 60) / 2 + 30, -h / 2 + 22, text, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533', lineSpacing: 6, wordWrap: { width: W - 280 } }));
-    const ok = this.add.text((W - 60) / 2 - 30, h / 2 - 30, 'GOT IT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 16, y: 8 } }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+    const ok = this.add.text((W - 60) / 2 - 30, h / 2 - 30, noButton ? '' : 'GOT IT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 16, y: 8 } }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
     b.add(ok);
     const done = () => {
       m.lessons![id] = true;
@@ -3025,13 +3040,15 @@ Now beat the real level.`, this.coachY());
       hit.on('pointerup', () => {
         if (Math.abs(dragDist) > 12) return;
         if (n > cur) return this.showToast(`FINISH LEVEL ${cur} FIRST`);
+        this.roadLessonDone?.();
+        this.roadLessonDone = null;
         sfx.nodeTap();
         this.openLevelSheet(n);
       });
       road.add(hit);
     }
     // two little machines at work beside the road (one restrained fidget every 3-5 s)
-    const workers = ['worker_cannon', 'worker_coil', 'worker_bell'].filter((k) => this.hasArt(k));
+    const workers: string[] = []; // r21: no floating decorations on the road for the playtest
     workers.slice(0, 3).forEach((k, i) => {
       const n = Math.max(1, cur - 1 + i * 2);
       const wx = xs[(n - 1) % 4] > W / 2 ? 80 : W - 80;
@@ -3090,7 +3107,10 @@ Now beat the real level.`, this.coachY());
     this.drawNav(c, 'road');
     // r17 lesson 1: first road visit
     const curY = scrollY + nodeY(cur);
-    this.lesson('road', c, 'Tap the glowing level\nto see what comes next.', { x: xs[(cur - 1) % 4], y: curY, r: 80 }, Math.min(H - 360, curY + 170));
+    if (!(m.lessons ?? {}).road && cur <= 3) {
+      const done = this.lesson('road', c, `Tap Level ${cur} to play.`, { x: xs[(cur - 1) % 4], y: curY, r: 80 }, Math.max(top + 70, curY - 150), true);
+      this.roadLessonDone = done ?? null;
+    }
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
   }
@@ -3129,7 +3149,12 @@ Now beat the real level.`, this.coachY());
     const now = new Date();
     const hrs = 23 - now.getHours();
     const mins = 59 - now.getMinutes();
-    card(370, 262, today ? 'DAILY BENCH ✓' : 'DAILY BENCH', [paid ? 'Bonus collected for today' : "Today's bonus: +8 Bolts +1 Kit", `New bench in ${hrs}h ${mins}m${today ? `  ·  best ${today.targets === 3 ? `${today.time}s` : `${today.targets}/3`}` : ''}`], 0x5fbf4a, lv >= 3 || m.hardUnlocked, 3, () => this.startDaily());
+    const dailyOpen = m.playtestMode ? lv >= 10 : lv >= 3 || m.hardUnlocked;
+    card(370, 262, today ? 'DAILY BENCH ✓' : 'DAILY BENCH', [paid ? 'Bonus collected for today' : "Today's bonus: +8 Bolts +1 Kit", `New bench in ${hrs}h ${mins}m${today ? `  ·  best ${today.targets === 3 ? `${today.time}s` : `${today.targets}/3`}` : ''}`], 0x5fbf4a, dailyOpen, m.playtestMode ? 10 : 3, () => this.startDaily());
+    if (m.playtestMode) {
+      this.drawNav(c, 'events');
+      return;
+    }
     card(640, 240, 'CHALLENGE', ['3 monsters, one 135s clock, tougher.', 'No boosters. Pure skill.'], 0xe8452c, lv >= 5 || m.hardUnlocked, 5, () => this.retry(true, -1), ['Classic run ›', () => this.retry(false, -1)]);
     card(900, 240, 'REMIX', ['One big junk monster with a', 'board-attacking trick.'], 0x27a4c0, lv >= 10 || m.hardUnlocked, 10, () => this.openRemixPicker());
     this.drawNav(c, 'events');
@@ -3172,6 +3197,14 @@ Now beat the real level.`, this.coachY());
     c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
     const mt = bossDef ? bossDef.copy : MODIFIER_TEXT[def.modifier];
+    if (bossDef) {
+      const ik = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[bossDef.attack];
+      if (this.hasArt(ik)) {
+        const ic = this.add.image(76, y + 18, ik);
+        ic.setScale(48 / Math.max(ic.width, ic.height));
+        c.add(ic);
+      }
+    }
     if (mt) {
       const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8e58c9', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0);
       c.add(t);
@@ -3228,7 +3261,7 @@ Now beat the real level.`, this.coachY());
       c.add(t);
     }
     // r17 lessons 2 + 3 (one at a time, never over a live clock)
-    if (!(m.lessons ?? {}).card) this.lesson('card', c, 'Clear to earn a star.\nFaster wins earn two more.', { x: W / 2, y: top + 470, r: 130 }, top + PH - 250);
+    if (n % 10 !== 0 && !(m.lessons ?? {}).card) this.lesson('card', c, 'Clear to earn a star.\nFaster wins earn two more.', { x: W / 2, y: top + 470, r: 130 }, top + PH - 250);
     else if (n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
     const close = this.add.text(W - 70, top + 44, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerup', () => this.openTitle());
@@ -3410,7 +3443,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       } },
       { label: 'RELAY', fam: 'coil', role: 'relay', note: 'always in', tap: () => this.showToast('COIL: WAKES OTHERS IN A 2-CELL CROSS') },
       { label: 'RELAY', fam: 'bell', role: 'relay', note: 'always in', tap: () => this.showToast('BELL: WAKES OTHERS IN ITS ROW') },
-      { label: 'HELPER', fam: helper, role: helper ? FAMILY_INFO[helper].role.toLowerCase() : 'support', note: Object.keys(m.toys).length ? 'tap to change' : 'unlock by playing', tap: () => (Object.keys(m.toys).length ? this.openHelperSheet() : this.showToast('HELPERS UNLOCK THROUGH CHALLENGES')) },
+      ...(m.playtestMode ? [] : []),
+      { label: 'HELPER', fam: m.playtestMode ? null : helper, role: helper ? FAMILY_INFO[helper].role.toLowerCase() : 'support', note: Object.keys(m.toys).length ? 'tap to change' : 'unlock by playing', tap: () => (m.playtestMode ? this.showToast('HELPERS ARE OFF IN THIS PLAYTEST') : Object.keys(m.toys).length ? this.openHelperSheet() : this.showToast('HELPERS UNLOCK THROUGH CHALLENGES')) },
     ];
     slots.forEach((sl, i) => {
       const x = W / 2 + (i % 2 ? 150 : -150);
@@ -3807,22 +3841,37 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (bs && (bs.pending || bs.active)) {
       const atk = BOSSES[bs.def].attack;
       const icon = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[atk];
-      const col = { clamp: 0x8e58c9, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 }[atk];
+      const col = warnColor(atk);
       const tgt = bs.active ?? bs.pending!;
       const warn = !bs.active;
       const pulse = warn ? 0.55 + 0.45 * Math.abs(Math.sin(this.time.now / 250)) : 0.9;
       const cellsOf = (): number[] => (tgt.cells ? tgt.cells : tgt.row !== undefined ? [0, 1, 2, 3, 4].map((c) => tgt.row! * COLS + c) : tgt.col !== undefined ? [0, 1, 2, 3, 4, 5].map((r) => r * COLS + tgt.col!) : []);
+      const coral = 0xff684a, plum = 0x6a3a8a;
       for (const c of cellsOf()) {
         const { x, y } = cellXY(c);
-        if (!warn) g.fillStyle(col, 0.36).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
-        g.lineStyle(warn ? 5 : 4, col, pulse).strokeRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
+        const x0 = x - CELL / 2 + 6, y0 = y - CELL / 2 + 6, sz = CELL - 12;
+        if (warn) {
+          // dashed coral boundary, pulsing 2 Hz
+          g.lineStyle(5, coral, pulse);
+          for (let d = 0; d < sz; d += 22) {
+            g.lineBetween(x0 + d, y0, Math.min(x0 + d + 12, x0 + sz), y0).lineBetween(x0 + d, y0 + sz, Math.min(x0 + d + 12, x0 + sz), y0 + sz);
+            g.lineBetween(x0, y0 + d, x0, Math.min(y0 + d + 12, y0 + sz)).lineBetween(x0 + sz, y0 + d, x0 + sz, Math.min(y0 + d + 12, y0 + sz));
+          }
+        } else {
+          g.fillStyle(plum, 0.3).fillRoundedRect(x0, y0, sz, sz, 16);
+          g.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
+        }
+        void col;
       }
       if (tgt.boundary !== undefined) {
         const x = BX + (tgt.boundary + 1) * CELL;
-        g.lineStyle(warn ? 6 : 10, col, pulse).lineBetween(x, BY - 8, x, BY + CELL * ROWS + 8);
+        if (warn) {
+          g.lineStyle(5, coral, pulse);
+          for (let yy = BY - 8; yy < BY + CELL * ROWS + 8; yy += 26) g.lineBetween(x, yy, x, Math.min(yy + 14, BY + CELL * ROWS + 8));
+        } else g.lineStyle(14, plum, 1).lineBetween(x, BY - 8, x, BY + CELL * ROWS + 8).lineStyle(4, coral, 1).lineBetween(x - 7, BY - 8, x - 7, BY + CELL * ROWS + 8).lineBetween(x + 7, BY - 8, x + 7, BY + CELL * ROWS + 8);
       }
       const anchor = cellsOf()[0] ?? (tgt.boundary !== undefined ? tgt.boundary : 0);
-      const ac = tgt.boundary !== undefined ? { x: BX + (tgt.boundary + 1) * CELL, y: BY - 30 } : cellXY(anchor);
+      const ac = tgt.boundary !== undefined ? { x: BX + (tgt.boundary + 1) * CELL + CELL / 2 - 18, y: BY + CELL / 2 - 10 } : cellXY(anchor);
       if (this.hasArt(icon)) {
         let im = this.remixIcons.find((x) => x.texture.key === icon);
         if (!im) {
@@ -3834,7 +3883,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
       const left = warn ? Math.max(0, (bs.pending!.deadline - this.s.elapsed)) : Math.max(0, bs.active!.until - this.s.elapsed);
       this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + CELL / 2 - 24, ac.y - CELL / 2 + 20).setFontSize(26).setVisible(true);
-      this.updateLane(warn ? `${BOSSES[bs.def].name}  \u00b7  attack in ${Math.ceil(left)}` : `${{ clamp: 'CLAMPED', frost: 'FROZEN ROW', suction: 'SLURP', hot: 'HOT COLUMN', rest: 'RESTING ROW', split: 'DIVIDER' }[atk]}  \u00b7  ${left.toFixed(1)}s`, '#d9c2ff');
+      const what = { clamp: 'CLAMP', frost: 'FROST', suction: 'SUCTION', hot: 'HOT COLUMN', rest: 'REST ROW', split: 'SPLIT' }[atk];
+      const why = { clamp: 'marked machine gets stuck', frost: 'no parts land in the row', suction: 'marked machines get eaten', hot: 'shots hit half as hard', rest: 'relays wake nobody', split: 'links cannot cross' }[atk];
+      this.updateLane(warn ? `${what} IN ${left.toFixed(1)}s  \u00b7  ${why}` : `${what}  \u00b7  ${why}  \u00b7  ${left.toFixed(1)}s`, '#ffd2c8');
       void BOSS_WARN;
       return;
     }
