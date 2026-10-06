@@ -639,6 +639,46 @@ export class GameScene extends Phaser.Scene {
     this.target.setScale(this.targetBaseScale).setAngle(0).setAlpha(1).setPosition(W / 2, this.targetY);
   }
 
+  /** 5x2 mini board: dashed coral = the attack's shape; clamp/suction show the escape move. */
+  bossDiagram(atk: string) {
+    const g = this.add.graphics();
+    const cs = 38, gap = 6, x0 = -(5 * cs + 4 * gap) / 2, y0 = -(2 * cs + gap) / 2;
+    const at = (cx: number, ry: number) => ({ x: x0 + cx * (cs + gap), y: y0 + ry * (cs + gap) });
+    const coral = 0xff684a;
+    const hit = (cx: number, ry: number) =>
+      atk === 'frost' || atk === 'rest' ? ry === 0 : atk === 'hot' ? cx === 2 : atk === 'clamp' || atk === 'suction' ? cx === 1 && ry === 0 : false;
+    const dots: [number, number][] = [[0, 0], [1, 0], [3, 0], [2, 1], [4, 1], [0, 1]];
+    for (let ry = 0; ry < 2; ry++)
+      for (let cx = 0; cx < 5; cx++) {
+        const p = at(cx, ry);
+        g.fillStyle(hit(cx, ry) ? 0x6a3a8a : 0xb98a5e, hit(cx, ry) ? 0.45 : 0.35).fillRoundedRect(p.x, p.y, cs, cs, 8);
+        if (hit(cx, ry)) {
+          g.lineStyle(3, coral, 1);
+          for (let d = 0; d < cs; d += 12) {
+            g.lineBetween(p.x + d, p.y, Math.min(p.x + d + 7, p.x + cs), p.y).lineBetween(p.x + d, p.y + cs, Math.min(p.x + d + 7, p.x + cs), p.y + cs);
+            g.lineBetween(p.x, p.y + d, p.x, Math.min(p.y + d + 7, p.y + cs)).lineBetween(p.x + cs, p.y + d, p.x + cs, Math.min(p.y + d + 7, p.y + cs));
+          }
+        }
+      }
+    for (const [cx, ry] of dots) {
+      const p = at(cx, ry);
+      g.fillStyle(0x2b1d2e, 1).fillCircle(p.x + cs / 2, p.y + cs / 2, 10).fillStyle(0xfff0cf, 1).fillCircle(p.x + cs / 2, p.y + cs / 2, 7);
+    }
+    if (atk === 'split') {
+      const x = x0 + 3 * (cs + gap) - gap / 2;
+      g.lineStyle(4, coral, 1);
+      for (let yy = y0 - 6; yy < -y0 + 6; yy += 14) g.lineBetween(x, yy, x, Math.min(yy + 8, -y0 + 6));
+    }
+    if (atk === 'clamp' || atk === 'suction') {
+      // escape arrow: marked machine -> empty neighbour below-right
+      const a = at(1, 0), b = at(1, 1);
+      const ax = a.x + cs / 2, ay = a.y + cs / 2 + 12, bx = b.x + cs / 2, by = b.y + cs / 2 - 12;
+      g.lineStyle(4, 0x2a8a3a, 1).lineBetween(ax, ay, bx, by);
+      g.fillStyle(0x2a8a3a, 1).fillTriangle(bx - 7, by - 6, bx + 7, by - 6, bx, by + 4);
+    }
+    return g;
+  }
+
   hasArt(key: string) {
     return this.textures.exists(key) && this.textures.get(key).source[0]?.width > 1;
   }
@@ -3190,10 +3230,10 @@ Now beat the real level.`, this.coachY());
     if (!def) return;
     const m = this.meta;
     const hasJump = n >= BOOSTER_UNLOCK.jumpstart_kit && ((m.kits ?? 0) > 0 || Object.keys(m.grants ?? {}).some((k) => k.startsWith('kit')) || !!m.hardUnlocked);
-    const PH = hasJump ? 860 : 760;
+    const isBoss = n % 10 === 0 && n > 0;
+    const PH = (hasJump ? 860 : 760) + (isBoss ? 110 : 0); // boss cards carry the attack diagram
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
-    const isBoss = n % 10 === 0 && n > 0;
     const diff = isBoss ? 'BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';
     c.add(this.add.text(W / 2, top + 64, `LEVEL ${n}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
     if (diff) c.add(this.add.text(W / 2, top + 112, diff, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: isBoss ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 12, y: 4 } }).setOrigin(0.5));
@@ -3208,18 +3248,23 @@ Now beat the real level.`, this.coachY());
     c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
     const mt = bossDef ? bossDef.copy : MODIFIER_TEXT[def.modifier];
-    if (bossDef) {
-      const ik = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[bossDef.attack];
-      if (this.hasArt(ik)) {
-        const ic = this.add.image(76, y + 18, ik);
-        ic.setScale(48 / Math.max(ic.width, ic.height));
-        c.add(ic);
-      }
-    }
     if (mt) {
-      const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8e58c9', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0);
+      const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: bossDef ? '26px' : '22px', color: bossDef ? '#4a2a5a' : '#8e58c9', align: 'center', wordWrap: { width: W - 180 } }).setOrigin(0.5, 0);
       c.add(t);
       y += t.height + 10;
+    }
+    if (bossDef) {
+      // r22: tiny board diagram of the attack's shape, drawn in the same warning language as the fight
+      const dg = this.bossDiagram(bossDef.attack);
+      dg.setPosition(W / 2 + 30, y + 44);
+      c.add(dg);
+      const ik = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[bossDef.attack];
+      if (this.hasArt(ik)) {
+        const ic = this.add.image(W / 2 - 150, y + 44, ik);
+        ic.setScale(64 / Math.max(ic.width, ic.height));
+        c.add(ic);
+      }
+      y += 96;
     }
     // star goals: outlines until earned, with the goal under each
     const have = (m.levelStars ?? {})[String(n)] ?? 0;
@@ -3273,7 +3318,7 @@ Now beat the real level.`, this.coachY());
     }
     // r17 lessons 2 + 3 (one at a time, never over a live clock)
     if (n % 10 !== 0 && !(m.lessons ?? {}).card) this.lesson('card', c, 'Clear to earn a star.\nFaster wins earn two more.', { x: W / 2, y: top + 470, r: 130 }, top + PH - 250);
-    else if (n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
+    else if (!isBoss && n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
     const close = this.add.text(W - 70, top + 44, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerup', () => this.openTitle());
     c.add(close);

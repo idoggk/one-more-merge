@@ -210,3 +210,10 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Full-board connectivity: novice median chain 29 = packed board fires everything. Watch for "hoarding beats merging".
 - Wild ideas parked: fridge door becomes your cannon; bass-drop bell sweep on beat; Junkzilla rebuilt
   into your machine on the win screen; mega-cannon recoil causing accidental matches.
+
+### Round 22 (playtest prep)
+- Bosses share a feet baseline at 88% of stage height (max 78% wide / 80% tall); attack tints/outlines draw under machines so rank badges stay readable.
+- Lane text auto-fits, never below 26 game px (≈14 CSS px); boss copy shortened rather than shrunk further.
+- Boss levels show only the first-ever boss-warning lesson (in the bottom lane, sim paused); every other tip/lesson is deferred to a normal level; defeat clears the coach. No star/booster lessons on boss cards.
+- Boss card: a 5×2 mini-board diagram of the attack shape (dashed coral = warning), plus the escape arrow for clamp/suction.
+- ChatGPT: freeze the build once the stranger test starts; ship fixes only between cohorts.
