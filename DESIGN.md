@@ -144,6 +144,12 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **HOME** (r12): wallet bar, YOUR MACHINE (layered v10 art; per-family mastery = highest rank ever merged/fused; tiers 1-2/3-4/5-6), helper row, PLAY, Daily/Challenge/Remix, Workshop, Records/How to play. The result screen shows this run's machine instead of the old illustration.
 - **Bolts** (r12, src/core/economy.ts + tests): 6 base (30 s + 3 merges) + 4/boss + chain bonus 2/4/6 + 8 full clear; +8 first Daily; 12 onboarding once. Cosmetic chassis finishes only (20-140), so balance and records stay fair. Finishes are chassis tints for now; proper material masks are still to request from ChatGPT.
 
+## Merge fest (playtest 3: "merging must be the main thing, always something to merge, a merge fest")
+- **Matchmaker deliveries** (game.ts `matchmakerPick`): 60% of deliveries copy a lonely gadget's family AND rank, preferring the lowest 3 lonely groups. Every delivery does this when the board has no legal pair. It's a pure function of (seed, ordinal, board), so the NEXT preview stays exact.
+- **Faster supply**: 1.7 / 1.9 / 2.1 / 2.4 s. **Turret (passive cannon) damage**: 0.33 → 0.15. **HP ×1.2**.
+- Sim (200 seeds): novice 85% (was 82%), greedy 100% (was 80% without the matchmaker), cascade 40 s. Damage split: player ~66% / passive ~6-8% / kickback ~23%.
+- Daily seeds regenerated under the new rules (DAILY_VERSION 2).
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

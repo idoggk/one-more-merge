@@ -16,26 +16,29 @@ export const TUNING = {
   overdriveMerges: 6,
   overdriveDuration: 6,
   /** Fallback / last delivery interval. */
-  supplyPeriod: 3.4,
+  supplyPeriod: 2.4,
   /** Slowing delivery: [until active second, interval]. Late pressure = clock, not sorting. */
-  supplyCurve: [[15, 2.1], [45, 2.4], [90, 2.85]] as [number, number][],
+  supplyCurve: [[15, 1.7], [45, 1.9], [90, 2.1]] as [number, number][],
   /** Occupancy guard: hold deliveries in the tray at holdAt filled cells, resume at releaseAt. */
   holdAt: 25,
   releaseAt: 22,
   maxPending: 3,
+  /** Merge fest: share of deliveries that copy a lonely gadget on the board (always when no pair exists). */
+  matchShare: 0.6,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   /** Unlocked toys add these tokens to the 12-token bag. */
   toyBag: { magnet: 1, battery: 1, fan: 1 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
-  targetHp: [1200, 11250, 18000],
+  // merge fest (playtest 3): faster supply + matchmaker, HP x1.2 keeps the novice bot ~85% (DESIGN.md)
+  targetHp: [1440, 13500, 21600],
   hardHpMult: 1.4,
   /** Battery-primed cannon: next chain shot x this. */
   batteryBonus: 1.5,
   mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
-  passiveMult: 0.33,
+  passiveMult: 0.15,
   /** Kickback: target panels / big cascades drop a part that fuses with a lonely match. */
   kickback: true,
   /** false = bells never ring bells, coils never zap coils (limits whole-board chains). */

@@ -114,7 +114,7 @@ function play(seed: number, pol: Policy) {
   }
   const d = s.stats.dmgBy;
   const tot = s.stats.totalDamage || 1;
-  return { won: s.phase === 'won', time: s.elapsed, targets: s.phase === 'won' ? 3 : s.target, kickFuses, chain: s.stats.biggestChain, sat: casc ? sat / casc : 0, share: [(d.player ?? 0) / tot, (d.passive ?? 0) / tot, (d.kick ?? 0) / tot], scraps: s.stats.scraps, firstKick };
+  return { mpm: (s.stats.merges / Math.max(1, s.elapsed)) * 60, rank: s.stats.bestRank, won: s.phase === 'won', time: s.elapsed, targets: s.phase === 'won' ? 3 : s.target, kickFuses, chain: s.stats.biggestChain, sat: casc ? sat / casc : 0, share: [(d.player ?? 0) / tot, (d.passive ?? 0) / tot, (d.kick ?? 0) / tot], scraps: s.stats.scraps, firstKick };
 }
 
 const median = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : NaN);
@@ -125,15 +125,23 @@ function report(label: string, N = 200) {
     const rs = Array.from({ length: N }, (_, i) => play(i + 1, pol));
     const wins = rs.filter((r) => r.won);
     console.log(
-      `${pol.name.padEnd(18)} win ${String(wins.length).padStart(3)}/${N}  medWinTime ${median(wins.map((r) => r.time)).toFixed(1).padStart(6)}s  medTargets ${median(rs.map((r) => r.targets))}  fuses/run ${(rs.reduce((m, r) => m + r.kickFuses, 0) / N).toFixed(1)}  medChain ${median(rs.map((r) => r.chain))}  sat ${((rs.reduce((m, r) => m + r.sat, 0) / N) * 100).toFixed(0)}%  1stPanel ${median(rs.map((r) => (r.firstKick < 0 ? 999 : r.firstKick))).toFixed(0)}s  dmg p/p/k ${[0, 1, 2].map((k) => ((rs.reduce((m, r) => m + r.share[k], 0) / N) * 100).toFixed(0)).join('/')}%`,
+      `${pol.name.padEnd(18)} win ${String(wins.length).padStart(3)}/${N}  medWinTime ${median(wins.map((r) => r.time)).toFixed(1).padStart(6)}s  medTargets ${median(rs.map((r) => r.targets))}  fuses/run ${(rs.reduce((m, r) => m + r.kickFuses, 0) / N).toFixed(1)}  medChain ${median(rs.map((r) => r.chain))}  sat ${((rs.reduce((m, r) => m + r.sat, 0) / N) * 100).toFixed(0)}%  1stPanel ${median(rs.map((r) => (r.firstKick < 0 ? 999 : r.firstKick))).toFixed(0)}s  mpm ${median(rs.map((r) => r.mpm)).toFixed(0)}  bestRank ${median(rs.map((r) => r.rank))}  dmg p/p/k ${[0, 1, 2].map((k) => ((rs.reduce((m, r) => m + r.share[k], 0) / N) * 100).toFixed(0)).join('/')}%`,
     );
   }
 }
 
 const hp = (m: number) => TUNING.targetHp.map((h) => Math.round(h * m));
 const rev3 = { passiveMult: 1, kickback: false, sameFamilyRelay: true, supplyCurve: [] as [number, number][], supplyPeriod: 2.2, holdAt: 99, releaseAt: 99, targetHp: [3200, 16000, 26000] };
+const fast = { supplyCurve: [[15, 1.7], [45, 1.9], [90, 2.1]] as [number, number][], supplyPeriod: 2.4 };
 const variants: [string, Partial<typeof TUNING>][] = [
   ['current', {}],
+  ['OLD no-matchmaker', { matchShare: 0 }],
+  ['FEST fast', fast],
+  ['FEST fast p0.15', { ...fast, passiveMult: 0.15 }],
+  ['FEST HP1.2', { ...fast, passiveMult: 0.15, targetHp: hp(1.2) }],
+  ['FEST HP1.35', { ...fast, passiveMult: 0.15, targetHp: hp(1.35) }],
+  ['FEST HP1.5', { ...fast, passiveMult: 0.15, targetHp: hp(1.5) }],
+  ['FEST fast p0.15 m0.8', { ...fast, passiveMult: 0.15, matchShare: 0.8 }],
   ['current + MAGNETS', {}],
   ['REMIX vacuum', {}],
   ['REMIX twins', {}],

@@ -149,9 +149,44 @@ export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPerio
 export const odNeeded = (s: GameState) => (s.perks.includes('juice') ? 5 : TUNING.overdriveMerges);
 const odDuration = (s: GameState) => (s.perks.includes('juice') ? 8 : TUNING.overdriveDuration);
 
+/** Stateless 32-bit hash (deterministic cosmetic-free choices that peekNext can predict exactly). */
+function hash2(a: number, b: number): number {
+  let h = (a ^ Math.imul(b, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/**
+ * MERGE FEST (playtest 3, Ido: "the user must always get things that help him merge"):
+ * a share of deliveries copies a lonely gadget on the board (same family AND rank), and when the board has no
+ * legal pair at all the delivery always does. Pure function of (state, ordinal), so the NEXT preview is exact.
+ */
+export function matchmakerPick(s: GameState, ordinal: number): { family: Family; rank: number } | null {
+  if (!TUNING.matchShare) return null;
+  const counts = new Map<string, { family: Family; rank: number; n: number }>();
+  for (const g of s.grid) {
+    if (!g || g.rank >= MAX_RANK) continue;
+    const k = g.family + g.rank;
+    const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
+    e.n++;
+    counts.set(k, e);
+  }
+  const groups = [...counts.values()];
+  const lonely = groups.filter((e) => e.n % 2 === 1).sort((a, b) => a.rank - b.rank || a.family.localeCompare(b.family));
+  if (!lonely.length) return null;
+  const noPair = !groups.some((e) => e.n >= 2);
+  if (!noPair && (hash2(s.seed, ordinal) % 1000) / 1000 >= TUNING.matchShare) return null;
+  // bias toward low ranks so the board keeps flowing, but sometimes feed a high piece toward MAX
+  const pool = lonely.slice(0, Math.min(lonely.length, 3));
+  return pool[hash2(s.seed ^ 0x5bd1e995, ordinal) % pool.length];
+}
+
 /** Peek the next shipment (family + rank) without consuming RNG. */
 export function peekNext(s: GameState): { family: Family; rank: number } {
   if (s.pending.length) return { family: s.pending[0].family, rank: s.pending[0].rank };
+  const mm = matchmakerPick(s, s.shipments + 1);
+  if (mm) return mm;
   const fam = s.bag.length ? s.bag[0] : peekBag(s);
   return { family: fam, rank: nextShipmentRank(s, s.shipments + 1) };
 }
@@ -175,6 +210,11 @@ function refillBag(s: GameState) {
 const nextShipmentRank = (s: GameState, ordinal: number) => (s.perks.includes('quality') && ordinal % 4 === 0 ? 2 : 1);
 
 function generateShipment(s: GameState): Gadget {
+  const mm = matchmakerPick(s, s.shipments + 1);
+  if (mm) {
+    s.shipments++;
+    return makeGadget(s, mm.family, mm.rank);
+  }
   if (!s.bag.length) refillBag(s);
   const fam = s.bag.shift()!;
   s.shipments++;
