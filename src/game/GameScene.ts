@@ -279,7 +279,7 @@ export class GameScene extends Phaser.Scene {
     } else this.add.image(W / 2, H / 2, 'bg').setDisplaySize(W, H);
     for (let i = 0; i < ROWS * COLS; i++) {
       const { x, y } = cellXY(i);
-      this.add.image(x, y, 'slot').setDisplaySize(CELL - 6, CELL - 6);
+      this.slotImgs.push(this.add.image(x, y, 'slot').setDisplaySize(CELL - 6, CELL - 6));
     }
     this.odGlow = this.add.graphics();
     if (this.hasArt('vfx_flame')) {
@@ -422,6 +422,77 @@ export class GameScene extends Phaser.Scene {
     this.setTargetTexture();
     this.reconcile(true);
     if (s.phase === 'choice') this.time.delayedCall(200, () => this.openChoice());
+    if (s.phase === 'playing' && s.elapsed === 0 && s.stats.merges === 0) this.playRunIntro();
+  }
+
+  // ---------- level entry (playtest: "it just pops into a level") ----------
+  slotImgs: Phaser.GameObjects.Image[] = [];
+  introActive = false;
+  introTimers: Phaser.Time.TimerEvent[] = [];
+  introObjs: Phaser.GameObjects.GameObject[] = [];
+
+  /** ~1.7s, clock frozen, tap to skip: slots flip in diagonally, the starting parts drop in, the monster
+   *  steps onto its stage with its name, then MERGE! and the clock starts. */
+  playRunIntro() {
+    if (REDUCED_MOTION) return;
+    this.introActive = true;
+    this.paused = true;
+    const at = (ms: number, fn: () => void) => this.introTimers.push(this.time.delayedCall(ms, fn));
+    for (let i = 0; i < this.slotImgs.length; i++) {
+      const sl = this.slotImgs[i];
+      const sx = sl.scaleX, sy = sl.scaleY;
+      sl.setScale(0);
+      this.tweens.add({ targets: sl, scaleX: sx, scaleY: sy, duration: 180, delay: ((i % COLS) + Math.floor(i / COLS)) * 35, ease: 'Back.Out' });
+    }
+    let k = 0;
+    this.s.grid.forEach((g, i) => {
+      const v = g ? this.views.get(g.id) : undefined;
+      if (!v) return;
+      const c = cellXY(i);
+      v.setPosition(c.x, c.y - 300).setAlpha(0);
+      this.tweens.add({ targets: v, y: c.y, alpha: 1, duration: 300, delay: 260 + k++ * 55, ease: 'Back.Out', onComplete: () => this.squash(v) });
+    });
+    const t = this.target;
+    t.setX(W + 260);
+    this.tweens.add({ targets: t, x: W / 2, duration: 450, delay: 300, ease: 'Back.Out' });
+    at(760, () => {
+      sfx.panelBreak(0);
+      const label = this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
+    });
+    at(1250, () => {
+      const go = this.add.text(W / 2, BY + (CELL * ROWS) / 2, 'MERGE!', { fontFamily: 'Lilita One, Arial Black', fontSize: '110px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 16 }).setOrigin(0.5).setDepth(80).setScale(0.4);
+      this.introObjs.push(go);
+      sfx.rankUp(5);
+      this.tweens.chain({ targets: go, tweens: [{ scale: 1.12, duration: 160, ease: 'Back.Out' }, { scale: 1, duration: 120 }, { alpha: 0, scale: 1.25, duration: 260, delay: 180, ease: 'Quad.In' }], onComplete: () => go.destroy() });
+    });
+    at(1500, () => this.finishIntro(false));
+  }
+
+  finishIntro(skipped: boolean) {
+    if (!this.introActive) return;
+    this.introActive = false;
+    for (const tm of this.introTimers) tm.remove();
+    this.introTimers = [];
+    if (skipped) {
+      for (const o of this.introObjs) if (o.active) o.destroy();
+      for (const sl of this.slotImgs) {
+        this.tweens.killTweensOf(sl);
+        sl.setDisplaySize(CELL - 6, CELL - 6);
+      }
+      this.tweens.killTweensOf(this.target);
+      this.target.setX(W / 2);
+      this.s.grid.forEach((g, i) => {
+        const v = g ? this.views.get(g.id) : undefined;
+        if (!v) return;
+        this.tweens.killTweensOf(v);
+        const c = cellXY(i);
+        v.setPosition(c.x, c.y).setAlpha(1).setScale(1);
+      });
+    }
+    this.introObjs = [];
+    this.paused = false;
+    tlog.log('intro_end', { skipped });
   }
 
   setTargetTexture() {
@@ -623,6 +694,10 @@ export class GameScene extends Phaser.Scene {
       this.resultCall.remove();
       this.resultCall = null;
       this.openResult(true);
+      return;
+    }
+    if (this.introActive) {
+      this.finishIntro(true);
       return;
     }
     if (this.coach.waitingTap && !this.modal) {

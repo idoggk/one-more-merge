@@ -49,6 +49,7 @@ const states = {
       sc.meta.tips = { delivery: true, overdrive: true, full: true, clock: true, next: true };
       sc.meta.toys = {};
       sc.retry(false, -1);
+      sc.finishIntro(true);
       const s = sc.s;
       const mk = (f, r) => ({ id: s.nextId++, family: f, rank: r, cd: 30 });
       s.grid.fill(null);
@@ -57,6 +58,13 @@ const states = {
       sc.commitDrop(16, 17, s.grid[16].id);
     },
     2600,
+  ],
+  intro_mid: [
+    (sc) => {
+      sc.closeModal();
+      sc.retry(false, -1);
+    },
+    800,
   ],
   pause: [
     (sc) => {

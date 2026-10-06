@@ -21,6 +21,7 @@ await page.evaluate(() => {
   sc.coach.clear();
   Object.assign(sc.meta, { tutorialDone: true, toys: {}, tips: { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true } });
   sc.retry(false, -1);
+  sc.finishIntro(true);
   const s = sc.s;
   const mk = (f, r) => ({ id: s.nextId++, family: f, rank: r, cd: 99 });
   s.grid.fill(null);
