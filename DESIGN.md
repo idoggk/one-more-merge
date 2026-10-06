@@ -105,6 +105,15 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
   merges transfer primers with OR; primers survive moves; Fan never moves queued/activated pieces.
 - **Playtest kit**: local event log (pause → export playtest log) + PLAYTEST.md observation script.
 
+## Round 6 — REMIX (ChatGPT REMIX_RULES.md v1, implemented)
+Post-win mode: one 135 s fight vs one big opponent, single HP pool (sum of the 3 normal HPs = 30,450), same board/supply/Kickback,
+0–1 helper toy. Warnings at 18/36/…/126 s, 3 s countdown, never stack, wait for falling Kickback parts, target cells (not ids).
+- **Vacuum Viper**: marks the lowest-rank part; removes whatever occupies that cell at the deadline (move it away to save it).
+- **Toaster Twins**: marks the highest-rank part; shoves it to the first free U/R/D/L neighbour (open/close neighbours to steer; jam if none).
+- **Grand Piano-saurus**: marks the fullest row; locks it 4 s (no merges/moves/deliveries/relays into it; blocks helper rays).
+Records: fastest win per opponent + loadout. Sim (200 seeds): cascade bot 58% / 100% / 100% (vacuum / twins / piano), builder 100% ~68–73 s,
+novice ≤ 6% — intended as the harder post-win mode. Note: one HP pool means no perk picks in Remix.
+
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
 1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·
 3 two payload cannons in one chain: **Magnet** · 4 magnet makes a match: **Battery** · 5 battery discharge in a win: **Fan** ·
