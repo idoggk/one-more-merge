@@ -2,12 +2,15 @@
 // Usage: node tools/import-art.mjs <folder-with-pngs>
 // Trims transparent padding so every sprite fills its box the same way, then resizes.
 import sharp from 'sharp';
-import { readdirSync, mkdirSync, statSync } from 'node:fs';
+import { readdirSync, mkdirSync, statSync, unlinkSync } from 'node:fs';
 import { join, basename, extname } from 'node:path';
 
 const src = process.argv[2];
 const out = 'src/assets/art';
 mkdirSync(out, { recursive: true });
+// not shipped in the game bundle: store frames + app icon source
+const extraOut = 'assets_src';
+mkdirSync(extraOut, { recursive: true });
 
 const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
 // de-duplicate by file name (packs overlap); later paths win
@@ -134,7 +137,8 @@ for (const f of files) {
     console.log('skip (unmapped):', f);
     continue;
   }
-  const dest = join(out, `${key}.png`);
+  const shipped = !(key.startsWith('store_') || key === 'app_icon');
+  const dest = join(shipped ? out : extraOut, `${key}.png`);
   const s = SIZE(key);
   if (s !== null && KEEP_ASPECT(key)) {
     const buf = await sharp(f).trim({ threshold: 10 }).png().toBuffer();
@@ -153,6 +157,10 @@ for (const f of files) {
       .extend({ top: 4, bottom: 4, left: 4, right: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png({ compressionLevel: 9, palette: false })
       .toFile(dest);
+  }
+  if (shipped) {
+    await sharp(dest).webp({ quality: 86, alphaQuality: 90, effort: 5 }).toFile(dest.replace(/\.png$/, '.webp'));
+    unlinkSync(dest);
   }
   console.log(`${basename(f)} -> ${key}`);
 }
