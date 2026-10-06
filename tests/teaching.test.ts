@@ -34,3 +34,22 @@ describe('teaching levels (ChatGPT r18)', () => {
     expect(s.noKickback).toBe(false);
   });
 });
+
+describe('locked cells (r19 bug)', () => {
+  it('no gadget ever ends up in a CORNERS-masked cell over a full level of play', async () => {
+    const { legalPairs } = await import('../src/core/game');
+    for (const L of [12, 14, 20]) {
+      const s = newLevel(LEVELS[L - 1]);
+      let next = 1;
+      while (s.phase === 'playing' && s.elapsed < 60) {
+        if (s.elapsed >= next) {
+          next += 1;
+          const p = legalPairs(s);
+          if (p.length) drop(s, p[0][0], p[0][1], s.grid[p[0][0]]!.id);
+        }
+        tick(s);
+        for (const c of s.masked ?? []) expect(s.grid[c]).toBeNull();
+      }
+    }
+  });
+});

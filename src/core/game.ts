@@ -33,6 +33,8 @@ export interface Stats {
   totalDamage: number;
   dmgBy: Partial<Record<DmgSource, number>>;
   kickFuses: number;
+  /** Extra parts delivered by the low-board packet controller (r19). */
+  packetExtras?: number;
   /** Two-piece rescue deliveries (no legal pair and nothing lonely to copy). */
   rescues?: number;
 }
@@ -293,8 +295,23 @@ function refillBag(s: GameState) {
 
 const nextShipmentRank = (s: GameState, ordinal: number) => (s.perks.includes('quality') && ordinal % 4 === 0 ? 2 : 1);
 
-function generateShipment(s: GameState): Gadget {
-  const mm = matchmakerPick(s, s.shipments + 1);
+/** Parts per delivery deadline (ChatGPT r19): 3 below round(14*C/30) occupied, 2 below round(18*C/30), else 1.
+ *  C = usable cells. L1 stays at 1; L2 starts after its first real chain; other levels after 8 active seconds. */
+export function packetSize(s: GameState): number {
+  if (!TUNING.packets || s.phase === 'tutorial') return 1;
+  if (s.level === 1) return 1;
+  if (s.level === 2 && s.stats.biggestChain < 2) return 1;
+  if (s.level !== undefined && s.level > 2 && s.elapsed < 8) return 1;
+  const cap = ROWS * COLS - (s.masked?.length ?? 0);
+  const occ = s.grid.reduce((n, g) => n + (g ? 1 : 0), 0) + s.pending.length;
+  if (occ < Math.round((14 * cap) / 30)) return 3;
+  if (occ < Math.round((18 * cap) / 30)) return 2;
+  return 1;
+}
+
+/** `copy` false = an ordinary bag token (packet extras never duplicate a lonely high piece). */
+function generateShipment(s: GameState, copy = true): Gadget {
+  const mm = copy ? matchmakerPick(s, s.shipments + 1) : null;
   if (mm) {
     s.shipments++;
     return makeGadget(s, mm.family, mm.rank);
@@ -580,7 +597,11 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     s.supplyTimer -= dt;
     if (s.supplyTimer <= 0) {
       s.supplyTimer += supplyPeriod(s);
+      // round 19 packet controller: a low board gets 2-3 parts per deadline (same interval), a healthy board 1
+      const size = packetSize(s);
       s.pending.push(generateShipment(s));
+      for (let k = 1; k < size && s.pending.length < TUNING.maxPending; k++) s.pending.push(generateShipment(s, false));
+      if (size > 1) s.stats.packetExtras = (s.stats.packetExtras ?? 0) + size - 1;
       admitPending(s, reserved, ev);
     }
   } else s.supplyTimer = 0;
@@ -609,8 +630,9 @@ function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent
 
 export function legalPairs(s: GameState): [number, number][] {
   const out: [number, number][] = [];
+  const lk = locked(s);
   for (let i = 0; i < s.grid.length; i++)
-    for (let j = i + 1; j < s.grid.length; j++) if (canMerge(s.grid[i], s.grid[j], s)) out.push([i, j]);
+    for (let j = i + 1; j < s.grid.length; j++) if (canMerge(s.grid[i], s.grid[j], s) && !lk.has(i) && !lk.has(j)) out.push([i, j]);
   return out;
 }
 
@@ -712,7 +734,8 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
   const fam = ([shooterOf(s), 'coil', 'bell'] as Family[])[rng.int(3)];
   s.kickRng = rng.state;
   const g = makeGadget(s, fam, 1);
-  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i));
+  const lk = locked(s); // never drop a part into a blocked corner / locked row (bug found by the r19 fast-bot sweep)
+  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i) && !lk.has(i));
   if (slot >= 0) {
     s.grid[slot] = g;
     ev.push({ type: 'kickback', idx: slot, into: -1, gadget: g });

@@ -27,6 +27,7 @@ for (const L of [8, 12, 15, 21, 33]) {
   for (const pol of pols) {
     const occ: number[] = [], chains: number[] = [];
     let wins = 0;
+    const times: number[] = [];
     for (let k = 1; k <= 40; k++) {
       const s = newLevel(def);
       const rng = new Rng(k * 977);
@@ -44,8 +45,11 @@ for (const L of [8, 12, 15, 21, 33]) {
         }
         tick(s);
       }
-      if (s.phase === 'won') wins++;
+      if (s.phase === 'won') {
+        wins++;
+        times.push(s.elapsed);
+      }
     }
-    console.log(`L${L} ${pol.name.padEnd(15)} win ${String(Math.round((wins / 40) * 100)).padStart(3)}%  median occupancy ${median(occ)}/30  median chain ${median(chains)}  p90 chain ${[...chains].sort((a, b) => a - b)[Math.floor(chains.length * 0.9)] ?? 0}`);
+    console.log(`L${L} ${pol.name.padEnd(15)} win ${String(Math.round((wins / 40) * 100)).padStart(3)}%  median occupancy ${median(occ)}/30  median chain ${median(chains)}  p90 chain ${[...chains].sort((a, b) => a - b)[Math.floor(chains.length * 0.9)] ?? 0}  median clear ${median(times).toFixed(1)}s`);
   }
 }

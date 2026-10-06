@@ -27,6 +27,8 @@ export const TUNING = {
   holdAt: 25,
   releaseAt: 22,
   maxPending: 3,
+  /** Round 19: low-board delivery packets (2-3 parts per deadline) so fast players keep a board to build on. */
+  packets: true,
   /** Merge fest: share of deliveries that copy a lonely gadget on the board (always when no pair exists). */
   matchShare: 0.6,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
