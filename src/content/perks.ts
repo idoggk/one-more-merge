@@ -20,3 +20,5 @@ export const FAMILY_INFO = {
 } as const;
 
 export const TARGET_NAMES = ['TIN CAN', 'MAD FRIDGE', 'JUNKZILLA', 'VACUUM VIPER', 'TOASTER TWINS', 'PIANO-SAURUS'];
+/** Short HUD names (ChatGPT r16: the header has room for ~10 characters). */
+export const SHORT_NAMES = ['TIN CAN', 'FRIDGE', 'JUNKZILLA', 'VIPER', 'TWINS', 'PIANO'];

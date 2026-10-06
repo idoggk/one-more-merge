@@ -57,7 +57,7 @@ export class Coach {
     this.onNext = opts.next?.onNext ?? null;
     this.waitingTap = !!opts.tap || !!opts.next;
     this.box.setPosition(this.width / 2, y).setVisible(true).setAlpha(0).setScale(0.85);
-    this.scene.tweens.add({ targets: this.box, alpha: 1, scale: 1, duration: 220, ease: 'Back.Out' });
+    this.scene.tweens.add({ targets: this.box, alpha: 1, scale: 1, duration: 120, ease: 'Back.Out' });
     if (opts.tap) this.scene.tweens.add({ targets: this.tapText, alpha: { from: 1, to: 0.35 }, duration: 600, yoyo: true, repeat: -1 });
     if (opts.ms) this.hideTimer = this.scene.time.delayedCall(opts.ms, () => this.hide());
   }
