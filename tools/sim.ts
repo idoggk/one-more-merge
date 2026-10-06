@@ -136,9 +136,6 @@ const fast = { supplyCurve: [[15, 1.7], [45, 1.9], [90, 2.1]] as [number, number
 const variants: [string, Partial<typeof TUNING>][] = [
   ['current', {}],
   ['LEGACY rules', { clarity: false }],
-  ['CLARITY HPx0.7', { targetHp: hp(0.7) }],
-  ['CLARITY HPx0.6', { targetHp: hp(0.6) }],
-  ['CLARITY HPx0.5', { targetHp: hp(0.5) }],
   ['CLARITY HP1.0', { targetHp: hp(1 / 1.2) }],
   ['CLARITY HP0.9', { targetHp: hp(0.9 / 1.2) }],
   ['OLD no-matchmaker', { matchShare: 0 }],

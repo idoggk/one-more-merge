@@ -34,7 +34,8 @@ export const TUNING = {
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
   // merge fest (playtest 3): faster supply + matchmaker, HP x1.2 keeps the novice bot ~85% (DESIGN.md)
-  targetHp: [1440, 13500, 21600],
+  // clarity ruleset (fixed shapes, no hidden coil bonus) deals less: HP x0.55 restores novice ~86% (DESIGN.md)
+  targetHp: [800, 7400, 11900],
   hardHpMult: 1.4,
   /** Battery-primed cannon: next chain shot x this. */
   batteryBonus: 1.5,

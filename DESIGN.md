@@ -150,6 +150,11 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Sim (200 seeds): novice 85% (was 82%), greedy 100% (was 80% without the matchmaker), cascade 40 s. Damage split: player ~66% / passive ~6-8% / kickback ~23%.
 - Daily seeds regenerated under the new rules (DAILY_VERSION 2).
 
+## Clarity ruleset (playtest 3: "I don't understand what each machine does"; ChatGPT r14)
+- One fixed, visible shape per family; rank changes damage only. Coil = a 2-cell + cross. Bell = its row. Cannon = shooter (weak auto shots, full shot when chained). No hidden coil charge bonus. MAX mechanics are off (kept behind TUNING.clarity=false / legacy tests).
+- UI: tap a gadget for an inspect card (role icon, one power line, reach mini-map, damage, try-this; pauses the clock). A held Coil/Bell shades its reach.
+- Sim: without the coil bonus the novice bot fell to 20%. HP ×0.55 (800 / 7400 / 11900) restores ~86% (interpolated from ×0.6 = 82% and ×0.5 = 92%). Daily seeds v3.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

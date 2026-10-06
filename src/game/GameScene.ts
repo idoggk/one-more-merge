@@ -2778,9 +2778,9 @@ export class GameScene extends Phaser.Scene {
       {
         title: 'CHAINS',
         rows: [
-          { icons: ['coil_2'], text: 'COIL: zaps the tiles next to it and\npowers them up. Rank 2+ reaches 2 tiles.' },
-          { icons: ['bell_2'], text: 'BELL: rings its whole row.\nRank 2 also up/down, rank 3 the column.' },
-          { icons: ['cannon_3'], text: 'CANNON: fires by itself slowly.\nWoken by a chain it hits HARD.' },
+          { icons: ['coil_2'], text: 'COIL (relay): wakes OTHER gadgets\nup to 2 cells away in a + shape.' },
+          { icons: ['bell_2'], text: 'BELL (relay): wakes every OTHER\ngadget in its row.' },
+          { icons: ['cannon_3'], text: 'CANNON (shooter): weak shots alone.\nWoken by a chain: a FULL shot.' },
         ],
       },
       {
