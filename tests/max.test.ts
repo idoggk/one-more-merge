@@ -36,7 +36,7 @@ describe('MAX signatures (ChatGPT round 9)', () => {
     expect(r2.edges.some((e) => e.kind === 'bridge')).toBe(false);
   });
 
-  it('Bell Cross Chime: wakes one diagonal non-bell neighbour, never a bell', () => {
+  it('Bell Corner Chime: wakes one diagonal non-bell neighbour, never a bell', () => {
     const grid = empty();
     const root = idxOf(3, 3);
     grid[root] = g('cannon', 2);

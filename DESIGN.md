@@ -120,6 +120,22 @@ novice ≤ 6% — intended as the harder post-win mode. Note: one HP pool means 
 6 fan push makes a match: Mad Fridge Remix · 7 win with a new toy + all originals: Blueprint Bench.
 Unlocks are optional loadout picks; no Bolts / +% damage until players show demand.
 
+## Rounds 8-10: first playtest, MAX signatures, polish
+- **Playtest 1 (Ido, phone)**: loved the core loop; ranks hard to tell apart (tried mixed-rank merges); wanted a real tutorial;
+  the boss win "just pops up". Fixes: dice-pip rank plates (ChatGPT r8), non-matches fade to 45% while holding, a mismatch
+  explains "2 ≠ 3", a 6-step coached tutorial on the real start board (every chain validated against the engine), first-time tips,
+  How-to-play pages, and a boss-defeat sequence that is skippable after 600 ms.
+- **MAX (rank 6) signatures** (ChatGPT r9, tests in max.test.ts): Cannon Backfire, Coil Arc Bridge, Bell **Corner Chime**
+  (one diagonal non-bell, UL>UR>DL>DR, because our bells already ring their column; ChatGPT r10 accepted it and rejected
+  "rings twice"), Magnet Twin Pull, Battery Split Charge, Fan Long Gust. They add wake-ups, never damage. Rank 5 is cosmetic.
+- **Feel** (r9 timings): drag tilt and shadow, squash 1.06/0.94, delivery arcs, rolling HP, modal enter 220 ms / exit 140 ms,
+  shake only for payloads or MAX, music ducks ~3 dB under chain chords, prefers-reduced-motion disables shake, HiDPI rendering.
+- **r10 "make the spectacle predictable"**: held-merge preview (the first 3 real links at 35%, MAX endpoints in gold,
+  a 35% ghost of the result); sticky drop target (enter 70% / leave 90%); one feedback lane (MAX name 450 ms, no floating
+  labels); sprites normalized by their alpha bounds (76% height, 84% width cap, shared baseline); idle life limited to
+  2 gadgets per 1.8-2.6 s beat; monster sway ±0.5°; 12% cream wash on the stage; a 180 ms cue on a Kickback's match;
+  ONE MORE! scaled to ≥52 px. No new art needed.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

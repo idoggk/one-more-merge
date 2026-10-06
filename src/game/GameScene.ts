@@ -30,7 +30,6 @@ export const W = 720;
 const CELL = 124;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
-const SPRITE = 108;
 const SCRAP_X = W - 92;
 // Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
 // so there are no letterbox bands. Header pinned top, tray pinned bottom, board + event lane above it, stage gets the rest.
@@ -265,6 +264,7 @@ export class GameScene extends Phaser.Scene {
     this.stage = this.add.image(W / 2, STAGE_TOP + STAGE_H / 2, 'dot').setVisible(false);
     const sm = this.make.graphics({}, false).fillStyle(0xffffff).fillRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
     this.stage.setMask(sm.createGeometryMask());
+    this.add.rectangle(W / 2, STAGE_TOP + STAGE_H / 2, W - 140, STAGE_H, 0xfbe7c6, 0.12);
     this.stageFrame = this.add.graphics();
     // target
     this.target = this.add.image(W / 2, TARGET_Y, 'target_0');
@@ -395,8 +395,7 @@ export class GameScene extends Phaser.Scene {
     const c = this.add.container(0, 0) as GadgetView;
     c.gid = g.id;
     const img = this.add.image(0, 0, `${g.family}_${g.rank}`);
-    const f = img.frame;
-    img.setScale(Math.min(SPRITE / f.width, SPRITE / f.height));
+    this.fitSprite(img);
     const badge = this.add.graphics();
     const col = FAMILY_INFO[g.family].color;
     // big rank badge (playtest: ranks were hard to tell apart)
@@ -426,6 +425,48 @@ export class GameScene extends Phaser.Scene {
     c.add(parts);
     c.setSize(CELL, CELL).setDepth(10);
     return c;
+  }
+
+  /** Visible (alpha) bounds of a texture, in source pixels; cached. Packs v1-v9 have different padding. */
+  visCache = new Map<string, { x: number; y: number; w: number; h: number }>();
+  visBounds(key: string) {
+    let b = this.visCache.get(key);
+    if (b) return b;
+    const src = this.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const W0 = src.width, H0 = src.height;
+    b = { x: 0, y: 0, w: W0, h: H0 };
+    try {
+      const k = Math.min(1, 160 / Math.max(W0, H0));
+      const cw = Math.max(1, Math.round(W0 * k)), ch = Math.max(1, Math.round(H0 * k));
+      const cv = document.createElement('canvas');
+      cv.width = cw;
+      cv.height = ch;
+      const cx = cv.getContext('2d', { willReadFrequently: true })!;
+      cx.drawImage(src, 0, 0, cw, ch);
+      const d = cx.getImageData(0, 0, cw, ch).data;
+      let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+      for (let y = 0; y < ch; y++)
+        for (let x = 0; x < cw; x++)
+          if (d[(y * cw + x) * 4 + 3] > 24) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+      if (x1 >= x0) b = { x: x0 / k, y: y0 / k, w: (x1 - x0 + 1) / k, h: (y1 - y0 + 1) / k };
+    } catch {
+      /* odd source: fall back to the full canvas */
+    }
+    this.visCache.set(key, b);
+    return b;
+  }
+
+  /** ChatGPT r10: occupied height 76% of the slot, width capped at 84%, every gadget standing on one baseline. */
+  fitSprite(img: Phaser.GameObjects.Image) {
+    const b = this.visBounds(img.texture.key);
+    img.setScale(Math.min((CELL * 0.76) / b.h, (CELL * 0.84) / b.w));
+    img.setOrigin((b.x + b.w / 2) / img.width, (b.y + b.h) / img.height);
+    img.setPosition(0, CELL * 0.38);
   }
 
   /** Landing squash: quick flatten then springy settle. */
@@ -491,6 +532,16 @@ export class GameScene extends Phaser.Scene {
     const r = Math.floor((y - BY) / CELL);
     return c >= 0 && c < COLS && r >= 0 && r < ROWS ? r * COLS + c : -1;
   }
+  stickyCell(x: number, y: number) {
+    const inside = (i: number, frac: number) => {
+      const c = cellXY(i);
+      return Math.abs(x - c.x) < (CELL * frac) / 2 && Math.abs(y - c.y) < (CELL * frac) / 2;
+    };
+    if (this.hoverIdx >= 0 && inside(this.hoverIdx, 0.9)) return this.hoverIdx;
+    const c = this.cellAt(x, y);
+    return c >= 0 && inside(c, 0.7) ? c : -1;
+  }
+
   overScrap(x: number, y: number) {
     return Math.abs(x - SCRAP_X) < 70 && Math.abs(y - TRAY_Y) < 50;
   }
@@ -546,7 +597,7 @@ export class GameScene extends Phaser.Scene {
     this.dragView.setAngle(Phaser.Math.Linear(this.dragView.angle, Phaser.Math.Clamp(dx * 0.9, -14, 14), 0.35));
     if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
     this.dragShadow.setPosition(p.worldX, p.worldY + 22).setVisible(true);
-    const h = this.cellAt(p.worldX, p.worldY);
+    const h = this.stickyCell(p.worldX, p.worldY);
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
       this.drawHeld();
@@ -599,6 +650,7 @@ export class GameScene extends Phaser.Scene {
     const from = this.dragIdx;
     const id = this.dragId;
     const view = this.dragView;
+    const dest = this.hoverIdx >= 0 ? this.hoverIdx : upIdx;
     this.dragShadow?.setVisible(false);
     view?.setAngle(0);
     this.dragIdx = -1;
@@ -609,8 +661,8 @@ export class GameScene extends Phaser.Scene {
       const needsHold = g && g.rank >= 3;
       if (!needsHold || this.scrapHold >= 0.25) this.doScrap(from, id);
       else this.snapBack(view, from);
-    } else if (upIdx >= 0 && upIdx !== from) {
-      if (!this.commitDrop(from, upIdx, id)) this.snapBack(view, from);
+    } else if (dest >= 0 && dest !== from) {
+      if (!this.commitDrop(from, dest, id)) this.snapBack(view, from);
     } else this.snapBack(view, from);
     this.dragView = null;
     this.scrapHold = 0;
@@ -737,12 +789,13 @@ export class GameScene extends Phaser.Scene {
         for (const act of p.activations) {
           if (act.idx === hov) continue;
           const { x, y } = cellXY(act.idx);
-          g.fillStyle(0xfff3a0, 0.35).fillRoundedRect(x - CELL / 2 + 8, y - CELL / 2 + 8, CELL - 16, CELL - 16, 18);
+          g.fillStyle(0xfff3a0, 0.22).fillRoundedRect(x - CELL / 2 + 8, y - CELL / 2 + 8, CELL - 16, CELL - 16, 18);
         }
+        this.drawPreview(p, hov, a);
         const { x, y } = cellXY(hov);
         this.previewText.setText(`${p.count} FIRE`).setPosition(x, y - 78).setVisible(true);
-      }
-    }
+      } else this.drawPreview(null, -1, a);
+    } else this.drawPreview(null, -1, null);
     if (this.hintPair && src < 0) {
       for (const i of this.hintPair) {
         const { x, y } = cellXY(i);
@@ -750,6 +803,44 @@ export class GameScene extends Phaser.Scene {
         g.lineStyle(5, 0xffffff, 0.5 + 0.5 * Math.sin(t * Math.PI * 2)).strokeCircle(x, y, 56);
       }
     }
+  }
+
+  /** ChatGPT r10 #1: show WHY a merge is good. The first three real links at 35%, MAX endpoints emphasised,
+   *  and a 35% ghost of the resulting rank. Stationary; fades in over 80ms whenever the destination changes. */
+  previewG?: Phaser.GameObjects.Graphics;
+  ghost?: Phaser.GameObjects.Image;
+  previewKey = '';
+  drawPreview(p: CascadeResult | null, hov: number, a: Gadget | null) {
+    if (!this.previewG) this.previewG = this.add.graphics().setDepth(31);
+    if (!this.ghost) this.ghost = this.add.image(0, 0, 'dot').setDepth(9).setVisible(false);
+    const key = p ? `${hov}:${p.count}` : '';
+    if (key === this.previewKey) return;
+    this.previewKey = key;
+    const g = this.previewG.clear();
+    this.ghost.setVisible(false);
+    if (!p || !a) return;
+    const MAXK = new Set(['backfire', 'bridge', 'chime']);
+    const links = p.edges.filter((e) => e.from !== e.to);
+    links.slice(0, 3).forEach((e) => {
+      const f = cellXY(e.from), t = cellXY(e.to);
+      g.lineStyle(9, 0xffffff, 0.35).lineBetween(f.x, f.y, t.x, t.y).fillStyle(0xffffff, 0.35).fillCircle(t.x, t.y, 12);
+    });
+    for (const e of links) {
+      if (!MAXK.has(e.kind)) continue;
+      const f = cellXY(e.from), t = cellXY(e.to);
+      g.lineStyle(10, 0xffcf33, 0.55).lineBetween(f.x, f.y, t.x, t.y).lineStyle(6, 0xffcf33, 0.8).strokeCircle(t.x, t.y, 50);
+    }
+    const nk = `${a.family}_${Math.min(a.rank + 1, MAX_RANK)}`;
+    if (this.textures.exists(nk)) {
+      const c = cellXY(hov);
+      this.ghost.setTexture(nk).setVisible(true);
+      this.fitSprite(this.ghost);
+      this.ghost.setPosition(c.x, c.y + CELL * 0.38);
+    }
+    g.setAlpha(0);
+    this.ghost.setAlpha(0);
+    this.tweens.add({ targets: g, alpha: 1, duration: 80, ease: 'Quad.Out' });
+    this.tweens.add({ targets: this.ghost, alpha: 0.35, duration: 80, ease: 'Quad.Out' });
   }
 
   // ---------- simulation loop ----------
@@ -784,9 +875,12 @@ export class GameScene extends Phaser.Scene {
   lastTickSec = -1;
   resultCall: Phaser.Time.TimerEvent | null = null;
   resultAt = 0;
+  idleNext = 0;
+  idleBeat = 0;
+  idleActs = new Map<number, number>();
   animateIdle() {
     const t = this.time.now / 1000;
-    if (this.target && !this.tweens.isTweening(this.target) && this.s.phase === 'playing') this.target.setAngle(Math.sin(t * 1.4) * 1.6);
+    if (this.target && !this.tweens.isTweening(this.target) && this.s.phase === 'playing') this.target.setAngle(Math.sin((t * Math.PI * 2) / 2.4) * 0.5);
     if (this.s.phase === 'playing' && this.s.timeLeft < 10 && this.s.target >= 0) {
       const sec = Math.ceil(this.s.timeLeft);
       if (sec !== this.lastTickSec) {
@@ -807,15 +901,29 @@ export class GameScene extends Phaser.Scene {
       this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x + 38, y - 38, 15).fillStyle(0x9be05a, 1).fillCircle(x + 38, y - 38, 12);
       this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x + 40, y - 48, x + 32, y - 36, x + 39, y - 36).fillTriangle(x + 37, y - 40, x + 44, y - 40, x + 36, y - 28);
     });
-    this.s.grid.forEach((g, idx) => {
+    // idle life (ChatGPT r10 #8): only two gadgets act at once, each for ~420ms, on a 1800-2600ms cosmetic beat
+    const now = this.time.now;
+    const holding = this.dragIdx >= 0 && this.moved;
+    if (now >= this.idleNext && !holding) {
+      const ids = this.s.grid.filter((g): g is Gadget => !!g).map((g) => g.id);
+      this.idleBeat++;
+      for (let k = 0; k < 2 && ids.length; k++) this.idleActs.set(ids[(this.idleBeat * 7 + k * 13) % ids.length], now);
+      this.idleNext = now + 1800 + ((this.idleBeat * 389) % 800);
+    }
+    this.s.grid.forEach((g) => {
       if (!g) return;
       const v = this.views.get(g.id);
       if (!v || v === this.dragView || this.tweens.isTweening(v)) return;
       const img = v.list[0] as Phaser.GameObjects.Image;
       const base = (img.getData('base') as number) ?? img.scaleX;
       img.setData('base', base);
-      let sx = 1 + Math.sin(t * 2.2 + idx) * 0.015;
-      let sy = 1 - Math.sin(t * 2.2 + idx) * 0.015;
+      const t0 = this.idleActs.get(g.id);
+      const k = t0 !== undefined && !holding && now - t0 < 420 ? Math.sin((Math.PI * (now - t0)) / 420) : 0;
+      if (t0 !== undefined && now - t0 >= 420) this.idleActs.delete(g.id);
+      let sx = 1 + (g.family === 'cannon' ? 0.015 * k : 0);
+      let sy = 1 + (g.family === 'cannon' ? -0.015 * k : 0.015 * k);
+      img.setAngle(g.family === 'bell' ? Math.sin((now - (t0 ?? 0)) / 40) * 2 * k : 0);
+      img.y = CELL * 0.38 - (g.family === 'coil' ? k : 0);
       if (g.family === 'cannon' && this.s.phase === 'playing' && g.cd < 0.35) {
         const k = 1 - g.cd / 0.35;
         sx += 0.06 * k;
@@ -1125,6 +1233,15 @@ export class GameScene extends Phaser.Scene {
             this.ring(into.x, into.y, 0xffcf33, 90, 14, 320);
             this.showEvent('KICKBACK!  A loose part upgraded yours', '#ffd24a', 1800);
           } else spawn.set(e.gadget.id, { x: land.x, y: land.y - 80 });
+          const landedAt = e.into >= 0 ? e.into : e.idx;
+          this.time.delayedCall(420, () => {
+            const lg = this.s.grid[landedAt];
+            const m = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && canMerge(lg, b)) : -1;
+            if (m >= 0) {
+              const c = cellXY(m);
+              this.ring(c.x, c.y, 0xffffff, 60, 8, 180);
+            }
+          });
           needReconcile = true;
           break;
         }        case 'threshold':
@@ -1239,7 +1356,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /** MAX signature visuals: reveal the resolver's chosen target (Backfire puff, Arc Bridge bolt, Cross Chime ring). */
+  /** MAX signature visuals: reveal the resolver's chosen target (Backfire puff, Arc Bridge bolt, Corner Chime ring). */
   signatureFx(kind: 'backfire' | 'bridge' | 'chime' | 'magnet' | 'battery' | 'fan', a: { x: number; y: number }, b: { x: number; y: number }) {
     const key = { backfire: 'max_backfire', bridge: 'max_bridge', chime: 'max_chime', magnet: 'max_twin', battery: 'max_split', fan: 'max_gust' }[kind];
     const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
@@ -1252,8 +1369,9 @@ export class GameScene extends Phaser.Scene {
       const col = kind === 'backfire' ? 0xff5a3c : kind === 'bridge' ? 0x6ff3ff : kind === 'magnet' ? 0xe07af0 : kind === 'battery' ? 0x9be05a : kind === 'fan' ? 0xbfe8ff : 0xffe066;
       this.ring(b.x, b.y, col, 70, 10, 260);
     }
-    const label = { backfire: 'BACKFIRE!', bridge: 'ARC BRIDGE!', chime: 'CROSS CHIME!', magnet: 'TWIN PULL!', battery: 'SPLIT CHARGE!', fan: 'LONG GUST!' }[kind];
-    this.floatText(b.x, b.y - 50, label, '#ffffff', 24, 150);
+    const label = { backfire: 'BACKFIRE!', bridge: 'ARC BRIDGE!', chime: 'CORNER CHIME!', magnet: 'TWIN PULL!', battery: 'SPLIT CHARGE!', fan: 'LONG GUST!' }[kind];
+    this.showEvent(`MAX  ·  ${label}`, '#ffd24a', 450);
+    this.ring(b.x, b.y, 0xffcf33, 64, 8, 80);
   }
 
   /** One-shot sprite effect from ChatGPT's VFX set. Returns false if the art is missing (caller falls back). */
@@ -1625,8 +1743,8 @@ export class GameScene extends Phaser.Scene {
     return c;
   }
 
-  button(c: Phaser.GameObjects.Container, x: number, y: number, w: number, label: string, color: number, cb: () => void) {
-    const b = this.add.container(x, y);
+  button(c: Phaser.GameObjects.Container, x: number, y: number, w: number, label: string, color: number, cb: () => void, size = 1) {
+    const b = this.add.container(x, y).setScale(size);
     const artKey = color === 0x5fbf4a ? 'btn_green' : color === 0x27a4c0 ? 'btn_blue' : color === 0xe8452c ? 'btn_red' : '';
     const g: Phaser.GameObjects.GameObject =
       artKey && this.hasArt(artKey)
@@ -1641,11 +1759,11 @@ export class GameScene extends Phaser.Scene {
       unlockAudio();
       startMusic();
       sfx.click();
-      b.setScale(0.95);
+      b.setScale(0.95 * size);
       if (g instanceof Phaser.GameObjects.Image && this.hasArt(artKey + '_pressed')) g.setTexture(artKey + '_pressed');
     });
     b.on('pointerup', () => {
-      b.setScale(1);
+      b.setScale(size);
       if (g instanceof Phaser.GameObjects.Image) g.setTexture(artKey);
       cb();
     });
@@ -1741,7 +1859,7 @@ export class GameScene extends Phaser.Scene {
     if (rec !== null) lines.push(`Record${s.remix ? ' (remix)' : s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
     if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
     c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
-    this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry());
+    this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.2);
   }
 
   activeToys(): Family[] {

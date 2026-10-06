@@ -173,7 +173,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         return;
       }
     } else if (a.family === 'bell') {
-      // Cross Chime: our MAX bell already rings its row + column, so it chimes one diagonal neighbour (UL, UR, DL, DR)
+      // Corner Chime (ChatGPT r10 name): our MAX bell already rings its row + column, so it chimes one diagonal neighbour (UL, UR, DL, DR)
       for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
         if (!inside(r + dr, c + dc)) continue;
         const n = at(r + dr, c + dc);
