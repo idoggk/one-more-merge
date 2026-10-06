@@ -85,6 +85,27 @@ const states = {
   showcase: [(sc) => { sc.meta.lessons = {}; sc.startShowcase(7, 21); }, 1500],
   workshop_stage: [(sc) => { Object.assign(sc.meta, { bolts: 900 }); sc.openTitle('machine'); sc.openWorkshop('night_shift'); }, 800],
   machine_night: [(sc) => { Object.assign(sc.meta, { stage: 'night_shift', ornament: 'violet_pennant' }); sc.openTitle('machine'); }, 900],
+  mid_l12: [
+    (sc) => {
+      Object.assign(sc.meta, { tips: { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true } });
+      sc.startLevel(12);
+      sc.finishIntro(true);
+      const g = window.__omm;
+      clearInterval(window.__bot);
+      window.__bot = setInterval(() => {
+        const s = sc.s;
+        if (s.phase !== 'playing') return clearInterval(window.__bot);
+        for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) {
+          const a = s.grid[i], b = s.grid[j];
+          if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; }
+        }
+      }, 900);
+      void g;
+    },
+    8000,
+  ],
+  mid_l15: [(sc) => { clearInterval(window.__bot); sc.startLevel(15); sc.finishIntro(true); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return clearInterval(window.__bot); for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 1100); }, 17500],
+  mid_l21: [(sc) => { clearInterval(window.__bot); sc.startLevel(21); sc.finishIntro(true); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return clearInterval(window.__bot); for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 800); }, 20000],
   stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [
