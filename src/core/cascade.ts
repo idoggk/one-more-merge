@@ -54,6 +54,10 @@ export interface CascadeOpts {
   reserved?: ReadonlySet<number>;
   /** Piano-locked cells: never relay targets; block helper rays like reserved cells. */
   locked?: ReadonlySet<number>;
+  /** Boss effects (r20): shooters in hotCol deal x0.5; relays in restRow emit no wakes; no relay wake crosses splitB|splitB+1. */
+  hotCol?: number;
+  restRow?: number;
+  splitB?: number;
 }
 
 /**
@@ -251,8 +255,11 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
     const kind = a.family;
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
+    const [ar, ac] = rc(idx);
+    if (opts.restRow !== undefined && ar === opts.restRow) continue; // resting row: deals damage, wakes nobody
     for (const to of routeCells(idx, a.family, a.rank, opts.perks)) {
       if (!grid[to] || to === idx || lockedSet.has(to)) continue;
+      if (opts.splitB !== undefined && ac <= opts.splitB !== to % COLS <= opts.splitB) continue; // Junkzilla's divider
       if (!TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
       edges.push({ from: idx, to, kind });
       if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
@@ -267,7 +274,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     a.charge = charge.get(a.idx) ?? 1;
     const perk = isShooter(a.family) && opts.perks.includes('twin') ? 1.4 : 1;
     const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime;
+    const hot = isShooter(a.family) && opts.hotCol !== undefined && a.idx % COLS === opts.hotCol ? 0.5 : 1;
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot;
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');

@@ -42,6 +42,11 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   else if (/^rocket_r0([78])$/.test(n)) [key, box] = [`rocket_${n.slice(-1)}`, 256];
   else if (/^workshop_background_(\w+)$/.test(n)) [key, box, trim] = [`stagebg_${n.replace('workshop_background_', '')}`, 720, false];
   else if (n === 'ui_secondary_brass_plate') [key, box] = ['btn_brass2', 512];
+  else if (/^boss_(tin_can_king|fridge_overlord|viper_queen|twin_toasters|piano_saurus_rex|junkzilla)_(intact|cracked|critical)$/.test(n)) [key, box] = [n, 512];
+  else if (/^boss_telegraph_(\w+)$/.test(n)) [key, box] = [`btg_${n.replace('boss_telegraph_', '')}`, 128];
+  else if (n === 'boss_name_card_plate') [key, box] = ['boss_card', 720];
+  else if (n === 'boss_fx_armor_break') [key, box] = ['bfx_armor', 400];
+  else if (n === 'boss_fx_phase_crack') [key, box] = ['bfx_crack', 400];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];
   else if (n === 'hero_mount_socket') [key, box] = ['hero_socket', 160];

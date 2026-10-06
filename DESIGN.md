@@ -187,6 +187,16 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Bug found by the fast-bot sweep: the kickback plain-part fallback could land in a CORNERS-masked/locked cell (stuck, unmergeable). Fixed; legalPairs ignores locked cells; regression test plays full levels.
 - All 60 levels recalibrated (400 + 400 held-out seeds). UI: flames off the bottom lane, no floating RANK text (badge pulse), passive hits are particles only, the merge streak lives in the lane, the ornament stands on the chassis.
 
+## Round 20: chapter bosses (L10/20/30/40/50/60)
+- One boss, one HP bar, a 90 s clock, 16 starters (PAIR8 plus a seeded second set); the boss attack replaces the level modifier; packets unchanged. Armor phases > 66% / 66-33% / <= 33% are cosmetic (sprite intact/cracked/critical, ARMOR BROKEN) with no damage gates. Attacks: warning at 8 s then every 12 s, 2.5 s telegraph, effect 2/3/4 s by phase (src/core/boss.ts):
+  - L10 Tin Can King CLAMP (highest-rank cell: no drag out / no drop in)
+  - L20 Fridge Overlord FROST ROW (no deliveries or drops into the row)
+  - L30 Viper Queen SUCTION (1/1/2 lowest-rank parts removed)
+  - L40 Twin Toasters HOT COLUMN (shooters there ×0.5)
+  - L50 Piano-saurus Rex REST ROW (relays there wake nobody)
+  - L60 Junkzilla SPLIT (no relay wake crosses the divider)
+- Presentation: boss name-card intro, BUILD YOUR MACHINE, telegraph icon + shape + countdown, a first-ever boss-warning explainer, a BOSS tag on the road and level card, the boss rule on the card. Calibrated: L10 81%, L20-60 69-78% novice (400 + held-out). Tested: setup, clamp, the three cascade modifiers, suction, full fights with no duplicate ids.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

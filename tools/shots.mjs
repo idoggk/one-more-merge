@@ -106,6 +106,9 @@ const states = {
   ],
   mid_l15: [(sc) => { clearInterval(window.__bot); sc.startLevel(15); sc.finishIntro(true); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return clearInterval(window.__bot); for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 1100); }, 17500],
   mid_l21: [(sc) => { clearInterval(window.__bot); sc.startLevel(21); sc.finishIntro(true); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return clearInterval(window.__bot); for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 800); }, 20000],
+  boss_card: [(sc) => { clearInterval(window.__bot); Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 2])), hardUnlocked: true }); sc.openTitle('road'); sc.openLevelSheet(10); }, 800],
+  boss_fight: [(sc) => { clearInterval(window.__bot); sc.startLevel(10); sc.finishIntro(true); sc.meta.tips = { ...sc.meta.tips, x_boss: true, x_chain: true }; window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return clearInterval(window.__bot); for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 2500); }, 9000],
+  boss_phase: [(sc) => { sc.s.hp = sc.s.maxHp * 0.6; }, 1500],
   stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [

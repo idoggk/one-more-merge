@@ -49,8 +49,10 @@ const winRate = (def: LevelDef, offset = 0) => {
 const out = JSON.parse(readFileSync('src/content/levels.json', 'utf8'));
 for (const def of LEVELS) {
   if (def.level < from || def.level > to) continue;
+  if (args.includes('--bosses') && def.level % 10 !== 0) continue;
   // levels 1-3 are onboarding: near-certain wins
-  const target = def.level <= 3 ? 0.97 : RHYTHM[(def.level - 1) % 10];
+  // r20 bosses: L10 80%, L20-60 72%
+  const target = def.level <= 3 ? 0.97 : def.level % 10 === 0 ? (def.level === 10 ? 0.8 : 0.72) : RHYTHM[(def.level - 1) % 10];
   const before = winRate(def);
   // HP scales damage-needed linearly; search a multiplier in [0.2, 8]
   let lo = 0.2, hi = 8, best = 1;

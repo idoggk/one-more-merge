@@ -2,6 +2,7 @@ import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
+import { bossBlocked, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 import { isShooter, type CascadeResult, type Family, type Gadget, type Grid, type PerkId } from './types';
 
@@ -22,7 +23,8 @@ export type GameEvent =
   | { type: 'newTarget'; target: number }
   | { type: 'overdriveEnd' }
   | { type: 'end'; won: boolean }
-  | RemixEvent;
+  | RemixEvent
+  | BossEvent;
 
 export interface Stats {
   merges: number;
@@ -96,6 +98,8 @@ export interface GameState {
   bagOverride?: Record<string, number>;
   noKickback?: boolean;
   noOverdrive?: boolean;
+  /** Chapter boss fight (r20): levels 10/20/30/40/50/60. */
+  boss?: BossState | null;
   /** Untimed, unrewarded high-rank introduction (r17). */
   showcase?: boolean;
   /** Jumpstart applied this attempt. */
@@ -210,6 +214,22 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     const corners = mod === 'CORNERS_2' ? [idxOf(0, 0), idxOf(5, 4)] : [idxOf(0, 0), idxOf(0, 4), idxOf(5, 0), idxOf(5, 4)];
     s.masked = corners;
     for (const c of corners) s.grid[c] = null;
+  }
+  if (def.level % 10 === 0 && !def.teach) {
+    const bi = def.level / 10 - 1;
+    s.boss = { def: bi % BOSSES.length, next: 0, pending: null, active: null, phaseShown: 0 };
+    s.remix = null;
+    s.masked = [];
+    s.timeLeft = s.levelTime = BOSS_CLOCK;
+    // second PAIR8 set at seeded empty cells (same families and rank)
+    const extra: Family[] = [];
+    for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][]) for (let k = 0; k < cells.length; k++) extra.push(fam === 'shooter' ? shooterOf(s) : (fam as Family));
+    const rng = new Rng(def.seed ^ 0xb055);
+    const empties = s.grid.map((g, i) => (g ? -1 : i)).filter((i) => i >= 0);
+    rng.shuffle(empties);
+    extra.forEach((f, k) => {
+      if (k < empties.length) s.grid[empties[k]] = makeGadget(s, f, def.starting_rank);
+    });
   }
   s.supplyTimer = supplyPeriod(s);
   return s;
@@ -372,6 +392,8 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   if (!a || a.id !== fromId) return { ok: false, events: ev };
   const lk = locked(s);
   if (lk.has(from) || lk.has(to)) return { ok: false, events: ev };
+  const bb = bossBlocked(s.boss);
+  if (bb.noDrag.has(from) || bb.noDrop.has(to)) return { ok: false, events: ev };
   const b = s.grid[to];
   if (canMerge(a, b, s)) {
     if (s.mergeCd > 0) return { ok: false, events: ev };
@@ -410,7 +432,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s) });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss) });
   applyMoves(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
@@ -508,6 +530,7 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
   if (final) {
     s.phase = 'won';
     if (s.remix) s.remix.pending = s.remix.lock = null;
+    if (s.boss) s.boss.pending = s.boss.active = null;
     ev.push({ type: 'end', won: true });
     return;
   }
@@ -572,7 +595,8 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     g.cd -= dt;
     if (g.cd <= 1e-9) {
       g.cd += cannonPeriod(s);
-      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult;
+      const hot = bossCascadeMods(s.boss).hotCol;
+      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
       ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
       applyDamage(s, dmg, ev, 'passive');
       if (s.phase !== 'playing') return ev;
@@ -590,6 +614,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 
   // Remix attacks (resolve before deliveries; warnings wait for falling Kickback parts)
   if (s.remix) ev.push(...remixTick(s.remix, s.grid, s.elapsed, s.drops.length === 0, new Set([...reserved, ...dropReserved(s)])));
+  if (s.boss) ev.push(...bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)])));
 
   // Supply
   admitPending(s, reserved, ev);
@@ -620,7 +645,7 @@ function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent
   if (occ >= TUNING.holdAt) s.trayHold = true;
   else if (occ <= TUNING.releaseAt) s.trayHold = false;
   if (!s.pending.length || s.trayHold) return;
-  const promised = new Set([...dropReserved(s), ...locked(s)]);
+  const promised = new Set([...dropReserved(s), ...locked(s), ...bossBlocked(s.boss).noDrop]);
   const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i) && !promised.has(i));
   if (slot < 0) return;
   const g = s.pending.shift()!;
@@ -644,7 +669,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s) });
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss) });
 }
 
 export function serialize(s: GameState): string {
@@ -723,7 +748,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s) });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss) });
     applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });

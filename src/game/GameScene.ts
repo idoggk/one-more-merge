@@ -33,6 +33,7 @@ import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
+import { BOSSES, bossPhase, BOSS_WARN } from '../core/boss';
 
 export const W = 720;
 const CELL = 124;
@@ -553,6 +554,21 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: t, x: W / 2, duration: 450, delay: 300, ease: 'Back.Out' });
     at(760, () => {
       sfx.panelBreak(0);
+      if (this.s.boss) {
+        const bd = BOSSES[this.s.boss.def];
+        const card = this.add.container(W / 2, STAGE_TOP + STAGE_H - 60).setDepth(85);
+        if (this.hasArt('boss_card')) {
+          const pl = this.add.image(0, 0, 'boss_card');
+          pl.setScale(560 / pl.width);
+          card.add(pl);
+        }
+        card.add(this.add.text(0, -6, bd.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 8 }).setOrigin(0.5));
+        card.setScale(0.6).setAlpha(0);
+        this.introObjs.push(card);
+        this.tweens.chain({ targets: card, tweens: [{ scale: 1, alpha: 1, duration: 260, ease: 'Back.Out' }, { alpha: 0, duration: 250, delay: 900 }], onComplete: () => card.destroy() });
+        this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
+        return;
+      }
       const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
@@ -594,7 +610,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   setTargetTexture() {
-    const key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
+    let key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
+    const b = this.s.boss;
+    if (b) {
+      const bk = `boss_${BOSSES[b.def].id}_${['intact', 'cracked', 'critical'][bossPhase(this.s.hp, this.s.maxHp)]}`;
+      if (this.hasArt(bk)) key = bk;
+    }
     this.target.setTexture(key);
     // remix opponents reuse the three backdrops (alley / kitchen / junkyard)
     const sk = `stage_${Math.max(0, this.s.target) % 3}`;
@@ -604,7 +625,7 @@ export class GameScene extends Phaser.Scene {
       this.stageFrame.clear().lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
     }
     const tex = this.target.frame;
-    this.targetBaseScale = Math.min(280 / tex.width, (STAGE_H - 24) / tex.height);
+    this.targetBaseScale = b ? Math.min(330 / tex.width, (STAGE_H * 0.86) / tex.height) : Math.min(280 / tex.width, (STAGE_H - 24) / tex.height);
     this.target.setScale(this.targetBaseScale).setAngle(0).setAlpha(1).setPosition(W / 2, TARGET_Y);
   }
 
@@ -1475,7 +1496,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${SHORT_NAMES[s.target]}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${s.boss ? 'BOSS' : SHORT_NAMES[s.target]}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1757,6 +1778,51 @@ Now beat the real level.`, this.coachY());
         case 'remixUnlock':
           sfx.click();
           break;
+        case 'bossWarn': {
+          sfx.invalid();
+          this.hitTarget(false);
+          tlog.log('boss_warn', { attack: e.attack });
+          // first-ever boss warning: stop the clock and show what to do (r20)
+          const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
+          if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)) }]);
+          break;
+        }
+        case 'bossHit': {
+          tlog.log('boss_hit', { attack: e.attack, removed: e.removedIds?.length ?? 0 });
+          if (e.attack === 'suction' && e.removedIds?.length) {
+            for (const rid of e.removedIds) {
+              const v = this.views.get(rid);
+              if (v) {
+                this.views.delete(rid);
+                this.tweens.add({ targets: v, x: this.target.x, y: this.target.y, scale: 0.1, angle: 540, duration: 420, ease: 'Quad.In', onComplete: () => v.destroy() });
+              }
+            }
+            this.showEvent('SLURPED!', '#ffd2c8', 1100);
+          } else {
+            sfx.panelBreak(1);
+            const nm = { clamp: 'CLAMPED', frost: 'ROW FROZEN', hot: 'HOT COLUMN', rest: 'RELAYS RESTING', split: 'BOARD SPLIT', suction: 'MISSED!' }[e.attack];
+            this.showEvent(nm, '#d9c2ff', 1100);
+          }
+          needReconcile = true;
+          break;
+        }
+        case 'bossEnd':
+          sfx.click();
+          break;
+        case 'bossPhase': {
+          // armor phase (r20): crack + shards on the stage only, sprite swaps under dust, ARMOR BROKEN in the lane
+          sfx.panelBreak(2);
+          const t = this.target;
+          this.fx('bfx_crack', t.x, t.y - 20, 260, { dur: 320, grow: 1.2, depth: 58 });
+          this.time.delayedCall(80, () => {
+            this.fx('bfx_armor', t.x, t.y, 300, { dur: 360, grow: 1.4, depth: 59 });
+            this.chunks.explode(8, t.x, t.y - 30);
+            this.setTargetTexture();
+          });
+          this.time.delayedCall(240, () => this.showEvent('ARMOR BROKEN!', '#ffd24a', 1200));
+          tlog.log('boss_phase', { phase: e.phase });
+          break;
+        }
         case 'scrap':
           needReconcile = true;
           break;
@@ -2944,9 +3010,10 @@ Now beat the real level.`, this.coachY());
           st.setScale(30 / Math.max(st.width, st.height)).setAlpha(k < stars[String(n)] ? 1 : 0.25);
           road.add(st);
         }
-      if (def.difficulty !== 'NORMAL' && n >= cur) {
+      if ((def.difficulty !== 'NORMAL' || n % 10 === 0) && n >= cur) {
         const side = x > W / 2 ? -1 : 1;
-        const tag = this.add.text(x + side * (size / 2 + 12), y, def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
+        const isB = n % 10 === 0;
+        const tag = this.add.text(x + side * (size / 2 + 12), y, isB ? 'BOSS' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isB ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
         road.add(tag);
       }
       if (n === cur) {
@@ -3017,7 +3084,7 @@ Now beat the real level.`, this.coachY());
     strip.on('pointerup', () => this.showToast(`CLEAR LEVEL ${chapter * 10} FOR THE CHAPTER ${chapter} MEDAL`));
     c.add(strip);
     const def = LEVELS[cur - 1];
-    const tag = def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
+    const tag = cur % 10 === 0 ? '  ·  BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
     const play = this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.drawNav(c, 'road');
@@ -3090,19 +3157,21 @@ Now beat the real level.`, this.coachY());
     const PH = hasJump ? 860 : 760;
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
-    const diff = def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';
+    const isBoss = n % 10 === 0 && n > 0;
+    const diff = isBoss ? 'BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';
     c.add(this.add.text(W / 2, top + 64, `LEVEL ${n}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
-    if (diff) c.add(this.add.text(W / 2, top + 112, diff, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 12, y: 4 } }).setOrigin(0.5));
+    if (diff) c.add(this.add.text(W / 2, top + 112, diff, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: isBoss ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 12, y: 4 } }).setOrigin(0.5));
     const ti = MONSTER_INDEX[def.monster] ?? 0;
-    const tk = `target_${ti}`;
+    const bossDef = isBoss ? BOSSES[(n / 10 - 1) % BOSSES.length] : null;
+    const tk = bossDef && this.hasArt(`boss_${bossDef.id}_intact`) ? `boss_${bossDef.id}_intact` : `target_${ti}`;
     if (this.textures.exists(tk)) {
       const im = this.add.image(W / 2, top + 250, tk);
       im.setScale(180 / Math.max(im.width, im.height));
       c.add(im);
     }
-    c.add(this.add.text(W / 2, top + 362, `${TARGET_NAMES[ti]}  ·  ${def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
-    const mt = MODIFIER_TEXT[def.modifier];
+    const mt = bossDef ? bossDef.copy : MODIFIER_TEXT[def.modifier];
     if (mt) {
       const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8e58c9', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0);
       c.add(t);
@@ -3111,7 +3180,8 @@ Now beat the real level.`, this.coachY());
     // star goals: outlines until earned, with the goal under each
     const have = (m.levelStars ?? {})[String(n)] ?? 0;
     const sg = this.add.graphics();
-    const goals = ['Clear', `≤${Math.floor(def.time_seconds * 0.8)}s`, `≤${Math.floor(def.time_seconds * 0.6)}s`];
+    const T = bossDef ? 90 : def.time_seconds;
+    const goals = ['Clear', `≤${Math.floor(T * 0.8)}s`, `≤${Math.floor(T * 0.6)}s`];
     for (let k = 0; k < 3; k++) {
       const sx = W / 2 + (k - 1) * 110;
       this.starShape(sg, sx, y + 40, 30, k < have);
@@ -3732,6 +3802,42 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const g = this.remixG.clear();
     for (const im of this.remixIcons) im.setVisible(false);
     this.remixText.setVisible(false);
+    // BOSS telegraph + active effect (r20): one icon + the exact shape; countdown bubble; no full-board wash
+    const bs = this.s.boss;
+    if (bs && (bs.pending || bs.active)) {
+      const atk = BOSSES[bs.def].attack;
+      const icon = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[atk];
+      const col = { clamp: 0x8e58c9, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 }[atk];
+      const tgt = bs.active ?? bs.pending!;
+      const warn = !bs.active;
+      const pulse = warn ? 0.55 + 0.45 * Math.abs(Math.sin(this.time.now / 250)) : 0.9;
+      const cellsOf = (): number[] => (tgt.cells ? tgt.cells : tgt.row !== undefined ? [0, 1, 2, 3, 4].map((c) => tgt.row! * COLS + c) : tgt.col !== undefined ? [0, 1, 2, 3, 4, 5].map((r) => r * COLS + tgt.col!) : []);
+      for (const c of cellsOf()) {
+        const { x, y } = cellXY(c);
+        if (!warn) g.fillStyle(col, 0.22).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
+        g.lineStyle(warn ? 5 : 4, col, pulse).strokeRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 16);
+      }
+      if (tgt.boundary !== undefined) {
+        const x = BX + (tgt.boundary + 1) * CELL;
+        g.lineStyle(warn ? 6 : 10, col, pulse).lineBetween(x, BY - 8, x, BY + CELL * ROWS + 8);
+      }
+      const anchor = cellsOf()[0] ?? (tgt.boundary !== undefined ? tgt.boundary : 0);
+      const ac = tgt.boundary !== undefined ? { x: BX + (tgt.boundary + 1) * CELL, y: BY - 30 } : cellXY(anchor);
+      if (this.hasArt(icon)) {
+        let im = this.remixIcons.find((x) => x.texture.key === icon);
+        if (!im) {
+          im = this.add.image(0, 0, icon).setDepth(48);
+          this.remixIcons.push(im);
+        }
+        im.setVisible(true).setPosition(ac.x - CELL / 2 + 18, ac.y - CELL / 2 + 18);
+        im.setScale(44 / Math.max(im.width, im.height));
+      }
+      const left = warn ? Math.max(0, (bs.pending!.deadline - this.s.elapsed)) : Math.max(0, bs.active!.until - this.s.elapsed);
+      this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + CELL / 2 - 24, ac.y - CELL / 2 + 20).setFontSize(26).setVisible(true);
+      this.updateLane(warn ? `${BOSSES[bs.def].name}  \u00b7  attack in ${Math.ceil(left)}` : `${{ clamp: 'CLAMPED', frost: 'FROZEN ROW', suction: 'SLURP', hot: 'HOT COLUMN', rest: 'RESTING ROW', split: 'DIVIDER' }[atk]}  \u00b7  ${left.toFixed(1)}s`, '#d9c2ff');
+      void BOSS_WARN;
+      return;
+    }
     // CORNERS modifiers: permanently blocked cells
     for (const c of this.s.masked ?? []) {
       const { x, y } = cellXY(c);
