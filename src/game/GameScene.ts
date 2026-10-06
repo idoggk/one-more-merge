@@ -75,6 +75,8 @@ interface Meta {
   sound: boolean;
   hints: boolean;
   music: boolean;
+  /** Camera shake on big hits (pause-menu toggle; default on). */
+  shake?: boolean;
   hardUnlocked: boolean;
   bestTimeHard: number | null;
   /** Unlocked toys and whether each is switched on for runs. */
@@ -1247,7 +1249,7 @@ export class GameScene extends Phaser.Scene {
         }        case 'threshold':
           sfx.panelBreak(e.target);
           this.chunks.explode(18, this.target.x, this.target.y - 40);
-          this.shake(140, 0.006);
+          this.shake(90, 0.0025);
           if (e.level >= 2) this.setTargetTexture();
           break;
         case 'kill':
@@ -1281,7 +1283,7 @@ export class GameScene extends Phaser.Scene {
             this.showEvent('SHOVE!  Part pushed aside', '#ffd24a', 1400);
           } else if (e.kind === 'piano' && e.outcome === 'hit') {
             sfx.panelBreak(2);
-            this.shake(160, 0.006);
+            this.shake(90, 0.0025);
             this.showEvent('ROW LOCKED  ·  4s', '#d9c2ff', 1200);
           } else this.showEvent(e.outcome === 'jam' ? 'JAMMED!  Nowhere to shove it' : 'MISSED!  You saved it', '#b8f07a', 1600);
           void c0;
@@ -1498,7 +1500,7 @@ export class GameScene extends Phaser.Scene {
     if (odStart) {
       sfx.overdrive();
       this.showEvent('OVERDRIVE!  Cannons fire fast', '#ffb070', 2200);
-      this.cameras.main.flash(140, 255, 140, 0, false);
+      this.softFlash(0xff8c00, 0.22, 160);
     }
     // root snap
     const root = cellXY(r.rootIdx);
@@ -1586,8 +1588,8 @@ export class GameScene extends Phaser.Scene {
       }
       // camera: no shake for small merges, a 1-2px kick for real payloads, a 3px hit when a MAX machine fired
       const hasMax = r.activations.some((a) => a.rank >= MAX_RANK);
-      if (hasMax) this.shake(100, 0.006);
-      else if (big) this.shake(70, 0.003);
+      if (hasMax) this.shake(90, 0.003);
+      else if (big) this.shake(60, 0.0015);
       haptic(big ? 30 : 12);
       const huge = r.count >= 10;
       if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
@@ -1604,7 +1606,7 @@ export class GameScene extends Phaser.Scene {
     this.coach.clear();
     // 1) hit-stop flash + slight zoom on the boss
     this.time.delayedCall(250, () => {
-      this.cameras.main.flash(180, 255, 255, 255);
+      this.softFlash(0xffffff, 0.35, 200);
       this.tweens.add({ targets: tgt, scale: this.targetBaseScale * 1.12, duration: 260, ease: 'Quad.Out' });
       haptic(80);
       this.tweens.killTweensOf(tgt);
@@ -1626,7 +1628,7 @@ export class GameScene extends Phaser.Scene {
     // 3) the big one: collapse, junk rains onto the board
     this.time.delayedCall(1350, () => {
       sfx.kill();
-      this.shake(450, 0.02);
+      this.shake(200, 0.005);
       this.ring(tgt.x, tgt.y, 0xffcf33, 320, 26, 520);
       this.ring(tgt.x, tgt.y, 0xffffff, 220, 16, 380);
       this.chunks.explode(90, tgt.x, tgt.y);
@@ -1686,7 +1688,7 @@ export class GameScene extends Phaser.Scene {
         this.sparks.explode(50, tgt.x, tgt.y);
         this.ring(tgt.x, tgt.y, 0xffcf33, 260, 24, 420);
         this.ring(tgt.x, tgt.y, 0xffffff, 180, 14, 300);
-        this.shake(320, 0.014);
+        this.shake(150, 0.004);
         haptic(60);
         this.floatText(W / 2, TARGET_Y - 40, demo ? 'SMASHED!' : final ? 'JUNKZILLA DOWN!' : 'DESTROYED!', '#ffcf33', 60, 300, 'banner_destroyed');
         this.tweens.add({
@@ -1727,9 +1729,15 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: m, alpha: 0, y: 24, duration: 140, ease: 'Cubic.In', onComplete: () => m.destroy() });
   }
 
+  /** Partial-opacity full-screen flash (a full-white camera flash read as a crash on the phone). */
+  softFlash(color: number, alpha: number, ms: number) {
+    const r = this.add.rectangle(W / 2, H / 2, W, H, color, alpha).setDepth(95);
+    this.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => r.destroy() });
+  }
+
   /** Camera shake, skipped entirely under prefers-reduced-motion. */
   shake(ms: number, intensity: number) {
-    if (!REDUCED_MOTION) this.cameras.main.shake(ms, intensity);
+    if (!REDUCED_MOTION && this.meta.shake !== false) this.cameras.main.shake(ms, intensity);
   }
 
   panel(h: number) {
@@ -2203,7 +2211,20 @@ export class GameScene extends Phaser.Scene {
       }
     });
     c.add(ex);
-    const how = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 700 : 596), 'How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const linkY = top + (this.s.phase === 'tutorial' ? 700 : 596);
+    const shk = this.add
+      .text(W / 2 + 140, linkY, `Shake: ${this.meta.shake === false ? 'OFF' : 'ON'}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    shk.on('pointerup', () => {
+      sfx.click();
+      this.meta.shake = this.meta.shake === false;
+      store(META_KEY, JSON.stringify(this.meta));
+      shk.setText(`Shake: ${this.meta.shake === false ? 'OFF' : 'ON'}`);
+      if (this.meta.shake) this.shake(90, 0.003);
+    });
+    c.add(shk);
+    const how = this.add.text(W / 2 - 120, linkY, 'How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     how.on('pointerup', () => {
       sfx.click();
       this.openHowTo(0, () => this.openPause());
