@@ -81,8 +81,9 @@ const hoarder: Policy = {
 
 let simToys: Family[] = [];
 let simRemix = -1;
+let simShooter: Family = 'cannon';
 function play(seed: number, pol: Policy) {
-  const s = newGame(seed, false, false, simToys, simRemix);
+  const s = newGame(seed, false, false, simToys, simRemix, simShooter);
   const rng = new Rng(seed * 7 + 1);
   let next = pol.every;
   let kickFuses = 0;
@@ -136,6 +137,8 @@ const fast = { supplyCurve: [[15, 1.7], [45, 1.9], [90, 2.1]] as [number, number
 const variants: [string, Partial<typeof TUNING>][] = [
   ['current', {}],
   ['LEGACY rules', { clarity: false }],
+  ['TEAM ROCKET', {}],
+  ['TEAM BASE', {}],
   ['CLARITY HP1.0', { targetHp: hp(1 / 1.2) }],
   ['CLARITY HP0.9', { targetHp: hp(0.9 / 1.2) }],
   ['OLD no-matchmaker', { matchShare: 0 }],
@@ -161,6 +164,7 @@ for (const [label, v] of variants) {
   if (only && !label.includes(only)) continue;
   Object.assign(TUNING, base, v);
   simRemix = label.includes('REMIX') ? (label.includes('vacuum') ? 3 : label.includes('twins') ? 4 : 5) : -1;
+  simShooter = label.includes('ROCKET') ? 'rocket' : 'cannon';
   simToys = label.includes('MAGNETS') ? ['magnet'] : label.includes('ALLTOYS') ? ['magnet', 'battery', 'fan'] : [];
   report(label);
 }

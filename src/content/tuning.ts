@@ -9,7 +9,8 @@ export const TUNING = {
    *  Bell = its row, no coil charge bonus, rank only changes damage, MAX signatures off (visual only). false = legacy. */
   clarity: true,
   rankMult: 2.25,
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0 } as Record<string, number>,
+  // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,

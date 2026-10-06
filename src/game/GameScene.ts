@@ -83,6 +83,8 @@ interface Meta {
   music: boolean;
   /** Bolts balance at the last Workshop visit (new-item dot). */
   workshopSeenBolts?: number;
+  /** Team shooter slot (Cannon, or Rocket once unlocked by the first full clear). */
+  shooter?: Family;
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
   swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
@@ -2263,7 +2265,7 @@ export class GameScene extends Phaser.Scene {
         : `Beat ${s.target} of 3  ·  ${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`;
     txt(top + 128, sub, 30, newBest ? '#2f8a3a' : '#5a4a5a');
     if (hasMachineArt(this)) {
-      const pic = buildMachine(this, W / 2, top + 390, 430, this.runBest, s.toys[0] ?? null)!;
+      const pic = buildMachine(this, W / 2, top + 390, 430, this.runBest, s.toys[0] ?? null, s.shooter ?? 'cannon')!;
       c.add(pic);
       const sc0 = pic.scale;
       this.tweens.add({ targets: pic, scale: { from: sc0 * 0.7, to: sc0 }, duration: 380, ease: 'Back.Out' });
@@ -2373,7 +2375,7 @@ export class GameScene extends Phaser.Scene {
     this.closeModal();
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
-    this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys(), remixTarget));
+    this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys(), remixTarget, this.teamShooter()));
   }
 
   /** Daily Bench (ChatGPT r11): today's validated seed, normal rules, no helper toy, unlimited retries. */
@@ -2452,7 +2454,7 @@ export class GameScene extends Phaser.Scene {
     const helper = this.activeToys()[0] ?? null;
     // day 0: three rank-1 starter modules instead of an empty chassis (display baseline, not earned mastery)
     const shown = empty ? { cannon: 1, coil: 1, bell: 1 } : (m.mastery ?? {});
-    const mach = buildMachine(this, W / 2, feetY, mWidth, shown, helper)!;
+    const mach = buildMachine(this, W / 2, feetY, mWidth, empty ? { ...shown, [this.teamShooter()]: 1 } : shown, helper, this.teamShooter())!;
     this.applyFinish(mach);
     c.add(mach);
     const hit = this.add.zone(W / 2, feetY - mWidth * 0.25, mWidth * 0.95, mWidth * 0.5).setInteractive({ useHandCursor: true });
@@ -2479,10 +2481,12 @@ export class GameScene extends Phaser.Scene {
     const hg = this.add.graphics().fillStyle(0x2b1d2e, 0.82).fillRoundedRect(44, hy - 46, W - 88, 92, 26);
     c.add(hg);
     const nc = this.nextChallenge();
-    const hl = unlocked.length ? `Helper:  ${helper ? FAMILY_INFO[helper].name : 'None'}` : empty || !m.bestChain ? 'Merge your first gadgets: tap PLAY!' : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
-    const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: unlocked.length ? '30px' : '22px', color: '#fff0cf', wordWrap: { width: unlocked.length ? 380 : W - 170 } }).setOrigin(0, 0.5);
+    const teamOn = unlocked.length > 0 || m.hardUnlocked;
+    const shooterName = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO].name;
+    const hl = teamOn ? `Team:  ${shooterName} + ${helper ? FAMILY_INFO[helper].name : 'no helper'}` : empty || !m.bestChain ? 'Merge your first gadgets: tap PLAY!' : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
+    const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: teamOn ? '28px' : '22px', color: '#fff0cf', wordWrap: { width: teamOn ? 400 : W - 170 } }).setOrigin(0, 0.5);
     c.add(ht);
-    if (unlocked.length) this.button(c, W - 150, hy, 220, 'CHANGE', 0x27a4c0, () => this.openHelperSheet(), 0.62);
+    if (teamOn) this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
 
     // PLAY (always normal mode)
     const play = this.button(c, W / 2, bottom - 410, 600, 'PLAY', 0x5fbf4a, () => this.retry(false, -1), 1.1);
@@ -2587,6 +2591,59 @@ export class GameScene extends Phaser.Scene {
     this.button(c, W / 2, top + 720, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
   }
 
+  teamShooter(): Family {
+    return this.meta.shooter === 'rocket' && this.meta.hardUnlocked ? 'rocket' : 'cannon';
+  }
+
+  /** BUILD YOUR TEAM (ChatGPT r14): Shooter (Cannon/Rocket) + Coil + Bell (fixed relays) + optional Helper. */
+  openTeamSheet() {
+    sfx.click();
+    const m = this.meta;
+    const PH = 900;
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    this.sheetTitle(c, top, 'BUILD YOUR TEAM', 'Changes apply to your next run');
+    const helper = this.activeToys()[0] ?? null;
+    const slots: { label: string; fam: Family | null; role: string; note: string; tap: () => void }[] = [
+      { label: 'SHOOTER', fam: this.teamShooter(), role: 'shooter', note: m.hardUnlocked ? 'tap to switch' : 'Rocket: win a run', tap: () => {
+        if (!m.hardUnlocked) return this.showToast('ROCKET UNLOCKS AFTER YOUR FIRST WIN');
+        m.shooter = this.teamShooter() === 'rocket' ? 'cannon' : 'rocket';
+        store(META_KEY, JSON.stringify(m));
+        tlog.log('team', { shooter: m.shooter });
+        this.openTeamSheet();
+      } },
+      { label: 'RELAY', fam: 'coil', role: 'relay', note: 'always in', tap: () => this.showToast('COIL: WAKES OTHERS IN A 2-CELL CROSS') },
+      { label: 'RELAY', fam: 'bell', role: 'relay', note: 'always in', tap: () => this.showToast('BELL: WAKES OTHERS IN ITS ROW') },
+      { label: 'HELPER', fam: helper, role: helper ? FAMILY_INFO[helper].role.toLowerCase() : 'support', note: Object.keys(m.toys).length ? 'tap to change' : 'unlock by playing', tap: () => (Object.keys(m.toys).length ? this.openHelperSheet() : this.showToast('HELPERS UNLOCK THROUGH CHALLENGES')) },
+    ];
+    slots.forEach((sl, i) => {
+      const x = W / 2 + (i % 2 ? 150 : -150);
+      const y = top + 270 + Math.floor(i / 2) * 230;
+      const card = this.add.container(x, y);
+      const plate = this.hasArt('ui_team_slot') ? this.add.image(0, 0, 'ui_team_slot').setDisplaySize(280, 210) : this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(-140, -105, 280, 210, 22);
+      card.add(plate);
+      card.add(this.add.text(0, -78, sl.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+      if (sl.fam && this.textures.exists(`${sl.fam}_1`)) {
+        const im = this.add.image(0, -8, `${sl.fam}_1`);
+        im.setScale(96 / Math.max(im.width, im.height));
+        card.add(im);
+      } else card.add(this.add.text(0, -8, 'none', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));
+      if (this.hasArt(`role_${sl.role}`)) {
+        const ri = this.add.image(-100, -78, `role_${sl.role}`);
+        ri.setScale(34 / Math.max(ri.width, ri.height));
+        card.add(ri);
+      }
+      card.add(this.add.text(0, 52, sl.fam ? FAMILY_INFO[sl.fam as keyof typeof FAMILY_INFO].name : 'No helper', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0.5));
+      card.add(this.add.text(0, 86, sl.note, { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#fff0cf' }).setOrigin(0.5));
+      card.setSize(280, 210).setInteractive({ useHandCursor: true });
+      card.on('pointerup', sl.tap);
+      c.add(card);
+    });
+    const sh = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO];
+    c.add(this.add.text(W / 2, top + 650, `${sh.name}: ${sh.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5));
+    this.button(c, W / 2, top + 790, 380, 'USE TEAM', 0x5fbf4a, () => this.openTitle(), 0.9);
+  }
+
   openHelperSheet() {
     sfx.click();
     const m = this.meta;
@@ -2598,7 +2655,7 @@ export class GameScene extends Phaser.Scene {
       for (const k of Object.keys(m.toys) as Family[]) m.toys[k] = false;
       if (f) m.toys[f] = true;
       store(META_KEY, JSON.stringify(m));
-      this.openTitle();
+      this.openTeamSheet();
     };
     this.button(c, W / 2, top + 230, 440, 'NONE', 0x8a6a4a, () => pick(null), 0.85);
     all.forEach((f, i) => {
@@ -2645,7 +2702,7 @@ export class GameScene extends Phaser.Scene {
     this.sheetTitle(c, top, 'WORKSHOP');
     c.add(this.add.text(W / 2, top + 108, `${wallet.bolts} Bolts   ·   better parts come free from merging`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#7a5a4a' }).setOrigin(0.5));
     const sel = preview ?? wallet.finish;
-    const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1 }, this.activeToys()[0] ?? null)!;
+    const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1, [this.teamShooter()]: 1 }, this.activeToys()[0] ?? null, this.teamShooter())!;
     const it0 = CATALOG.find((x) => x.id === sel);
     setFinish(mach, it0?.slot === 'finish' ? it0.id : null, it0?.tint);
     c.add(mach);

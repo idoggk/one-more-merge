@@ -15,6 +15,7 @@ export const FAMILY_INFO = {
   bell: { name: 'Bell', color: 0xf2b521, role: 'RELAY', text: 'Hits the monster and wakes every OTHER gadget in its row.', tryThis: 'Fill its row with Cannons and Coils.' },
   battery: { name: 'Battery', color: 0x7ccf2e, role: 'SUPPORT', text: 'Charges one Cannon next to it: its next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.' },
   fan: { name: 'Fan', color: 0x7fc8f0, role: 'MOVER', text: 'Pushes one gadget next to it one cell away.', tryThis: 'Use it to open space or line pieces up.' },
+  rocket: { name: 'Rocket', color: 0xff8a3c, role: 'SHOOTER', text: 'Never shoots by itself. Woken by a chain it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.' },
   magnet: { name: 'Magnet', color: 0xc23fd1, role: 'MOVER', text: 'Pulls one gadget along a straight line into the empty cell beside it.', tryThis: 'Use it to bring pairs together.' },
 } as const;
 

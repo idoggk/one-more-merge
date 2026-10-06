@@ -30,6 +30,7 @@ const COLORS: Record<Family, [number, number, number]> = {
   magnet: [0xc23fd1, 0xef8cf7, 0x7a1f86],
   battery: [0x7ccf2e, 0xc6f58a, 0x3f7a12],
   fan: [0x7fc8f0, 0xe4f6ff, 0x3d7fa8],
+  rocket: [0xff8a3c, 0xffc08a, 0xa8481a],
 };
 
 /** Draw a chunky procedural gadget into a 128x128 texture. */

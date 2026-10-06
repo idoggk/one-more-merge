@@ -35,6 +35,18 @@ const states = {
     },
     900,
   ],
+  team: [
+    (sc) => {
+      Object.assign(sc.meta, { hardUnlocked: true, shooter: 'rocket', toys: { magnet: true, battery: false }, mastery: { cannon: 4, coil: 2, bell: 5, rocket: 3 } });
+      sc.openTitle();
+      sc.openTeamSheet();
+    },
+    600,
+  ],
+  home_rocket: [
+    (sc) => sc.openTitle(),
+    800,
+  ],
   workshop: [
     (sc) => {
       Object.assign(sc.meta, { mastery: { cannon: 4, coil: 2, bell: 5, magnet: 3 }, bolts: 47, owned: ['brass_kit'], finish: 'brass_kit', toys: { magnet: true } });

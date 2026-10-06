@@ -39,6 +39,8 @@ export interface GameState {
   seed: number;
   phase: Phase;
   practice: boolean;
+  /** Team shooter slot (ChatGPT r14): every Cannon token is this family. */
+  shooter?: Family;
   /** Daily Bench: the local calendar date (YYYY-MM-DD) this run belongs to. Presentation-only; rules are the normal run. */
   daily?: string;
   /** Challenge mode: tougher targets. */
@@ -93,8 +95,9 @@ export const remixHp = () => Math.round(TUNING.targetHp.reduce((a, b) => a + b, 
 export const targetHp = (s: GameState, i: number) => (s.remix ? remixHp() : Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1)));
 export const locked = (s: GameState) => lockedCells(s.remix);
 
-export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = [], remixTarget = -1): GameState {
+export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = [], remixTarget = -1, shooter: Family = 'cannon'): GameState {
   const s: GameState = {
+    shooter: tutorial ? 'cannon' : shooter,
     version: 1,
     seed: seed >>> 0,
     phase: tutorial ? 'tutorial' : 'playing',
@@ -129,7 +132,7 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     remix: null,
     stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
-  for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f, 1);
+  for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f === 'cannon' ? shooterOf(s) : f, 1);
   s.supplyTimer = supplyPeriod(s);
   const opp = REMIX_OPPONENTS.find((o) => o.target === remixTarget);
   if (opp && !tutorial) {
@@ -140,6 +143,9 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
   }
   return s;
 }
+
+/** The run's shooter family (Cannon unless the team picked Rocket). */
+export const shooterOf = (s: GameState): Family => s.shooter ?? 'cannon';
 
 function makeGadget(s: GameState, family: Family, rank: number): Gadget {
   return { id: s.nextId++, family, rank, cd: family === 'cannon' ? cannonPeriod(s) : 0 };
@@ -200,7 +206,7 @@ function peekBag(s: GameState): Family {
 function refillBag(s: GameState) {
   const rng = new Rng(s.supplyRng);
   const bag: Family[] = [];
-  for (const f of Object.keys(TUNING.bag) as Family[]) for (let i = 0; i < TUNING.bag[f]; i++) bag.push(f);
+  for (const f of Object.keys(TUNING.bag) as Family[]) for (let i = 0; i < TUNING.bag[f]; i++) bag.push(f === 'cannon' ? shooterOf(s) : f);
   for (const f of s.toys ?? []) for (let i = 0; i < (TUNING.toyBag[f] ?? 0); i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
@@ -599,7 +605,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     return;
   }
   const rng = new Rng(s.kickRng);  // nothing lonely with room: drop a plain part
-  const fam = (['cannon', 'coil', 'bell'] as Family[])[rng.int(3)];
+  const fam = ([shooterOf(s), 'coil', 'bell'] as Family[])[rng.int(3)];
   s.kickRng = rng.state;
   const g = makeGadget(s, fam, 1);
   const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i));

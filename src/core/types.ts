@@ -1,5 +1,7 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan';
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan'];
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket';
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket'];
+/** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5). */
+export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket';
 
 export type PerkId = 'twin' | 'leads' | 'encore' | 'juice' | 'quality';
 

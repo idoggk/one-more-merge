@@ -1,5 +1,5 @@
 import { COLS, MAX_RANK, ROWS, TUNING } from '../content/tuning';
-import type { Activation, CascadeResult, Family, Grid, PerkId } from './types';
+import { isShooter, type Activation, type CascadeResult, type Family, type Grid, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
   [-1, 0], // up
@@ -116,7 +116,7 @@ export function batteryPrime(grid: Grid, idx: number, primed: ReadonlySet<number
     if (!inside(r + dr, c + dc)) continue;
     const cell = at(r + dr, c + dc);
     const g = grid[cell];
-    if (g && g.family === 'cannon' && !primed.has(g.id) && !fired.has(g.id) && !reserved.has(cell)) return g.id;
+    if (g && isShooter(g.family) && !primed.has(g.id) && !fired.has(g.id) && !reserved.has(cell)) return g.id;
   }
   return null;
 }
@@ -193,14 +193,14 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
     fired.add(a.id);
-    if (a.family === 'cannon') {
+    if (isShooter(a.family)) {
       if (primedNow.has(a.id)) {
         primedNow.delete(a.id);
         bonus.add(a.id);
         discharged.push(a.id);
       }
       // MAX Backfire (ChatGPT r9): after its payload a rank-6 cannon wakes one adjacent Coil or Bell (U/R/D/L)
-      if (a.rank >= MAX_RANK && !TUNING.clarity) {
+      if (a.family === 'cannon' && a.rank >= MAX_RANK && !TUNING.clarity) {
         for (const n of sparkCells(idx)) {
           const g = grid[n];
           if (!g || visited.has(n) || blockSet.has(n) || (g.family !== 'coil' && g.family !== 'bell')) continue;
@@ -265,7 +265,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   let sum = 0;
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
-    const perk = a.family === 'cannon' && opts.perks.includes('twin') ? 1.4 : 1;
+    const perk = isShooter(a.family) && opts.perks.includes('twin') ? 1.4 : 1;
     const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
     a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime;
     sum += a.contribution;

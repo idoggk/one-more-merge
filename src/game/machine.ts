@@ -7,8 +7,8 @@ import type { Family } from '../core/types';
  * Core mounts always show Cannon, Coil, Bell (an empty socket until earned); the helper mount shows the one selected toy.
  * Visual tier: rank 1-2 Starter, 3-4 Built, 5-6 Master. Modules stand bottom-centre on their mount, 22 units forward.
  */
-const MOUNTS: Record<'cannon' | 'coil' | 'bell' | 'helper', { x: number; y: number; fit: [number, number] }> = {
-  cannon: { x: 250.61, y: 516.8, fit: [260, 250] },
+const MOUNTS: Record<'shooter' | 'coil' | 'bell' | 'helper', { x: number; y: number; fit: [number, number] }> = {
+  shooter: { x: 250.61, y: 516.8, fit: [260, 250] },
   coil: { x: 386.56, y: 434.94, fit: [220, 270] },
   bell: { x: 775.71, y: 497.17, fit: [230, 260] },
   helper: { x: 629.72, y: 571.84, fit: [210, 210] },
@@ -32,6 +32,7 @@ export function buildMachine(
   width: number,
   ranks: Partial<Record<Family, number>>,
   helper: Family | null,
+  shooter: Family = 'cannon',
 ): Phaser.GameObjects.Container | null {
   if (!hasMachineArt(scene)) return null;
   const c = scene.add.container(x, feetY);
@@ -47,7 +48,7 @@ export function buildMachine(
   const slots: [keyof typeof MOUNTS, Family | null, number][] = [
     ['coil', 'coil', ranks.coil ?? 0],
     ['bell', 'bell', ranks.bell ?? 0],
-    ['cannon', 'cannon', ranks.cannon ?? 0],
+    ['shooter', shooter, ranks[shooter] ?? 0],
     ['helper', helper, helper ? Math.max(1, ranks[helper] ?? 0) : 0],
   ];
   // empty socket caps first (render order: chassis, caps, coil, bell, cannon, helper)
@@ -60,7 +61,9 @@ export function buildMachine(
   for (const [mount, fam, rank] of slots) {
     const t = tierOf(rank);
     if (!fam || !t) continue;
-    const key = `hm_${fam}_${t}`;
+    // families without dedicated home modules (Rocket) use their board art at a matching rank
+    let key = `hm_${fam}_${t}`;
+    if (!scene.textures.exists(key)) key = `${fam}_${[0, 1, 3, 6][t]}`;
     if (!scene.textures.exists(key)) continue;
     const m = MOUNTS[mount];
     const im = add(scene.add.image(m.x, m.y + 22, key).setOrigin(0.5, 1));
