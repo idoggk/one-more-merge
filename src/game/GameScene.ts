@@ -34,6 +34,11 @@ const SCRAP_X = W - 92;
 // Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
 // so there are no letterbox bands. Header pinned top, tray pinned bottom, board + event lane above it, stage gets the rest.
 export let H = 1280;
+/** Render scale: the canvas is W*RS x H*RS device-ish pixels; the main camera zooms by RS so game code stays in design units. */
+export let RS = 1;
+export function setRenderScale(r: number) {
+  RS = r;
+}
 let BY = 446;
 let TRAY_Y = 1234;
 let EVENT_Y = 410;
@@ -176,6 +181,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.cameras.main.setOrigin(0, 0).setZoom(RS);
+    // crisp text on high-DPI phones: rasterize every Text at the render scale
+    const addText = this.add.text.bind(this.add);
+    (this.add as unknown as { text: typeof addText }).text = (x, y, txt, style = {}) => addText(x, y, txt, { resolution: RS, ...style });
     ensureTextures(this);
     if (new URLSearchParams(location.search).has('reset')) {
       store(SAVE_KEY, null);
@@ -476,16 +485,16 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!this.canAct()) return;
-    const idx = this.cellAt(p.x, p.y);
+    const idx = this.cellAt(p.worldX, p.worldY);
     if (idx < 0 || !this.s.grid[idx]) {
       if (this.selectedIdx >= 0 && idx >= 0) return; // handled on up (move to empty)
-      if (this.selectedIdx >= 0 && this.overScrap(p.x, p.y)) return;
+      if (this.selectedIdx >= 0 && this.overScrap(p.worldX, p.worldY)) return;
       return;
     }
     this.dragIdx = idx;
     this.dragId = this.s.grid[idx]!.id;
     this.dragView = this.views.get(this.dragId) ?? null;
-    this.downAt = { x: p.x, y: p.y };
+    this.downAt = { x: p.worldX, y: p.worldY };
     this.moved = false;
     this.scrapHold = 0;
     this.idleTime = 0;
@@ -493,7 +502,7 @@ export class GameScene extends Phaser.Scene {
 
   onMove(p: Phaser.Input.Pointer) {
     if (this.dragIdx < 0 || !this.dragView || !p.isDown) return;
-    if (!this.moved && Phaser.Math.Distance.Between(p.x, p.y, this.downAt.x, this.downAt.y) < 12) return;
+    if (!this.moved && Phaser.Math.Distance.Between(p.worldX, p.worldY, this.downAt.x, this.downAt.y) < 12) return;
     if (!this.moved) {
       this.moved = true;
       this.selectedIdx = -1;
@@ -502,14 +511,14 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.dragView);
       this.tweens.add({ targets: this.dragView, scale: 1.15, duration: 80 });
     }
-    this.dragView.setPosition(p.x, p.y - 40);
-    const h = this.cellAt(p.x, p.y);
+    this.dragView.setPosition(p.worldX, p.worldY - 40);
+    const h = this.cellAt(p.worldX, p.worldY);
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
       this.drawHeld();
     }
-    if (this.overScrap(p.x, p.y) !== (this.scrapHold > 0 || this.overScrapFlag)) {
-      this.overScrapFlag = this.overScrap(p.x, p.y);
+    if (this.overScrap(p.worldX, p.worldY) !== (this.scrapHold > 0 || this.overScrapFlag)) {
+      this.overScrapFlag = this.overScrap(p.worldX, p.worldY);
       this.scrapHold = 0;
     }
   }
@@ -520,7 +529,7 @@ export class GameScene extends Phaser.Scene {
       this.cancelDrag();
       return;
     }
-    const upIdx = this.cellAt(p.x, p.y);
+    const upIdx = this.cellAt(p.worldX, p.worldY);
     // tap-to-select flow
     if (this.dragIdx >= 0 && !this.moved) {
       const tapped = this.dragIdx;
@@ -543,7 +552,7 @@ export class GameScene extends Phaser.Scene {
           const from = this.selectedIdx;
           this.selectedIdx = -1;
           this.commitDrop(from, upIdx, this.s.grid[from]?.id ?? -1);
-        } else if (this.overScrap(p.x, p.y) && this.s.phase === 'playing') {
+        } else if (this.overScrap(p.worldX, p.worldY) && this.s.phase === 'playing') {
           const from = this.selectedIdx;
           this.selectedIdx = -1;
           this.doScrap(from, this.s.grid[from]?.id ?? -1);
@@ -558,7 +567,7 @@ export class GameScene extends Phaser.Scene {
     this.dragIdx = -1;
     this.hoverIdx = -1;
     if (view) view.setDepth(10);
-    if (this.overScrap(p.x, p.y) && this.s.phase === 'playing') {
+    if (this.overScrap(p.worldX, p.worldY) && this.s.phase === 'playing') {
       const g = this.s.grid[from];
       const needsHold = g && g.rank >= 3;
       if (!needsHold || this.scrapHold >= 0.25) this.doScrap(from, id);
@@ -1382,8 +1391,7 @@ export class GameScene extends Phaser.Scene {
     // 1) hit-stop flash + slight zoom on the boss
     this.time.delayedCall(250, () => {
       this.cameras.main.flash(180, 255, 255, 255);
-      this.cameras.main.zoomTo(1.08, 260, 'Quad.Out');
-      this.cameras.main.pan(tgt.x, tgt.y + 120, 260, 'Quad.Out');
+      this.tweens.add({ targets: tgt, scale: this.targetBaseScale * 1.12, duration: 260, ease: 'Quad.Out' });
       haptic(80);
       this.tweens.killTweensOf(tgt);
       if (this.hasArt(`target_${this.s.target}_dmg`)) tgt.setTexture(`target_${this.s.target}_dmg`);
@@ -1404,8 +1412,6 @@ export class GameScene extends Phaser.Scene {
     // 3) the big one: collapse, junk rains onto the board
     this.time.delayedCall(1350, () => {
       sfx.kill();
-      this.cameras.main.zoomTo(1, 300);
-      this.cameras.main.pan(W / 2, H / 2, 300);
       this.cameras.main.shake(450, 0.02);
       this.ring(tgt.x, tgt.y, 0xffcf33, 320, 26, 520);
       this.ring(tgt.x, tgt.y, 0xffffff, 220, 16, 380);
@@ -1725,7 +1731,7 @@ export class GameScene extends Phaser.Scene {
     c.add(links);
     links.setInteractive({ useHandCursor: true }).on('pointerup', (p: Phaser.Input.Pointer) => {
       sfx.click();
-      if (p.x < W / 2) this.openHowTo(0, () => this.openTitle());
+      if (p.worldX < W / 2) this.openHowTo(0, () => this.openTitle());
       else this.startTutorial();
     });
     const play = this.button(c, W / 2, consoleTop + 320, 560, 'PLAY', 0x5fbf4a, () => this.retry(false, -1));
