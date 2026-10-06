@@ -1376,6 +1376,15 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: lg, alpha: 0, delay: windup + maxDepth * step + 200, duration: 250, onComplete: () => lg.destroy() });
 
     // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
+    // live chain counter in the lane: counts up beat by beat, then the final line lands on the hit
+    if (r.count > 2) {
+      let soFar = 0;
+      for (let d = 0; d <= maxDepth; d++) {
+        soFar += r.activations.filter((a) => a.depth === d).length;
+        const n = soFar;
+        this.time.delayedCall(windup + d * step, () => this.showEvent(`CHAIN  x${n}`, n >= 10 ? '#ffd24a' : '#fff0cf', 900));
+      }
+    }
     for (let d = 0; d <= maxDepth; d++) {
       const at = (windup + d * step) / 1000;
       const acts = r.activations.filter((a) => a.depth === d);
@@ -1534,6 +1543,10 @@ export class GameScene extends Phaser.Scene {
   introTarget() {
     this.time.delayedCall(80, () => {
       this.setTargetTexture();
+      if (this.s.target >= 0) {
+        const label = this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND ${this.s.target + 1}  ·  ${TARGET_NAMES[this.s.target]}`;
+        this.time.delayedCall(380, () => this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 700, 'banner_chain'));
+      }
       this.shownHp = this.s.hp;
       this.target.y = -150;
       this.tweens.add({ targets: this.target, y: TARGET_Y, duration: 420, ease: 'Bounce.Out' });
