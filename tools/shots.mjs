@@ -20,6 +20,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Each state: a function run in the page (gets the scene) + how long to let animations play. */
 const states = {
+  s1_tutorial_start: [
+    (sc) => {
+      localStorage.clear();
+      Object.assign(sc.meta, { tutorialDone: false, tips: {}, lessons: {}, levelStars: {}, bolts: 0, kits: 0, capsules: 0, mastery: {}, hardUnlocked: false, onboarded: false, toys: {} });
+      sc.startTutorial();
+    },
+    1800,
+  ],
+  s2_tutorial_step1: [(sc) => {}, 2500],
+  s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
+  s4_level1_result: [
+    (sc) => {
+      sc.finishIntro(true);
+      sc.s.elapsed = 24;
+      sc.s.stats.merges = 9;
+      sc.s.stats.biggestChain = 5;
+      sc.s.phase = 'won';
+      sc.openResult(true);
+    },
+    1500,
+  ],
+  s5_road_after_l1: [(sc) => sc.openTitle('road'), 900],
+  s6_level2_card: [(sc) => sc.openLevelSheet(2), 700],
   road: [
     (sc) => {
       Object.assign(sc.meta, { tutorialDone: true, hardUnlocked: true, bolts: 120, kits: 2, capsules: 1, levelStars: { 1: 3, 2: 2, 3: 3, 4: 1, 5: 2, 6: 1 } });
@@ -59,6 +82,7 @@ const states = {
   chest: [(sc) => { sc.meta.medals = { 1: true }; sc.openTitle('road'); sc.playChapterChest(1); }, 1600],
   machine_medals: [(sc) => { sc.meta.medals = { 1: true, 2: true }; sc.openTitle('machine'); }, 900],
   workshop_orn: [(sc) => { Object.assign(sc.meta, { bolts: 800, owned: ['brass_kit'], finish: 'brass_kit', ornament: null, mastery: { cannon: 4, coil: 3, bell: 5 } }); sc.openTitle('machine'); sc.openWorkshop('violet_pennant'); }, 800],
+  showcase: [(sc) => { sc.meta.lessons = {}; sc.startShowcase(7, 21); }, 1500],
   stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [

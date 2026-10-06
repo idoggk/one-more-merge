@@ -90,6 +90,8 @@ export interface GameState {
   masked?: number[];
   /** Time Capsule used this attempt. */
   capsuleUsed?: boolean;
+  /** Untimed, unrewarded high-rank introduction (r17). */
+  showcase?: boolean;
   /** Jumpstart applied this attempt. */
   jumpstart?: boolean;
   stats: Stats;

@@ -1016,6 +1016,20 @@ export class GameScene extends Phaser.Scene {
       }
       haptic(15);
       if (this.s.phase === 'tutorial') this.onTutorialMerge();
+      if (this.s.showcase) {
+        this.coach.stopHand();
+        const r = ng.rank;
+        this.time.delayedCall(1700, () => {
+          this.coach.say(`RANK ${r}! It hits ${r === 7 ? '2.25x' : '5x'} harder than rank 6.
+Now beat the real level.`, this.coachY());
+          this.time.delayedCall(2600, () => {
+            this.coach.clear();
+            tlog.log('showcase_done', { rank: r });
+            this.openTitle('road');
+            this.openLevelSheet(this.showcaseThen);
+          });
+        });
+      }
     } else {
       sfx.drop();
       if (a && b && a.family === b.family && a.rank !== b.rank) {
@@ -1411,7 +1425,7 @@ export class GameScene extends Phaser.Scene {
 
   checkTips() {
     const s = this.s;
-    if (s.phase !== 'playing' || this.coach.waitingTap) return;
+    if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase) return;
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 1.5 && s.elapsed < 6) this.tip('delivery', 'New parts drop in from here.\nMerge them into your machine!', { x: BX + 150, y: TRAY_Y - 30 });
     if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
@@ -1498,7 +1512,7 @@ export class GameScene extends Phaser.Scene {
     this.capsuleBtn?.setVisible(capOk);
     (this.capsuleBtn?.getByName('stock') as Phaser.GameObjects.Text | undefined)?.setText(`hold  ·  ${this.meta.capsules ?? 0} left`);
     const t = Math.ceil(s.timeLeft);
-    this.timerText.setText(demo ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
+    this.timerText.setText(demo || s.showcase ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
     this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
     this.practiceText.setVisible(s.practice && !demo);
 
@@ -1515,7 +1529,7 @@ export class GameScene extends Phaser.Scene {
     hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, bw, 26, 13);
     if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, Math.max(26, bw * frac), 26, 13);
     }
-    this.hpText.setText(fmt(Math.max(0, Math.round(this.shownHp))));
+    this.hpText.setText(s.showcase ? 'PRACTICE' : fmt(Math.max(0, Math.round(this.shownHp))));
     if (!this.hpTicks) this.hpTicks = this.add.graphics().setDepth(3);
     const ht = this.hpTicks.clear();
     if (s.target >= 0 && TUNING.kickback)
@@ -2525,7 +2539,7 @@ export class GameScene extends Phaser.Scene {
   /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
   quitHome() {
     const s = this.s;
-    if (s.phase === 'playing' || s.phase === 'choice') {
+    if ((s.phase === 'playing' || s.phase === 'choice') && !s.showcase) {
       const pay = this.settleBolts(false, false);
       tlog.log('quit', { at: +s.elapsed.toFixed(1), bolts: pay?.total ?? 0 });
       s.phase = 'lost';
@@ -3110,6 +3124,14 @@ export class GameScene extends Phaser.Scene {
       y += 110;
     }
     this.button(c, W / 2, top + PH - 90, 460, 'PLAY', 0x5fbf4a, () => this.startLevel(n, jump), 1.05);
+    // r17: optional high-rank introduction before L21 (rank 7) and L41 (rank 8, if never made)
+    const madeTop = Math.max(0, ...Object.values(m.mastery ?? {}).map((x) => x ?? 0));
+    const sc = n === 21 && !(m.lessons ?? {}).showcase7 ? 7 : n === 41 && madeTop < 8 && !(m.lessons ?? {}).showcase8 ? 8 : 0;
+    if (sc) {
+      const t = this.add.text(W / 2, top + PH - 170, `NEW: RANK ${sc}  ·  try it first ›`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#8e58c9', padding: { x: 16, y: 8 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      t.on('pointerup', () => this.startShowcase(sc as 7 | 8, n));
+      c.add(t);
+    }
     // r17 lessons 2 + 3 (one at a time, never over a live clock)
     if (!(m.lessons ?? {}).card) this.lesson('card', c, 'Clear to earn a star.\nFaster wins earn two more.', { x: W / 2, y: top + 470, r: 130 }, top + PH - 250);
     else if (n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
@@ -3117,6 +3139,39 @@ export class GameScene extends Phaser.Scene {
     close.on('pointerup', () => this.openTitle());
     c.add(close);
   }
+
+  /** Optional high-rank showcase (r17): untimed, no supply / passive shots / boosters / rewards; one coached merge
+   *  of two rank (R-1) shooters into rank R using the real resolver, then back to the real level card. */
+  startShowcase(rank: 7 | 8, then: number) {
+    const def = LEVELS[then - 1];
+    const s = newLevel(def, { shooter: this.teamShooter() });
+    s.showcase = true;
+    s.grid.fill(null);
+    const mk = (f: Family, r: number) => ({ id: s.nextId++, family: f, rank: r, cd: 1e9 });
+    const sh = this.teamShooter();
+    s.grid[21] = mk(sh, rank - 1);
+    s.grid[22] = mk(sh, rank - 1);
+    s.grid[17] = mk('coil', 3);
+    s.grid[16] = mk('bell', 3);
+    s.grid[23] = mk(sh, 3);
+    s.supplyTimer = 1e9;
+    s.timeLeft = 999;
+    s.hp = s.maxHp = 999999;
+    s.remix = null;
+    s.masked = [];
+    (this.meta.lessons ??= {})[`showcase${rank}`] = true;
+    store(META_KEY, JSON.stringify(this.meta));
+    tlog.log('showcase_start', { rank });
+    this.startState(s);
+    this.finishIntro(true);
+    this.time.delayedCall(300, () => {
+      this.coach.say(`Two rank ${rank - 1} ${FAMILY_INFO[sh as keyof typeof FAMILY_INFO].name}s.
+Merge them into a RANK ${rank}!`, this.coachY());
+      this.coach.drag(cellXY(21), cellXY(22));
+    });
+    this.showcaseThen = then;
+  }
+  showcaseThen = 0;
 
   startLevel(n: number, jumpstart = false) {
     const def = LEVELS[n - 1];
