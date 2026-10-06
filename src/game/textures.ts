@@ -126,6 +126,15 @@ export function ensureTextures(scene: Phaser.Scene) {
   for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
 
   gen('dot', 16, 16, () => g.fillStyle(0xffffff).fillCircle(8, 8, 8));
+  // tutorial pointing hand (white cartoon glove), fingertip near the top-left
+  gen('hand', 100, 130, () => {
+    g.lineStyle(7, OUT, 1).fillStyle(0xffffff, 1);
+    g.fillRoundedRect(20, 4, 26, 70, 13).strokeRoundedRect(20, 4, 26, 70, 13); // index finger
+    g.fillRoundedRect(14, 52, 74, 66, 24).strokeRoundedRect(14, 52, 74, 66, 24); // palm
+    g.lineStyle(5, OUT, 1).lineBetween(46, 64, 46, 84).lineBetween(64, 62, 64, 84);
+    g.fillStyle(0xffffff, 1).fillRoundedRect(4, 70, 22, 34, 10).lineStyle(6, OUT, 1).strokeRoundedRect(4, 70, 22, 34, 10); // thumb
+    g.fillStyle(0xe8452c, 1).fillRect(20, 110, 62, 14);
+  });
   gen('spark', 32, 32, () => {
     g.fillStyle(0xffffff, 1).fillPoints(star(16, 16, 4, 4, 16), true);
   });

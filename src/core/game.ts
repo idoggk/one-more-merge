@@ -251,7 +251,6 @@ function merge(s: GameState, from: number, to: number): CommandResult {
     queueDrop(s, ev, false);
   }
   applyDamage(s, result.total, ev, 'player');
-  if (s.phase === 'tutorial' && s.tutorialMerges >= 2 && s.target === -1) startRunFromTutorial(s, ev);
   return { ok: true, events: ev };
 }
 
@@ -353,6 +352,13 @@ function makeOffer(s: GameState): PerkId[] {
   const pool = rng.shuffle(ALL_PERKS.filter((p) => !s.perks.includes(p)));
   s.perkRng = rng.state;
   return pool.slice(0, 3);
+}
+
+/** The guided tutorial (scene-driven) calls this when its script is done: the real run starts on the practice board. */
+export function finishTutorial(s: GameState): GameEvent[] {
+  const ev: GameEvent[] = [];
+  if (s.phase === 'tutorial') startRunFromTutorial(s, ev);
+  return ev;
 }
 
 function startRunFromTutorial(s: GameState, ev: GameEvent[]) {

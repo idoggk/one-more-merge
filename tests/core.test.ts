@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COLS, ROWS, TUNING } from '../src/content/tuning';
 import { rawDamage, resolveCascade } from '../src/core/cascade';
-import { choosePerk, drop, idxOf, newGame, previewMerge, serialize, tick, type GameState } from '../src/core/game';
+import { choosePerk, drop, finishTutorial, idxOf, newGame, previewMerge, serialize, tick, type GameState } from '../src/core/game';
 import type { Family, Gadget, Grid } from '../src/core/types';
 
 let id = 1000;
@@ -309,13 +309,15 @@ describe('game', () => {
     expect(s.grid.filter(Boolean).length).toBe(before + 1);
   });
 
-  it('tutorial: two merges start the real run', () => {
+  it('tutorial: merges stay in practice until the script finishes', () => {
     const s = newGame(11, true);
     drop(s, idxOf(4, 1), idxOf(4, 2), s.grid[idxOf(4, 1)]!.id);
     expect(s.phase).toBe('tutorial');
     tick(s);
     tick(s);
     drop(s, idxOf(1, 1), idxOf(3, 1), s.grid[idxOf(1, 1)]!.id);
+    expect(s.phase).toBe('tutorial'); // scene-driven: the guided script decides when it ends
+    finishTutorial(s);
     expect(s.phase).toBe('playing');
     expect(s.target).toBe(0);
     expect(s.hp).toBe(TUNING.targetHp[0]);

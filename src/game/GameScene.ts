@@ -4,6 +4,7 @@ import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import {
   canMerge,
   choosePerk,
+  finishTutorial,
   deserialize,
   drop,
   legalPairs,
@@ -22,6 +23,7 @@ import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { audioSettings, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
+import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 
 export const W = 720;
@@ -74,13 +76,15 @@ interface Meta {
   toys: Partial<Record<Family, boolean>>;
   /** Remix fastest wins keyed by opponent + helper loadout. */
   remixBest: Record<string, number>;
+  /** First-time contextual tips already shown. */
+  tips: Record<string, boolean>;
 }
 
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
 
 function loadMeta(): Meta {
-  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {}, remixBest: {} };
+  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {}, remixBest: {}, tips: {} };
   try {
     return { ...d, ...JSON.parse(localStorage.getItem(META_KEY) || '{}') };
   } catch {
@@ -160,6 +164,8 @@ export class GameScene extends Phaser.Scene {
   hintPair: [number, number] | null = null;
   lastSave = 0;
   tutorialStep = 0;
+  coach!: Coach;
+  lastCascade: CascadeResult | null = null;
 
   constructor() {
     super('game');
@@ -286,6 +292,7 @@ export class GameScene extends Phaser.Scene {
 
     this.previewText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5).setDepth(60).setVisible(false);
     this.tutorialText = this.add.text(W / 2, TRAY_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533', align: 'center' }).setOrigin(0.5).setDepth(40);
+    this.coach = new Coach(this, W);
 
     // settings button
     const gear = (this.hasArt('icon_pause') ? this.add.image(38, 46, 'icon_pause').setDisplaySize(52, 52) : this.add.text(38, 20, '⏸', { fontSize: '40px', color: '#3b2533' }).setOrigin(0.5, 0)).setInteractive({ useHandCursor: true });
@@ -345,6 +352,8 @@ export class GameScene extends Phaser.Scene {
     this.selectedIdx = -1;
     this.idleTime = 0;
     this.tutorialStep = 0;
+    this.coach?.clear();
+    if (s.phase === 'tutorial') this.time.delayedCall(500, () => this.runTutorial());
     this.shownHp = s.hp;
     this.setTargetTexture();
     this.reconcile(true);
@@ -380,10 +389,13 @@ export class GameScene extends Phaser.Scene {
     img.setScale(Math.min(SPRITE / f.width, SPRITE / f.height));
     const badge = this.add.graphics();
     const col = FAMILY_INFO[g.family].color;
-    const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(38, 38, `badge_${g.family}`).setDisplaySize(40, 40) : null;
-    if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(38, 38, 17).fillStyle(col, 1).fillCircle(38, 38, 13);
+    // big rank badge (playtest: ranks were hard to tell apart)
+    const BXY = 36;
+    const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(BXY, BXY, `badge_${g.family}`).setDisplaySize(58, 58) : null;
+    if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BXY, BXY, 26).fillStyle(col, 1).fillCircle(BXY, BXY, 21);
     const label = g.rank >= MAX_RANK ? 'M' : String(g.rank);
-    const t = this.add.text(38, 38, label, { fontFamily: 'Arial Black', fontSize: '18px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5);
+    const t = this.add.text(BXY, BXY - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
+    t.setName('rank');
     const parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
     if (g.rank >= MAX_RANK && this.hasArt('crown')) {
       const cr = this.add.image(-30, -42, 'crown');
@@ -447,6 +459,13 @@ export class GameScene extends Phaser.Scene {
   onDown(p: Phaser.Input.Pointer) {
     unlockAudio();
     startMusic();
+    if (this.coach.waitingTap && !this.modal) {
+      sfx.click();
+      this.coach.hide();
+      this.tutorialStep++;
+      this.time.delayedCall(150, () => this.runTutorial());
+      return;
+    }
     if (!this.canAct()) return;
     const idx = this.cellAt(p.x, p.y);
     if (idx < 0 || !this.s.grid[idx]) {
@@ -600,9 +619,17 @@ export class GameScene extends Phaser.Scene {
         });
       }
       haptic(15);
-      if (this.s.phase === 'tutorial' || this.tutorialStep < 2) this.tutorialStep++;
+      if (this.s.phase === 'tutorial') this.onTutorialMerge();
     } else {
       sfx.drop();
+      if (a && b && a.family === b.family && a.rank !== b.rank) {
+        this.showEvent(`Swapped. Merging needs the SAME number (${a.rank} ≠ ${b.rank})`, '#ffd2c8', 2600);
+        tlog.log('rank_mismatch', { fam: a.family, a: a.rank, b: b.rank });
+        for (const id of [a.id, b.id]) {
+          const rv = this.views.get(id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
+          if (rv) this.tweens.add({ targets: rv, scale: 1.6, duration: 160, yoyo: true, repeat: 2 });
+        }
+      } else if (a && b && a.family !== b.family) this.showEvent('Swapped. Merge two of the SAME gadget', '#fff0cf', 1600);
       tlog.log('move', { swap: !!b });
       this.reconcile();
     }
@@ -629,6 +656,14 @@ export class GameScene extends Phaser.Scene {
     const g = this.overlayG.clear();
     this.previewText.setVisible(false);
     const src = this.dragIdx >= 0 && this.moved ? this.dragIdx : this.selectedIdx;
+    // while holding: everything you can't merge with fades, matches stay bright (playtest: ranks were confused)
+    const held = src >= 0 ? this.s.grid[src] : null;
+    this.s.grid.forEach((b, i) => {
+      const v = b ? this.views.get(b.id) : undefined;
+      if (!v) return;
+      const bright = !held || i === src || canMerge(held, b);
+      v.setAlpha(bright ? 1 : 0.32);
+    });
     if (src >= 0 && this.s.grid[src]) {
       const a = this.s.grid[src]!;
       const { x: sx, y: sy } = cellXY(src);
@@ -680,6 +715,8 @@ export class GameScene extends Phaser.Scene {
     this.drawHud(dms);
     this.animateIdle();
     this.updateFace();
+    this.coach.update(this.time.now);
+    this.checkTips();
     this.drawRemix();
     if (this.time.now - this.lastSave > 2000) this.save();
   }
@@ -717,15 +754,101 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  updateHints() {
-    if (this.s.phase === 'tutorial') {
+  // ---------- guided tutorial (playtest: "I was missing a good tutorial") ----------
+
+  static TUTORIAL: { kind: 'merge' | 'tap'; text: string; prefer?: Family; focus?: 'chain' | 'target' | 'relays' | 'ranks' | 'cannons' }[] = [
+    { kind: 'merge', prefer: 'cannon', text: 'Drag a CANNON onto the other CANNON.\nSame gadget + same number = MERGE!' },
+    { kind: 'tap', focus: 'chain', text: 'BOOM! It got stronger and FIRED.\nIts neighbours fired too: a CHAIN!' },
+    { kind: 'tap', focus: 'target', text: 'Every gadget in a chain hits the monster.\nBigger chain = more damage!' },
+    { kind: 'tap', focus: 'relays', text: 'COILS zap the tiles next to them.\nBELLS ring their whole row.' },
+    { kind: 'merge', prefer: 'coil', text: 'Now merge the two COILS.\nHigher numbers reach farther!' },
+    { kind: 'tap', focus: 'ranks', text: 'The NUMBER is the rank. 1+1 makes 2.\nA 1 can NOT merge with a 2.' },
+    { kind: 'tap', focus: 'cannons', text: 'Cannons also fire on their own, slowly.\nWoken by a chain they hit HARD!' },
+    { kind: 'tap', text: 'Smash 3 junk monsters before the clock\nruns out. New parts keep arriving. GO!' },
+  ];
+
+  coachY() {
+    return Math.max(STAGE_TOP + 90, HP_Y - 120);
+  }
+
+  runTutorial() {
+    if (this.s.phase !== 'tutorial') return;
+    const step = GameScene.TUTORIAL[this.tutorialStep];
+    this.coach.clear();
+    if (!step) {
+      // script done: the real run starts on the board they just improved
+      const ev = finishTutorial(this.s);
+      this.meta.tutorialDone = true;
+      store(META_KEY, JSON.stringify(this.meta));
+      tlog.log('tutorial_done');
+      this.handleEvents(ev);
+      this.showEvent('GO! Beat the TIN CAN', '#ffd24a', 2000);
+      return;
+    }
+    this.coach.say(step.text, this.coachY(), { tap: step.kind === 'tap' });
+    if (step.kind === 'merge') {
       const dist = ([a, b]: [number, number]) => Math.abs((a % COLS) - (b % COLS)) + Math.abs(Math.floor(a / COLS) - Math.floor(b / COLS));
       const pairs = legalPairs(this.s).sort((p, q) => dist(p) - dist(q));
-      const cannonPair = pairs.find(([a]) => this.s.grid[a]!.family === 'cannon');
-      const relayPair = pairs.find(([a]) => this.s.grid[a]!.family !== 'cannon');
-      this.hintPair = this.s.tutorialMerges === 0 ? (cannonPair ?? pairs[0] ?? null) : (relayPair ?? pairs[0] ?? null);
-      this.tutorialText.setText(this.s.tutorialMerges === 0 ? 'Drag matching gadgets together!' : 'Bigger relays reach farther!');
-      this.drawHeld();
+      const pair = pairs.find(([a]) => this.s.grid[a]!.family === step.prefer) ?? pairs[0];
+      if (pair) {
+        this.coach.drag(cellXY(pair[0]), cellXY(pair[1]));
+        this.coach.focus([cellXY(pair[0]), cellXY(pair[1])]);
+      }
+      return;
+    }
+    const cells = (pred: (g: Gadget) => boolean) => this.s.grid.flatMap((g, i) => (g && pred(g) ? [cellXY(i)] : []));
+    if (step.focus === 'chain' && this.lastCascade) this.coach.focus(this.lastCascade.activations.map((a) => cellXY(a.idx)));
+    if (step.focus === 'target') this.coach.focus([{ x: this.target.x, y: this.target.y, r: 120 }]);
+    if (step.focus === 'relays') this.coach.focus(cells((g) => g.family === 'coil' || g.family === 'bell'));
+    if (step.focus === 'cannons') this.coach.focus(cells((g) => g.family === 'cannon'));
+    if (step.focus === 'ranks') {
+      // two cannons with different numbers: ring their badges
+      const cs = this.s.grid.flatMap((g, i) => (g && g.family === 'cannon' ? [{ g, i }] : []));
+      const hi = cs.find((x) => x.g.rank > 1);
+      const lo = cs.find((x) => x.g.rank === 1);
+      const spots = [hi, lo].filter((x): x is { g: Gadget; i: number } => !!x).map((x) => ({ x: cellXY(x.i).x + 36, y: cellXY(x.i).y + 36, r: 34 }));
+      this.coach.focus(spots);
+      if (spots[0]) this.coach.point({ x: spots[0].x, y: spots[0].y + 10 });
+    }
+  }
+
+  onTutorialMerge() {
+    const step = GameScene.TUTORIAL[this.tutorialStep];
+    if (!step || step.kind !== 'merge') return;
+    this.coach.clear();
+    this.tutorialStep++;
+    // let the chain play before explaining it
+    this.time.delayedCall(1300, () => this.runTutorial());
+  }
+
+  /** First-time contextual tips (once per player). */
+  tip(id: string, text: string, pointAt?: { x: number; y: number }) {
+    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
+    this.meta.tips[id] = true;
+    store(META_KEY, JSON.stringify(this.meta));
+    tlog.log('tip', { id });
+    this.coach.say(text, this.coachY(), { ms: 4200 });
+    if (pointAt) {
+      this.coach.point(pointAt);
+      this.time.delayedCall(3000, () => this.coach.stopHand());
+    }
+  }
+
+  checkTips() {
+    const s = this.s;
+    if (s.phase !== 'playing' || this.coach.waitingTap) return;
+    const occ = s.grid.filter(Boolean).length;
+    if (s.elapsed > 1.5 && s.elapsed < 6) this.tip('delivery', 'New parts drop in from here.\nMerge them into your machine!', { x: BX + 150, y: TRAY_Y - 30 });
+    if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
+    if (s.drops.length) this.tip('kickback', 'A chunk broke off the monster!\nIt lands and upgrades one of your parts.');
+    if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
+    if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
+    if (s.target === 1) this.tip('next', 'Next monster! Your machine and\nupgrades carry over. Keep going!');
+  }
+
+  updateHints() {
+    if (this.s.phase === 'tutorial') {
+      this.tutorialText.setText('');
       return;
     }
     this.tutorialText.setText('');
@@ -907,7 +1030,8 @@ export class GameScene extends Phaser.Scene {
           break;
         case 'kill':
           if (!e.demo) tlog.log('kill', { target: e.target, at: +this.s.elapsed.toFixed(1) });
-          this.playKill(e.final, e.demo);
+          if (e.final) this.playBossDefeat();
+          else this.playKill(e.final, e.demo);
           break;
         case 'newTarget':
           this.introTarget();
@@ -951,7 +1075,8 @@ export class GameScene extends Phaser.Scene {
         case 'end':
           tlog.log('end', { won: e.won, targets: e.won ? 3 : this.s.target, elapsed: +this.s.elapsed.toFixed(1), chain: this.s.stats.biggestChain });
           tlog.flush();
-          this.time.delayedCall(e.won ? 900 : 300, () => this.openResult(e.won));
+          // a win first plays the full boss-defeat show (playtest: 'I want to see me winning the boss')
+          this.time.delayedCall(e.won ? 3600 : 400, () => this.openResult(e.won));
           break;
       }
     }
@@ -1121,6 +1246,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
+    this.lastCascade = r;
     const maxDepth = Math.max(...r.activations.map((a) => a.depth));
     const step = maxDepth > 0 ? Math.min(70, 380 / maxDepth) : 0;
     const windup = kickback ? 300 : 90;
@@ -1200,6 +1326,83 @@ export class GameScene extends Phaser.Scene {
       if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
       // damage number beside the opponent, never on its face
       this.floatText(this.target.x + 150, this.target.y - 40, fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
+    });
+  }
+
+  /** Final blow: hit-stop, rattle with dizzy face, rolling explosions, collapse, parts rain onto your board, machine celebrates. */
+  playBossDefeat() {
+    const tgt = this.target;
+    const name = TARGET_NAMES[Math.max(0, this.s.target)] ?? 'BOSS';
+    this.cancelDrag();
+    this.coach.clear();
+    // 1) hit-stop flash + slight zoom on the boss
+    this.time.delayedCall(250, () => {
+      this.cameras.main.flash(180, 255, 255, 255);
+      this.cameras.main.zoomTo(1.08, 260, 'Quad.Out');
+      this.cameras.main.pan(tgt.x, tgt.y + 120, 260, 'Quad.Out');
+      haptic(80);
+      this.tweens.killTweensOf(tgt);
+      if (this.hasArt(`target_${this.s.target}_dmg`)) tgt.setTexture(`target_${this.s.target}_dmg`);
+      this.showFace('dizzy', 3000);
+      this.tweens.add({ targets: tgt, x: { from: tgt.x - 10, to: tgt.x + 10 }, angle: { from: -4, to: 4 }, duration: 55, yoyo: true, repeat: 10 });
+    });
+    // 2) rolling explosions across the body
+    for (let i = 0; i < 7; i++) {
+      this.time.delayedCall(350 + i * 130, () => {
+        const x = tgt.x + Phaser.Math.Between(-110, 110);
+        const y = tgt.y + Phaser.Math.Between(-100, 90);
+        if (!this.fx('vfx_impact', x, y, 150, { dur: 220, grow: 1.6, depth: 60 })) this.ring(x, y, 0xffcf33, 90, 12, 260);
+        this.sparks.setParticleTint([0xffcf33, 0xff6a00, 0xffffff][i % 3]);
+        this.sparks.explode(14, x, y);
+        sfx.hit(true);
+      });
+    }
+    // 3) the big one: collapse, junk rains onto the board
+    this.time.delayedCall(1350, () => {
+      sfx.kill();
+      this.cameras.main.zoomTo(1, 300);
+      this.cameras.main.pan(W / 2, H / 2, 300);
+      this.cameras.main.shake(450, 0.02);
+      this.ring(tgt.x, tgt.y, 0xffcf33, 320, 26, 520);
+      this.ring(tgt.x, tgt.y, 0xffffff, 220, 16, 380);
+      this.chunks.explode(90, tgt.x, tgt.y);
+      this.tweens.add({ targets: tgt, y: tgt.y + 90, angle: 35, alpha: 0, scale: this.targetBaseScale * 0.35, duration: 520, ease: 'Quad.In' });
+      const keys = [0, 1].map((k) => `kick_${Math.max(0, this.s.target)}_${k}`).filter((k) => this.hasArt(k));
+      for (let i = 0; i < 14; i++) {
+        const key = keys.length ? keys[i % keys.length] : 'chunk';
+        const p = this.add.image(tgt.x + Phaser.Math.Between(-60, 60), tgt.y, key).setDepth(58);
+        p.setScale(Math.min(70 / p.width, 70 / p.height));
+        const to = cellXY(Phaser.Math.Between(0, ROWS * COLS - 1));
+        this.tweens.add({
+          targets: p,
+          x: to.x + Phaser.Math.Between(-30, 30),
+          y: to.y,
+          angle: Phaser.Math.Between(-540, 540),
+          duration: 520 + i * 35,
+          ease: 'Quad.In',
+          onComplete: () => {
+            this.sparks.setParticleTint(0xffcf33);
+            this.sparks.explode(5, p.x, p.y);
+            this.tweens.add({ targets: p, alpha: 0, scale: p.scale * 0.5, duration: 260, onComplete: () => p.destroy() });
+          },
+        });
+      }
+    });
+    // 4) your machine celebrates: a bounce wave row by row + banner + confetti
+    this.time.delayedCall(1900, () => {
+      this.floatText(W / 2, STAGE_TOP + STAGE_H / 2, `${name}\nDOWN!`, '#ffcf33', 74, 1100, 'banner_destroyed');
+      sfx.win();
+      this.s.grid.forEach((g, idx) => {
+        const v = g ? this.views.get(g.id) : undefined;
+        if (!v) return;
+        const row = Math.floor(idx / COLS);
+        this.tweens.add({ targets: v, y: v.y - 34, scale: 1.18, duration: 160, delay: row * 70, yoyo: true, ease: 'Quad.Out' });
+      });
+      for (let i = 0; i < 6; i++)
+        this.time.delayedCall(i * 160, () => {
+          this.sparks.setParticleTint([0xe8452c, 0x27c4e0, 0xf2b521, 0x9be05a, 0xc23fd1, 0xffffff][i]);
+          this.sparks.explode(26, Phaser.Math.Between(80, W - 80), Phaser.Math.Between(BY, BY + CELL * ROWS));
+        });
     });
   }
 
@@ -1355,12 +1558,16 @@ export class GameScene extends Phaser.Scene {
     const c = this.panel(hasPic ? 960 : 700);
     const top = H / 2 - (hasPic ? 480 : 350) + (hasPic ? 250 : 0);
     if (hasPic) {
-      const pic = this.add.image(W / 2, top - 110, art);
+      const pic = this.add.image(W / 2, top - 130, art);
       pic.setScale(Math.min(300 / pic.width, 270 / pic.height));
       c.add(pic);
       this.tweens.add({ targets: pic, scale: { from: pic.scale * 0.6, to: pic.scale }, duration: 400, ease: 'Back.Out' });
+      const cap = won ? 'Your machine smashed it! Its junk is yours now.' : 'So close! Your machine needs one more go.';
+      c.add(this.add.text(W / 2, top + 18, cap, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
     }
-    c.add(this.add.text(W / 2, top + 80, won ? 'MACHINE WINS!' : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    const head = this.add.text(W / 2, top + 82, won ? `YOU BEAT ${TARGET_NAMES[Math.max(0, s.target)]}!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '60px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
+    while (head.width > W - 140 && Number.parseInt(String(head.style.fontSize)) > 30) head.setFontSize(Number.parseInt(String(head.style.fontSize)) - 4);
+    c.add(head);
     const lines: string[] = [];
     if (won) lines.push(`Time  ${s.elapsed.toFixed(1)}s${newBest ? '  NEW BEST!' : ''}${s.practice ? ' (practice)' : ''}`);
     else if (s.remix) lines.push(`${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`);
@@ -1470,6 +1677,13 @@ export class GameScene extends Phaser.Scene {
       toggles.push(tg);
     });
     if (nc) c.add(this.add.text(W / 2, consoleTop + (unlocked.length ? 200 : 140), `Next toy: ${nc.text}`, { ...cream, fontSize: '24px', color: '#e9c8ff' }).setOrigin(0.5));
+    const links = this.add.text(W / 2, consoleTop + 248, 'How to play   ·   Replay tutorial', { ...cream, fontSize: '25px', color: '#ffd24a' }).setOrigin(0.5);
+    c.add(links);
+    links.setInteractive({ useHandCursor: true }).on('pointerup', (p: Phaser.Input.Pointer) => {
+      sfx.click();
+      if (p.x < W / 2) this.openHowTo(0, () => this.openTitle());
+      else this.startTutorial();
+    });
     const play = this.button(c, W / 2, consoleTop + 320, 560, 'PLAY', 0x5fbf4a, () => this.retry(false, -1));
     if (m.hardUnlocked) {
       this.button(c, W / 2 - 152, consoleTop + 450, 256, 'CHALLENGE', 0xe8452c, () => this.retry(true, -1));
@@ -1477,6 +1691,83 @@ export class GameScene extends Phaser.Scene {
     } else c.add(this.add.text(W / 2, consoleTop + 450, 'Win once to unlock Challenge + Remix', { ...cream, fontSize: '24px', color: '#cdbfa8' }).setOrigin(0.5));
     this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
+  /** Illustrated rules, reachable from title + pause (playtest: wanted everything explained). */
+  openHowTo(page = 0, back?: () => void) {
+    this.closeModal();
+    const c = this.panel(900);
+    const top = H / 2 - 450;
+    const pages: { title: string; rows: { icons: string[]; text: string }[] }[] = [
+      {
+        title: 'MERGE',
+        rows: [
+          { icons: ['cannon_1', '+', 'cannon_1', '=', 'cannon_2'], text: 'Drag a gadget onto the SAME gadget\nwith the SAME number.' },
+          { icons: ['cannon_1', 'x', 'cannon_2'], text: 'Different numbers can NOT merge.\nThe number is the rank.' },
+          { icons: ['cannon_2'], text: 'A merge makes it stronger\nand it FIRES right away.' },
+        ],
+      },
+      {
+        title: 'CHAINS',
+        rows: [
+          { icons: ['coil_2'], text: 'COIL: zaps the tiles next to it and\npowers them up. Rank 2+ reaches 2 tiles.' },
+          { icons: ['bell_2'], text: 'BELL: rings its whole row.\nRank 2 also up/down, rank 3 the column.' },
+          { icons: ['cannon_3'], text: 'CANNON: fires by itself slowly.\nWoken by a chain it hits HARD.' },
+        ],
+      },
+      {
+        title: 'DAMAGE + GOAL',
+        rows: [
+          { icons: ['target_0'], text: 'Every gadget in a chain hits the\nmonster. Longer chain = bigger hit.' },
+          { icons: ['target_1', 'target_2'], text: 'Beat Tin Can, Mad Fridge and\nJunkzilla before the clock runs out.' },
+          { icons: ['card'], text: 'After each monster pick an upgrade.\nYour machine carries over.' },
+        ],
+      },
+      {
+        title: 'POWER-UPS',
+        rows: [
+          { icons: ['sticker_kickback'], text: 'KICKBACK: at 75/50/25% HP a chunk\nbreaks off and upgrades one of your parts.' },
+          { icons: ['icon_bolt'], text: 'OVERDRIVE: 6 merges fill the bolt meter.\nCannons fire super fast for a while.' },
+          { icons: ['icon_scrap'], text: 'Board full? Drag junk onto SCRAP.\nNew parts arrive every few seconds.' },
+        ],
+      },
+    ];
+    const pg = pages[page];
+    c.add(this.add.text(W / 2, top + 64, `HOW TO PLAY · ${pg.title}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#2a2233' }).setOrigin(0.5));
+    pg.rows.forEach((row, i) => {
+      const y = top + 220 + i * 200;
+      const n = row.icons.length;
+      const step = n > 3 ? 78 : 110;
+      const x0 = W / 2 - ((n - 1) * step) / 2;
+      row.icons.forEach((k, j) => {
+        const x = x0 + j * step;
+        if (k.length === 1) c.add(this.add.text(x, y - 50, k === 'x' ? '✕' : k, { fontFamily: 'Lilita One, Arial Black', fontSize: '46px', color: k === 'x' ? '#d8261a' : '#2a2233' }).setOrigin(0.5));
+        else if (this.textures.exists(k)) {
+          const im = this.add.image(x, y - 50, k);
+          im.setScale(Math.min((n > 3 ? 80 : 104) / im.width, 96 / im.height));
+          c.add(im);
+          const m = k.match(/_(\d)$/);
+          if (m && /^(cannon|coil|bell)/.test(k)) c.add(this.add.text(x + 30, y - 22, m[1], { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
+        }
+      });
+      c.add(this.add.text(W / 2, y + 40, row.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '25px', color: '#4a3a4a', align: 'center' }).setOrigin(0.5, 0));
+    });
+    const dots = pages.map((_, i) => (i === page ? '●' : '○')).join(' ');
+    c.add(this.add.text(W / 2, top + 780, dots, { fontFamily: 'Arial', fontSize: '26px', color: '#7a5a4a' }).setOrigin(0.5));
+    const done = () => {
+      this.closeModal();
+      if (back) back();
+    };
+    if (page > 0) this.button(c, W / 2 - 165, top + 850, 280, 'BACK', 0x8a6a4a, () => this.openHowTo(page - 1, back));
+    if (page < pages.length - 1) this.button(c, W / 2 + (page > 0 ? 165 : 0), top + 850, 280, 'NEXT', 0x5fbf4a, () => this.openHowTo(page + 1, back));
+    else this.button(c, W / 2 + 165, top + 850, 280, 'GOT IT', 0x5fbf4a, done);
+    tlog.log('howto', { page });
+  }
+
+  startTutorial() {
+    this.closeModal();
+    tlog.log('tutorial_replay');
+    this.startState(newGame(Date.now() >>> 0, true));
+  }
+
   openRemixPicker() {
     this.closeModal();
     const c = this.panel(760);
@@ -1609,7 +1900,6 @@ export class GameScene extends Phaser.Scene {
     const snd = this.button(c, W / 2, top + 300, 420, `SOUND: ${this.meta.sound ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
       this.meta.sound = !this.meta.sound;
       audioSettings.on = this.meta.sound;
-    audioSettings.music = this.meta.music;
       store(META_KEY, JSON.stringify(this.meta));
       (snd.list[1] as Phaser.GameObjects.Text).setText(`SOUND: ${this.meta.sound ? 'ON' : 'OFF'}`);
     });
@@ -1634,6 +1924,12 @@ export class GameScene extends Phaser.Scene {
       }
     });
     c.add(ex);
+    const how = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 700 : 596), 'How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    how.on('pointerup', () => {
+      sfx.click();
+      this.openHowTo(0, () => this.openPause());
+    });
+    c.add(how);
     if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 630, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.retry());
   }
 
