@@ -1,32 +1,45 @@
-# Playtest script (5 minutes per person)
+# Playtest kit — strangers (ChatGPT round 21 plan)
 
-From ChatGPT's research doc, adapted to this build. Five people are a usability starting point, not retention evidence.
+**Link for testers:** https://idoggk.github.io/one-more-merge/?playtest=1&reset
+- `?playtest=1` = the simplified test build (no Challenge/Remix, no helpers, no cosmetics shop; Daily appears after level 10). It is remembered on that phone.
+- `&reset` wipes the save once so the tester starts fresh. After the first load, open it without `&reset`.
+- Add to Home Screen (Safari → Share) is optional for testers; the browser works too.
 
-## Setup
-1. On the test phone open the game with `?reset` once (fresh tutorial), then remove `?reset` from the URL.
-2. Sound on. Hand over the phone. **Say nothing about how to play.**
+## Plan (20 people)
+1. **5 diagnostic sessions** → fix the big failures → **15 validation sessions**.
+2. One instruction only: **"Play until you want to stop."** Don't explain chains, don't rescue them in the first 5 minutes.
+3. Afterwards ask them to **show you**:
+   - a valid merge,
+   - a chain that goes through a relay (Coil/Bell) into a shooter,
+   - what a boss part does when it lands on the board.
+4. Ask: *"What made you stop?"* and *"Which moment felt best? Which felt annoying?"*
 
-## Watch (write it down)
-| # | Question | Notes |
-|---|---|---|
-| 1 | Seconds until the first merge? Where did they hesitate? | |
-| 2 | After the first chain: *"What made the other gadgets fire?"* (Can they name the relay?) | |
-| 3 | Do they ever **move** a piece on purpose to set up a chain, or only merge pairs? | |
-| 4 | When the first panel breaks and the Kickback lands: do they notice it? Do they understand it came from the monster? | |
-| 5 | Do they use Scrap? Is it their main action (bad) or an escape valve (good)? | |
-| 6 | At the result screen: do they press ONE MORE without being asked? | |
-| 7 | *"Which moment felt best? Which control felt annoying?"* | |
+## Validation gates (15 people)
+- 12/15 explain matching on their own (same machine + same number).
+- 10/15 demonstrate a chain.
+- **0** stuck sprites or double merges.
 
-## Gates (from the design doc)
-- Most players merge within ~10 s and can explain the first causal link.
-- Some players rearrange after understanding relays.
-- Scrapping is rare.
-- At least some players retry unprompted.
+## Boss trial (separate, after their natural session)
+On a copied save (or a second phone), let them play **Level 10 — Tin Can King**. Watch:
+- Do they notice the warning? Do they understand the marked cell?
+- Do they try to move the machine away?
+- Do they recognise the defeat?
+Ask: *"What did the boss make you do differently?"*
 
-If players admire effects but can't say *why* things fired, fix readability before adding content.
-Don't patch a weak core with daily rewards or a shop.
+## Watch & note per person
+| Question | Notes |
+|---|---|
+| Seconds to the first merge; where they hesitated | |
+| After the first chain: "What made the others fire?" | |
+| Do they ever move a piece on purpose to set up a chain? | |
+| Did they notice the falling boss part and where it came from? | |
+| At each result: do they press NEXT LEVEL without being asked? | |
+| Fail → retry, use a booster, or quit? | |
+| Did they come back within 24-48 h (ask later)? | |
 
 ## Data
-Pause menu → **export playtest log** saves a JSON file with a per-run summary
-(first merge time, merges, moves, invalid drags, scraps, biggest chain, kickbacks, result, retry).
-Everything stays on the device; nothing is sent anywhere.
+- **Settings (⚙) → Playtest stats**: win rate by difficulty, attempts per clear, boosters bought/used, highest rank.
+- **Pause → export playtest log**: a JSON file with every event, including `drag_end` (what they tried to merge vs what happened), `level_start/end`, `boss_warn/hit`, boosters, lessons.
+- Report counts and individual stories, not percentages: 20 people are a diagnosis, not a forecast.
+
+If players admire the effects but can't say *why* things fired, fix readability before adding content.
