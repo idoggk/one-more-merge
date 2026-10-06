@@ -5,14 +5,28 @@ import { computeLayout, GameScene, layoutHeight, W } from './game/GameScene';
 async function boot() {
   // make sure canvas text uses the real font from the first frame (never block more than 1.5 s)
   await Promise.race([document.fonts.load('40px "Lilita One"'), new Promise((r) => setTimeout(r, 1500))]).catch(() => {});
+  // embedded frames (claude.ai artifact) can report a 0-height viewport for a moment: wait for a real size (max 1.5 s)
+  for (let i = 0; i < 30 && (window.innerHeight < 300 || window.innerWidth < 200); i++) await new Promise((r) => setTimeout(r, 50));
   const H = computeLayout(window.innerWidth, window.innerHeight);
-  // a big aspect change (rotation, window resize) rebuilds the layout; the run is saved on hide/reload
+  // Rebuild the layout only when the orientation really flips. Mobile address bars change the height all the
+  // time, so height changes alone must never reload (that caused an endless reload/blink loop on phones).
+  const portrait = () => window.innerHeight >= window.innerWidth;
+  const bootPortrait = portrait();
   let resizeT = 0;
   window.addEventListener('resize', () => {
     clearTimeout(resizeT);
     resizeT = window.setTimeout(() => {
-      if (Math.abs(layoutHeight(window.innerWidth, window.innerHeight) - H) > 60) location.reload();
-    }, 400);
+      if (window.innerHeight < 300 || portrait() === bootPortrait) return;
+      if (Math.abs(layoutHeight(window.innerWidth, window.innerHeight) - H) < 60) return;
+      let last = 0;
+      try {
+        last = Number(sessionStorage.getItem('omm.reloadAt') || 0);
+        sessionStorage.setItem('omm.reloadAt', String(Date.now()));
+      } catch {
+        /* no storage: still allow one reload */
+      }
+      if (Date.now() - last > 10000) location.reload();
+    }, 500);
   });
   const game = new Phaser.Game({
     type: Phaser.AUTO,
