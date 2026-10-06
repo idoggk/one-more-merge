@@ -1369,6 +1369,8 @@ export class GameScene extends Phaser.Scene {
 
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
+    const sig = r.edges.filter((e) => e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime').map((e) => e.kind);
+    if (sig.length) tlog.log('max_signature', { kinds: sig, chain: r.count });
     const maxDepth = Math.max(...r.activations.map((a) => a.depth));
     const step = maxDepth > 0 ? Math.min(70, 380 / maxDepth) : 0;
     const windup = kickback ? 300 : 90;
