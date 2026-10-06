@@ -970,7 +970,7 @@ export class GameScene extends Phaser.Scene {
   /** Face patches (face_<target>_<hit|angry|dizzy>) cover the sprite's own face; offsets are fractions of the sprite box. */
   // calibrated against ChatGPT's sprites (fractions of the 512px target box; patch boxes are 256px with ~0.83 fill)
   static FACE = [
-    { x: 0, y: -0.02, w: 0.42 },
+    { x: 0.02, y: 0.0, w: 0.58 },
     { x: -0.07, y: -0.075, w: 0.59 },
     { x: 0.235, y: -0.255, w: 0.5 },
   ];
