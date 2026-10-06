@@ -56,6 +56,7 @@ const states = {
     },
     900,
   ],
+  stats: [(sc) => { sc.openTitle('road'); sc.openPlaytestStats(); }, 600],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [
     (sc) => {

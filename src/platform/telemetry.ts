@@ -78,3 +78,8 @@ export function clearLog() {
   dirty = true;
   flush();
 }
+
+/** Raw events (read-only copy) for the in-game playtest dashboard. */
+export function events(): readonly TEvent[] {
+  return buf;
+}

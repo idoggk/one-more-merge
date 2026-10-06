@@ -3109,7 +3109,10 @@ export class GameScene extends Phaser.Scene {
         (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
       });
     });
-    const rt = this.add.text(W / 2, top + 630, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const pd = this.add.text(W / 2, top + 580, 'Playtest stats', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    pd.on('pointerup', () => this.openPlaytestStats());
+    c.add(pd);
+    const rt = this.add.text(W / 2, top + 640, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     rt.on('pointerup', () => this.startTutorial());
     c.add(rt);
     this.button(c, W / 2, top + 720, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
@@ -3166,6 +3169,42 @@ export class GameScene extends Phaser.Scene {
     const sh = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO];
     c.add(this.add.text(W / 2, top + 650, `${sh.name}: ${sh.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5));
     this.button(c, W / 2, top + 790, 380, 'USE TEAM', 0x5fbf4a, () => this.openTitle(), 0.9);
+  }
+
+  /** Local playtest dashboard (ChatGPT r17 D): the numbers that decide rhythm, booster use and rank payoff. */
+  openPlaytestStats() {
+    sfx.click();
+    const ev = tlog.events();
+    const ends = ev.filter((e) => e.e === 'level_end');
+    const by: Record<string, { n: number; w: number }> = { NORMAL: { n: 0, w: 0 }, HARD: { n: 0, w: 0 }, MEGA_HARD: { n: 0, w: 0 } };
+    for (const e of ends) {
+      const d = LEVELS[Number(e.level) - 1]?.difficulty ?? 'NORMAL';
+      by[d].n++;
+      if (e.won) by[d].w++;
+    }
+    const pct = (x: { n: number; w: number }) => (x.n ? `${Math.round((100 * x.w) / x.n)}% (${x.w}/${x.n})` : '-');
+    const cleared = new Set(ends.filter((e) => e.won).map((e) => e.level)).size;
+    const attemptsPerClear = cleared ? (ends.length / cleared).toFixed(1) : '-';
+    const bought = (k: string) => ev.filter((e) => e.e === 'booster_buy' && e.item === k).length;
+    const used = (k: string) => ev.filter((e) => e.e === 'booster' && e.kind === k).length;
+    const merges = ev.filter((e) => e.e === 'merge');
+    const topRank = Math.max(0, ...merges.map((e) => Number(e.rank) || 0));
+    const r78 = merges.filter((e) => Number(e.rank) >= 7).length;
+    const starts = ev.filter((e) => e.e === 'level_start').length;
+    const lines = [
+      `Level win rate  Normal ${pct(by.NORMAL)}`,
+      `Hard ${pct(by.HARD)}   Mega ${pct(by.MEGA_HARD)}`,
+      `Attempts per clear  ${attemptsPerClear}   (levels started ${starts})`,
+      `Kits  bought ${bought('kits')} / used ${used('jumpstart')} / held ${this.meta.kits ?? 0}`,
+      `Capsules  bought ${bought('capsules')} / used ${used('time_capsule')} / held ${this.meta.capsules ?? 0}`,
+      `Highest rank made  ${topRank}   (rank 7-8 merges: ${r78})`,
+      `Merges logged  ${merges.length}   Bolts now ${this.meta.bolts ?? 0}`,
+    ];
+    const c = this.sheet(760);
+    const top = H / 2 - 380;
+    this.sheetTitle(c, top, 'PLAYTEST STATS', 'Local only. Nothing leaves this phone.');
+    c.add(this.add.text(W / 2, top + 170, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', lineSpacing: 18 }).setOrigin(0.5, 0));
+    this.button(c, W / 2, top + 680, 300, 'BACK', 0x8a6a4a, () => this.openSettings(), 0.8);
   }
 
   openHelperSheet() {
