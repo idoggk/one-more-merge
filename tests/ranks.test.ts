@@ -20,12 +20,13 @@ describe('ranks 7-8 (ChatGPT r16)', () => {
     expect(capOf(s, 'magnet')).toBe(6);
   });
 
-  it('L21 opens with a rank-6 shooter pair that merges into rank 7', () => {
+  it('a rank-6 pair merges into rank 7 on L21+ (no showcase override: chapter starters only)', () => {
     const s = newLevel(LEVELS[20]);
-    const a = s.grid[idxOf(4, 1)]!, b = s.grid[idxOf(4, 2)]!;
-    expect([a.rank, b.rank]).toEqual([6, 6]);
+    expect(s.grid[idxOf(4, 1)]!.rank).toBe(LEVELS[20].starting_rank);
+    s.grid[idxOf(4, 1)] = g('cannon', 6);
+    s.grid[idxOf(4, 2)] = g('cannon', 6);
     s.mergeCd = 0;
-    expect(drop(s, idxOf(4, 1), idxOf(4, 2), a.id).ok).toBe(true);
+    expect(drop(s, idxOf(4, 1), idxOf(4, 2), s.grid[idxOf(4, 1)]!.id).ok).toBe(true);
     expect(s.grid[idxOf(4, 2)]!.rank).toBe(7);
   });
 

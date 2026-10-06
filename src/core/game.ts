@@ -178,12 +178,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   s.nextId = 1;
   for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
     for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'shooter' ? shooterOf(s) : (fam as Family), def.starting_rank);
-  // r16 showcase: L21 opens with a rank-6 shooter pair, L41 with rank 7 (an immediate first merge into the new tier)
-  const showcase = def.level === 21 ? 6 : def.level === 41 ? 7 : 0;
-  if (showcase) for (const [r, c] of [[4, 1], [4, 2]]) {
-    const g = s.grid[idxOf(r, c)];
-    if (g) g.rank = showcase;
-  }
+  // (r17: the L21/L41 high-rank showcase moved to an optional practice intro; ordinary levels use chapter starters)
   // Jumpstart Kit: the designated starter shooter pair (4,1),(4,2) arrives one rank higher. No shot, no merge.
   if (opts.jumpstart) {
     for (const [r, c] of [[4, 1], [4, 2]]) {

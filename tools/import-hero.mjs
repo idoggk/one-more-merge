@@ -32,6 +32,13 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   else if (n === 'ui_event_card_plate') [key, box] = ['ui_card', 720];
   else if (n === 'ui_consumable_button_plate') [key, box] = ['ui_consumable', 320];
   else if (/^(cannon|coil|bell)_r0([78])$/.test(n)) [key, box] = [n.replace(/_r0/, '_'), 256];
+  else if (/^rank_dice_0([78])$/.test(n)) [key, box] = [`dice_${n.slice(-1)}`, 160];
+  else if (n === 'chapter_chest_closed') [key, box] = ['chest_closed', 256];
+  else if (n === 'chapter_chest_open') [key, box] = ['chest_open', 256];
+  else if (n === 'chapter_medal_plate') [key, box] = ['medal', 256];
+  else if (/^ornament_(\w+)$/.test(n)) [key, box] = [`orn_${n.replace('ornament_', '')}`, 256];
+  else if (n === 'ui_keepsake_frame') [key, box] = ['keepsake', 512];
+  else if (n === 'ui_primary_wide_plate') [key, box] = ['btn_wide', 720];
   else if (/^rocket_r0([78])$/.test(n)) [key, box] = [`rocket_${n.slice(-1)}`, 256];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];

@@ -243,7 +243,7 @@
     {
       "level": 15,
       "monster": "vacuum_viper",
-      "hp": 4100,
+      "hp": 3850,
       "time_seconds": 60,
       "modifier": "SUCTION",
       "difficulty": "HARD",
@@ -321,7 +321,7 @@
     {
       "level": 21,
       "monster": "tin_can",
-      "hp": 17700,
+      "hp": 6450,
       "time_seconds": 65,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -373,7 +373,7 @@
     {
       "level": 25,
       "monster": "grand_piano_saurus",
-      "hp": 7250,
+      "hp": 6900,
       "time_seconds": 65,
       "modifier": "ROW_GAPS",
       "difficulty": "HARD",
@@ -581,7 +581,7 @@
     {
       "level": 41,
       "monster": "tin_can",
-      "hp": 39100,
+      "hp": 10650,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -633,7 +633,7 @@
     {
       "level": 45,
       "monster": "grand_piano_saurus",
-      "hp": 15750,
+      "hp": 14900,
       "time_seconds": 75,
       "modifier": "ROW_GAPS",
       "difficulty": "HARD",
