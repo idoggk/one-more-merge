@@ -44,6 +44,7 @@ const states = {
     },
     1400,
   ],
+  shop: [(sc) => { sc.openTitle('road'); sc.openWalletInfo(); }, 700],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [
     (sc) => {

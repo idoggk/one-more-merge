@@ -2968,13 +2968,52 @@ export class GameScene extends Phaser.Scene {
     if (sub) c.add(this.add.text(W / 2, top + 112, sub, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
   }
 
+  /** Resources sheet = shop: Bolts (core) explained; Jumpstart Kits + Time Capsules (dynamic) bought with Bolts.
+   *  Guard: stock capped at 5 each, buying is one item per tap, and boosters never enter Daily/Challenge/Remix. */
   openWalletInfo() {
     sfx.click();
-    const c = this.sheet(560);
-    const top = H / 2 - 280;
-    this.sheetTitle(c, top, `${this.meta.bolts ?? 0} BOLTS`, 'Earn Bolts by playing: every run, each monster you beat,\nbig chains, full clears and the Daily Bench.\n\nSpend them in the WORKSHOP on looks for your machine.\nThey never make runs easier, so every record is fair.');
-    this.button(c, W / 2, top + 470, 300, 'OK', 0x5fbf4a, () => this.openTitle());
+    const m = this.meta;
+    const PH = 900;
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    this.sheetTitle(c, top, `${m.bolts ?? 0} BOLTS`, 'Earn Bolts by clearing levels, new stars and the Daily.\nSpend them on boosters here or looks in the Workshop.');
+    const lv = this.currentLevel();
+    const items: [string, string, string, number, number, 'kits' | 'capsules', string][] = [
+      ['booster_jumpstart', 'JUMPSTART KIT', 'Start a level with your 2 bottom\nshooters one rank higher.', PRICES.jumpstart_kit, BOOSTER_UNLOCK.jumpstart_kit, 'kits', 'Pick it on the level card'],
+      ['booster_time_capsule', 'TIME CAPSULE', '+15 seconds, once per level,\nwhile the clock is running.', PRICES.time_capsule, BOOSTER_UNLOCK.time_capsule, 'capsules', 'Tap +15s under the clock'],
+    ];
+    const CAP = 5;
+    items.forEach(([icon, name, desc, price, unlock, field, how], i) => {
+      const y = top + 300 + i * 230;
+      c.add(this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(50, y - 95, W - 100, 190, 24).lineStyle(4, 0x2b1d2e, 1).strokeRoundedRect(50, y - 95, W - 100, 190, 24));
+      if (this.hasArt(icon)) {
+        const ic = this.add.image(120, y - 10, icon);
+        ic.setScale(100 / Math.max(ic.width, ic.height));
+        c.add(ic);
+      }
+      const have = m[field] ?? 0;
+      c.add(this.add.text(190, y - 62, `${name}   x${have}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' }));
+      c.add(this.add.text(190, y - 20, desc, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#5a4a5a' }));
+      c.add(this.add.text(190, y + 40, how, { fontFamily: 'Arial', fontStyle: 'italic', fontSize: '18px', color: '#9a7a5a' }));
+      const locked = lv < unlock;
+      const full = have >= CAP;
+      const label = locked ? `LEVEL ${unlock}` : full ? 'FULL' : `${price}`;
+      const b = this.button(c, W - 150, y + 52, 170, label, 0x5fbf4a, () => {
+        if (locked) return this.showToast(`UNLOCKS AT LEVEL ${unlock}`);
+        if (full) return this.showToast(`YOU CAN HOLD ${CAP}`);
+        if ((m.bolts ?? 0) < price) return this.showToast(`NEED ${price - (m.bolts ?? 0)} MORE BOLTS`);
+        m.bolts = (m.bolts ?? 0) - price;
+        m[field] = have + 1;
+        store(META_KEY, JSON.stringify(m));
+        tlog.log('booster_buy', { item: field, price, balance: m.bolts, stock: m[field] });
+        sfx.rankUp(4);
+        this.openWalletInfo();
+      }, 0.62);
+      if (locked || full || (m.bolts ?? 0) < price) b.setAlpha(0.55);
+    });
+    this.button(c, W / 2, top + 820, 300, 'CLOSE', 0x27a4c0, () => this.openTitle(), 0.8);
   }
+
 
   openSettings() {
     sfx.click();
