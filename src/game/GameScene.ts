@@ -354,7 +354,8 @@ export class GameScene extends Phaser.Scene {
   setTargetTexture() {
     const key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
     this.target.setTexture(key);
-    const sk = `stage_${Math.max(0, this.s.target)}`;
+    // remix opponents reuse the three backdrops (alley / kitchen / junkyard)
+    const sk = `stage_${Math.max(0, this.s.target) % 3}`;
     if (this.hasArt(sk)) {
       this.stage.setTexture(sk).setVisible(true);
       this.stage.setScale(Math.max((W - 140) / this.stage.width, STAGE_H / this.stage.height));
@@ -797,11 +798,6 @@ export class GameScene extends Phaser.Scene {
       const a = 0.35 + 0.25 * Math.sin(this.time.now / 90);
       glow.lineStyle(14, 0xff6a00, a).strokeRoundedRect(BX - 14, BY - 14, CELL * COLS + 28, CELL * ROWS + 28, 30);
     }
-
-    // event lane (single place for chain results / warnings, never over the HP bar or gadgets)
-    this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
-    this.laneBg.setDepth(20).setAlpha(0);
-    this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
 
     // tray
     const nxt = peekNext(s);
@@ -1525,7 +1521,7 @@ export class GameScene extends Phaser.Scene {
     const r = this.s.remix;
     if (!this.remixG) {
       this.remixG = this.add.graphics().setDepth(46);
-      this.remixText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#2a2233' }).setOrigin(0.5).setDepth(48);
+      this.remixText = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#2a2233' }).setOrigin(0.5).setDepth(49);
     }
     const g = this.remixG.clear();
     for (const im of this.remixIcons) im.setVisible(false);
