@@ -2084,8 +2084,23 @@ export class GameScene extends Phaser.Scene {
     this.button(c, W / 2 - 230, top + 560, 150, 'HOME', 0x27a4c0, () => this.openTitle(), 0.9);
   }
 
+  /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
+  quitHome() {
+    const s = this.s;
+    if (s.phase === 'playing' || s.phase === 'choice') {
+      const pay = this.settleBolts(false, false);
+      tlog.log('quit', { at: +s.elapsed.toFixed(1), bolts: pay?.total ?? 0 });
+      s.phase = 'lost';
+      store(META_KEY, JSON.stringify(this.meta));
+      store(SAVE_KEY, null);
+      if (pay?.total) this.time.delayedCall(250, () => this.showToast(`+${pay.total} BOLTS`));
+    }
+    this.paused = false;
+    this.openTitle();
+  }
+
   /** Pays Bolts once per finished run (guarded by a settlement id so a reload cannot pay twice). */
-  settleBolts(won: boolean): Payout | null {
+  settleBolts(won: boolean, completed = true): Payout | null {
     const s = this.s;
     const m = this.meta;
     if (s.phase === 'tutorial') return null;
@@ -2095,7 +2110,7 @@ export class GameScene extends Phaser.Scene {
     const bosses = s.remix ? (won ? 1 : 0) : won ? 3 : Math.max(0, s.target);
     const date = s.daily;
     const pay = runPayout(
-      { activeSec: s.elapsed, merges: s.stats.merges, bossesDefeated: bosses, fullClear: won, bestChain: s.stats.biggestChain, completed: true },
+      { activeSec: s.elapsed, merges: s.stats.merges, bossesDefeated: bosses, fullClear: won, bestChain: s.stats.biggestChain, completed },
       { dailyUnclaimed: !!date && !m.dailyPaid?.[date], onboardingUnclaimed: !m.onboarded },
     );
     if (pay.daily && date) (m.dailyPaid ??= {})[date] = true;
@@ -2745,7 +2760,8 @@ export class GameScene extends Phaser.Scene {
       store(META_KEY, JSON.stringify(this.meta));
       (mus.list[1] as Phaser.GameObjects.Text).setText(`MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`);
     });
-    this.button(c, W / 2, top + 520, 420, 'RESTART', 0xe8452c, () => this.retry());
+    this.button(c, W / 2 + 108, top + 520, 200, 'RESTART', 0xe8452c, () => this.retry());
+    this.button(c, W / 2 - 108, top + 520, 200, 'HOME', 0x27a4c0, () => this.quitHome());
     const ex = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 740 : 640), 'export playtest log', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     ex.on('pointerup', () => {
       try {

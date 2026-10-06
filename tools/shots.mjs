@@ -58,6 +58,15 @@ const states = {
     },
     2600,
   ],
+  pause: [
+    (sc) => {
+      sc.coach.clear();
+      sc.paused = false;
+      sc.explaining = false;
+      sc.openPause();
+    },
+    600,
+  ],
   result_win: [
     (sc) => {
       sc.coach.clear();
