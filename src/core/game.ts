@@ -547,6 +547,7 @@ type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
 function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
   if (dmg <= 0) return;
   dmg = Math.round(dmg * shieldMult(s));
+  if ((src === 'player' || src === 'kick') && s.level !== undefined && !s.goal) dmg = Math.min(dmg, Math.ceil(s.maxHp * TUNING.cascadeCap));
   s.stats.totalDamage += dmg;
   s.stats.dmgBy[src] = (s.stats.dmgBy[src] ?? 0) + dmg;
   const before = s.hp;

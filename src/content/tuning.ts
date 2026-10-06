@@ -46,6 +46,8 @@ export const TUNING = {
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
   passiveMult: 0.15,
+  /** r24: one cascade deals at most this share of a saga monster's max HP (Ido: 'a big merge just wins my level'). */
+  cascadeCap: 0.35,
   /** Kickback: target panels / big cascades drop a part that fuses with a lonely match. */
   kickback: true,
   /** false = bells never ring bells, coils never zap coils (limits whole-board chains). */

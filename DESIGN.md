@@ -227,3 +227,10 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **Twists earlier**: CORNERS at L7, new GAPS mask (2,1)+(2,3) at L15/18. **New machines earlier**: Rocket L6 (shooter override), Magnet L12, Battery L17 (`start_extra`).
 - Win targets (random-3s bot): L4-9 97%, L10 95%, L11/16 95%, ch.2 normals 90%, L14/19 80%, L20 85%.
 - **Boss clarity**: the first clamp is a guided dodge (sim frozen, arrow to a safe cell, only that move accepted); the clamp sits on the machine; touching a clamped machine says STUCK; DODGED! when the cell was emptied; deliveries and kickback never refill a cell marked by a pending clamp/suction.
+
+### Round 24 (Ido: easier early stars, tips missed while merging, one big merge auto-wins, units unclear, QA reset)
+- Chapter 1 stars: 3 stars = 1.3x the median clear of an ordinary 2 s pace (capped at 0.6T), 2 stars = 0.8T.
+- Teaching never talks over play: warm-up instructions sit next to the pair; "what just happened" lines wait for GOT IT; in-level tips and the teaching-level lesson pause the game (explain()).
+- **MAX HIT**: one cascade deals at most 35% of a saga monster's max HP (`TUNING.cascadeCap`) — a win takes at least three real chains; the lane says MAX HIT. HP refit barely moved (the cap only bites on huge chains).
+- **Machine Guide** replaces the old How-to-play: one page per machine with a looping mini-board (source pulses, zaps to what it wakes, bolts to the monster); locked machines say where you meet them. First level with a new machine opens its page; L4+ one-time "tap any machine" hint.
+- Settings > "Start over (wipe progress)" (second tap confirms) for QA.

@@ -30,6 +30,12 @@ const states = {
     1800,
   ],
   s2_tutorial_step1: [(sc) => {}, 2500],
+  tut_after: [(sc) => { const st = sc.constructor.TUTORIAL[sc.tutorialStep]; const p = sc.tutorialPair(st); if (p) sc.commitDrop(p[0], p[1], sc.s.grid[p[0]].id); }, 2200],
+  l1_lesson: [(sc) => { sc.startLevel(1); }, 4200],
+  guide0: [(sc) => { clearInterval(window.__bot); sc.openTitle('road'); sc.openHowTo(0); }, 1500],
+  guide2: [(sc) => { sc.openHowTo(2); }, 1300],
+  new_rocket: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, new_rocket: false }; sc.startLevel(6); }, 4200],
+  settings: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openSettings(); }, 900],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {

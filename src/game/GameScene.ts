@@ -615,7 +615,17 @@ export class GameScene extends Phaser.Scene {
     this.introObjs = [];
     this.paused = false;
     const tdef = this.s.level !== undefined ? LEVELS[this.s.level - 1] : undefined;
-    if (tdef?.teach && !this.s.showcase) this.coach.say(tdef.teach.lesson, this.coachY(), { ms: 3800 });
+    if (tdef?.teach && !this.s.showcase) this.explain(`teach_${tdef.level}`, [{ text: tdef.teach.lesson, spots: [] }]);
+    else if (tdef && !this.s.showcase) {
+      // r24: the first level with a new machine opens its guide page (game paused by the modal)
+      const fam = tdef.level === 6 ? 'rocket' : (tdef.start_extra ?? []).map(([f]) => f).find((f) => f === 'magnet' || f === 'battery');
+      const pageIdx = fam ? GameScene.GUIDE.findIndex((p) => p.key === fam) : -1;
+      if (fam && !this.meta.tips[`new_${fam}`]) {
+        this.meta.tips[`new_${fam}`] = true;
+        store(META_KEY, JSON.stringify(this.meta));
+        this.openHowTo(pageIdx, undefined, true);
+      } else if (tdef.level >= 4 && !this.realBoss) this.explain('tap_hint', [{ text: 'Tip: TAP any machine to see what it does.\nAll machines: Pause > Machine guide.', spots: [] }]);
+    }
     tlog.log('intro_end', { skipped });
   }
 
@@ -881,7 +891,7 @@ export class GameScene extends Phaser.Scene {
       this.closeInspect();
       return;
     }
-    if (this.explaining) return; // explainers advance only from their NEXT button
+    if (this.explaining || this.tutorialWaiting) return; // explainers advance only from their NEXT button
     if (this.coach.waitingTap && !this.modal) {
       sfx.click();
       this.coach.hide();
@@ -1364,6 +1374,14 @@ Now beat the real level.`, this.coachY());
     { kind: 'merge', pair: [19, 22], fam: 'cannon', text: 'Two 2s make a 3! Bigger number,\nbigger blast.', after: 'Now clear levels on the road:\none monster, one clock. LET\'S PLAY!' },
   ];
 
+  /** r24: bubble centre just above the given points (or below them when there is no room above). */
+  nearY(pts: { x: number; y: number }[]) {
+    if (!pts.length) return this.coachY();
+    const top = Math.min(...pts.map((p) => p.y)), bot = Math.max(...pts.map((p) => p.y));
+    const above = top - CELL / 2 - 128;
+    return above - 120 >= 90 ? above : Math.min(H - 130, bot + CELL / 2 + 128);
+  }
+
   coachY() {
     return Math.max(STAGE_TOP + 90, HP_Y - 120);
   }
@@ -1401,8 +1419,8 @@ Now beat the real level.`, this.coachY());
       this.time.delayedCall(400, () => this.startLevel(1));
       return;
     }
-    this.coach.say(step.text, this.coachY());
     const pair = this.tutorialPair(step);
+    this.coach.say(step.text, pair ? this.nearY([cellXY(pair[0]), cellXY(pair[1])]) : this.coachY());
     if (!pair) {
       this.tutorialStep++;
       this.time.delayedCall(200, () => this.runTutorial());
@@ -1415,7 +1433,8 @@ Now beat the real level.`, this.coachY());
     });
   }
 
-  /** After a tutorial merge: short self-dismissing explanation, then the next step. */
+  tutorialWaiting = false;
+  /** After a tutorial merge: the explanation waits for GOT IT (r24: players never looked up), then the next step. */
   onTutorialMerge() {
     const step = GameScene.TUTORIAL[this.tutorialStep];
     if (!step || step.kind !== 'merge') return;
@@ -1427,14 +1446,27 @@ Now beat the real level.`, this.coachY());
       return;
     }
     this.time.delayedCall(900, () => {
-      this.coach.say(step.after!, this.coachY(), { ms: 2600 });
-      if (step.focus === 'target') this.coach.focus([{ x: this.target.x, y: this.target.y, r: 120 }]);
-      if (step.focus === 'chain' && this.lastCascade) this.coach.focus(this.lastCascade.activations.map((a) => cellXY(a.idx)));
+      let pts: { x: number; y: number; r?: number }[] = [];
+      if (step.focus === 'target') pts = [{ x: this.target.x, y: this.target.y, r: 120 }];
+      if (step.focus === 'chain' && this.lastCascade) pts = this.lastCascade.activations.map((a) => cellXY(a.idx));
       if (step.focus === 'row' && this.lastCascade) {
         const row = Math.floor(this.lastCascade.rootIdx / COLS);
-        this.coach.focus(this.s.grid.flatMap((g, i) => (g && Math.floor(i / COLS) === row ? [cellXY(i)] : [])));
+        pts = this.s.grid.flatMap((g, i) => (g && Math.floor(i / COLS) === row ? [cellXY(i)] : []));
       }
-      this.time.delayedCall(2800, next);
+      this.tutorialWaiting = true;
+      this.coach.say(step.after!, step.focus === 'target' ? this.coachY() + 120 : this.nearY(pts), {
+        next: {
+          page: '',
+          label: 'GOT IT',
+          onNext: () => {
+            sfx.click();
+            this.tutorialWaiting = false;
+            this.coach.clear();
+            next();
+          },
+        },
+      });
+      if (pts.length) this.coach.focus(pts);
     });
   }
 
@@ -1451,7 +1483,7 @@ Now beat the real level.`, this.coachY());
     this.showEvent(`Rank ${a.rank} ≠ Rank ${b.rank}: no merge`, '#ffd2c8', 2200);
     if (step?.kind === 'mismatch') {
       this.coach.clear();
-      this.coach.say('Right! Only the SAME number merges.', this.coachY(), { ms: 1800 });
+      this.coach.say('Right! Only the SAME number merges.', this.nearY([cellXY(from), cellXY(to)]), { ms: 1800 });
       this.tutorialStep++;
       this.time.delayedCall(2000, () => this.runTutorial());
     }
@@ -1463,11 +1495,8 @@ Now beat the real level.`, this.coachY());
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('tip', { id });
-    this.coach.say(text, this.coachY(), { ms: 4200 });
-    if (pointAt) {
-      this.coach.point(pointAt);
-      this.time.delayedCall(3000, () => this.coach.stopHand());
-    }
+    this.meta.tips[id] = false; // explain() owns the seen-flag
+    this.explain(id, [{ text, spots: pointAt ? [{ ...pointAt, r: 70 }] : [], y: pointAt ? this.nearY([pointAt]) : undefined }]);
   }
 
   explainQueue: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[] = [];
@@ -1503,7 +1532,7 @@ Now beat the real level.`, this.coachY());
     this.cancelDrag();
     this.coach.focus(c.spots);
     const left = this.explainQueue.length;
-    const page = `${this.explainTotal - left}/${this.explainTotal}`;
+    const page = this.explainTotal > 1 ? `${this.explainTotal - left}/${this.explainTotal}` : '';
     this.coach.say(c.text, c.y ?? this.coachY(), { next: { page, label: left ? 'NEXT \u203a' : 'GOT IT', onNext: () => (sfx.click(), this.nextExplain()) } });
     if (c.draw) this.explainOverlay = c.draw();
   }
@@ -2322,7 +2351,9 @@ Now beat the real level.`, this.coachY());
           ]),
         );
       // damage number beside the opponent, never on its face
-      if (!this.s.goal) this.floatText(this.target.x + 150, this.target.y - 40, fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
+      const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
+      if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
+      if (!this.s.goal) this.floatText(this.target.x + 150, this.target.y - 40, capped ? 'MAX' : fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
     });
   }
 
@@ -3595,7 +3626,24 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const rt = this.add.text(W / 2, top + 640, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     rt.on('pointerup', () => this.startTutorial());
     c.add(rt);
-    this.button(c, W / 2, top + 720, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    // r24 QA: wipe everything and start as a brand-new player (second tap within 3 s confirms)
+    let armed = 0;
+    const wipe = this.add.text(W / 2, top + 690, 'Start over (wipe progress)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#d8261a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    wipe.on('pointerup', () => {
+      if (this.time.now - armed > 3000) {
+        armed = this.time.now;
+        sfx.invalid();
+        wipe.setText('Tap again to wipe EVERYTHING');
+        this.time.delayedCall(3000, () => wipe.active && this.time.now - armed >= 2900 && wipe.setText('Start over (wipe progress)'));
+        return;
+      }
+      tlog.log('start_over');
+      store(SAVE_KEY, null);
+      store(META_KEY, null);
+      location.reload();
+    });
+    c.add(wipe);
+    this.button(c, W / 2, top + 760, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
   }
 
   teamShooter(): Family {
@@ -3886,74 +3934,164 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   }
   /** Illustrated rules, reachable from title + pause (playtest: wanted everything explained). */
-  openHowTo(page = 0, back?: () => void) {
+  /** r24 MACHINE GUIDE (Ido: "a better explanation of the different units"): one page per machine with a looping
+   *  mini-board that shows exactly what it does, plus how chains work. Locked machines say where you meet them. */
+  static GUIDE: { key: string; title: string; role: string; text: string; tryThis: string; unlock: number }[] = [
+    { key: 'chain', title: 'HOW CHAINS WORK', role: 'THE RULE', text: 'Merge two SAME machines with the SAME number. The new machine fires and wakes OTHER machines in its reach. Every machine that fires hits the monster.', tryThis: 'Bigger chain = bigger hit. Build machines next to each other.', unlock: 0 },
+    { key: 'cannon', title: 'CANNON', role: 'SHOOTER', text: 'Shoots by itself, weakly. When a merge or a chain wakes it, it fires a FULL shot. It wakes nobody.', tryThis: 'Park Cannons where Coils and Bells can reach them.', unlock: 0 },
+    { key: 'coil', title: 'COIL', role: 'RELAY', text: 'Zaps up to 2 cells away: up, down, left, right. Wakes every OTHER kind of machine it reaches.', tryThis: 'Put Cannons inside its cross.', unlock: 0 },
+    { key: 'bell', title: 'BELL', role: 'RELAY', text: 'Rings its whole row. Wakes every OTHER kind of machine in that row.', tryThis: 'Fill its row with Cannons and Coils.', unlock: 0 },
+    { key: 'rocket', title: 'ROCKET', role: 'SHOOTER', text: 'Never shoots by itself. When a chain wakes it, it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.', unlock: 6 },
+    { key: 'magnet', title: 'MAGNET', role: 'MOVER', text: 'When it fires, it pulls one machine along its line into the empty cell next to it.', tryThis: 'Use it to bring a pair together.', unlock: 12 },
+    { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
+  ];
+
+  guideUnlocked(unlock: number) {
+    return unlock <= 1 || this.currentLevel() >= unlock || !!this.meta.hardUnlocked;
+  }
+
+  openHowTo(page = 0, back?: () => void, single = false) {
     this.closeModal();
-    const c = this.panel(900);
-    const top = H / 2 - 450;
-    const pages: { title: string; rows: { icons: string[]; text: string }[] }[] = [
-      {
-        title: 'MERGE',
-        rows: [
-          { icons: ['cannon_1', '+', 'cannon_1', '=', 'cannon_2'], text: 'Drag a gadget onto the SAME gadget\nwith the SAME number.' },
-          { icons: ['cannon_1', 'x', 'cannon_2'], text: 'Different numbers can NOT merge.\nThe number is the rank.' },
-          { icons: ['cannon_2'], text: 'A merge makes it stronger\nand it FIRES right away.' },
-        ],
-      },
-      {
-        title: 'CHAINS',
-        rows: [
-          { icons: ['coil_2'], text: 'COIL (relay): wakes OTHER gadgets\nup to 2 cells away in a + shape.' },
-          { icons: ['bell_2'], text: 'BELL (relay): wakes every OTHER\ngadget in its row.' },
-          { icons: ['cannon_3'], text: 'CANNON (shooter): weak shots alone.\nWoken by a chain: a FULL shot.' },
-        ],
-      },
-      {
-        title: 'DAMAGE + GOAL',
-        rows: [
-          { icons: ['target_0'], text: 'Every gadget in a chain hits the\nmonster. Longer chain = bigger hit.' },
-          { icons: ['target_1', 'target_2'], text: 'Beat Tin Can, Mad Fridge and\nJunkzilla before the clock runs out.' },
-          { icons: ['card'], text: 'After each monster pick an upgrade.\nYour machine carries over.' },
-        ],
-      },
-      {
-        title: 'POWER-UPS',
-        rows: [
-          { icons: ['sticker_kickback'], text: 'KICKBACK: at 75/50/25% HP a chunk\nbreaks off and upgrades one of your parts.' },
-          { icons: ['icon_bolt'], text: 'OVERDRIVE: 6 merges fill the bolt meter.\nCannons fire super fast for a while.' },
-          { icons: ['icon_scrap'], text: 'Board full? Drag junk onto SCRAP.\nNew parts arrive every few seconds.' },
-        ],
-      },
-    ];
+    const pages = GameScene.GUIDE;
+    page = Math.max(0, Math.min(pages.length - 1, page));
     const pg = pages[page];
-    c.add(this.add.text(W / 2, top + 64, `HOW TO PLAY · ${pg.title}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#2a2233' }).setOrigin(0.5));
-    pg.rows.forEach((row, i) => {
-      const y = top + 220 + i * 200;
-      const n = row.icons.length;
-      const step = n > 3 ? 78 : 110;
-      const x0 = W / 2 - ((n - 1) * step) / 2;
-      row.icons.forEach((k, j) => {
-        const x = x0 + j * step;
-        if (k.length === 1) c.add(this.add.text(x, y - 50, k === 'x' ? '✕' : k, { fontFamily: 'Lilita One, Arial Black', fontSize: '46px', color: k === 'x' ? '#d8261a' : '#2a2233' }).setOrigin(0.5));
-        else if (this.textures.exists(k)) {
-          const im = this.add.image(x, y - 50, k);
-          im.setScale(Math.min((n > 3 ? 80 : 104) / im.width, 96 / im.height));
-          c.add(im);
-          const m = k.match(/_(\d)$/);
-          if (m && /^(cannon|coil|bell)/.test(k)) c.add(this.add.text(x + 30, y - 22, m[1], { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
-        }
-      });
-      c.add(this.add.text(W / 2, y + 40, row.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '25px', color: '#4a3a4a', align: 'center' }).setOrigin(0.5, 0));
-    });
-    const dots = pages.map((_, i) => (i === page ? '●' : '○')).join(' ');
-    c.add(this.add.text(W / 2, top + 780, dots, { fontFamily: 'Arial', fontSize: '26px', color: '#7a5a4a' }).setOrigin(0.5));
+    const c = this.panel(940);
+    const top = H / 2 - 470;
+    const open = single || this.guideUnlocked(pg.unlock);
+    c.add(this.add.text(W / 2, top + 56, single ? 'NEW MACHINE!' : 'MACHINE GUIDE', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 108, open ? pg.title : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
+    const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a' }[pg.role] ?? '#8a6a4a';
+    c.add(this.add.text(W / 2, top + 160, pg.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: roleCol, padding: { x: 14, y: 4 } }).setOrigin(0.5));
+    if (open) {
+      this.machineDemo(c, W / 2, top + 392, pg.key);
+      c.add(this.add.text(W / 2, top + 586, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '26px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
+      c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    } else {
+      c.add(this.add.text(W / 2, top + 400, `You meet this machine\nat level ${pg.unlock}.`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+    }
     const done = () => {
       this.closeModal();
       if (back) back();
     };
-    if (page > 0) this.button(c, W / 2 - 165, top + 850, 280, 'BACK', 0x8a6a4a, () => this.openHowTo(page - 1, back));
-    if (page < pages.length - 1) this.button(c, W / 2 + (page > 0 ? 165 : 0), top + 850, 280, 'NEXT', 0x5fbf4a, () => this.openHowTo(page + 1, back));
-    else this.button(c, W / 2 + 165, top + 850, 280, 'GOT IT', 0x5fbf4a, done);
-    tlog.log('howto', { page });
+    if (single) {
+      this.button(c, W / 2, top + 880, 320, 'GOT IT', 0x5fbf4a, done);
+    } else {
+      const dots = pages.map((_, i) => (i === page ? '●' : '○')).join(' ');
+      c.add(this.add.text(W / 2, top + 828, dots, { fontFamily: 'Arial', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
+      if (page > 0) this.button(c, W / 2 - 165, top + 880, 260, 'BACK', 0x8a6a4a, () => this.openHowTo(page - 1, back));
+      if (page < pages.length - 1) this.button(c, W / 2 + (page > 0 ? 165 : 0), top + 880, 260, 'NEXT', 0x5fbf4a, () => this.openHowTo(page + 1, back));
+      else this.button(c, W / 2 + 165, top + 880, 260, 'DONE', 0x5fbf4a, done);
+      const x = this.add.text(W - 78, top + 50, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      x.on('pointerup', done);
+      c.add(x);
+    }
+    tlog.log('guide', { page: pg.key, single });
+  }
+
+  /** Looping 5x3 mini-board: the source pulses, yellow zaps reach the machines it wakes (in chain order), shooters send a bolt to the monster. */
+  machineDemo(c: Phaser.GameObjects.Container, cx: number, cy: number, key: string) {
+    const cs = 84, COLS_D = 5, ROWS_D = 3;
+    const ox = cx - (COLS_D * cs) / 2 + cs / 2, oy = cy - (ROWS_D * cs) / 2 + cs / 2 + 40;
+    const at = (r: number, k: number) => ({ x: ox + k * cs, y: oy + r * cs });
+    // [family, row, col]; links: [fromPiece, toPiece, depth]; merge: piece slides onto piece at depth 0; slide: piece moves to [r,c]
+    type Demo = { pieces: [string, number, number][]; links: [number, number, number][]; merge?: [number, number]; slide?: [number, number, number, number]; big?: number[]; charged?: number };
+    const D: Record<string, Demo> = {
+      chain: { pieces: [['coil', 1, 0], ['coil', 1, 1], ['cannon', 1, 3], ['bell', 0, 1], ['cannon', 0, 4], ['cannon', 2, 4]], merge: [0, 1], links: [[1, 2, 1], [1, 3, 1], [3, 4, 2]] },
+      cannon: { pieces: [['cannon', 1, 1], ['cannon', 1, 2], ['cannon', 0, 4]], merge: [0, 1], links: [] },
+      coil: { pieces: [['coil', 1, 2], ['cannon', 1, 0], ['cannon', 0, 2], ['bell', 1, 3], ['cannon', 0, 0], ['cannon', 2, 4]], links: [[0, 1, 1], [0, 2, 1], [0, 3, 1]] },
+      bell: { pieces: [['bell', 1, 2], ['cannon', 1, 0], ['coil', 1, 4], ['cannon', 1, 3], ['cannon', 0, 2], ['cannon', 2, 1]], links: [[0, 1, 1], [0, 2, 1], [0, 3, 1]] },
+      rocket: { pieces: [['coil', 1, 1], ['rocket', 1, 3], ['rocket', 0, 4]], links: [[0, 1, 1]], big: [1] },
+      magnet: { pieces: [['magnet', 1, 1], ['cannon', 1, 4], ['cannon', 0, 0]], links: [], slide: [1, 1, 2, 1] },
+      battery: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['battery', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, big: [1] },
+    };
+    const d = D[key] ?? D.chain;
+    const g = this.add.graphics();
+    c.add(g);
+    for (let r = 0; r < ROWS_D; r++) for (let k = 0; k < COLS_D; k++) g.fillStyle(0xb98a5e, 0.35).fillRoundedRect(at(r, k).x - cs / 2 + 4, at(r, k).y - cs / 2 + 4, cs - 8, cs - 8, 14);
+    // reach hint for relays (the cells the source can wake)
+    const src = d.pieces[0];
+    if (key === 'coil' || key === 'bell') {
+      for (let r = 0; r < ROWS_D; r++)
+        for (let k = 0; k < COLS_D; k++) {
+          const inReach = key === 'bell' ? r === src[1] && k !== src[2] : (r === src[1] && Math.abs(k - src[2]) <= 2 && k !== src[2]) || (k === src[2] && Math.abs(r - src[1]) <= 2 && r !== src[1]);
+          if (inReach) g.lineStyle(4, 0xffcf33, 0.9).strokeRoundedRect(at(r, k).x - cs / 2 + 6, at(r, k).y - cs / 2 + 6, cs - 12, cs - 12, 12);
+        }
+    }
+    const mon = this.add.image(cx, cy - (ROWS_D * cs) / 2 - 30, 'target_0');
+    mon.setScale(64 / Math.max(mon.width, mon.height));
+    c.add(mon);
+    const imgs = d.pieces.map(([f, r, k]) => {
+      const im = this.add.image(at(r, k).x, at(r, k).y, `${f}_1`);
+      im.setScale((cs - 14) / Math.max(im.width, im.height));
+      c.add(im);
+      return im;
+    });
+    const fx = this.add.graphics();
+    c.add(fx);
+    if (d.charged !== undefined) {
+      const p = imgs[d.charged];
+      fx.lineStyle(5, 0x7ccf2e, 1).strokeCircle(p.x, p.y, cs / 2 - 4);
+    }
+    const isShooter = (f: string) => f === 'cannon' || f === 'rocket';
+    const base = d.pieces.map(([, r, k]) => at(r, k));
+    const timers: Phaser.Time.TimerEvent[] = [];
+    const STEP = 420;
+    const play = () => {
+      if (!c.active) return;
+      // reset
+      imgs.forEach((im, i) => im.setPosition(base[i].x, base[i].y).setAlpha(1).setTint(0xffffff));
+      const zap = this.add.graphics();
+      c.add(zap);
+      const fire = (i: number, depth: number) => {
+        timers.push(
+          this.time.delayedCall(depth * STEP + 120, () => {
+            if (!c.active) return;
+            const im = imgs[i];
+            this.tweens.add({ targets: im, scale: im.scale * 1.22, duration: 110, yoyo: true });
+            if (isShooter(d.pieces[i][0])) {
+              const big = d.big?.includes(i);
+              const b = this.add.circle(im.x, im.y, big ? 16 : 10, big ? 0xff8a3c : 0xffcf33);
+              c.add(b);
+              this.tweens.add({ targets: b, x: mon.x, y: mon.y, duration: 300, ease: 'Quad.In', onComplete: () => {
+                b.destroy();
+                if (c.active) this.tweens.add({ targets: mon, angle: { from: -8, to: 0 }, duration: 160 });
+              } });
+            }
+          }),
+        );
+      };
+      let rootIdx = 0;
+      if (d.merge) {
+        const [a, b] = d.merge;
+        rootIdx = b;
+        this.tweens.add({ targets: imgs[a], x: base[b].x, y: base[b].y, duration: 260, ease: 'Quad.In', onComplete: () => imgs[a].setAlpha(0) });
+        timers.push(this.time.delayedCall(280, () => c.active && this.tweens.add({ targets: imgs[b], scale: imgs[b].scale * 1.3, duration: 140, yoyo: true })));
+        fire(b, 1);
+      } else fire(0, 0);
+      for (const [f, t, depth] of d.links) {
+        const dd = d.merge ? depth + 1 : depth;
+        timers.push(
+          this.time.delayedCall(dd * STEP - 120, () => {
+            if (!c.active) return;
+            zap.lineStyle(7, 0x2b1d2e, 0.8).lineBetween(base[f].x, base[f].y, base[t].x, base[t].y).lineStyle(4, 0xffcf33, 1).lineBetween(base[f].x, base[f].y, base[t].x, base[t].y);
+          }),
+        );
+        fire(t, dd);
+      }
+      if (d.slide) {
+        const [i, r, k] = d.slide;
+        const to = at(r, k);
+        timers.push(this.time.delayedCall(STEP, () => c.active && this.tweens.add({ targets: imgs[i], x: to.x, y: to.y, duration: 380, ease: 'Back.Out' })));
+      }
+      void rootIdx;
+      timers.push(this.time.delayedCall(2300, () => zap.destroy()));
+    };
+    play();
+    const loop = this.time.addEvent({ delay: 2900, loop: true, callback: play });
+    c.once('destroy', () => {
+      loop.remove();
+      for (const t of timers) t.remove();
+    });
   }
 
   startTutorial() {
@@ -4211,7 +4349,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (this.meta.shake) this.shake(90, 0.003);
     });
     c.add(shk);
-    const how = this.add.text(W / 2 - 120, linkY, 'How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const how = this.add.text(W / 2 - 120, linkY, 'Machine guide', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     how.on('pointerup', () => {
       sfx.click();
       this.openHowTo(0, () => this.openPause());

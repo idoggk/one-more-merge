@@ -59,8 +59,12 @@ for (const def of LEVELS) {
   const s2 = Math.min(Math.floor(T * 0.8), Math.ceil(steady.t || T * 0.8));
   // chain goals: fast merging drains the board, so the chain-seeker bot is no 3-star model there; use 75% of the 2-star time
   const s3 = def.goal?.kind === 'chain' ? Math.min(s2 - 2, Math.round(s2 * 0.75)) : Math.min(s2 - 2, Math.floor(T * 0.6), Math.ceil(fast.t || T * 0.6));
-  out[L] = [s2, s3];
-  console.log(`L${String(L).padStart(2)} T=${T}s  human2s win ${Math.round(steady.win * 100)}% ${steady.t.toFixed(1)}s  chain1.5 win ${Math.round(fast.win * 100)}% ${fast.t.toFixed(1)}s  -> stars ${s2}s / ${s3}s (old ${Math.floor(T * 0.8)} / ${Math.floor(T * 0.6)})`);
+  // r24 (Ido: 'should be easier to get 3 stars at the start'): chapter 1 gives 3 stars to an ordinary pace with slack
+  if (L <= 10) {
+    const e3 = Math.min(Math.floor(T * 0.6), Math.ceil((steady.t || T * 0.6) * 1.3));
+    out[L] = [Math.max(e3 + 4, Math.floor(T * 0.8)), e3];
+  } else out[L] = [s2, s3];
+  console.log(`L${String(L).padStart(2)} T=${T}s  human2s win ${Math.round(steady.win * 100)}% ${steady.t.toFixed(1)}s  chain1.5 win ${Math.round(fast.win * 100)}% ${fast.t.toFixed(1)}s  -> stars ${out[L][0]}s / ${out[L][1]}s (old ${Math.floor(T * 0.8)} / ${Math.floor(T * 0.6)})`);
 }
 if (args.includes('--write')) {
   const path = 'src/content/levels.json';

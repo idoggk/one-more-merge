@@ -129,8 +129,8 @@
         "lesson": "Merge matching cannons. The new cannon fires."
       },
       "star_times": [
-        27,
-        17
+        36,
+        27
       ]
     },
     {
@@ -201,8 +201,8 @@
         "lesson": "Coils wake nearby machines. Bells wake their row."
       },
       "star_times": [
-        21,
-        11
+        36,
+        27
       ]
     },
     {
@@ -265,8 +265,8 @@
         "lesson": "Break a panel. Its part falls onto your board."
       },
       "star_times": [
-        23,
-        17
+        40,
+        30
       ]
     },
     {
@@ -282,8 +282,8 @@
       "seed": 150004,
       "ordinary_copy_rank_cap": 1,
       "star_times": [
-        15,
-        13
+        40,
+        19
       ],
       "goal": {
         "kind": "rank",
@@ -303,8 +303,8 @@
       "seed": 150005,
       "ordinary_copy_rank_cap": 1,
       "star_times": [
-        15,
-        11
+        40,
+        19
       ],
       "goal": {
         "kind": "chain",
@@ -324,8 +324,8 @@
       "seed": 150006,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        27,
-        20
+        40,
+        30
       ],
       "shooter": "rocket"
     },
@@ -342,8 +342,8 @@
       "seed": 150007,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        17,
-        14
+        44,
+        21
       ],
       "goal": {
         "kind": "rank",
@@ -363,15 +363,15 @@
       "seed": 150008,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        35,
-        19
+        44,
+        33
       ],
       "behaviour": "shield"
     },
     {
       "level": 9,
       "monster": "vacuum_viper",
-      "hp": 6250,
+      "hp": 6700,
       "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -381,15 +381,15 @@
       "seed": 150009,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        35,
-        23
+        48,
+        36
       ],
       "behaviour": "suction"
     },
     {
       "level": 10,
       "monster": "tin_can",
-      "hp": 11650,
+      "hp": 11600,
       "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -399,8 +399,8 @@
       "seed": 150010,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        57,
-        32
+        72,
+        54
       ]
     },
     {
@@ -495,7 +495,7 @@
     {
       "level": 13,
       "monster": "mad_fridge",
-      "hp": 6550,
+      "hp": 6100,
       "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -506,7 +506,7 @@
       "ordinary_copy_rank_cap": 2,
       "star_times": [
         37,
-        22
+        21
       ],
       "shooter": "rocket",
       "behaviour": "shield"
@@ -604,7 +604,7 @@
     {
       "level": 17,
       "monster": "mad_fridge",
-      "hp": 9100,
+      "hp": 9050,
       "time_seconds": 65,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -651,7 +651,7 @@
     {
       "level": 19,
       "monster": "mad_fridge",
-      "hp": 9250,
+      "hp": 9400,
       "time_seconds": 70,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -669,7 +669,7 @@
     {
       "level": 20,
       "monster": "mad_fridge",
-      "hp": 13700,
+      "hp": 14400,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -680,13 +680,13 @@
       "ordinary_copy_rank_cap": 2,
       "star_times": [
         55,
-        31
+        37
       ]
     },
     {
       "level": 21,
       "monster": "tin_can",
-      "hp": 12600,
+      "hp": 12650,
       "time_seconds": 65,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -696,14 +696,14 @@
       "seed": 150021,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        37,
+        39,
         31
       ]
     },
     {
       "level": 22,
       "monster": "mad_fridge",
-      "hp": 12200,
+      "hp": 12350,
       "time_seconds": 65,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -720,7 +720,7 @@
     {
       "level": 23,
       "monster": "vacuum_viper",
-      "hp": 12000,
+      "hp": 12250,
       "time_seconds": 65,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -730,14 +730,14 @@
       "seed": 150023,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        39,
+        41,
         19
       ]
     },
     {
       "level": 24,
       "monster": "toaster_twins",
-      "hp": 12800,
+      "hp": 12750,
       "time_seconds": 65,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -747,14 +747,14 @@
       "seed": 150024,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        39,
-        26
+        41,
+        28
       ]
     },
     {
       "level": 25,
       "monster": "grand_piano_saurus",
-      "hp": 13500,
+      "hp": 13650,
       "time_seconds": 65,
       "modifier": "ROW_GAPS",
       "difficulty": "HARD",
@@ -771,7 +771,7 @@
     {
       "level": 26,
       "monster": "tin_can",
-      "hp": 11000,
+      "hp": 11050,
       "time_seconds": 65,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -788,7 +788,7 @@
     {
       "level": 27,
       "monster": "mad_fridge",
-      "hp": 12850,
+      "hp": 13600,
       "time_seconds": 65,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -799,13 +799,13 @@
       "ordinary_copy_rank_cap": 4,
       "star_times": [
         41,
-        28
+        29
       ]
     },
     {
       "level": 28,
       "monster": "vacuum_viper",
-      "hp": 15800,
+      "hp": 15850,
       "time_seconds": 65,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -822,7 +822,7 @@
     {
       "level": 29,
       "monster": "toaster_twins",
-      "hp": 12300,
+      "hp": 12350,
       "time_seconds": 65,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -839,7 +839,7 @@
     {
       "level": 30,
       "monster": "junkzilla",
-      "hp": 29100,
+      "hp": 29200,
       "time_seconds": 75,
       "modifier": "CORNERS_4",
       "difficulty": "MEGA_HARD",
@@ -849,14 +849,14 @@
       "seed": 150030,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        72,
+        70,
         28
       ]
     },
     {
       "level": 31,
       "monster": "tin_can",
-      "hp": 16950,
+      "hp": 15700,
       "time_seconds": 70,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -866,14 +866,14 @@
       "seed": 150031,
       "ordinary_copy_rank_cap": 5,
       "star_times": [
-        41,
+        39,
         25
       ]
     },
     {
       "level": 32,
       "monster": "mad_fridge",
-      "hp": 16750,
+      "hp": 16800,
       "time_seconds": 70,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -884,13 +884,13 @@
       "ordinary_copy_rank_cap": 5,
       "star_times": [
         45,
-        20
+        23
       ]
     },
     {
       "level": 33,
       "monster": "vacuum_viper",
-      "hp": 13100,
+      "hp": 13150,
       "time_seconds": 70,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -900,14 +900,14 @@
       "seed": 150033,
       "ordinary_copy_rank_cap": 5,
       "star_times": [
-        43,
+        44,
         26
       ]
     },
     {
       "level": 34,
       "monster": "toaster_twins",
-      "hp": 13700,
+      "hp": 13850,
       "time_seconds": 70,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -924,7 +924,7 @@
     {
       "level": 35,
       "monster": "grand_piano_saurus",
-      "hp": 17350,
+      "hp": 17550,
       "time_seconds": 70,
       "modifier": "ROW_GAPS",
       "difficulty": "HARD",
@@ -941,7 +941,7 @@
     {
       "level": 36,
       "monster": "tin_can",
-      "hp": 13650,
+      "hp": 14200,
       "time_seconds": 70,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -952,13 +952,13 @@
       "ordinary_copy_rank_cap": 5,
       "star_times": [
         41,
-        25
+        26
       ]
     },
     {
       "level": 37,
       "monster": "mad_fridge",
-      "hp": 10750,
+      "hp": 11100,
       "time_seconds": 70,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -969,13 +969,13 @@
       "ordinary_copy_rank_cap": 5,
       "star_times": [
         41,
-        26
+        28
       ]
     },
     {
       "level": 38,
       "monster": "vacuum_viper",
-      "hp": 15900,
+      "hp": 15450,
       "time_seconds": 70,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -986,13 +986,13 @@
       "ordinary_copy_rank_cap": 5,
       "star_times": [
         39,
-        22
+        20
       ]
     },
     {
       "level": 39,
       "monster": "toaster_twins",
-      "hp": 17450,
+      "hp": 17500,
       "time_seconds": 70,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -1009,7 +1009,7 @@
     {
       "level": 40,
       "monster": "junkzilla",
-      "hp": 24850,
+      "hp": 23800,
       "time_seconds": 80,
       "modifier": "CORNERS_4",
       "difficulty": "MEGA_HARD",
@@ -1019,14 +1019,14 @@
       "seed": 150040,
       "ordinary_copy_rank_cap": 5,
       "star_times": [
-        53,
-        28
+        51,
+        26
       ]
     },
     {
       "level": 41,
       "monster": "tin_can",
-      "hp": 17600,
+      "hp": 17650,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1043,7 +1043,7 @@
     {
       "level": 42,
       "monster": "mad_fridge",
-      "hp": 19250,
+      "hp": 20950,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1053,14 +1053,14 @@
       "seed": 150042,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        37,
+        39,
         23
       ]
     },
     {
       "level": 43,
       "monster": "vacuum_viper",
-      "hp": 20450,
+      "hp": 20500,
       "time_seconds": 75,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -1077,7 +1077,7 @@
     {
       "level": 44,
       "monster": "toaster_twins",
-      "hp": 33650,
+      "hp": 33250,
       "time_seconds": 75,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -1094,7 +1094,7 @@
     {
       "level": 45,
       "monster": "grand_piano_saurus",
-      "hp": 34400,
+      "hp": 34500,
       "time_seconds": 75,
       "modifier": "ROW_GAPS",
       "difficulty": "HARD",
@@ -1111,7 +1111,7 @@
     {
       "level": 46,
       "monster": "tin_can",
-      "hp": 20800,
+      "hp": 20900,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1121,14 +1121,14 @@
       "seed": 150046,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        46,
-        26
+        47,
+        28
       ]
     },
     {
       "level": 47,
       "monster": "mad_fridge",
-      "hp": 29900,
+      "hp": 29800,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1145,7 +1145,7 @@
     {
       "level": 48,
       "monster": "vacuum_viper",
-      "hp": 29850,
+      "hp": 30550,
       "time_seconds": 75,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -1155,14 +1155,14 @@
       "seed": 150048,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        51,
-        34
+        53,
+        35
       ]
     },
     {
       "level": 49,
       "monster": "toaster_twins",
-      "hp": 29050,
+      "hp": 31150,
       "time_seconds": 75,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -1172,14 +1172,14 @@
       "seed": 150049,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        47,
-        34
+        45,
+        35
       ]
     },
     {
       "level": 50,
       "monster": "junkzilla",
-      "hp": 50000,
+      "hp": 50200,
       "time_seconds": 85,
       "modifier": "CORNERS_4",
       "difficulty": "MEGA_HARD",
@@ -1196,7 +1196,7 @@
     {
       "level": 51,
       "monster": "tin_can",
-      "hp": 27350,
+      "hp": 28050,
       "time_seconds": 80,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1206,14 +1206,14 @@
       "seed": 150051,
       "ordinary_copy_rank_cap": 7,
       "star_times": [
-        52,
-        20
+        53,
+        23
       ]
     },
     {
       "level": 52,
       "monster": "mad_fridge",
-      "hp": 20300,
+      "hp": 20050,
       "time_seconds": 80,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1230,7 +1230,7 @@
     {
       "level": 53,
       "monster": "vacuum_viper",
-      "hp": 28200,
+      "hp": 27850,
       "time_seconds": 80,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -1247,7 +1247,7 @@
     {
       "level": 54,
       "monster": "toaster_twins",
-      "hp": 29600,
+      "hp": 29700,
       "time_seconds": 80,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -1281,7 +1281,7 @@
     {
       "level": 56,
       "monster": "tin_can",
-      "hp": 21900,
+      "hp": 23150,
       "time_seconds": 80,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1291,14 +1291,14 @@
       "seed": 150056,
       "ordinary_copy_rank_cap": 7,
       "star_times": [
-        41,
-        28
+        43,
+        29
       ]
     },
     {
       "level": 57,
       "monster": "mad_fridge",
-      "hp": 32300,
+      "hp": 29450,
       "time_seconds": 80,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1308,14 +1308,14 @@
       "seed": 150057,
       "ordinary_copy_rank_cap": 7,
       "star_times": [
-        49,
-        22
+        47,
+        21
       ]
     },
     {
       "level": 58,
       "monster": "vacuum_viper",
-      "hp": 31100,
+      "hp": 31200,
       "time_seconds": 80,
       "modifier": "SUCTION",
       "difficulty": "NORMAL",
@@ -1332,7 +1332,7 @@
     {
       "level": 59,
       "monster": "toaster_twins",
-      "hp": 33500,
+      "hp": 36150,
       "time_seconds": 80,
       "modifier": "JAM",
       "difficulty": "NORMAL",
@@ -1342,14 +1342,14 @@
       "seed": 150059,
       "ordinary_copy_rank_cap": 7,
       "star_times": [
-        55,
-        31
+        57,
+        29
       ]
     },
     {
       "level": 60,
       "monster": "junkzilla",
-      "hp": 57300,
+      "hp": 56650,
       "time_seconds": 90,
       "modifier": "CORNERS_4",
       "difficulty": "MEGA_HARD",
