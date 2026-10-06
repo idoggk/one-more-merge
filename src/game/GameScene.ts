@@ -616,6 +616,7 @@ export class GameScene extends Phaser.Scene {
     tlog.log('intro_end', { skipped });
   }
 
+  targetY = 0;
   setTargetTexture() {
     let key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
     const b = this.s.boss;
@@ -632,8 +633,10 @@ export class GameScene extends Phaser.Scene {
       this.stageFrame.clear().lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
     }
     const tex = this.target.frame;
-    this.targetBaseScale = b ? Math.min(330 / tex.width, (STAGE_H * 0.86) / tex.height) : Math.min(280 / tex.width, (STAGE_H - 24) / tex.height);
-    this.target.setScale(this.targetBaseScale).setAngle(0).setAlpha(1).setPosition(W / 2, TARGET_Y);
+    // r22: bosses share one feet baseline (88% of the stage) and a max footprint (78% wide, 80% tall)
+    this.targetBaseScale = b ? Math.min((W - 140) * 0.78 / tex.width, (STAGE_H * 0.8) / tex.height) : Math.min(280 / tex.width, (STAGE_H - 24) / tex.height);
+    this.targetY = b ? STAGE_TOP + STAGE_H * 0.88 - (tex.height * this.targetBaseScale) / 2 : TARGET_Y;
+    this.target.setScale(this.targetBaseScale).setAngle(0).setAlpha(1).setPosition(W / 2, this.targetY);
   }
 
   hasArt(key: string) {
@@ -1861,7 +1864,11 @@ Now beat the real level.`, this.coachY());
     const msg = persistent ?? (this.time.now < this.laneMsg.until ? this.laneMsg.text : '');
     const col = persistent ? color : this.laneMsg.color;
     const on = !!msg;
-    if (msg) this.laneText.setText(msg).setColor(col);
+    if (msg && msg !== this.laneText.text) {
+      this.laneText.setFontSize(28).setText(msg);
+      if (this.laneText.width > 610) this.laneText.setFontSize(Math.max(18, Math.floor((28 * 610) / this.laneText.width)));
+    }
+    if (msg) this.laneText.setColor(col);
     const a = on ? 1 : Math.max(0, this.laneText.alpha - 0.08);
     this.laneText.setAlpha(a);
     this.laneBg.setAlpha(a * 0.95);
@@ -1972,12 +1979,12 @@ Now beat the real level.`, this.coachY());
     const k = tier === 1 ? { sq: 0.07, kb: 9, inn: 45, out: 170, ease: 'Cubic.Out', tint: 0.3, tout: 110 } : { sq: big ? 0.025 : 0.015, kb: big ? 4 : 2, inn: 35, out: 100, ease: 'Sine.Out', tint: big ? 0.18 : 0, tout: 75 };
     if (REDUCED_MOTION) k.sq = k.kb = 0;
     // squash + knockback away from the board (up), then recover
-    t.setAngle(0).setY(TARGET_Y);
+    t.setAngle(0).setY(this.targetY);
     this.tweens.chain({
       targets: t,
       tweens: [
-        { scaleX: s * (1 + k.sq), scaleY: s * (1 - k.sq), y: TARGET_Y - k.kb, duration: k.inn, ease: 'Quad.Out' },
-        { scaleX: s, scaleY: s, y: TARGET_Y, duration: k.out, ease: k.ease },
+        { scaleX: s * (1 + k.sq), scaleY: s * (1 - k.sq), y: this.targetY - k.kb, duration: k.inn, ease: 'Quad.Out' },
+        { scaleX: s, scaleY: s, y: this.targetY, duration: k.out, ease: k.ease },
       ],
     });
     if (k.tint > 0) this.silhouetteFlash(0xffe2a8, k.tint, k.tout);
@@ -2299,7 +2306,7 @@ Now beat the real level.`, this.coachY());
       }
       this.shownHp = this.s.hp;
       this.target.y = -150;
-      this.tweens.add({ targets: this.target, y: TARGET_Y, duration: 420, ease: 'Bounce.Out' });
+      this.tweens.add({ targets: this.target, y: this.targetY, duration: 420, ease: 'Bounce.Out' });
     });
   }
 
