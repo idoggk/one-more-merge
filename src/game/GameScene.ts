@@ -80,6 +80,8 @@ interface Meta {
   sound: boolean;
   hints: boolean;
   music: boolean;
+  /** Bolts balance at the last Workshop visit (new-item dot). */
+  workshopSeenBolts?: number;
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
   swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
@@ -2168,51 +2170,47 @@ export class GameScene extends Phaser.Scene {
     store(META_KEY, JSON.stringify(m));
     store(SAVE_KEY, null);
     won ? sfx.win() : sfx.lose();
-    const art = won ? 'victory' : 'defeat';
-    const machineArt = hasMachineArt(this);
-    const hasPic = machineArt || this.hasArt(art);
-    const c = this.panel(hasPic ? 960 : 700);
-    const top = H / 2 - (hasPic ? 480 : 350) + (hasPic ? 250 : 0);
-    if (hasPic) {
-      const helper = s.toys[0] ?? null;
-      const pic = machineArt ? buildMachine(this, W / 2, top - 8, 470, this.runBest, helper)! : this.add.image(W / 2, top - 130, art);
-      if (!machineArt) (pic as Phaser.GameObjects.Image).setScale(Math.min(300 / (pic as Phaser.GameObjects.Image).width, 270 / (pic as Phaser.GameObjects.Image).height));
-      c.add(pic);
-      const sc0 = pic.scale;
-      this.tweens.add({ targets: pic, scale: { from: sc0 * 0.6, to: sc0 }, duration: 400, ease: 'Back.Out' });
-      const cap = machineArt
-        ? won
-          ? 'YOUR MACHINE: built from your best merges this run'
-          : 'Your machine this run. Merge higher to grow it!'
-        : won
-          ? 'Your machine smashed it! Its junk is yours now.'
-          : 'So close! Your machine needs one more go.';
-      c.add(this.add.text(W / 2, top + 18, cap, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-    }
-    const head = this.add.text(W / 2, top + 82, won ? `YOU BEAT ${TARGET_NAMES[Math.max(0, s.target)]}!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '60px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
+    // ChatGPT r13 layout: headline first, the machine in a fixed region, few big numbers, "new this run", details, CTA stack
+    const PH = 1000;
+    const c = this.panel(PH);
+    const top = H / 2 - PH / 2;
+    const txt = (y: number, t: string, size: number, color: string, font = 'Lilita One, Arial Black') =>
+      c.add(this.add.text(W / 2, y, t, { fontFamily: font, fontStyle: font === 'Arial' ? 'bold' : '', fontSize: `${size}px`, color, align: 'center', wordWrap: { width: W - 150 } }).setOrigin(0.5));
+    const head = this.add.text(W / 2, top + 70, won ? `${TARGET_NAMES[Math.max(0, s.target)]} DEFEATED!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
     while (head.width > W - 140 && Number.parseInt(String(head.style.fontSize)) > 30) head.setFontSize(Number.parseInt(String(head.style.fontSize)) - 4);
     c.add(head);
-    const lines: string[] = [];
-    if (won) lines.push(`Time  ${s.elapsed.toFixed(1)}s${newBest ? '  NEW BEST!' : ''}${s.practice ? ' (practice)' : ''}`);
-    else if (s.remix) lines.push(`${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`);
-    else lines.push(`Beat ${s.target} of 3  ·  ${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`);
-    lines.push(`Biggest chain  x${s.stats.biggestChain}`);
-    lines.push(`Biggest hit  ${fmt(s.stats.biggestHit)}`);
-    if (!hasMachineArt(this)) lines.push(`Best gadget  rank ${s.stats.bestRank}`);
-    if (s.perks.length) lines.push(`Perks  ${s.perks.map((p) => PERKS[p].name).join(', ')}`);
+    const sub = won
+      ? `${s.elapsed.toFixed(1)}s${newBest ? '  ·  NEW BEST!' : ''}${s.practice ? '  (practice)' : ''}`
+      : s.remix
+        ? `${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`
+        : `Beat ${s.target} of 3  ·  ${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`;
+    txt(top + 128, sub, 30, newBest ? '#2f8a3a' : '#5a4a5a');
+    if (hasMachineArt(this)) {
+      const pic = buildMachine(this, W / 2, top + 390, 430, this.runBest, s.toys[0] ?? null)!;
+      c.add(pic);
+      const sc0 = pic.scale;
+      this.tweens.add({ targets: pic, scale: { from: sc0 * 0.7, to: sc0 }, duration: 380, ease: 'Back.Out' });
+      txt(top + 420, won ? 'Your machine this run, built from your best merges' : 'Your machine this run. Merge higher to grow it!', 21, '#7a5a4a', 'Arial');
+    }
+    const big = [`Biggest chain x${s.stats.biggestChain}`, pay && pay.total > 0 ? `+${pay.total} BOLTS` : ''].filter(Boolean).join('    ');
+    txt(top + 490, big, 36, '#3b2533');
+    const fresh: string[] = [];
     if (daily) {
       const [b, improved] = daily;
-      lines.unshift(`Daily best  ${b.targets === 3 ? `${b.time}s` : `${b.targets}/3 + ${fmt(b.dmg)}`}${improved ? '  NEW!' : ''}`);
-      lines.push('New bench tomorrow');
+      fresh.push(`Daily best ${b.targets === 3 ? `${b.time}s` : `${b.targets}/3 + ${fmt(b.dmg)}`}${improved ? '  NEW!' : ''}  ·  new bench tomorrow`);
+    }
+    if (newBests.length) fresh.push(`New best: ${newBests.slice(0, 3).join(' · ')}`);
+    if (pay?.onboarding) fresh.push('Includes a welcome gift of 12 Bolts');
+    if (unlockedNow) fresh.push('★ Daily, Challenge + Remix unlocked ★');
+    if (fresh.length) {
+      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 535, W - 140, 40 + fresh.length * 38, 18));
+      txt(top + 557 + (fresh.length * 38) / 2, fresh.join('\n'), 24, '#b06a1a');
     }
     const rec = s.daily ? null : s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
-    if (rec !== null) lines.push(`Record${s.remix ? ' (remix)' : s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
-    if (newBests.length) lines.push(`New best!  ${newBests.slice(0, 3).join(' · ')}`);
-    if (pay && pay.total > 0) lines.push(`+${pay.total} BOLTS${pay.onboarding ? '  (incl. welcome gift)' : ''}`);
-    if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
-    c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
-    this.button(c, W / 2 + 70, top + 560, 400, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.15);
-    this.button(c, W / 2 - 230, top + 560, 150, 'HOME', 0x27a4c0, () => this.openTitle(), 0.9);
+    const details = [`Biggest hit ${fmt(s.stats.biggestHit)}`, rec !== null ? `Record ${rec.toFixed(1)}s` : '', s.perks.length ? `Perks: ${s.perks.map((p) => PERKS[p].name).join(', ')}` : ''].filter(Boolean).join('  ·  ');
+    txt(top + 720, details, 20, '#8a7a6a', 'Arial');
+    this.button(c, W / 2, top + 820, 520, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.15);
+    this.button(c, W / 2, top + 932, 260, 'HOME', 0x27a4c0, () => this.openTitle(), 0.78);
   }
 
   /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
@@ -2367,14 +2365,17 @@ export class GameScene extends Phaser.Scene {
 
     // identity
     const name = m.owned?.includes('nameplate') ? MACHINE_NAMES[(m.nameIdx ?? 0) % MACHINE_NAMES.length] : 'YOUR MACHINE';
-    c.add(this.add.text(W / 2, headY, name, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
+    // ChatGPT r13: quieter identity on the quiet wall (no heavy sticker outline)
+    c.add(this.add.text(W / 2, headY, name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     const empty = !Object.values(m.mastery ?? {}).some((r) => (r ?? 0) > 0);
-    const status = empty ? 'Merge gadgets in a run to build it!' : m.bestChain ? `Built from the gadgets you've merged · Best chain x${m.bestChain}` : "Built from the gadgets you've merged";
-    c.add(this.add.text(W / 2, headY + 50, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
+    const status = empty ? 'Starter kit  ·  upgrade it in runs' : m.bestChain ? `Best chain: x${m.bestChain}` : "Built from the gadgets you've merged";
+    c.add(this.add.text(W / 2, headY + 48, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a' }).setOrigin(0.5));
 
     // the machine
     const helper = this.activeToys()[0] ?? null;
-    const mach = buildMachine(this, W / 2, feetY, mWidth, m.mastery ?? {}, helper)!;
+    // day 0: three rank-1 starter modules instead of an empty chassis (display baseline, not earned mastery)
+    const shown = empty ? { cannon: 1, coil: 1, bell: 1 } : (m.mastery ?? {});
+    const mach = buildMachine(this, W / 2, feetY, mWidth, shown, helper)!;
     this.applyFinish(mach);
     c.add(mach);
     const hit = this.add.zone(W / 2, feetY - mWidth * 0.25, mWidth * 0.95, mWidth * 0.5).setInteractive({ useHandCursor: true });
@@ -2401,7 +2402,7 @@ export class GameScene extends Phaser.Scene {
     const hg = this.add.graphics().fillStyle(0x2b1d2e, 0.82).fillRoundedRect(44, hy - 46, W - 88, 92, 26);
     c.add(hg);
     const nc = this.nextChallenge();
-    const hl = unlocked.length ? `Helper:  ${helper ? FAMILY_INFO[helper].name : 'None'}` : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
+    const hl = unlocked.length ? `Helper:  ${helper ? FAMILY_INFO[helper].name : 'None'}` : empty || !m.bestChain ? 'Merge your first gadgets: tap PLAY!' : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
     const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: unlocked.length ? '30px' : '22px', color: '#fff0cf', wordWrap: { width: unlocked.length ? 380 : W - 170 } }).setOrigin(0, 0.5);
     c.add(ht);
     if (unlocked.length) this.button(c, W - 150, hy, 220, 'CHANGE', 0x27a4c0, () => this.openHelperSheet(), 0.62);
@@ -2419,14 +2420,21 @@ export class GameScene extends Phaser.Scene {
       ['CHALLENGE', 0xe8452c, () => (m.hardUnlocked ? this.retry(true, -1) : locked())],
       ['REMIX', 0x27a4c0, () => (m.hardUnlocked ? this.openRemixPicker() : locked())],
     ];
-    modes.forEach(([label, col, cb], i) => {
-      const bt = this.button(c, W / 2 + (i - 1) * 222, bottom - 266, 250, label, col, cb, 0.82);
-      if (!m.hardUnlocked) bt.setAlpha(0.55);
-    });
+    if (m.hardUnlocked)
+      modes.forEach(([label, col, cb], i) => {
+        this.button(c, W / 2 + (i - 1) * 222, bottom - 266, 250, label, col, cb, 0.82);
+      });
+    else {
+      // before the first win: one quiet line instead of three dead buttons
+      const more = this.add.text(W / 2, bottom - 266, 'More modes unlock as you play  ⓘ', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      more.on('pointerup', locked);
+      c.add(more);
+    }
 
     // workshop
     this.button(c, W / 2, bottom - 140, 600, 'WORKSHOP', 0x8a6a4a, () => this.openWorkshop(), 0.85);
-    const affordable = CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0));
+    // dot only for genuinely new options: something became affordable since the last Workshop visit
+    const affordable = CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
     if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 172, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
 
     // utilities
@@ -2548,65 +2556,69 @@ export class GameScene extends Phaser.Scene {
     this.button(c, W / 2, top + 640, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
   }
 
-  /** WORKSHOP: mastery is free (it IS the machine); Bolts buy chassis finishes. Preview -> Buy -> Equip. */
+  /** WORKSHOP: mastery is free (it IS the machine); Bolts buy chassis finishes. Cards only PREVIEW; an explicit
+   *  BUY / EQUIP button acts (ChatGPT r13: "tap again to buy" invited accidental spending). */
   openWorkshop(preview: string | null = null) {
     sfx.click();
     const m = this.meta;
+    m.workshopSeenBolts = m.bolts ?? 0;
+    store(META_KEY, JSON.stringify(m));
     const wallet: Wallet = { bolts: m.bolts ?? 0, owned: m.owned ?? [], finish: m.finish ?? null };
-    const c = this.sheet(Math.min(H - 80, 1180));
-    const top = H / 2 - Math.min(H - 80, 1180) / 2;
+    const PH = Math.min(H - 60, 1200);
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
     this.sheetTitle(c, top, 'WORKSHOP');
-    const pv = preview && !wallet.owned.includes(preview) ? CATALOG.find((x) => x.id === preview) : undefined;
-    const sub = pv ? `Previewing ${pv.name}: tap it again to buy (${pv.price})` : `Bolts: ${wallet.bolts}   ·   Better parts come free from merging`;
-    c.add(this.add.text(W / 2, top + 108, sub, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: pv ? '#b06a1a' : '#7a5a4a' }).setOrigin(0.5));
-    // live preview of the machine with the previewed (or equipped) finish
-    const mach = buildMachine(this, W / 2, top + 400, 460, m.mastery ?? {}, this.activeToys()[0] ?? null)!;
-    const show = preview ?? wallet.finish;
-    const it0 = CATALOG.find((x) => x.id === show);
-    const ch = mach.list[0] as Phaser.GameObjects.Image;
-    if (it0?.tint) ch.setTint(it0.tint);
+    c.add(this.add.text(W / 2, top + 108, `${wallet.bolts} Bolts   ·   better parts come free from merging`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#7a5a4a' }).setOrigin(0.5));
+    const sel = preview ?? wallet.finish;
+    const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1 }, this.activeToys()[0] ?? null)!;
+    const it0 = CATALOG.find((x) => x.id === sel);
+    if (it0?.tint) (mach.list[0] as Phaser.GameObjects.Image).setTint(it0.tint);
     c.add(mach);
-    const items = CATALOG;
-    items.forEach((it, i) => {
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const x = W / 2 + (col ? 150 : -150);
-      const y = top + 470 + row * 140;
+    CATALOG.forEach((it, i) => {
+      const x = W / 2 + (i % 2 ? 152 : -152);
+      const y = top + 460 + Math.floor(i / 2) * 104;
       const owned = wallet.owned.includes(it.id);
       const equipped = it.slot === 'finish' ? wallet.finish === it.id : owned;
       const card = this.add.container(x, y);
-      const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-140, -58, 280, 116, 20).fillStyle(preview === it.id ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-136, -54, 272, 108, 17);
-      const sw = this.add.circle(-98, -14, 20, it.tint ?? 0xd8c8b0).setStrokeStyle(4, 0x2b1d2e);
-      const nm = this.add.text(-68, -14, it.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0, 0.5);
-      const state = equipped ? 'EQUIPPED' : owned ? 'tap to EQUIP' : `${it.price} bolts`;
-      const st = this.add.text(-68, 22, state, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: owned ? '#2f8a3a' : it.price <= wallet.bolts ? '#b06a1a' : '#9a8a7a' }).setOrigin(0, 0.5);
-      card.add([g, sw, nm, st]).setSize(280, 116).setInteractive({ useHandCursor: true });
+      const g = this.add.graphics().fillStyle(preview === it.id ? 0xe8a33a : 0x2b1d2e, 1).fillRoundedRect(-144, -44, 288, 88, 18).fillStyle(preview === it.id ? 0xfff3c8 : 0xffffff, 1).fillRoundedRect(-139, -39, 278, 78, 15);
+      const sw = this.add.circle(-104, 0, 20, it.tint ?? 0xd8c8b0).setStrokeStyle(4, 0x2b1d2e);
+      const nm = this.add.text(-74, -14, it.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0, 0.5);
+      const st = this.add.text(-74, 18, equipped ? 'EQUIPPED' : owned ? 'owned' : `${it.price} Bolts`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: equipped || owned ? '#2f8a3a' : '#b06a1a' }).setOrigin(0, 0.5);
+      card.add([g, sw, nm, st]).setSize(288, 88).setInteractive({ useHandCursor: true });
       card.on('pointerup', () => {
-        if (owned) {
-          if (it.slot === 'finish') m.finish = equipped ? null : it.id;
-          else m.nameIdx = (m.nameIdx ?? 0) + 1; // nameplate: tap cycles the name
-          tlog.log('equip', { id: it.id, on: !equipped });
-          store(META_KEY, JSON.stringify(m));
-          return this.openWorkshop();
-        }
-        if (preview !== it.id) {
-          tlog.log('preview', { id: it.id });
-          return this.openWorkshop(it.id);
-        }
-        if (!buy(wallet, it.id)) return this.showToast(`Need ${it.price - wallet.bolts} more bolts`);
-        m.bolts = wallet.bolts;
-        m.owned = wallet.owned;
-        if (it.slot === 'finish') m.finish = it.id;
-        tlog.log('purchase', { id: it.id, price: it.price, balance: m.bolts });
-        store(META_KEY, JSON.stringify(m));
-        sfx.rankUp(4);
-        this.openWorkshop();
+        tlog.log('preview', { id: it.id });
+        this.openWorkshop(it.id);
       });
       c.add(card);
     });
-    const by = top + 470 + Math.ceil(items.length / 2) * 140 + 20;
-    this.button(c, W / 2, Math.min(by, top + Math.min(H - 80, 1180) - 70), 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    const by = top + 460 + Math.ceil(CATALOG.length / 2) * 104 + 30;
+    const pv = preview ? CATALOG.find((x) => x.id === preview) : undefined;
+    if (pv) {
+      const owned = wallet.owned.includes(pv.id);
+      const equipped = pv.slot === 'finish' ? wallet.finish === pv.id : false;
+      const label = !owned ? `BUY  ·  ${pv.price}` : pv.slot === 'nameplate' ? 'NEW NAME' : equipped ? 'UNEQUIP' : 'EQUIP';
+      const canAfford = owned || wallet.bolts >= pv.price;
+      const b = this.button(c, W / 2, by, 420, label, 0x5fbf4a, () => {
+        if (!owned) {
+          if (!buy(wallet, pv.id)) return this.showToast(`Need ${pv.price - wallet.bolts} more Bolts`);
+          m.bolts = wallet.bolts;
+          m.owned = wallet.owned;
+          if (pv.slot === 'finish') m.finish = pv.id;
+          m.workshopSeenBolts = m.bolts;
+          tlog.log('purchase', { id: pv.id, price: pv.price, balance: m.bolts });
+          sfx.rankUp(4);
+        } else if (pv.slot === 'finish') {
+          m.finish = equipped ? null : pv.id;
+          tlog.log('equip', { id: pv.id, on: !equipped });
+        } else m.nameIdx = (m.nameIdx ?? 0) + 1;
+        store(META_KEY, JSON.stringify(m));
+        this.openWorkshop(pv.id);
+      }, 0.85);
+      if (!canAfford) b.setAlpha(0.6);
+    } else c.add(this.add.text(W / 2, by, 'Tap a finish to preview it on your machine', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    this.button(c, W / 2, Math.min(by + 110, top + PH - 60), 260, 'CLOSE', 0x27a4c0, () => this.openTitle(), 0.75);
   }
+
 
   /** Pre-v10 title console (fallback when the home art is missing). */
   openLegacyTitle() {
