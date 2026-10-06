@@ -27,6 +27,11 @@ const targetOf = (n) =>
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
   if (/app_?icon/.test(n)) return 'app_icon';
+  // round 8: rank dice + tutorial
+  { const m = n.match(/^rank_dice_0?([1-6])$/); if (m) return `dice_${m[1]}`; }
+  if (/pointing_hand/.test(n)) return 'ui_hand';
+  if (/^ui_coach_bubble/.test(n)) return 'ui_coach';
+  if (/^ui_how_to_play/.test(n)) return 'ui_howto';
   // round 7: ui plates
   if (n === 'board_slot_quiet') return 'slot';
   if (n === 'board_slot_empty') return 'slot_old';
@@ -132,13 +137,14 @@ const SIZE = (key) => {
   if (['bg', 'bg_practice', 'bg_corner', 'title', 'logo', 'vfx_flame', 'hud_header', 'hp_frame', 'hp_fill'].includes(key) || key.startsWith('stage_') || key.startsWith('banner_')) return null;
   if (key === 'app_icon') return 1024;
   if (key.startsWith('ui_')) return 720;
+  if (key.startsWith('dice_')) return 160;
   if (key.startsWith('target') || key === 'demo_can' || key === 'card' || key === 'victory' || key === 'defeat' || key.startsWith('btn_')) return 512;
   if (key.startsWith('debris')) return 128;
   return 256;
 };
 const NO_TRIM = new Set(['slot', 'card', 'app_icon', 'title']);
 /** Non-square UI pieces keep their own aspect ratio (no square padding). */
-const KEEP_ASPECT = (key) => /^(ui_|tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_|plate_)/.test(key);
+const KEEP_ASPECT = (key) => /^(dice_|ui_|tray_plate|scrap_plate|btn_|banner_|sticker_|gauge_|icon_pause|badge_|plate_)/.test(key);
 for (const f of files) {
   const key = keyFor(f);
   if (!key) {

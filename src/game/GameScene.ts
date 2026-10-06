@@ -394,9 +394,20 @@ export class GameScene extends Phaser.Scene {
     const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(BXY, BXY, `badge_${g.family}`).setDisplaySize(58, 58) : null;
     if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BXY, BXY, 26).fillStyle(col, 1).fillCircle(BXY, BXY, 21);
     const label = g.rank >= MAX_RANK ? 'M' : String(g.rank);
-    const t = this.add.text(BXY, BXY - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
+    let t = this.add.text(BXY, BXY - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
+    let parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
+    const dice = `dice_${g.rank}`;
+    if (this.hasArt(dice)) {
+      // ChatGPT round 8: neutral bottom-right plate, numeral left + standard dice pips right (same for every family)
+      t.destroy();
+      badgeArt?.destroy();
+      badge.clear();
+      const plate = this.add.image(26, 48, dice);
+      plate.setScale(78 / plate.width);
+      t = this.add.text(26 - 39 + 18, 47, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a2233' }).setOrigin(0.5);
+      parts = [img, plate, t];
+    }
     t.setName('rank');
-    const parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
     if (g.rank >= MAX_RANK && this.hasArt('crown')) {
       const cr = this.add.image(-30, -42, 'crown');
       cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(-15);

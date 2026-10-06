@@ -16,7 +16,7 @@ export class Coach {
   constructor(private scene: Phaser.Scene, private width: number) {
     const hasPlate = scene.textures.exists('ui_coach') && scene.textures.get('ui_coach').source[0].width > 1;
     this.plate = hasPlate
-      ? scene.add.image(0, 0, 'ui_coach').setDisplaySize(width - 60, 170)
+      ? scene.add.image(0, 0, 'ui_coach').setDisplaySize(width - 70, ((width - 70) * 257) / 720)
       : scene.add.graphics().fillStyle(0x2a2233, 0.94).fillRoundedRect(-(width - 60) / 2, -80, width - 60, 160, 28).lineStyle(5, 0xffcf33, 1).strokeRoundedRect(-(width - 60) / 2, -80, width - 60, 160, 28);
     this.text = scene.add
       .text(0, -8, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '31px', color: hasPlate ? '#2a2233' : '#fff0cf', align: 'center', wordWrap: { width: width - 140 }, lineSpacing: 2 })
@@ -24,8 +24,10 @@ export class Coach {
     this.tapText = scene.add.text(0, 56, 'tap to continue', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: hasPlate ? '#7a5a4a' : '#cdbfa8' }).setOrigin(0.5);
     this.box = scene.add.container(width / 2, 0, [this.plate, this.text, this.tapText]).setDepth(90).setVisible(false);
     this.rings = scene.add.graphics().setDepth(89);
-    this.hand = scene.add.image(0, 0, scene.textures.exists('ui_hand') ? 'ui_hand' : 'hand').setDepth(91).setVisible(false).setOrigin(0.25, 0.05);
-    const hs = 128 / Math.max(this.hand.width, this.hand.height);
+    const art = scene.textures.exists('ui_hand');
+    // fingertip is the hotspot (ChatGPT v8 notes): top-left of the art, top-centre-left of the fallback glove
+    this.hand = scene.add.image(0, 0, art ? 'ui_hand' : 'hand').setDepth(91).setVisible(false).setOrigin(art ? 0.07 : 0.25, art ? 0.07 : 0.05);
+    const hs = (art ? 104 : 128) / Math.max(this.hand.width, this.hand.height);
     this.hand.setScale(hs);
   }
 
