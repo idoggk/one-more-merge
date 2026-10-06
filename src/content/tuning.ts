@@ -25,7 +25,7 @@ export const TUNING = {
   maxPending: 3,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   /** Unlocked toys add these tokens to the 12-token bag. */
-  toyBag: { magnet: 2 } as Record<string, number>,
+  toyBag: { magnet: 1 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
   targetHp: [1200, 11250, 18000],

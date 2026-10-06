@@ -92,6 +92,8 @@ under slow supply the random novice sometimes beats greedy merging — dense boa
 - **Magnet implemented** as first unlock: challenge 'wake 3 cannons in one chain you started' → Magnet (2 tokens added to the bag),
   switchable on the title screen. Sim: bots never plan pulls, so magnets only dilute supply (novice 82% → 54%, skilled unchanged).
   Needs human testing: is pulling a satisfying set-up tool? If not, give magnets a small damage value or a smaller bag share.
+  Round 5 (ChatGPT): keep 0 damage, 1 token per 13 → novice with magnets 66% (vs 82% without).
+- **Playtest kit**: local event log (pause → export playtest log) + PLAYTEST.md observation script.
 
 ## Meta plan (ChatGPT, after playtest) — discovery challenges, not calendar gates
 1 relay→cannon: Practice Bench (sandbox) · 2 all 3 families in one chain: Corner Bench (board mask) ·
