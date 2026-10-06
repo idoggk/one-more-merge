@@ -16,6 +16,8 @@ export interface LevelDef {
   starting_rank: number;
   seed: number;
   ordinary_copy_rank_cap: number;
+  /** Teaching level (ChatGPT r18): scripted-but-real start board, optional delivery bag, features held back. */
+  teach?: { start: [string, number, number, number][]; bag?: Record<string, number>; no_kickback?: boolean; no_overdrive?: boolean; lesson: string };
 }
 
 export const LEVELS: LevelDef[] = (raw as unknown as { levels: LevelDef[] }).levels;

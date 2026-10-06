@@ -175,6 +175,11 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **Onboarding**: three one-time lessons (road, star goals, boosters).
 - **Playtest**: an in-game Playtest Stats page (Settings). r17's human plan: Ido as the expert, 5 friends as the novice cohort; first-try clear rate by chapter position, spike follow-through, booster purchase rate, owned-booster use rate, high-rank payoff rating.
 
+## Round 18: the first five minutes
+- **Warm-up** on first launch = ONE coached merge ("Same machine. Same number."), then straight into L1. The full 6-step tutorial remains under Replay tutorial.
+- **Teaching levels** (levels.json `teach`): L1 = cannons only (board + bag), no kickback/overdrive ("Merge matching cannons. The new cannon fires."). L2 = a board where either coil merge fires exactly 3 (coil -> same-row bell -> cannon; engine-tested both directions), no kickback/overdrive. L3 = 7 starters incl. a lone cannon rank 2, kickback on ("Break a panel. Its part falls onto your board."). HP refit to the 97% novice target (L1 780, L2 800, L3 1950).
+- **Progressive reveal**: header Kits after the first kit, Capsules after L4; chapter strip after L3; overdrive from L3; scrap from L4; Workshop after L5; L1 result has no chain stat and no chest countdown; the Kit row on the level card only once a kit is owned; the delivery tip comes later ("NEXT brings another gadget").
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.

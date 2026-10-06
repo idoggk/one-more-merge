@@ -272,6 +272,7 @@ export class GameScene extends Phaser.Scene {
     const loaded = saved ? deserialize(saved) : null;
     if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial')) this.startState(loaded);
     else {
+      this.tutorialShort = !this.meta.tutorialDone;
       this.startState(newGame(Date.now() >>> 0, !this.meta.tutorialDone));
       if (this.meta.tutorialDone) this.openTitle();
     }
@@ -584,6 +585,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.introObjs = [];
     this.paused = false;
+    const tdef = this.s.level !== undefined ? LEVELS[this.s.level - 1] : undefined;
+    if (tdef?.teach && !this.s.showcase) this.coach.say(tdef.teach.lesson, this.coachY(), { ms: 3800 });
     tlog.log('intro_end', { skipped });
   }
 
@@ -1249,7 +1252,7 @@ Now beat the real level.`, this.coachY());
 
   // Script from ChatGPT round 8 (6 hands-on steps on the real start board, idx = row*5+col).
   static TUTORIAL: { kind: 'merge' | 'mismatch'; pair: [number, number]; fam: Family; text: string; after?: string; focus?: 'target' | 'chain' | 'row' }[] = [
-    { kind: 'merge', pair: [21, 22], fam: 'cannon', text: 'Same machine, same number.\nDrag one onto its match!', after: 'It got stronger and FIRED!\nEvery machine that fires hits the monster.', focus: 'target' },
+    { kind: 'merge', pair: [21, 22], fam: 'cannon', text: 'Same machine. Same number.\nDrag onto its match.', after: 'It got stronger and FIRED!\nNow smash the can!', focus: 'target' },
     { kind: 'merge', pair: [6, 16], fam: 'coil', text: 'Merge to fire. Coils zap nearby\nmachines into a CHAIN.', after: 'That was a CHAIN: one merge\nset off its neighbours!', focus: 'chain' },
     { kind: 'merge', pair: [8, 17], fam: 'bell', text: 'Bells wake machines across\ntheir whole row. Watch the cannon!', after: 'The bell rang its row\nand woke that cannon!', focus: 'row' },
     { kind: 'mismatch', pair: [5, 22], fam: 'cannon', text: 'Different numbers can NOT merge.\nTry dragging this 1 onto the 2.' },
@@ -1276,9 +1279,12 @@ Now beat the real level.`, this.coachY());
     return pairs.find(([p]) => this.s.grid[p]!.family === step.fam) ?? pairs[0] ?? null;
   }
 
+  /** First launch (r18): a 10-20s warm-up of ONE merge, then straight into level 1. Replay = the full 6 steps. */
+  tutorialShort = false;
   runTutorial() {
     if (this.s.phase !== 'tutorial') return;
-    const step = GameScene.TUTORIAL[this.tutorialStep];
+    const steps = this.tutorialShort ? GameScene.TUTORIAL.slice(0, 1) : GameScene.TUTORIAL;
+    const step = steps[this.tutorialStep];
     this.coach.clear();
     if (!step) {
       // script done: the real run starts on the board they just built
@@ -1427,7 +1433,7 @@ Now beat the real level.`, this.coachY());
     const s = this.s;
     if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase) return;
     const occ = s.grid.filter(Boolean).length;
-    if (s.elapsed > 1.5 && s.elapsed < 6) this.tip('delivery', 'New parts drop in from here.\nMerge them into your machine!', { x: BX + 150, y: TRAY_Y - 30 });
+    if (s.elapsed > 5 && s.elapsed < 12) this.tip('delivery', 'NEXT brings another gadget.\nMatch its machine and number.', { x: BX + 150, y: TRAY_Y - 30 });
     if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
     if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
     if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
@@ -1538,20 +1544,23 @@ Now beat the real level.`, this.coachY());
         ht.fillStyle(0x2b1d2e, frac > q ? 0.85 : 0.3).fillRect(x - 2, HP_Y - 15, 4, 30);
       }
 
+    // r18 progressive reveal: overdrive from level 3, scrap from level 4
+    const early = s.level !== undefined && s.level < 3;
+    this.scrapZone?.setVisible(!(s.level !== undefined && s.level < 4));
     // overdrive gauge
     const og = this.odGauge.clear();
     const need = odNeeded(s);
     const gx = 384;
-    this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
+    this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo && !early).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
     const active = s.odLeft > 0;
     const gaugeArt = this.hasArt('gauge_off') && this.hasArt('gauge_on');
     if (gaugeArt && !this.gaugeImgs.length) for (let i = 0; i < 6; i++) this.gaugeImgs.push(this.add.image(0, 46, 'gauge_off').setDisplaySize(24, 34));
     this.gaugeImgs.forEach((g, i) => {
-      const on = i < need && !demo;
+      const on = i < need && !demo && !early;
       g.setVisible(on).setPosition(gx + i * 26 + 11, 46);
       if (on) g.setTexture(active ? (this.hasArt('gauge_lit') ? 'gauge_lit' : 'gauge_on') : i < s.odCharge ? 'gauge_on' : 'gauge_off').setDisplaySize(24, 34);
     });
-    for (let i = 0; i < (demo || gaugeArt ? 0 : need); i++) {
+    for (let i = 0; i < (demo || gaugeArt || early ? 0 : need); i++) {
       const filled = active || i < s.odCharge;
       og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx + i * 26, 30, 22, 30, 6);
       og.fillStyle(filled ? (active ? 0xff6a00 : 0xffcf33) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
@@ -1575,7 +1584,7 @@ Now beat the real level.`, this.coachY());
     ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
     this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : '');
     const tut = s.phase === 'tutorial';
-    this.scrapZone.setVisible(!tut);
+    this.scrapZone.setVisible(!tut && !(s.level !== undefined && s.level < 4));
     this.trayPlate?.setVisible(!tut);
     for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut);
     const sr = this.scrapRing.clear();
@@ -2490,14 +2499,14 @@ Now beat the real level.`, this.coachY());
       this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.rankUp(3 + k) });
     }
     if (won && got < 3) c.add(this.add.text(W / 2, top + 360, `Next star: clear in ${Math.floor(def.time_seconds * (got === 1 ? 0.8 : 0.6))}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 410, [s.stats.biggestChain >= 2 ? `Biggest chain x${s.stats.biggestChain}` : '', bolts > 0 ? `+${bolts} BOLTS` : ''].filter(Boolean).join('    '), { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 410, [s.stats.biggestChain >= 2 && n >= 2 ? `Biggest chain x${s.stats.biggestChain}` : '', bolts > 0 ? `+${bolts} BOLTS` : ''].filter(Boolean).join('    '), { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0.5));
     if (parts.length) c.add(this.add.text(W / 2, top + 448, parts.join('  \u00b7  '), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     if (lines.length) {
       c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 30 + lines.length * 36, 18));
       c.add(this.add.text(W / 2, top + 500 + (lines.length * 36) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a', align: 'center' }).setOrigin(0.5));
     }
     if (chapterDone) this.time.delayedCall(700, () => this.playChapterChest(chapterDone));
-    else if (won && n % 10 !== 0) {
+    else if (won && n % 10 !== 0 && n > 1) {
       const left = 10 - (n % 10);
       c.add(this.add.text(W / 2, top + 600, `${left} level${left > 1 ? 's' : ''} until your Chapter ${Math.ceil(n / 10)} chest`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
     }
@@ -2755,9 +2764,11 @@ Now beat the real level.`, this.coachY());
     void locked;
 
     // workshop
-    this.button(c, W / 2, bottom - 280, 600, 'WORKSHOP', 0x8a6a4a, () => this.openWorkshop(), 0.85);
+    const wsOpen = this.currentLevel() > 5 || !!m.hardUnlocked || (m.owned?.length ?? 0) > 0;
+    const ws = this.button(c, W / 2, bottom - 280, 600, wsOpen ? 'WORKSHOP' : 'WORKSHOP  \u00b7  level 5', 0x8a6a4a, () => (wsOpen ? this.openWorkshop() : this.showToast('THE WORKSHOP OPENS AFTER LEVEL 5')), 0.85);
+    if (!wsOpen) ws.setAlpha(0.6);
     // dot only for genuinely new options: something became affordable since the last Workshop visit
-    const affordable = CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
+    const affordable = wsOpen && CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
     if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 312, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
 
     // utilities
@@ -2788,8 +2799,11 @@ Now beat the real level.`, this.coachY());
       c.add(this.add.text(x + 34, barY, String(val), { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' }).setOrigin(0, 0.5));
     };
     item('bolt', 84, m.bolts ?? 0);
-    item('booster_jumpstart', 290, m.kits ?? 0);
-    item('booster_time_capsule', 440, m.capsules ?? 0);
+    // r18: the header grows with the player: Kits after the first one arrives, Capsules once unlocked
+    const showKits = (m.kits ?? 0) > 0 || Object.keys(m.grants ?? {}).some((k) => k.startsWith('kit')) || m.hardUnlocked;
+    const showCaps = (m.capsules ?? 0) > 0 || this.currentLevel() > BOOSTER_UNLOCK.time_capsule || m.hardUnlocked;
+    if (showKits) item('booster_jumpstart', 290, m.kits ?? 0);
+    if (showCaps) item('booster_time_capsule', 440, m.capsules ?? 0);
     const wallet = this.add.zone(W / 2 - 40, barY, W - 220, 96).setInteractive({ useHandCursor: true });
     wallet.on('pointerup', () => this.openWalletInfo());
     const gear = this.add.text(W - 84, barY, '\u2699', { fontFamily: 'Arial', fontSize: '54px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -2980,7 +2994,7 @@ Now beat the real level.`, this.coachY());
     // chapter strip (r17): progress toward the chapter chest; tap previews the reward
     const chapter = Math.ceil(cur / 10);
     const doneInCh = Math.min(10, LEVELS.slice((chapter - 1) * 10, chapter * 10).filter((d) => stars[String(d.level)]).length);
-    const strip = this.add.container(W / 2, 140);
+    const strip = this.add.container(W / 2, 140).setVisible(cur > 3);
     strip.add(this.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-(W - 60) / 2, -30, W - 60, 60, 20));
     strip.add(this.add.text(-(W - 60) / 2 + 24, 0, `CHAPTER ${chapter}  \u00b7  ${doneInCh} of 10 cleared`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf' }).setOrigin(0, 0.5));
     if (this.hasArt('chest_closed')) {
@@ -3061,7 +3075,7 @@ Now beat the real level.`, this.coachY());
     const def = LEVELS[n - 1];
     if (!def) return;
     const m = this.meta;
-    const hasJump = n >= BOOSTER_UNLOCK.jumpstart_kit;
+    const hasJump = n >= BOOSTER_UNLOCK.jumpstart_kit && ((m.kits ?? 0) > 0 || Object.keys(m.grants ?? {}).some((k) => k.startsWith('kit')) || !!m.hardUnlocked);
     const PH = hasJump ? 860 : 760;
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
@@ -3635,6 +3649,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   startTutorial() {
     this.closeModal();
     tlog.log('tutorial_replay');
+    this.tutorialShort = false;
     this.startState(newGame(Date.now() >>> 0, true));
   }
 

@@ -90,6 +90,10 @@ export interface GameState {
   masked?: number[];
   /** Time Capsule used this attempt. */
   capsuleUsed?: boolean;
+  /** Teaching levels (r18): delivery bag override and features held back. */
+  bagOverride?: Record<string, number>;
+  noKickback?: boolean;
+  noOverdrive?: boolean;
   /** Untimed, unrewarded high-rank introduction (r17). */
   showcase?: boolean;
   /** Jumpstart applied this attempt. */
@@ -178,8 +182,15 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   s.rankCap = def.level >= 21 ? 8 : MAX_RANK;
   s.grid.fill(null);
   s.nextId = 1;
-  for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
-    for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'shooter' ? shooterOf(s) : (fam as Family), def.starting_rank);
+  if (def.teach) {
+    for (const [fam, rank, r, c] of def.teach.start) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : (fam as Family), rank);
+    if (def.teach.bag) s.bagOverride = def.teach.bag;
+    s.noKickback = !!def.teach.no_kickback;
+    s.noOverdrive = !!def.teach.no_overdrive;
+    s.bag = [];
+  } else
+    for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
+      for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'shooter' ? shooterOf(s) : (fam as Family), def.starting_rank);
   // (r17: the L21/L41 high-rank showcase moved to an optional practice intro; ordinary levels use chapter starters)
   // Jumpstart Kit: the designated starter shooter pair (4,1),(4,2) arrives one rank higher. No shot, no merge.
   if (opts.jumpstart) {
@@ -272,7 +283,8 @@ function peekBag(s: GameState): Family {
 function refillBag(s: GameState) {
   const rng = new Rng(s.supplyRng);
   const bag: Family[] = [];
-  for (const f of Object.keys(TUNING.bag) as Family[]) for (let i = 0; i < TUNING.bag[f]; i++) bag.push(f === 'cannon' ? shooterOf(s) : f);
+  const src = s.bagOverride ?? TUNING.bag;
+  for (const f of Object.keys(src) as Family[]) for (let i = 0; i < src[f]; i++) bag.push(f === 'cannon' ? shooterOf(s) : f);
   for (const f of s.toys ?? []) for (let i = 0; i < (TUNING.toyBag[f] ?? 0); i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
@@ -368,7 +380,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   s.mergeCd = TUNING.mergeCooldown;
 
   let odStart = false;
-  if (s.phase === 'playing') {
+  if (s.phase === 'playing' && !s.noOverdrive) {
     s.odCharge++;
     if (s.odCharge >= odNeeded(s)) {
       s.odCharge = 0;
@@ -657,7 +669,7 @@ function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): D
 }
 
 function queueDrop(s: GameState, ev: GameEvent[], fuse: boolean) {
-  if (!TUNING.kickback || s.target < 0) return;
+  if (!TUNING.kickback || s.target < 0 || s.noKickback) return;
   const f = fuse && TUNING.kickbackFuse;
   const plan = planDrop(s, new Set(), f);
   s.drops.push({ t: TUNING.kickbackFall, fuse: f, plan });
