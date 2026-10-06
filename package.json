@@ -11,7 +11,8 @@
     "sim": "vite-node tools/sim.ts",
     "artifact": "vite build && node tools/make-artifact.mjs",
     "test:touch": "node tools/touch-test.mjs",
-    "shots": "node tools/shots.mjs"
+    "shots": "node tools/shots.mjs",
+    "deploy": "node tools/deploy.mjs"
   },
   "keywords": [],
   "author": "",

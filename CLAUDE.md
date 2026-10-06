@@ -1,5 +1,7 @@
 # One More Merge — notes for Claude
 
+Phone app: `npm run deploy` builds and publishes to https://idoggk.github.io/one-more-merge/ (gh-pages branch; Safari > Share > Add to Home Screen). The claude.ai artifact is a second channel (`npm run artifact`).
+
 Commands: `npm run dev` (Vite, port 5173) · `npm test` (Vitest) · `npm run typecheck` · `npm run build` · `npx vite-node tools/sim.ts [filter]` (balance bots).
 
 Architecture
