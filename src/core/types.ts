@@ -30,7 +30,7 @@ export interface CascadeResult {
   rootIdx: number;
   activations: Activation[];
   /** Every route emitted (including to already-visited gadgets), for drawing links. */
-  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' }[];
+  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' }[];
   /** Cannons primed by batteries during this cascade (ids). Caller applies. */
   primes: number[];
   /** Primed cannons that fired in this cascade (ids). Caller clears their prime. */

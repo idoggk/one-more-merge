@@ -430,8 +430,8 @@ export class GameScene extends Phaser.Scene {
   /** Landing squash: quick flatten then springy settle. */
   squash(v: Phaser.GameObjects.Container) {
     if (!v.active) return;
-    v.setScale(1.14, 0.84);
-    this.tweens.add({ targets: v, scaleX: 1, scaleY: 1, duration: 260, ease: 'Back.Out' });
+    v.setScale(1.06, 0.94);
+    this.tweens.add({ targets: v, scaleX: 1, scaleY: 1, duration: 135, ease: 'Sine.Out' });
   }
 
   /** Make sprites match the model grid. */
@@ -500,6 +500,13 @@ export class GameScene extends Phaser.Scene {
   onDown(p: Phaser.Input.Pointer) {
     unlockAudio();
     startMusic();
+    // tap skips the boss-defeat show after its first 600 ms (ChatGPT r9: never a long unskippable interruption)
+    if (this.s.phase === 'won' && this.resultCall && !this.modal && this.time.now - this.resultAt > 600) {
+      this.resultCall.remove();
+      this.resultCall = null;
+      this.openResult(true);
+      return;
+    }
     if (this.coach.waitingTap && !this.modal) {
       sfx.click();
       this.coach.hide();
@@ -530,7 +537,7 @@ export class GameScene extends Phaser.Scene {
       sfx.pickup();
       this.dragView.setDepth(55);
       this.tweens.killTweensOf(this.dragView);
-      this.tweens.add({ targets: this.dragView, scale: 1.15, duration: 80 });
+      this.tweens.add({ targets: this.dragView, scale: 1.08, duration: 75, ease: 'Cubic.Out' });
     }
     // weighty drag: piece leans into the motion and casts a shadow on the board
     const dx = p.worldX - this.dragView.x;
@@ -712,7 +719,7 @@ export class GameScene extends Phaser.Scene {
       const v = b ? this.views.get(b.id) : undefined;
       if (!v) return;
       const bright = !held || i === src || canMerge(held, b);
-      v.setAlpha(bright ? 1 : 0.32);
+      v.setAlpha(bright ? 1 : 0.45);
     });
     if (src >= 0 && this.s.grid[src]) {
       const a = this.s.grid[src]!;
@@ -774,6 +781,8 @@ export class GameScene extends Phaser.Scene {
   /** Cannons about to auto-fire puff up a little; everything breathes slightly. */
   primeG!: Phaser.GameObjects.Graphics;
   lastTickSec = -1;
+  resultCall: Phaser.Time.TimerEvent | null = null;
+  resultAt = 0;
   animateIdle() {
     const t = this.time.now / 1000;
     if (this.target && !this.tweens.isTweening(this.target) && this.s.phase === 'playing') this.target.setAngle(Math.sin(t * 1.4) * 1.6);
@@ -1171,7 +1180,8 @@ export class GameScene extends Phaser.Scene {
           tlog.log('end', { won: e.won, targets: e.won ? 3 : this.s.target, elapsed: +this.s.elapsed.toFixed(1), chain: this.s.stats.biggestChain });
           tlog.flush();
           // a win first plays the full boss-defeat show (playtest: 'I want to see me winning the boss')
-          this.time.delayedCall(e.won ? 3600 : 400, () => this.openResult(e.won));
+          this.resultAt = this.time.now;
+          this.resultCall = this.time.delayedCall(e.won ? 3600 : 400, () => this.openResult(e.won));
           break;
       }
     }
@@ -1226,6 +1236,23 @@ export class GameScene extends Phaser.Scene {
       onUpdate: () => g.clear().lineStyle(width * o.a + 1, color, o.a).strokeCircle(0, 0, o.r),
       onComplete: () => g.destroy(),
     });
+  }
+
+  /** MAX signature visuals: reveal the resolver's chosen target (Backfire puff, Arc Bridge bolt, Cross Chime ring). */
+  signatureFx(kind: 'backfire' | 'bridge' | 'chime', a: { x: number; y: number }, b: { x: number; y: number }) {
+    const key = kind === 'backfire' ? 'max_backfire' : kind === 'bridge' ? 'max_bridge' : 'max_chime';
+    const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+    if (this.hasArt(key)) {
+      const im = this.add.image((a.x + b.x) / 2, (a.y + b.y) / 2, key).setDepth(32).setAngle(kind === 'chime' ? 0 : ang);
+      const len = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
+      im.setScale((kind === 'chime' ? 150 : len + 40) / im.width);
+      this.tweens.add({ targets: im, alpha: 0, delay: 200, duration: 260, onComplete: () => im.destroy() });
+    } else {
+      const col = kind === 'backfire' ? 0xff5a3c : kind === 'bridge' ? 0x6ff3ff : 0xffe066;
+      this.ring(b.x, b.y, col, 70, 10, 260);
+    }
+    const label = kind === 'backfire' ? 'BACKFIRE!' : kind === 'bridge' ? 'ARC BRIDGE!' : 'CROSS CHIME!';
+    this.floatText(b.x, b.y - 50, label, '#ffffff', 24, 150);
   }
 
   /** One-shot sprite effect from ChatGPT's VFX set. Returns false if the art is missing (caller falls back). */
@@ -1360,10 +1387,11 @@ export class GameScene extends Phaser.Scene {
     for (const e of r.edges) {
       const a = cellXY(e.from);
       const b = cellXY(e.to);
-      const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : 0xffffff;
+      const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
-        if (e.kind === 'coil' && this.hasArt('vfx_arc')) {
+        if (e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime') this.signatureFx(e.kind, a, b);
+        if ((e.kind === 'coil' || e.kind === 'bridge') && this.hasArt('vfx_arc')) {
           const arc = this.add.image((a.x + b.x) / 2, (a.y + b.y) / 2, 'vfx_arc').setDepth(30);
           const len = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
           arc.setRotation(Math.atan2(b.y - a.y, b.x - a.x)).setDisplaySize(len, Math.min(60, (arc.height / arc.width) * len * 1.4));
@@ -1412,6 +1440,12 @@ export class GameScene extends Phaser.Scene {
         this.sparks.setParticleTint(color);
         this.sparks.explode(a.charge > 1 ? 10 : 5, x, y);
         if (a.charge > 1) this.ring(x, y, 0x5fe8ff, 56, 6, 220);
+        if (a.rank >= 5) {
+          // rank 5: cosmetic charge accent; rank 6: MAX glow (its signature effect is drawn on its link)
+          this.ring(x, y, a.rank >= MAX_RANK ? 0xffffff : color, a.rank >= MAX_RANK ? 92 : 74, a.rank >= MAX_RANK ? 14 : 8, a.rank >= MAX_RANK ? 300 : 160);
+          sfx.cannon(0, true);
+          if (a.rank >= MAX_RANK) haptic(25);
+        }
         if (a.family === 'bell') this.fx('vfx_wave', x, y, 170, { dur: 300, grow: 1.6, depth: 29 });
         if (a.family === 'cannon') {
           if (!this.fx('vfx_muzzle', x, y - 58, 90, { angle: -90, dur: 100, grow: 1.1 })) this.flash(x, y - 46, 40, 0xfff0a0);
@@ -1424,7 +1458,10 @@ export class GameScene extends Phaser.Scene {
       const big = r.count >= 6;
       this.hitTarget(true);
       if (r.count >= 3) sfx.chord(Math.min(r.count, 20));
-      if (big) this.cameras.main.shake(180, 0.004 + Math.min(r.count, 30) * 0.0003);
+      // camera: no shake for small merges, a 1-2px kick for real payloads, a 3px hit when a MAX machine fired
+      const hasMax = r.activations.some((a) => a.rank >= MAX_RANK);
+      if (hasMax) this.cameras.main.shake(100, 0.006);
+      else if (big) this.cameras.main.shake(70, 0.003);
       haptic(big ? 30 : 12);
       const huge = r.count >= 10;
       if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);

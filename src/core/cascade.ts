@@ -1,4 +1,4 @@
-import { COLS, ROWS, TUNING } from '../content/tuning';
+import { COLS, MAX_RANK, ROWS, TUNING } from '../content/tuning';
 import type { Activation, CascadeResult, Family, Grid, PerkId } from './types';
 
 const DIRS: [number, number][] = [
@@ -59,9 +59,11 @@ export interface CascadeOpts {
  * (first occupied cell blocks). Pull that gadget if it has not activated / is not queued, is not reserved and is not a magnet.
  * First eligible ray only.
  */
-export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>): { from: number; to: number } | null {
+export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>, skipDir = -1): { from: number; to: number; dir: number } | null {
   const [r, c] = rc(idx);
-  for (const [dr, dc] of DIRS) {
+  for (let di = 0; di < DIRS.length; di++) {
+    if (di === skipDir) continue;
+    const [dr, dc] = DIRS[di];
     if (!inside(r + dr, c + dc)) continue;
     const to = at(r + dr, c + dc);
     if (grid[to] || reserved.has(to)) continue;
@@ -72,7 +74,7 @@ export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, r
       if (reserved.has(from)) break; // any reserved cell blocks the ray, even when empty
       const g = grid[from];
       if (!g) continue;
-      if (!busy.has(from) && !reserved.has(from) && g.family !== 'magnet') return { from, to };
+      if (!busy.has(from) && !reserved.has(from) && g.family !== 'magnet') return { from, to, dir: di };
       break; // first occupied cell blocks the ray
     }
   }
@@ -84,7 +86,7 @@ export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, r
  * Each gadget activates at most once; strongest direct Coil charge wins.
  */
 /** Fan: push the first adjacent eligible gadget (up/right/down/left) one cell outward into an empty, unreserved cell. */
-export function fanPush(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>): { from: number; to: number } | null {
+export function fanPush(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>, longGust = false): { from: number; to: number } | null {
   const [r, c] = rc(idx);
   for (const [dr, dc] of DIRS) {
     if (!inside(r + dr, c + dc) || !inside(r + 2 * dr, c + 2 * dc)) continue;
@@ -92,6 +94,11 @@ export function fanPush(grid: Grid, idx: number, busy: ReadonlySet<number>, rese
     const to = at(r + 2 * dr, c + 2 * dc);
     const g = grid[from];
     if (!g || busy.has(from) || reserved.has(from) || reserved.has(to) || grid[to] || g.family === 'fan') continue;
+    // MAX Long Gust (ChatGPT r9): choose the farther landing up front if it is also free; one atomic move
+    if (longGust && inside(r + 3 * dr, c + 3 * dc)) {
+      const far = at(r + 3 * dr, c + 3 * dc);
+      if (!grid[far] && !reserved.has(far)) return { from, to: far };
+    }
     return { from, to };
   }
   return null;
@@ -147,6 +154,37 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     enqueue(rootIdx, n, 1);
   }
 
+  /** MAX relay signatures (ChatGPT round 9), after normal routing. At most one extra wake-up each; no damage bonus. */
+  const maxSignature = (idx: number, a: Activation) => {
+    const [r, c] = rc(idx);
+    const free = (rr: number, cc: number) => inside(rr, cc) && !grid[at(rr, cc)] && !blockSet.has(at(rr, cc));
+    const wakeable = (n: number, notFam: Family) => {
+      const g = grid[n];
+      return !!g && g.family !== notFam && !visited.has(n) && !blockSet.has(n);
+    };
+    if (a.family === 'coil') {
+      // Arc Bridge: jump a 2-cell empty corridor to wake one non-Coil exactly 3 cells away
+      for (const [dr, dc] of DIRS) {
+        if (!inside(r + 3 * dr, c + 3 * dc) || !free(r + dr, c + dc) || !free(r + 2 * dr, c + 2 * dc)) continue;
+        const n = at(r + 3 * dr, c + 3 * dc);
+        if (!wakeable(n, 'coil')) continue;
+        edges.push({ from: idx, to: n, kind: 'bridge' });
+        enqueue(idx, n, a.depth + 1);
+        return;
+      }
+    } else if (a.family === 'bell') {
+      // Cross Chime: our MAX bell already rings its row + column, so it chimes one diagonal neighbour (UL, UR, DL, DR)
+      for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+        if (!inside(r + dr, c + dc)) continue;
+        const n = at(r + dr, c + dc);
+        if (!wakeable(n, 'bell')) continue;
+        edges.push({ from: idx, to: n, kind: 'chime' });
+        enqueue(idx, n, a.depth + 1);
+        return;
+      }
+    }
+  };
+
   let guard = 0;
   while (queue.length) {
     if (++guard > ROWS * COLS + 1) throw new Error('cascade bound violated');
@@ -159,10 +197,20 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         bonus.add(a.id);
         discharged.push(a.id);
       }
+      // MAX Backfire (ChatGPT r9): after its payload a rank-6 cannon wakes one adjacent Coil or Bell (U/R/D/L)
+      if (a.rank >= MAX_RANK) {
+        for (const n of sparkCells(idx)) {
+          const g = grid[n];
+          if (!g || visited.has(n) || blockSet.has(n) || (g.family !== 'coil' && g.family !== 'bell')) continue;
+          edges.push({ from: idx, to: n, kind: 'backfire' });
+          enqueue(idx, n, a.depth + 1);
+          break;
+        }
+      }
       continue;
     }
     if (a.family === 'fan') {
-      const p = fanPush(grid, idx, new Set(visited.keys()), blockSet);
+      const p = fanPush(grid, idx, new Set(visited.keys()), blockSet, a.rank >= MAX_RANK);
       if (p) {
         moves.push({ ...p, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'fan' });
@@ -172,8 +220,10 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'battery') {
-      const id = batteryPrime(grid, idx, primedNow, fired, blockSet);
-      if (id !== null) {
+      // MAX Split Charge (ChatGPT r9): run the primer selection twice (the first target is then ineligible)
+      for (let k = 0; k < (a.rank >= MAX_RANK ? 2 : 1); k++) {
+        const id = batteryPrime(grid, idx, primedNow, fired, blockSet);
+        if (id === null) break;
         primes.push(id);
         primedNow.add(id);
         const to = grid.findIndex((g) => g?.id === id);
@@ -182,12 +232,18 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'magnet') {
-      const p = magnetPull(grid, idx, new Set(visited.keys()), blockSet);
-      if (p) {
-        moves.push({ ...p, id: grid[p.from]!.id });
+      // MAX Twin Pull (ChatGPT r9): a second pull on the updated board, other direction, never the first moved piece
+      let skip = -1;
+      const busy = new Set(visited.keys());
+      for (let k = 0; k < (a.rank >= MAX_RANK ? 2 : 1); k++) {
+        const p = magnetPull(grid, idx, busy, blockSet, skip);
+        if (!p) break;
+        moves.push({ from: p.from, to: p.to, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'magnet' });
         grid[p.to] = grid[p.from];
         grid[p.from] = null;
+        skip = p.dir;
+        busy.add(p.to);
       }
       continue;
     }
@@ -200,6 +256,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
       enqueue(idx, to, a.depth + 1);
     }
+    if (a.rank >= MAX_RANK) maxSignature(idx, a);
   }
 
   const acts = [...visited.values()];
