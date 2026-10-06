@@ -33,6 +33,8 @@ export interface Stats {
   totalDamage: number;
   dmgBy: Partial<Record<DmgSource, number>>;
   kickFuses: number;
+  /** Two-piece rescue deliveries (no legal pair and nothing lonely to copy). */
+  rescues?: number;
 }
 
 export interface GameState {
@@ -80,6 +82,8 @@ export interface GameState {
   level?: number;
   /** Base time of the level (supply phases + stars are fractions of it). */
   levelTime?: number;
+  /** Saga L21+: damaging core families may reach rank 8. */
+  rankCap?: number;
   /** Matchmaker: highest rank an ordinary copy may have on this level. */
   copyCap?: number;
   /** Permanently blocked cells (CORNERS modifiers). */
@@ -169,15 +173,22 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   s.target = MONSTER_INDEX[def.monster] ?? 0;
   s.hp = s.maxHp = def.hp;
   s.copyCap = def.ordinary_copy_rank_cap;
+  s.rankCap = def.level >= 21 ? 8 : MAX_RANK;
   s.grid.fill(null);
   s.nextId = 1;
   for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
     for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'shooter' ? shooterOf(s) : (fam as Family), def.starting_rank);
+  // r16 showcase: L21 opens with a rank-6 shooter pair, L41 with rank 7 (an immediate first merge into the new tier)
+  const showcase = def.level === 21 ? 6 : def.level === 41 ? 7 : 0;
+  if (showcase) for (const [r, c] of [[4, 1], [4, 2]]) {
+    const g = s.grid[idxOf(r, c)];
+    if (g) g.rank = showcase;
+  }
   // Jumpstart Kit: the designated starter shooter pair (4,1),(4,2) arrives one rank higher. No shot, no merge.
   if (opts.jumpstart) {
     for (const [r, c] of [[4, 1], [4, 2]]) {
       const g = s.grid[idxOf(r, c)];
-      if (g) g.rank = Math.min(MAX_RANK, g.rank + 1);
+      if (g) g.rank = Math.min(capOf(s, g.family), g.rank + 1);
     }
     s.jumpstart = true;
   }
@@ -227,7 +238,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!TUNING.matchShare) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= MAX_RANK || !(isShooter(g.family) || g.family === 'coil' || g.family === 'bell')) continue;
+    if (!g || g.rank >= capOf(s, g.family) || !(isShooter(g.family) || g.family === 'coil' || g.family === 'bell')) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -282,6 +293,13 @@ function generateShipment(s: GameState): Gadget {
   if (!s.bag.length) refillBag(s);
   const fam = s.bag.shift()!;
   s.shipments++;
+  // two-piece rescue (ChatGPT r15/r16): no legal pair and nothing lonely to copy -> a matching core PAIR arrives
+  const core = isShooter(fam) || fam === 'coil' || fam === 'bell';
+  if (core && s.pending.length === 0 && legalPairs(s).length === 0) {
+    s.pending.push(makeGadget(s, fam, 1));
+    s.stats.rescues = (s.stats.rescues ?? 0) + 1;
+    return makeGadget(s, fam, 1);
+  }
   return makeGadget(s, fam, nextShipmentRank(s, s.shipments));
 }
 
@@ -304,8 +322,19 @@ export const isActive = (s: GameState) => s.phase === 'playing';
 
 export type CommandResult = { ok: boolean; events: GameEvent[] };
 
-export function canMerge(a: Gadget | null, b: Gadget | null): boolean {
-  return !!a && !!b && a.family === b.family && a.rank === b.rank && a.rank < MAX_RANK;
+/** Highest rank a family can reach in this state. Saga L21+ lets damaging core families reach 8 (ChatGPT r16);
+ *  helpers, events and the classic run stay at 6. */
+export function capOf(s: GameState | undefined, family: Family): number {
+  if (!s || s.level === undefined) return MAX_RANK;
+  const core = isShooter(family) || family === 'coil' || family === 'bell';
+  return core ? (s.rankCap ?? MAX_RANK) : MAX_RANK;
+}
+
+/** Same family + same rank. In Saga levels two pieces AT the cap compact into one cap piece (frees a cell, fires once). */
+export function canMerge(a: Gadget | null, b: Gadget | null, s?: GameState): boolean {
+  if (!a || !b || a.family !== b.family || a.rank !== b.rank) return false;
+  const cap = capOf(s, a.family);
+  return a.rank < cap || (s?.level !== undefined && a.rank === cap);
 }
 
 /** Drag gadget from `from` onto `to`: merge, move, or swap. */
@@ -318,7 +347,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   const lk = locked(s);
   if (lk.has(from) || lk.has(to)) return { ok: false, events: ev };
   const b = s.grid[to];
-  if (canMerge(a, b)) {
+  if (canMerge(a, b, s)) {
     if (s.mergeCd > 0) return { ok: false, events: ev };
     return merge(s, from, to);
   }
@@ -333,7 +362,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   const ev: GameEvent[] = [];
   const a = s.grid[from]!;
   const b = s.grid[to]!;
-  const g = makeGadget(s, a.family, a.rank + 1);
+  const g = makeGadget(s, a.family, Math.min(a.rank + 1, capOf(s, a.family)));
   if (a.primed || b.primed) g.primed = true; // primer transfers (OR), never stacks
   s.grid[from] = null;
   s.grid[to] = g;
@@ -572,7 +601,7 @@ function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent
 export function legalPairs(s: GameState): [number, number][] {
   const out: [number, number][] = [];
   for (let i = 0; i < s.grid.length; i++)
-    for (let j = i + 1; j < s.grid.length; j++) if (canMerge(s.grid[i], s.grid[j])) out.push([i, j]);
+    for (let j = i + 1; j < s.grid.length; j++) if (canMerge(s.grid[i], s.grid[j], s)) out.push([i, j]);
   return out;
 }
 
@@ -580,7 +609,7 @@ export function legalPairs(s: GameState): [number, number][] {
 export function previewMerge(s: GameState, from: number, to: number): CascadeResult | null {
   const a = s.grid[from];
   const b = s.grid[to];
-  if (!canMerge(a, b)) return null;
+  if (!canMerge(a, b, s)) return null;
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
@@ -613,7 +642,7 @@ function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): D
   for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
   const options: DropPlan[] = [];
   s.grid.forEach((g, idx) => {
-    if (!g || g.rank >= MAX_RANK || taken.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
+    if (!g || g.rank >= capOf(s, g.family) || taken.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
     if (fuse && g.rank > TUNING.kickbackMaxRank) return;
     const r = Math.floor(idx / COLS), c = idx % COLS;
     for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {

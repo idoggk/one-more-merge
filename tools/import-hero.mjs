@@ -31,6 +31,7 @@ for (const f of readdirSync(src).filter((f) => f.endsWith('.png'))) {
   else if (n === 'home_road_background_v14') [key, box, trim] = ['road_bg', 720, false];
   else if (n === 'ui_event_card_plate') [key, box] = ['ui_card', 720];
   else if (n === 'ui_consumable_button_plate') [key, box] = ['ui_consumable', 320];
+  else if (/^(cannon|coil|bell)_r0([78])$/.test(n)) [key, box] = [n.replace(/_r0/, '_'), 256];
   else if (/^rocket_r0([78])$/.test(n)) [key, box] = [`rocket_${n.slice(-1)}`, 256];
   else if (n === 'hero_home_background') [key, box, trim] = ['hero_bg', 720, false];
   else if (n === 'hero_machine_chassis') [key, box] = ['hero_chassis', 900];

@@ -45,6 +45,17 @@ const states = {
     1400,
   ],
   shop: [(sc) => { sc.openTitle('road'); sc.openWalletInfo(); }, 700],
+  level21: [
+    (sc) => {
+      sc.startLevel(21);
+      sc.finishIntro(true);
+      const s = sc.s;
+      const mk = (f, r) => ({ id: s.nextId++, family: f, rank: r, cd: 99 });
+      Object.assign(s.grid, { 0: mk('cannon', 7), 1: mk('cannon', 8), 2: mk('coil', 7), 3: mk('coil', 8), 5: mk('bell', 7), 6: mk('bell', 8) });
+      sc.reconcile(true);
+    },
+    900,
+  ],
   events: [(sc) => sc.openTitle('events'), 700],
   home: [
     (sc) => {

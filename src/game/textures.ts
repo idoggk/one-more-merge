@@ -124,7 +124,7 @@ export function ensureTextures(scene: Phaser.Scene) {
     draw();
     g.generateTexture(key, w, h);
   };
-  for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
+  for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK + 2; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
 
   gen('dot', 16, 16, () => g.fillStyle(0xffffff).fillCircle(8, 8, 8));
   // tutorial pointing hand (white cartoon glove), fingertip near the top-left

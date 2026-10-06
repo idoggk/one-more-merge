@@ -10,8 +10,9 @@ const args = process.argv.slice(2);
 const dry = args.includes('--dry');
 const from = Number(args[args.indexOf('--from') + 1]) || 1;
 const to = Number(args[args.indexOf('--to') + 1]) || LEVELS.length;
-const N = 40;
-const TARGET = { NORMAL: 0.9, HARD: 0.72, MEGA_HARD: 0.57 } as const;
+const N = Number(args[args.indexOf('--n') + 1]) || 40;
+// chapter rhythm (ChatGPT r16): ramp inside each chapter, relief right after the Hard (p5) and Mega (p10)
+const RHYTHM = [0.95, 0.93, 0.91, 0.88, 0.72, 0.95, 0.91, 0.88, 0.85, 0.57];
 
 function novice(s: GameState, rng: Rng): [number, number] | null {
   const p = legalPairs(s);
@@ -39,9 +40,9 @@ function play(def: LevelDef, botSeed: number, idle = false): boolean {
   return s.phase === 'won';
 }
 
-const winRate = (def: LevelDef) => {
+const winRate = (def: LevelDef, offset = 0) => {
   let w = 0;
-  for (let k = 1; k <= N; k++) if (play(def, def.seed * 31 + k)) w++;
+  for (let k = 1; k <= N; k++) if (play(def, def.seed * 31 + k + offset)) w++;
   return w / N;
 };
 
@@ -49,7 +50,7 @@ const out = JSON.parse(readFileSync('src/content/levels.json', 'utf8'));
 for (const def of LEVELS) {
   if (def.level < from || def.level > to) continue;
   // levels 1-3 are onboarding: near-certain wins
-  const target = def.level <= 3 ? 0.97 : TARGET[def.difficulty];
+  const target = def.level <= 3 ? 0.97 : RHYTHM[(def.level - 1) % 10];
   const before = winRate(def);
   // HP scales damage-needed linearly; search a multiplier in [0.2, 8]
   let lo = 0.2, hi = 8, best = 1;
@@ -61,9 +62,9 @@ for (const def of LEVELS) {
     else hi = mid;
   }
   const hp = Math.max(100, Math.round((def.hp * best) / 50) * 50);
-  const after = winRate({ ...def, hp });
+  const after = winRate({ ...def, hp }, 100000); // held-out bot seeds
   const idleWins = play({ ...def, hp }, 1, true);
-  console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}  novice ${(before * 100).toFixed(0)}% -> ${(after * 100).toFixed(0)}% (target ${target * 100}%)${idleWins ? '  IDLE WINS!' : ''}`);
+  console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}  novice ${(before * 100).toFixed(0)}% -> held-out ${(after * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)${idleWins ? '  IDLE WINS!' : ''}`);
   out.levels[def.level - 1].hp = hp;
 }
 out.balance_status = 'CALIBRATED_NOVICE_BOT (tools/sim-levels.ts)';

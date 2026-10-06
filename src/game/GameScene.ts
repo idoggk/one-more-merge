@@ -3,6 +3,7 @@ import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks'
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import {
   canMerge,
+  capOf,
   choosePerk,
   finishTutorial,
   deserialize,
@@ -612,7 +613,7 @@ export class GameScene extends Phaser.Scene {
     const BXY = 36;
     const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(BXY, BXY, `badge_${g.family}`).setDisplaySize(58, 58) : null;
     if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BXY, BXY, 26).fillStyle(col, 1).fillCircle(BXY, BXY, 21);
-    const label = g.rank >= MAX_RANK ? 'M' : String(g.rank);
+    const label = g.rank >= capOf(this.s, g.family) ? 'M' : String(g.rank);
     let t = this.add.text(BXY, BXY - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
     let parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
     const dice = `dice_${g.rank}`;
@@ -627,7 +628,7 @@ export class GameScene extends Phaser.Scene {
       parts = [img, plate, t];
     }
     t.setName('rank');
-    if (g.rank >= MAX_RANK && this.hasArt('crown')) {
+    if (g.rank >= capOf(this.s, g.family) && this.hasArt('crown')) {
       const cr = this.add.image(-30, -42, 'crown');
       cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(-15);
       parts.push(cr);
@@ -934,7 +935,7 @@ export class GameScene extends Phaser.Scene {
     const a = this.s.grid[from];
     const b = this.s.grid[to];
     if (this.s.phase === 'tutorial' && this.onTutorialMismatch(from, to)) return false;
-    const merging = canMerge(a, b);
+    const merging = canMerge(a, b, this.s);
     // ChatGPT r13: an occupied mismatch BOUNCES (silent swaps punished the exact mistake Ido reported). Swapping is opt-in.
     if (a && b && !merging && !this.meta.swapMismatch) {
       sfx.invalid();
@@ -1003,7 +1004,7 @@ export class GameScene extends Phaser.Scene {
         const { x, y } = cellXY(to);
         this.time.delayedCall(120, () => {
           sfx.rankUp(ng.rank);
-          this.floatText(x, y + 46, ng.rank >= MAX_RANK ? 'MAX!' : `RANK ${ng.rank}`, '#ffffff', 28, 200);
+          this.floatText(x, y + 46, ng.rank >= capOf(this.s, ng.family) ? 'MAX!' : `RANK ${ng.rank}`, '#ffffff', 28, 200);
           this.ring(x, y, FAMILY_INFO[ng.family].color, 110, 16, 420);
         });
       }
@@ -1050,7 +1051,7 @@ export class GameScene extends Phaser.Scene {
     this.s.grid.forEach((b, i) => {
       const v = b ? this.views.get(b.id) : undefined;
       if (!v) return;
-      const bright = !held || i === src || canMerge(held, b);
+      const bright = !held || i === src || canMerge(held, b, this.s);
       v.setAlpha(bright ? 1 : 0.45);
     });
     if (src >= 0 && this.s.grid[src]) {
@@ -1068,12 +1069,12 @@ export class GameScene extends Phaser.Scene {
       }
       g.lineStyle(6, 0xffffff, 0.9).strokeRoundedRect(sx - CELL / 2 + 6, sy - CELL / 2 + 6, CELL - 12, CELL - 12, 20);
       this.s.grid.forEach((b, i) => {
-        if (i === src || !canMerge(a, b)) return;
+        if (i === src || !canMerge(a, b, this.s)) return;
         const { x, y } = cellXY(i);
         g.lineStyle(5, 0xffffff, 1).strokeCircle(x, y, 54).lineStyle(3, FAMILY_INFO[a.family].color, 1).strokeCircle(x, y, 46);
       });
       const hov = this.dragIdx >= 0 ? this.hoverIdx : -1;
-      if (hov >= 0 && hov !== src && canMerge(a, this.s.grid[hov])) {
+      if (hov >= 0 && hov !== src && canMerge(a, this.s.grid[hov], this.s)) {
         const p = previewMerge(this.s, src, hov)!;
         for (const act of p.activations) {
           if (act.idx === hov) continue;
@@ -1119,7 +1120,7 @@ export class GameScene extends Phaser.Scene {
       const f = cellXY(e.from), t = cellXY(e.to);
       g.lineStyle(10, 0xffcf33, 0.55).lineBetween(f.x, f.y, t.x, t.y).lineStyle(6, 0xffcf33, 0.8).strokeCircle(t.x, t.y, 50);
     }
-    const nk = `${a.family}_${Math.min(a.rank + 1, MAX_RANK)}`;
+    const nk = `${a.family}_${Math.min(a.rank + 1, capOf(this.s, a.family))}`;
     if (this.textures.exists(nk)) {
       const c = cellXY(hov);
       this.ghost.setTexture(nk).setVisible(true);
@@ -1250,7 +1251,7 @@ export class GameScene extends Phaser.Scene {
       for (const x of cs) for (const y of cs) if (x.g.rank !== y.g.rank) return [x.i, y.i];
       return null;
     }
-    if (canMerge(ga, gb)) return [a, b];
+    if (canMerge(ga, gb, this.s)) return [a, b];
     const pairs = legalPairs(this.s);
     return pairs.find(([p]) => this.s.grid[p]!.family === step.fam) ?? pairs[0] ?? null;
   }
@@ -1426,7 +1427,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.hintPair) {
       const [a, b] = this.hintPair;
-      if (!canMerge(this.s.grid[a], this.s.grid[b])) this.hintPair = null;
+      if (!canMerge(this.s.grid[a], this.s.grid[b], this.s)) this.hintPair = null;
       this.drawHeld();
     }
   }
@@ -1664,7 +1665,7 @@ export class GameScene extends Phaser.Scene {
           });
           this.time.delayedCall(420, () => {
             const lg = this.s.grid[landedAt];
-            const m = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && canMerge(lg, b)) : -1;
+            const m = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && canMerge(lg, b, this.s)) : -1;
             if (m >= 0) {
               const c = cellXY(m);
               this.ring(c.x, c.y, 0xffffff, 60, 8, 180);

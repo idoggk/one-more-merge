@@ -162,6 +162,12 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **Home** = ROAD (scrolling path, HARD/MEGA HARD tags, workers, sticky PLAY LEVEL N) / MACHINE (team, workshop, mastery) / EVENTS (Daily L3, Challenge L5, Remix L10, Junk Run). The tutorial leads straight into level 1. Rocket and events also unlock by clearing level 5.
 - Not yet: ranks 7-8 (art imported in v13; MAX_RANK stays 6 for now), the 2-piece rescue delivery, and buying kits/capsules with Bolts in the Workshop.
 
+## Round 16: critique fixes, chapter rhythm, two-piece rescue, ranks 7-8
+- **Rhythm** per chapter position (novice targets): 95/93/91/88/**72 HARD**/95/91/88/85/**57 MEGA**; L1-3 at 97%. Calibrated with 400 bot seeds per level plus a 400-seed held-out check (tools/sim-levels.ts --n 400).
+- **Two-piece rescue**: with no legal pair and nothing lonely to copy, a matching rank-1 core pair arrives.
+- **Ranks 7-8** (Saga L21+ only): damaging core families cap at 8 (2.25×/rank as before); helpers, events and the classic run stay at 6. In Saga, two cap pieces compact into one cap piece (frees a cell, fires once). Copy caps 4/5/6/7 for L21-30/31-40/41-50/51-60. Showcase: L21 starts with a rank-6 shooter pair and L41 with rank 7, so those two calibrate to ~3× the HP of their neighbours (the opening merge is a huge hit).
+- UI: short HUD names, Time Capsule in the bottom lane with a 350 ms hold, level card (no HP, star outlines with goals, Jumpstart switch), result Bolts breakdown, curved road, quiet road background, EVENTS cards, Daily +1 Kit, shop caps 3 kits / 2 capsules.
+
 ## Open experiments
 - Kickback: fuse-on-landing vs plain drops (ChatGPT's request), measure player reactions.
 - Pull-supply tray (tap to release a matching pair, 5 charges) vs auto-supply at equal rank mass.
