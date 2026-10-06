@@ -20,6 +20,7 @@ import {
   type GameState,
 } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
+import { buildMachine, hasMachineArt } from './machine';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
@@ -29,6 +30,8 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 
 export const W = 720;
 const CELL = 124;
+/** A held piece floats this far above the finger so it stays visible; targeting uses the piece, not the finger. */
+const DRAG_LIFT = 40;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
@@ -86,6 +89,8 @@ interface Meta {
   remixBest: Record<string, number>;
   /** First-time contextual tips already shown. */
   tips: Record<string, boolean>;
+  /** Highest rank ever created per family by a player merge or Kickback fuse: builds YOUR MACHINE. */
+  mastery?: Partial<Record<Family, number>>;
   /** Daily Bench personal bests by local date (only recent days kept). */
   daily?: Record<string, DailyBest>;
 }
@@ -155,6 +160,7 @@ export class GameScene extends Phaser.Scene {
   targetBaseScale = 1;
   hpBar!: Phaser.GameObjects.Graphics;
   hpFill?: Phaser.GameObjects.Image;
+  hpTicks?: Phaser.GameObjects.Graphics;
   gaugeImgs: Phaser.GameObjects.Image[] = [];
   hpText!: Phaser.GameObjects.Text;
   shownHp = 0;
@@ -375,7 +381,14 @@ export class GameScene extends Phaser.Scene {
     return 'debris_atlas';
   }
 
+  /** Best rank created this run per family (merges + Kickback fuses) — the machine shown on the result screen. */
+  runBest: Partial<Record<Family, number>> = {};
+  noteRank(fam: Family, rank: number) {
+    this.runBest[fam] = Math.max(this.runBest[fam] ?? 0, rank);
+  }
+
   startState(s: GameState) {
+    this.runBest = {};
     this.closeModal();
     if (s.elapsed === 0 && s.stats.merges === 0) tlog.newRun({ mode: s.hard ? 'challenge' : s.phase === 'tutorial' ? 'tutorial' : s.practice ? 'practice' : 'normal', toys: s.toys, seed: s.seed });
     for (const v of this.views.values()) v.destroy();
@@ -556,14 +569,21 @@ export class GameScene extends Phaser.Scene {
     const r = Math.floor((y - BY) / CELL);
     return c >= 0 && c < COLS && r >= 0 && r < ROWS ? r * COLS + c : -1;
   }
-  stickyCell(x: number, y: number) {
-    const inside = (i: number, frac: number) => {
+  /** Cell nearest to (x, y) within reach, else -1. Hysteresis: the current target is kept until another cell is clearly closer. */
+  targetCell(x: number, y: number) {
+    let best = -1;
+    let bd = CELL * 0.8;
+    for (let i = 0; i < ROWS * COLS; i++) {
       const c = cellXY(i);
-      return Math.abs(x - c.x) < (CELL * frac) / 2 && Math.abs(y - c.y) < (CELL * frac) / 2;
-    };
-    if (this.hoverIdx >= 0 && inside(this.hoverIdx, 0.9)) return this.hoverIdx;
-    const c = this.cellAt(x, y);
-    return c >= 0 && inside(c, 0.7) ? c : -1;
+      const d = Math.hypot(x - c.x, y - c.y);
+      if (d < bd) [bd, best] = [d, i];
+    }
+    if (this.hoverIdx >= 0 && best !== this.hoverIdx) {
+      const c = cellXY(this.hoverIdx);
+      const dh = Math.hypot(x - c.x, y - c.y);
+      if (dh < CELL * 0.8 && dh - bd < CELL * 0.18) return this.hoverIdx;
+    }
+    return best;
   }
 
   overScrap(x: number, y: number) {
@@ -586,6 +606,7 @@ export class GameScene extends Phaser.Scene {
     if (this.coach.waitingTap && !this.modal) {
       sfx.click();
       this.coach.hide();
+      if (this.explaining) this.nextExplain();
       return;
     }
     if (!this.canAct()) return;
@@ -617,11 +638,11 @@ export class GameScene extends Phaser.Scene {
     }
     // weighty drag: piece leans into the motion and casts a shadow on the board
     const dx = p.worldX - this.dragView.x;
-    this.dragView.setPosition(p.worldX, p.worldY - 40);
+    this.dragView.setPosition(p.worldX, p.worldY - DRAG_LIFT);
     this.dragView.setAngle(Phaser.Math.Linear(this.dragView.angle, Phaser.Math.Clamp(dx * 0.9, -14, 14), 0.35));
     if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
     this.dragShadow.setPosition(p.worldX, p.worldY + 22).setVisible(true);
-    const h = this.stickyCell(p.worldX, p.worldY);
+    const h = this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
       this.drawHeld();
@@ -674,11 +695,13 @@ export class GameScene extends Phaser.Scene {
     const from = this.dragIdx;
     const id = this.dragId;
     const view = this.dragView;
-    const dest = this.hoverIdx >= 0 ? this.hoverIdx : upIdx;
+    // the piece is drawn above the finger: target where the PIECE is, same rule as the live highlight
+    const dest = this.hoverIdx >= 0 ? this.hoverIdx : this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
     this.dragShadow?.setVisible(false);
     view?.setAngle(0);
     this.dragIdx = -1;
     this.hoverIdx = -1;
+    this.dragView = null; // must be cleared BEFORE commitDrop so reconcile() animates this piece into its new cell
     if (view) view.setDepth(10);
     if (this.overScrap(p.worldX, p.worldY) && this.s.phase === 'playing') {
       const g = this.s.grid[from];
@@ -688,7 +711,7 @@ export class GameScene extends Phaser.Scene {
     } else if (dest >= 0 && dest !== from) {
       if (!this.commitDrop(from, dest, id)) this.snapBack(view, from);
     } else this.snapBack(view, from);
-    this.dragView = null;
+    this.reconcile(); // belt and braces: every sprite returns to its model cell
     this.scrapHold = 0;
     this.overScrapFlag = false;
     this.drawHeld();
@@ -697,13 +720,17 @@ export class GameScene extends Phaser.Scene {
   snapBack(view: GadgetView | null, idx: number) {
     this.dragShadow?.setVisible(false);
     if (!view) return;
-    view.setAngle(0);
-    const { x, y } = cellXY(idx);
-    this.tweens.add({ targets: view, x, y, scale: 1, duration: 160, ease: 'Back.Out' });
+    view.setAngle(0).setDepth(10);
+    // return to wherever the model has it NOW (a chain may have moved it while it was held)
+    const real = this.s.grid.findIndex((g) => g?.id === view.gid);
+    const { x, y } = cellXY(real >= 0 ? real : idx);
+    this.tweens.killTweensOf(view);
+    this.tweens.add({ targets: view, x, y, scale: 1, duration: 140, ease: 'Cubic.Out' });
   }
 
   cancelDrag() {
     if (this.dragIdx >= 0) this.snapBack(this.dragView, this.dragIdx);
+    this.dragShadow?.setVisible(false);
     if (this.dragView) this.dragView.setDepth(10);
     this.dragIdx = -1;
     this.dragView = null;
@@ -737,10 +764,19 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: sb, scale: s0, angle: 90, alpha: 0, duration: 450, ease: 'Quad.Out', onComplete: () => sb.destroy() });
       }
       if (nv) {
-        nv.setScale(1.45);
-        this.tweens.add({ targets: nv, scale: 1, duration: 260, ease: 'Back.Out' });
+        this.tweens.killTweensOf(nv); // the spawn pop from reconcile() would fight the merge punch
+        const c = cellXY(to);
+        nv.setPosition(c.x, c.y).setScale(0.9);
+        this.tweens.chain({
+          targets: nv,
+          tweens: [
+            { scale: 1.16, duration: 90, ease: 'Back.Out' },
+            { scale: 1, duration: 120, ease: 'Sine.Out' },
+          ],
+        });
       }
       const ng = this.s.grid[to]!;
+      this.noteRank(ng.family, ng.rank);
       const ce = res.events.find((e) => e.type === 'cascade');
       tlog.log('merge', { fam: ng.family, rank: ng.rank, chain: ce && ce.type === 'cascade' ? ce.result.count : 1, at: +this.s.elapsed.toFixed(1), occ: this.s.grid.filter(Boolean).length });
       sfx.merge(ng.rank);
@@ -884,6 +920,7 @@ export class GameScene extends Phaser.Scene {
       if (this.dragIdx >= 0 && this.moved && this.overScrapFlag) this.scrapHold += dms / 1000;
       if (this.s.phase === 'playing') this.idleTime += dms / 1000;
     }
+    if (this.dragIdx >= 0 && !this.input.activePointer.isDown) this.onUp(this.input.activePointer);
     this.updateHints();
     this.drawHud(dms);
     this.animateIdle();
@@ -1071,13 +1108,40 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  explainQueue: { text: string; spots: { x: number; y: number; r?: number }[] }[] = [];
+  explaining = false;
+  /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). */
+  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[] }[]) {
+    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
+    this.meta.tips[id] = true;
+    store(META_KEY, JSON.stringify(this.meta));
+    tlog.log('explain', { id });
+    this.explainQueue.push(...cards);
+    if (!this.explaining) this.nextExplain();
+  }
+
+  nextExplain() {
+    const c = this.explainQueue.shift();
+    if (!c || this.s.phase !== 'playing') {
+      this.explainQueue = [];
+      this.explaining = false;
+      this.paused = false;
+      this.coach.clear();
+      return;
+    }
+    this.explaining = true;
+    this.paused = true;
+    this.cancelDrag();
+    this.coach.focus(c.spots);
+    this.coach.say(c.text, this.coachY(), { tap: true });
+  }
+
   checkTips() {
     const s = this.s;
     if (s.phase !== 'playing' || this.coach.waitingTap) return;
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 1.5 && s.elapsed < 6) this.tip('delivery', 'New parts drop in from here.\nMerge them into your machine!', { x: BX + 150, y: TRAY_Y - 30 });
     if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
-    if (s.drops.length) this.tip('kickback', 'A chunk broke off the monster!\nIt lands and upgrades one of your parts.');
     if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
     if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
     if (s.target === 1) this.tip('next', 'Next monster! Your machine and\nupgrades carry over. Keep going!');
@@ -1132,6 +1196,13 @@ export class GameScene extends Phaser.Scene {
     if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, Math.max(26, bw * frac), 26, 13);
     }
     this.hpText.setText(fmt(Math.max(0, Math.round(this.shownHp))));
+    if (!this.hpTicks) this.hpTicks = this.add.graphics().setDepth(3);
+    const ht = this.hpTicks.clear();
+    if (s.target >= 0 && TUNING.kickback)
+      for (const q of [0.75, 0.5, 0.25]) {
+        const x = W / 2 - bw / 2 + bw * q;
+        ht.fillStyle(0x2b1d2e, frac > q ? 0.85 : 0.3).fillRect(x - 2, HP_Y - 15, 4, 30);
+      }
 
     // overdrive gauge
     const og = this.odGauge.clear();
@@ -1258,6 +1329,24 @@ export class GameScene extends Phaser.Scene {
             this.showEvent('KICKBACK!  A loose part upgraded yours', '#ffd24a', 1800);
           } else spawn.set(e.gadget.id, { x: land.x, y: land.y - 80 });
           const landedAt = e.into >= 0 ? e.into : e.idx;
+          if (e.into >= 0) this.noteRank(e.gadget.family, e.gadget.rank);
+          const fused = e.into >= 0;
+          const tgtSpot = { x: this.target.x, y: this.target.y, r: 150 };
+          this.time.delayedCall(520, () => {
+            if (fused)
+              this.explain('x_kick_fuse', [
+                { text: 'A chunk broke off the monster!\nIt loses one every 25% of its HP\n(see the marks on the HP bar).', spots: [tgtSpot] },
+                { text: 'The chunk fell onto your board and\nUPGRADED this small machine\nfor free. It fired, too!', spots: [cellXY(landedAt)] },
+              ]);
+            else {
+              const lg = this.s.grid[landedAt];
+              const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
+              this.explain('x_kick_plain', [
+                { text: 'HUGE chain! A spare part flew\noff the monster and landed here.', spots: [cellXY(landedAt)] },
+                { text: 'It matches the machine next to it.\nMerge them for a free upgrade!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
+              ]);
+            }
+          });
           this.time.delayedCall(420, () => {
             const lg = this.s.grid[landedAt];
             const m = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && canMerge(lg, b)) : -1;
@@ -1629,6 +1718,14 @@ export class GameScene extends Phaser.Scene {
       if (r.count >= 10) haptic(10);
       const huge = r.count >= 10;
       if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
+      if (!kickback && r.count >= 3)
+        this.time.delayedCall(500, () =>
+          this.explain('x_chain', [
+            { text: `That was a CHAIN of ${r.count}!\nYour merge made a machine FIRE,\nand it woke up its neighbours.`, spots: r.activations.map((a) => cellXY(a.idx)) },
+            { text: 'COILS zap the machines next to them.\nBELLS ring their whole row.\nEvery machine that fires hits the monster!', spots: r.activations.filter((a) => a.family !== 'cannon').map((a) => cellXY(a.idx)) },
+            { text: 'Each machine fires once per chain.\nWhile you drag, lines show the\nchain your merge will make.', spots: [] },
+          ]),
+        );
       // damage number beside the opponent, never on its face
       this.floatText(this.target.x + 150, this.target.y - 40, fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
     });
@@ -1893,21 +1990,38 @@ export class GameScene extends Phaser.Scene {
       }
     }
     m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
+    const mastery = (m.mastery ??= {});
+    const newBests: string[] = [];
+    for (const [fam, r] of Object.entries(this.runBest) as [Family, number][]) {
+      if (r > (mastery[fam] ?? 0)) {
+        if ((mastery[fam] ?? 0) > 0 || r >= 2) newBests.push(`${FAMILY_INFO[fam].name} ${r}`);
+        mastery[fam] = r;
+      }
+    }
     const daily = s.daily ? this.recordDaily(won) : null;
     if (daily) newBest = false;
     store(META_KEY, JSON.stringify(m));
     store(SAVE_KEY, null);
     won ? sfx.win() : sfx.lose();
     const art = won ? 'victory' : 'defeat';
-    const hasPic = this.hasArt(art);
+    const machineArt = hasMachineArt(this);
+    const hasPic = machineArt || this.hasArt(art);
     const c = this.panel(hasPic ? 960 : 700);
     const top = H / 2 - (hasPic ? 480 : 350) + (hasPic ? 250 : 0);
     if (hasPic) {
-      const pic = this.add.image(W / 2, top - 130, art);
-      pic.setScale(Math.min(300 / pic.width, 270 / pic.height));
+      const helper = s.toys[0] ?? null;
+      const pic = machineArt ? buildMachine(this, W / 2, top - 8, 470, this.runBest, helper)! : this.add.image(W / 2, top - 130, art);
+      if (!machineArt) (pic as Phaser.GameObjects.Image).setScale(Math.min(300 / (pic as Phaser.GameObjects.Image).width, 270 / (pic as Phaser.GameObjects.Image).height));
       c.add(pic);
-      this.tweens.add({ targets: pic, scale: { from: pic.scale * 0.6, to: pic.scale }, duration: 400, ease: 'Back.Out' });
-      const cap = won ? 'Your machine smashed it! Its junk is yours now.' : 'So close! Your machine needs one more go.';
+      const sc0 = pic.scale;
+      this.tweens.add({ targets: pic, scale: { from: sc0 * 0.6, to: sc0 }, duration: 400, ease: 'Back.Out' });
+      const cap = machineArt
+        ? won
+          ? 'YOUR MACHINE: built from your best merges this run'
+          : 'Your machine this run. Merge higher to grow it!'
+        : won
+          ? 'Your machine smashed it! Its junk is yours now.'
+          : 'So close! Your machine needs one more go.';
       c.add(this.add.text(W / 2, top + 18, cap, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
     }
     const head = this.add.text(W / 2, top + 82, won ? `YOU BEAT ${TARGET_NAMES[Math.max(0, s.target)]}!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '60px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
@@ -1919,7 +2033,7 @@ export class GameScene extends Phaser.Scene {
     else lines.push(`Beat ${s.target} of 3  ·  ${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`);
     lines.push(`Biggest chain  x${s.stats.biggestChain}`);
     lines.push(`Biggest hit  ${fmt(s.stats.biggestHit)}`);
-    lines.push(`Best gadget  rank ${s.stats.bestRank}`);
+    if (!hasMachineArt(this)) lines.push(`Best gadget  rank ${s.stats.bestRank}`);
     if (s.perks.length) lines.push(`Perks  ${s.perks.map((p) => PERKS[p].name).join(', ')}`);
     if (daily) {
       const [b, improved] = daily;
@@ -1928,6 +2042,7 @@ export class GameScene extends Phaser.Scene {
     }
     const rec = s.daily ? null : s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
     if (rec !== null) lines.push(`Record${s.remix ? ' (remix)' : s.hard ? ' (challenge)' : ''}  ${rec.toFixed(1)}s`);
+    if (newBests.length) lines.push(`New best!  ${newBests.slice(0, 3).join(' · ')}`);
     if (unlockedNow) lines.push('★ CHALLENGE MODE UNLOCKED ★');
     c.add(this.add.text(W / 2, top + 290, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '28px', color: '#3b2533', align: 'center', lineSpacing: 14 }).setOrigin(0.5));
     this.button(c, W / 2, top + 560, 420, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.2);
