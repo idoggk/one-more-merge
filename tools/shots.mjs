@@ -59,6 +59,7 @@ const states = {
     },
     2600,
   ],
+  chain_card2: [(sc) => sc.nextExplain(), 1000],
   intro_mid: [
     (sc) => {
       sc.closeModal();

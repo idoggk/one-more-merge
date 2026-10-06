@@ -700,10 +700,10 @@ export class GameScene extends Phaser.Scene {
       this.finishIntro(true);
       return;
     }
+    if (this.explaining) return; // explainers advance only from their NEXT button
     if (this.coach.waitingTap && !this.modal) {
       sfx.click();
       this.coach.hide();
-      if (this.explaining) this.nextExplain();
       return;
     }
     if (!this.canAct()) return;
@@ -1235,19 +1235,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  explainQueue: { text: string; spots: { x: number; y: number; r?: number }[] }[] = [];
+  explainQueue: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[] }[] = [];
+  explainTotal = 0;
+  explainOverlay: Phaser.GameObjects.GameObject[] = [];
   explaining = false;
   /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). */
-  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[] }[]) {
+  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[] }[]) {
     if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
     this.explainQueue.push(...cards);
+    this.explainTotal = this.explainQueue.length;
     if (!this.explaining) this.nextExplain();
   }
 
   nextExplain() {
+    for (const o of this.explainOverlay) o.destroy();
+    this.explainOverlay = [];
     const c = this.explainQueue.shift();
     if (!c || this.s.phase !== 'playing') {
       this.explainQueue = [];
@@ -1260,7 +1265,37 @@ export class GameScene extends Phaser.Scene {
     this.paused = true;
     this.cancelDrag();
     this.coach.focus(c.spots);
-    this.coach.say(c.text, this.coachY(), { tap: true });
+    const left = this.explainQueue.length;
+    const page = `${this.explainTotal - left}/${this.explainTotal}`;
+    this.coach.say(c.text, this.coachY(), { next: { page, label: left ? 'NEXT \u203a' : 'GOT IT', onNext: () => (sfx.click(), this.nextExplain()) } });
+    if (c.draw) this.explainOverlay = c.draw();
+  }
+
+  /** Numbered cause->effect arrows along a recorded chain (first `steps` waves), optionally played 250ms apart. */
+  chainArrows(r: CascadeResult, steps: number, animate: boolean): Phaser.GameObjects.GameObject[] {
+    const depthOf = new Map(r.activations.map((a) => [a.idx, a.depth]));
+    const edges = r.edges.filter((e) => e.from !== e.to && (depthOf.get(e.to) ?? 99) <= steps);
+    const seen = new Set<number>();
+    const uniq = edges.filter((e) => (seen.has(e.to) ? false : (seen.add(e.to), true))).sort((a, b) => (depthOf.get(a.to) ?? 0) - (depthOf.get(b.to) ?? 0));
+    const out: Phaser.GameObjects.GameObject[] = [];
+    uniq.forEach((e) => {
+      const d = depthOf.get(e.to) ?? 1;
+      const f = cellXY(e.from), t = cellXY(e.to);
+      const ang = Math.atan2(t.y - f.y, t.x - f.x);
+      const ex = t.x - Math.cos(ang) * 46, ey = t.y - Math.sin(ang) * 46;
+      const g = this.add.graphics().setDepth(88);
+      g.lineStyle(10, 0x2b1d2e, 0.9).lineBetween(f.x, f.y, ex, ey).lineStyle(6, 0xffcf33, 1).lineBetween(f.x, f.y, ex, ey);
+      g.fillStyle(0xffcf33, 1).fillTriangle(ex + Math.cos(ang) * 16, ey + Math.sin(ang) * 16, ex + Math.cos(ang + 2.3) * 16, ey + Math.sin(ang + 2.3) * 16, ex + Math.cos(ang - 2.3) * 16, ey + Math.sin(ang - 2.3) * 16);
+      const n = this.add.text((f.x + t.x) / 2, (f.y + t.y) / 2, String(d), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 9, y: 2 } }).setOrigin(0.5).setDepth(89);
+      out.push(g, n);
+      if (animate) {
+        g.setAlpha(0);
+        n.setAlpha(0).setScale(0.5);
+        this.tweens.add({ targets: g, alpha: 1, duration: 120, delay: (d - 1) * 250 });
+        this.tweens.add({ targets: n, alpha: 1, scale: 1, duration: 160, delay: (d - 1) * 250 + 60, ease: 'Back.Out', onStart: () => sfx.cascadeStep(d - 1, 0) });
+      }
+    });
+    return out;
   }
 
   checkTips() {
@@ -1459,18 +1494,20 @@ export class GameScene extends Phaser.Scene {
           if (e.into >= 0) this.noteRank(e.gadget.family, e.gadget.rank);
           const fused = e.into >= 0;
           const tgtSpot = { x: this.target.x, y: this.target.y, r: 150 };
+          const kc = events.find((x) => x.type === 'cascade' && x.kickback) as { result: CascadeResult } | undefined;
+          const kChain = kc?.result.count ?? 1;
           this.time.delayedCall(520, () => {
             if (fused)
               this.explain('x_kick_fuse', [
-                { text: 'A chunk broke off the monster!\nIt loses one every 25% of its HP\n(see the marks on the HP bar).', spots: [tgtSpot] },
-                { text: 'The chunk fell onto your board and\nUPGRADED this small machine\nfor free. It fired, too!', spots: [cellXY(landedAt)] },
+                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot] },
+                { text: kChain > 1 ? 'It matched this gadget and merged.\nThat free merge fired another chain!' : 'It matched this gadget and merged.\nThat free merge fired the new gadget!', spots: [cellXY(landedAt)] },
               ]);
             else {
               const lg = this.s.grid[landedAt];
               const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
               this.explain('x_kick_plain', [
-                { text: 'HUGE chain! A spare part flew\noff the monster and landed here.', spots: [cellXY(landedAt)] },
-                { text: 'It matches the machine next to it.\nMerge them for a free upgrade!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
+                { text: 'Your big chain shook a part loose.\nIt landed in this cell.', spots: [cellXY(landedAt)] },
+                { text: 'This one waits for you.\nMerge it with the same gadget\nand the same number!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
               ]);
             }
           });
@@ -1848,9 +1885,9 @@ export class GameScene extends Phaser.Scene {
       if (!kickback && r.count >= 3)
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
-            { text: `That was a CHAIN of ${r.count}!\nYour merge made a machine FIRE,\nand it woke up its neighbours.`, spots: r.activations.map((a) => cellXY(a.idx)) },
-            { text: 'COILS zap the machines next to them.\nBELLS ring their whole row.\nEvery machine that fires hits the monster!', spots: r.activations.filter((a) => a.family !== 'cannon').map((a) => cellXY(a.idx)) },
-            { text: 'Each machine fires once per chain.\nWhile you drag, lines show the\nchain your merge will make.', spots: [] },
+            { text: 'Your merge fired this gadget.\nIt hit the monster.', spots: [cellXY(r.rootIdx)] },
+            { text: 'It woke these other gadgets.\nCoils zap; Bells ring their lines.\nThey wake OTHER families.', spots: [], draw: () => this.chainArrows(r, 3, true) },
+            { text: `Those fired too: a CHAIN of ${r.count}!\nMove gadgets next to each other\nto connect their reach.`, spots: [], draw: () => this.chainArrows(r, 3, false) },
           ]),
         );
       // damage number beside the opponent, never on its face

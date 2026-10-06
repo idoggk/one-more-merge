@@ -11,6 +11,9 @@ export class Coach {
   private handTween: Phaser.Tweens.Tween | null = null;
   private focusCells: { x: number; y: number; r: number }[] = [];
   private hideTimer: Phaser.Time.TimerEvent | null = null;
+  private nextBtn: Phaser.GameObjects.Container;
+  private pageText: Phaser.GameObjects.Text;
+  private onNext: (() => void) | null = null;
   waitingTap = false;
 
   constructor(private scene: Phaser.Scene, private width: number) {
@@ -22,7 +25,18 @@ export class Coach {
       .text(0, -24, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '31px', color: hasPlate ? '#2a2233' : '#fff0cf', align: 'center', wordWrap: { width: width - 140 }, lineSpacing: 2 })
       .setOrigin(0.5);
     this.tapText = scene.add.text(0, 42, 'tap to continue', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: hasPlate ? '#7a5a4a' : '#cdbfa8' }).setOrigin(0.5);
-    this.box = scene.add.container(width / 2, 0, [this.plate, this.text, this.tapText]).setDepth(90).setVisible(false);
+    // explicit NEXT target (ChatGPT r13: never a whole-screen tap while teaching a gesture) + page indicator
+    const pw = 150;
+    const pill = scene.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-pw / 2, -27, pw, 54, 27).fillStyle(0x5fbf4a, 1).fillRoundedRect(-pw / 2 + 4, -23, pw - 8, 46, 23);
+    const pl = scene.add.text(0, 0, 'NEXT \u203a', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff' }).setOrigin(0.5);
+    this.nextBtn = scene.add.container((width - 70) / 2 - pw / 2 - 26, 62, [pill, pl]).setSize(pw, 64).setInteractive({ useHandCursor: true });
+    this.nextBtn.on('pointerup', () => {
+      const cb = this.onNext;
+      this.onNext = null;
+      cb?.();
+    });
+    this.pageText = scene.add.text(-(width - 70) / 2 + 96, 58, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: hasPlate ? '#5a3a3a' : '#e8dcc8' }).setOrigin(0, 0.5);
+    this.box = scene.add.container(width / 2, 0, [this.plate, this.text, this.tapText, this.nextBtn, this.pageText]).setDepth(90).setVisible(false);
     this.rings = scene.add.graphics().setDepth(89);
     const art = scene.textures.exists('ui_hand');
     // fingertip is the hotspot (ChatGPT v8 notes): top-left of the art, top-centre-left of the fallback glove
@@ -32,12 +46,16 @@ export class Coach {
   }
 
   /** Show a line. `tap`: wait for a tap (blocks board input via `waitingTap`). `ms`: auto-hide (tips). */
-  say(text: string, y: number, opts: { tap?: boolean; ms?: number } = {}) {
+  say(text: string, y: number, opts: { tap?: boolean; ms?: number; next?: { page: string; label?: string; onNext: () => void } } = {}) {
     this.hideTimer?.remove();
     this.scene.tweens.killTweensOf(this.box); // a pending hide must not hide this new line
     this.text.setText(text);
-    this.tapText.setVisible(!!opts.tap);
-    this.waitingTap = !!opts.tap;
+    this.tapText.setVisible(!!opts.tap && !opts.next);
+    this.nextBtn.setVisible(!!opts.next);
+    this.pageText.setVisible(!!opts.next).setText(opts.next?.page ?? '');
+    if (opts.next) (this.nextBtn.list[1] as Phaser.GameObjects.Text).setText(opts.next.label ?? 'NEXT \u203a');
+    this.onNext = opts.next?.onNext ?? null;
+    this.waitingTap = !!opts.tap || !!opts.next;
     this.box.setPosition(this.width / 2, y).setVisible(true).setAlpha(0).setScale(0.85);
     this.scene.tweens.add({ targets: this.box, alpha: 1, scale: 1, duration: 220, ease: 'Back.Out' });
     if (opts.tap) this.scene.tweens.add({ targets: this.tapText, alpha: { from: 1, to: 0.35 }, duration: 600, yoyo: true, repeat: -1 });
