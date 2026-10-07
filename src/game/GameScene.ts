@@ -2383,7 +2383,14 @@ Now beat the real level.`, this.coachY());
     if (!this.face) return;
     const s = this.s;
     if (this.faceUntil && this.time.now < this.faceUntil) {
-      this.face.setPosition(this.target.x + GameScene.FACE[Math.max(0, s.target)].x * this.target.displayWidth, this.target.y + GameScene.FACE[Math.max(0, s.target)].y * this.target.displayHeight).setAngle(this.target.angle).setAlpha(this.target.alpha);
+      // smoke test r29: a face started on the previous level could outlive it onto a monster with no face anchor
+      const f = GameScene.FACE[Math.max(0, s.target)];
+      if (!f) {
+        this.faceUntil = 0;
+        this.face.setVisible(false);
+        return;
+      }
+      this.face.setPosition(this.target.x + f.x * this.target.displayWidth, this.target.y + f.y * this.target.displayHeight).setAngle(this.target.angle).setAlpha(this.target.alpha);
       return;
     }
     this.showFace(s.target >= 0 && s.phase === 'playing' && s.hp / s.maxHp < 0.25 ? 'angry' : null);
