@@ -250,3 +250,9 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Six MINI-BOSSES at L8/18/28/38/48/58 (60 s, 16 starters, cosmetic damage states): Pressure Popper BOMB (cover it or fire beside it, else a rank-1/2 neighbour pops), Carousel Crab CONVEYOR (fullest row slides right with wrap), Vanity Moth MIRROR (highest and a different lowest machine swap), Brick Printer JUNK BLOCKS (max 2 inert blocks, cleared by a player chain beside them, 8 s), Scrap Kraken PULL (highest machine yanked one row up unless the cell above is filled), Spring Jack BOUNCE (most-surrounded machine to the farthest empty cell). Telegraphs show destinations; each attack explained once.
 - Chapter bosses escalate: at <=33% HP they alternate their chapter's mini-boss attack (second first): King+BOMB, Overlord+CONVEYOR, Viper+MIRROR, Toasters+BLOCKS, Rex+PULL, Junkzilla+BOUNCE. "FINAL PHASE · NEW ATTACK"; card says "Final phase: also ...".
 - Shield lesson moved to L11. Mini-boss targets 95/92/90/88/86/85 by chapter.
+
+### Round 28 — cast, stages, collection, fight music
+- 12 new ordinary characters (ChatGPT art v20), two per chapter, as a VISUAL layer (`visual` in levels.json; mechanics stay with `monster`): Kettle Grump, Colander Clatter, Sock Cyclops, Iron Duchess, Toolbox Terrier, Cone Goblin, Pixel Pug, Joystick Jester, Gramophone Goose, Accordion Imp, Wheelie Warthog, Satellite Scuttler. Old monsters remain at chapter positions 3/5 + teaching levels. No old face patches on cast art.
+- One backdrop per chapter (stage_ch1..6: kitchen, laundry, garage, arcade, music attic, scrapyard dusk).
+- MONSTER BOOK on the MACHINE tab: monsters / mini-bosses / bosses, silhouettes until beaten, "met at" level.
+- Fight music modes: mini-boss (bouncy), boss (phrygian + stab), final phase (faster).

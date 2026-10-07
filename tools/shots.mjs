@@ -46,6 +46,12 @@ const states = {
   book0: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 21 }, (_, i) => [i + 1, 2])) }); sc.openTitle('machine'); sc.openMonsterBook(0, 0); }, 900],
   book2: [(sc) => { sc.openMonsterBook(2, 0); }, 700],
   book1: [(sc) => { sc.openMonsterBook(1, 0); }, 700],
+  cast4: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(4); sc.finishIntro(true); }, 1500],
+  cast12: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(12); sc.finishIntro(true); }, 1500],
+  cast21: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(21); sc.finishIntro(true); }, 1500],
+  cast31: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(31); sc.finishIntro(true); }, 1500],
+  cast41: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(41); sc.finishIntro(true); }, 1500],
+  cast52: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(52); sc.finishIntro(true); }, 1500],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {
