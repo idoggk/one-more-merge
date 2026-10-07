@@ -788,6 +788,8 @@ export interface PuzzleDef {
   unit?: string;
   /** One winning line (cell pairs from -> to), used for the hint. */
   solution: [number, number][];
+  /** r44 solver difficulty score (src/core/puzzle.ts), written by tools/gen-puzzles.ts. */
+  score?: number;
   visual?: string;
 }
 

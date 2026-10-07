@@ -45,6 +45,7 @@ import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/e
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import puzzleData from '../content/puzzles.json';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
@@ -158,7 +159,7 @@ interface Meta {
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
   /** r42 Workshop Puzzles: daily streak + solved drills. */
-  puzzles?: { date?: string; streak: number; lastSolved?: string; drills: string[] };
+  puzzles?: PuzzleRec;
   /** r41 Workshop Season record. */
   season?: SeasonRec;
   /** r40 Saga Mastery medals: level -> contract indexes completed. */
@@ -1253,6 +1254,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.idleTime = 0;
     this.hintPair = null;
+    if (this.s.puzzle) this.puzzlePlayed.push([from, to]);
     if (merging) {
       this.reconcile(false, undefined, cellXY(to));
       const nv = this.views.get(this.s.grid[to]!.id);
@@ -1767,7 +1769,8 @@ Now beat the real level.`, this.coachY());
     this.tutorialText.setText('');
     if (!this.meta.hints || this.s.phase !== 'playing') return;
     // r35: the board holds still now, so thinking is allowed: hint after 8 s, and point at the pair with the biggest chain
-    if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0) {
+    // r44: never in puzzles - the biggest chain is usually the trap there; puzzles have their own graduated help
+    if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0 && !this.s.puzzle) {
       let best: [number, number] | null = null, bc = -1;
       for (const [a, b] of legalPairs(this.s))
         for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
@@ -1955,6 +1958,9 @@ Now beat the real level.`, this.coachY());
     this.trayPlate?.setVisible(!tut && !s.puzzle);
     for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut && !s.puzzle);
     this.hintBtn?.setVisible(!!s.puzzle && s.phase === 'playing');
+    const help = this.puzzleHelpNow();
+    this.helpBtn?.setVisible(!!s.puzzle && s.phase === 'playing' && help.hint);
+    this.helpLabel?.setText(help.showMove ? 'NEXT MOVE' : 'HINT');
     const sr = this.scrapRing.clear();
     if (this.dragIdx >= 0 && this.overScrapFlag) {
       const g = s.grid[this.dragIdx];
@@ -4678,90 +4684,175 @@ Merge them into a RANK ${rank}!`, this.coachY());
   puzzleDef: PuzzleDef | null = null;
   puzzleKind: 'daily' | 'drill' = 'daily';
   hintBtn: Phaser.GameObjects.Container | null = null;
+  /** r44 graduated help (owner stuck on the first puzzle): HINT after 2 fails, NEXT MOVE after 4; RESTART always. */
+  helpBtn: Phaser.GameObjects.Container | null = null;
+  helpLabel: Phaser.GameObjects.Text | null = null;
+  /** Merges of this attempt (finds the next correct merge without a search while still on the stored line). */
+  puzzlePlayed: Move[] = [];
   static PUZZLES = puzzleData as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
 
-  puzzleRec() {
+  puzzleRec(): PuzzleRec {
     return (this.meta.puzzles ??= { streak: 0, drills: [] });
   }
 
+  /** r44: your own day count picks the puzzle (starts at the warm-up and climbs), not the calendar. */
   dailyPuzzle(): PuzzleDef {
     const list = GameScene.PUZZLES.daily;
-    return list[Math.floor(Date.now() / 86400000) % list.length];
+    const pz = this.puzzleRec();
+    const was = pz.date;
+    const i = dailyIndex(pz, localDate(), list.length);
+    if (pz.date !== was) store(META_KEY, JSON.stringify(this.meta));
+    return list[i];
+  }
+
+  puzzleHelpNow() {
+    return puzzleHelp(this.puzzleDef ? (this.puzzleRec().fails?.[this.puzzleDef.id] ?? 0) : 0, this.puzzleKind);
+  }
+
+  /** Fresh board; puzzles are exact, so unit levels never change them. */
+  resetPuzzle(def: PuzzleDef) {
+    this.startState(newPuzzle(def));
+    this.s.unitMult = {};
+    this.s.unitLevel = {};
+    this.puzzlePlayed = [];
   }
 
   startPuzzle(def: PuzzleDef, kind: 'daily' | 'drill') {
     this.puzzleDef = def;
     this.puzzleKind = kind;
-    tlog.log('puzzle_start', { id: def.id, kind });
-    this.startState(newPuzzle(def));
-    // puzzles are exact: unit levels never change them
-    this.s.unitMult = {};
-    this.s.unitLevel = {};
+    tlog.log('puzzle_start', { id: def.id, kind, score: def.score });
+    this.resetPuzzle(def);
+    const hudBtn = (x: number, w: number, color: number, label: string, onTap: () => void) => {
+      const hb = this.add.container(x, TRAY_Y).setDepth(30);
+      hb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-w / 2, -36, w, 72, 20).fillStyle(color, 1).fillRoundedRect(-w / 2 + 4, -32, w - 8, 64, 17));
+      const t = this.add.text(0, 0, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#ffffff' }).setOrigin(0.5);
+      hb.add(t);
+      hb.add(this.add.zone(0, 0, w, 72).setInteractive({ useHandCursor: true }).on('pointerup', onTap));
+      return [hb, t] as const;
+    };
     if (!this.hintBtn) {
-      const hb = this.add.container(SCRAP_X - 10, TRAY_Y).setDepth(30);
-      hb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-80, -36, 160, 72, 20).fillStyle(0x8e58c9, 1).fillRoundedRect(-76, -32, 152, 64, 17));
-      hb.add(this.add.text(0, 0, 'HINT', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffffff' }).setOrigin(0.5));
-      hb.add(this.add.zone(0, 0, 160, 72).setInteractive({ useHandCursor: true }).on('pointerup', () => this.puzzleHint()));
-      this.hintBtn = hb;
+      this.hintBtn = hudBtn(SCRAP_X - 10, 170, 0x8a6a4a, 'RESTART', () => this.restartPuzzle())[0];
+      [this.helpBtn, this.helpLabel] = hudBtn(BX + 120, 240, 0x8e58c9, 'HINT', () => this.puzzleHelpTap());
     }
     const rule = def.only ? `Merge ONLY ${def.only.map((f) => FAMILY_INFO[f as 'cannon'].name).join(' + ')}.` : 'Any merge counts.';
     this.time.delayedCall(300, () =>
-      this.explain(`puzzle_${def.id}`, [{ text: `WIN IN ${def.moves} MERGES\nDeal ${fmt(def.hp)} damage. ${rule}\nNo clock - plan your chain!`, spots: [], y: TRAY_Y - 40 }]),
+      this.explain(`puzzle_${def.id}`, [{ text: `WIN IN ${def.moves} MERGE${def.moves > 1 ? 'S' : ''}\nDeal ${fmt(def.hp)} damage. ${rule}\nNo clock - plan your chain!`, spots: [], y: TRAY_Y - 40 }]),
     );
   }
 
-  /** Restart and point at the first move of the stored solution. */
-  puzzleHint() {
-    if (!this.puzzleDef) return;
-    sfx.click();
-    tlog.log('puzzle_hint', { id: this.puzzleDef.id });
+  /** RESTART (always there). Restarting after a merge counts as a try, so help unlocks for a stuck player. */
+  restartPuzzle() {
     const def = this.puzzleDef;
-    this.startState(newPuzzle(def));
-    this.s.unitMult = {};
-    this.s.unitLevel = {};
-    this.hintPair = def.solution[0];
-    this.showEvent('HINT: merge the glowing pair first', '#d9c2ff', 2200);
+    if (!def) return;
+    sfx.click();
+    const before = this.puzzleHelpNow();
+    if (this.puzzlePlayed.length && this.s.phase === 'playing') {
+      notePuzzleAttempt(this.puzzleRec(), def.id, false);
+      store(META_KEY, JSON.stringify(this.meta));
+    }
+    tlog.log('puzzle_restart', { id: def.id, merges: this.puzzlePlayed.length });
+    this.resetPuzzle(def);
+    const now = this.puzzleHelpNow();
+    if (now.showMove && !before.showMove) this.showEvent('NEXT MOVE unlocked - tap it if you get stuck', '#d9c2ff', 2200);
+    else if (now.hint && !before.hint) this.showEvent('HINT unlocked - tap it if you want', '#d9c2ff', 2200);
+  }
+
+  /** HINT lights the part to move first; NEXT MOVE lights the next correct merge from the board as it is now. */
+  puzzleHelpTap() {
+    const def = this.puzzleDef;
+    if (!def || this.s.phase !== 'playing') return;
+    const help = this.puzzleHelpNow();
+    if (!help.hint) return;
+    sfx.click();
+    const onLine = this.puzzlePlayed.every((m, i) => def.solution[i] && m[0] === def.solution[i][0] && m[1] === def.solution[i][1]);
+    if (help.showMove) {
+      let m = nextWinningMove(this.s, def, this.puzzlePlayed);
+      if (m) this.showEvent('NEXT MOVE: merge the glowing pair', '#d9c2ff', 2200);
+      else {
+        this.resetPuzzle(def);
+        m = def.solution[0];
+        this.showEvent("That line can't win now - fresh board.\nMerge the glowing pair first", '#d9c2ff', 2600);
+      }
+      this.hintPair = m;
+      const pz = this.puzzleRec();
+      if (!(pz.shown ??= []).includes(def.id)) pz.shown.push(def.id);
+      store(META_KEY, JSON.stringify(this.meta));
+      tlog.log('puzzle_move_shown', { id: def.id, at: this.puzzlePlayed.length });
+      return;
+    }
+    // gentle: one part, not the pair. Off the stored line, start over so the light means something.
+    if (!onLine) this.resetPuzzle(def);
+    const a = def.solution[this.puzzlePlayed.length][0];
+    this.hintPair = [a, a]; // a single part: both ends on the same cell
+    this.showEvent(this.puzzlePlayed.length ? 'HINT: move the glowing part next' : 'HINT: start with the glowing part', '#d9c2ff', 2200);
+    tlog.log('puzzle_hint', { id: def.id, at: this.puzzlePlayed.length });
   }
 
   openPuzzleResult(won: boolean) {
     const m = this.meta;
     const pz = this.puzzleRec();
     const def = this.puzzleDef!;
+    const kind = this.puzzleKind;
     const lines: string[] = [];
     let firstSolve = false;
-    if (won && this.puzzleKind === 'daily' && pz.lastSolved !== localDate()) {
+    notePuzzleAttempt(pz, def.id, won);
+    // r44: the first solve pays; the highlight hint is free, a shown merge halves it (rewards are once per puzzle/day)
+    const rw = puzzleReward(kind, pz.shown?.includes(def.id) ? 'move' : 'none');
+    const halved = rw.bolts < puzzleReward(kind, 'none').bolts;
+    if (won && kind === 'daily' && pz.lastSolved !== localDate()) {
       firstSolve = true;
       const yesterday = new Date(Date.now() - 86400000);
       const y = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
       pz.streak = pz.lastSolved === y ? pz.streak + 1 : 1;
       pz.lastSolved = localDate();
-      m.bolts = (m.bolts ?? 0) + 40;
-      m.gems = (m.gems ?? 0) + 3;
-      lines.push('+40 BOLTS  +3 GEMS', `STREAK: ${pz.streak} day${pz.streak > 1 ? 's' : ''}`);
-    } else if (won && this.puzzleKind === 'drill' && !pz.drills.includes(def.id)) {
+      m.bolts = (m.bolts ?? 0) + rw.bolts;
+      m.gems = (m.gems ?? 0) + rw.gems;
+      lines.push(`+${rw.bolts} BOLTS  +${rw.gems} GEM${rw.gems === 1 ? '' : 'S'}`, `STREAK: ${pz.streak} day${pz.streak > 1 ? 's' : ''}`);
+    } else if (won && kind === 'drill' && !pz.drills.includes(def.id)) {
       firstSolve = true;
       pz.drills.push(def.id);
-      m.bolts = (m.bolts ?? 0) + 25;
-      if (def.unit) this.applyCards([{ unit: def.unit as Family, count: 2, isNew: false }]);
-      lines.push(`+25 BOLTS  +2 ${FAMILY_INFO[def.unit as 'cannon'].name.toUpperCase()} CARDS`);
+      m.bolts = (m.bolts ?? 0) + rw.bolts;
+      if (def.unit) this.applyCards([{ unit: def.unit as Family, count: rw.cards, isNew: false }]);
+      lines.push(`+${rw.bolts} BOLTS  +${rw.cards} ${FAMILY_INFO[def.unit as 'cannon'].name.toUpperCase()} CARD${rw.cards === 1 ? '' : 'S'}`);
     } else if (won) lines.push('Solved again - nice!');
+    if (firstSolve && halved) lines.push('(half reward: a move was shown)');
+    if (won) pz.shown = pz.shown?.filter((id) => id !== def.id);
     store(META_KEY, JSON.stringify(m));
     // r43: first solves (the rewarded ones) feed the Season, so replays can't farm it
     if (firstSolve) this.seasonEv('puzzleSolve');
-    tlog.log('puzzle_end', { id: def.id, won });
+    tlog.log('puzzle_end', { id: def.id, won, fails: pz.fails?.[def.id] ?? 0 });
+    const help = puzzleHelp(pz.fails?.[def.id] ?? 0, kind);
     const c = this.panel(640);
     const top = H / 2 - 320;
+    const helpLine = help.showMove ? 'Stuck? NEXT MOVE shows a right merge.' : help.hint ? 'Stuck? HINT lights the part to move first.' : `A hint unlocks after ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0)} more ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0) === 1 ? 'try' : 'tries'}.`;
     c.add(this.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    const nextDrill = won && this.puzzleKind === 'drill' && def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
+    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    const nextDrill = won && kind === 'drill' && def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
     if (nextDrill) this.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => this.startPuzzle(nextDrill, 'drill'), 0.95);
     else if (!won) {
-      this.button(c, W / 2 - 130, top + 440, 240, 'TRY AGAIN', 0xe8452c, () => this.startPuzzle(def, this.puzzleKind), 0.85);
-      this.button(c, W / 2 + 130, top + 440, 240, 'HINT', 0x8e58c9, () => (this.closeModal(), this.puzzleHint()), 0.85);
+      const tryX = help.hint ? W / 2 - 130 : W / 2;
+      this.button(c, tryX, top + 440, help.hint ? 240 : 320, 'TRY AGAIN', 0xe8452c, () => this.startPuzzle(def, kind), 0.85);
+      if (help.hint) this.button(c, W / 2 + 130, top + 440, 240, help.showMove ? 'NEXT MOVE' : 'HINT', 0x8e58c9, () => (this.closeModal(), this.startPuzzle(def, kind), this.puzzleHelpTap()), 0.85);
     }
-    this.button(c, W / 2, top + 550, 260, this.puzzleKind === 'drill' ? 'UNITS' : 'EVENTS', 0x27a4c0, () => this.openTitle(this.puzzleKind === 'drill' ? 'units' : 'events'), 0.78);
+    const back = () => this.openTitle(kind === 'drill' ? 'units' : 'events');
+    // skip: drills only (no reward, no Season credit). The daily has a streak and a reward, and the hints already get you there.
+    if (!won && help.skip) {
+      this.button(c, W / 2 - 130, top + 550, 240, 'SKIP DRILL', 0x8a6a4a, () => this.skipDrill(def), 0.78);
+      this.button(c, W / 2 + 130, top + 550, 240, 'UNITS', 0x27a4c0, back, 0.78);
+    } else this.button(c, W / 2, top + 550, 260, kind === 'drill' ? 'UNITS' : 'EVENTS', 0x27a4c0, back, 0.78);
   }
 
+  /** r44: a drill you can't crack (6+ tries) can be marked done without its reward, so the unit's next drill opens. */
+  skipDrill(def: PuzzleDef) {
+    const pz = this.puzzleRec();
+    if (!pz.drills.includes(def.id)) pz.drills.push(def.id);
+    notePuzzleAttempt(pz, def.id, true);
+    store(META_KEY, JSON.stringify(this.meta));
+    tlog.log('puzzle_skip', { id: def.id });
+    const next = def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
+    if (next) this.startPuzzle(next, 'drill');
+    else this.openTitle('units');
+  }
   /** r42 Unit Drills list for a unit (unlocked when owned). */
   openDrills(u: UnitDef) {
     this.closeModal();
