@@ -104,6 +104,8 @@ export interface GameState {
   noOverdrive?: boolean;
   /** Chapter boss fight (r20): levels 10/20/30/40/50/60. */
   boss?: BossState | null;
+  /** r32 unit levels as damage multipliers per family (set by the scene from the collection). */
+  unitMult?: Partial<Record<Family, number>>;
   /** r30 Monster Bounty fight (daily; results go to the bounty flow). */
   bounty?: { id: string; twist: string; date: string; slot: number };
   /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
@@ -559,7 +561,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), items: s.phase === 'playing' });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, items: s.phase === 'playing' });
   applyMoves(s, result);
   spendItems(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
@@ -735,7 +737,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     if (g.cd <= 1e-9) {
       g.cd += cannonPeriod(s);
       const hot = bossCascadeMods(s.boss).hotCol;
-      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
+      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult * (s.unitMult?.cannon ?? 1) * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
       ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
       applyDamage(s, dmg, ev, 'passive');
       if (s.phase !== 'playing') return ev;
@@ -818,7 +820,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss) });
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult });
 }
 
 export function serialize(s: GameState): string {
@@ -898,7 +900,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss) });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult });
     applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });

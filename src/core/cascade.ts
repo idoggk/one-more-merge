@@ -60,6 +60,8 @@ export interface CascadeOpts {
   splitB?: number;
   /** r25: player-rooted cascade — attachments act and spend charges (never in passive / automatic kickback cascades). */
   items?: boolean;
+  /** r32 unit levels: damage multiplier per family (collection progression). */
+  unitMult?: Partial<Record<Family, number>>;
 }
 
 /**
@@ -304,7 +306,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
     const hot = isShooter(a.family) && opts.hotCol !== undefined && a.idx % COLS === opts.hotCol ? 0.5 : 1;
     const oc = overcharged.has(a.id) ? 2 : 1;
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc;
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * (opts.unitMult?.[a.family] ?? 1);
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');
