@@ -42,6 +42,7 @@ import { Rng } from '../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
+import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
@@ -149,6 +150,8 @@ interface Meta {
   screwdrivers?: number;
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
+  /** r40 Saga Mastery medals: level -> contract indexes completed. */
+  sagaMedals?: Record<string, number[]>;
   /** r40 Endless Road: the next floor to play and the best floor cleared. */
   endless?: { floor: number; best: number };
   /** r38 collection milestones claimed (index into COLLECTION_GOALS). */
@@ -3228,6 +3231,28 @@ Now beat the real level.`, this.coachY());
         bolts += lvB + stB;
         parts.push(`${firstClear ? 'First clear' : 'Level'} +${lvB}`);
         m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin; // r36 Screw Yard ticket
+        // r40 Saga Mastery: contracts met in this win earn medals (+Bolts; every 10th a Wood crate, every 30th Iron, all = Gold)
+        const medals = (m.sagaMedals ??= {});
+        const doneHere = (medals[key] ??= []);
+        contractsFor(def).forEach((ct, ci) => {
+          if (doneHere.includes(ci) || !contractMet(ct, s)) return;
+          doneHere.push(ci);
+          bolts += MASTERY_BOLTS;
+          const total = Object.values(medals).reduce((t, v) => t + v.length, 0);
+          lines.push(`MASTERY \u2713 ${contractText(ct)}  +${MASTERY_BOLTS}`);
+          if (total % 30 === 0) {
+            this.giveCrate('iron');
+            lines.push(`${total} MASTERY MEDALS: +1 IRON CRATE`);
+          } else if (total % 10 === 0) {
+            this.giveCrate('wood');
+            lines.push(`${total} MASTERY MEDALS: +1 WOOD CRATE`);
+          }
+          if (total === LEVELS.length * 2) {
+            this.giveCrate('gold');
+            lines.push('EVERY MEDAL! +1 GOLD CRATE');
+          }
+          tlog.log('mastery_medal', { level: n, contract: ct.kind, total });
+        });
         if (firstClear && n === YARD_UNLOCK) lines.push('NEW EVENT: SCREW YARD!  (EVENTS tab)');
         else if (n > YARD_UNLOCK) lines.push(`+${SCREWDRIVERS.levelWin} screwdriver for the Screw Yard`);
         if (stB) parts.push(`Stars +${stB}`);
@@ -3316,11 +3341,13 @@ Now beat the real level.`, this.coachY());
     if (bolts > 0) this.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
     if (parts.length) c.add(this.add.text(W / 2, top + 448, parts.join('  \u00b7  '), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     if (lines.length) {
-      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 30 + lines.length * 36, 18));
-      c.add(this.add.text(W / 2, top + 500 + (lines.length * 36) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a', align: 'center' }).setOrigin(0.5));
+      // r40: long reward lists (mastery, screwdriver, milestones) compress instead of running into the buttons
+      const lh = lines.length > 3 ? 27 : 36;
+      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 24 + lines.length * lh, 18));
+      c.add(this.add.text(W / 2, top + 497 + (lines.length * lh) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: lines.length > 3 ? '20px' : '24px', color: '#b06a1a', align: 'center', lineSpacing: lines.length > 3 ? 3 : 8 }).setOrigin(0.5));
     }
     if (chapterDone) this.time.delayedCall(700, () => this.playChapterChest(chapterDone));
-    else if (won && n % 10 !== 0 && n > 1) {
+    else if (won && n % 10 !== 0 && n > 1 && lines.length <= 2) {
       const left = 10 - (n % 10);
       c.add(this.add.text(W / 2, top + 600, `${left} level${left > 1 ? 's' : ''} until your Chapter ${Math.ceil(n / 10)} chest`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
     }
@@ -4339,7 +4366,8 @@ Now beat the real level.`, this.coachY());
     const miniDef = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : undefined;
     const isBoss = (n % 10 === 0 && n > 0) || !!miniDef;
     // boss cards carry the attack diagram; r34 first-time ideas carry a NEW! tag and bigger text
-    const PH = (hasJump ? 860 : 760) + (isBoss ? 110 : 0) + (newConcepts(n).length || n === 6 || (def.start_extra ?? []).some(([f]) => f === 'magnet' || f === 'battery' || f === 'fan') ? 100 : 0);
+    const masteryOn = ((m.levelStars ?? {})[String(n)] ?? 0) > 0;
+    const PH = (hasJump ? 860 : 760) + (isBoss ? 110 : 0) + (masteryOn ? 84 : 0) + (newConcepts(n).length || n === 6 || (def.start_extra ?? []).some(([f]) => f === 'magnet' || f === 'battery' || f === 'fan') ? 100 : 0);
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
     const diff = miniDef ? 'MINI-BOSS' : isBoss ? 'BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';
@@ -4421,6 +4449,15 @@ Now beat the real level.`, this.coachY());
     }
     c.add(sg);
     y += 130;
+    // r40 Saga Mastery: two optional contracts once the level is cleared
+    if (masteryOn) {
+      const done = m.sagaMedals?.[String(n)] ?? [];
+      contractsFor(def).forEach((ct, i) => {
+        const ok = done.includes(i);
+        c.add(this.add.text(W / 2, y + i * 36, `${ok ? '\u2713' : '\u25cb'}  MASTERY: ${contractText(ct)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: ok ? '#3a8a2a' : '#8e58c9' }).setOrigin(0.5));
+      });
+      y += 84;
+    }
     // Jumpstart Kit: explicit switch, OFF by default every attempt
     let jump = false;
     if (hasJump) {

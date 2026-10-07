@@ -117,6 +117,8 @@ const states = {
   endless_road: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), levelStars: Object.fromEntries(Array.from({ length: 80 }, (_, i) => [i + 1, 2])), endless: { floor: 5, best: 4 } }); sc.openTitle('road'); }, 1000],
   endless_play: [(sc) => { sc.startEndless(); sc.finishIntro(true); }, 3000],
   endless_win: [(sc) => { sc.s.phase = 'won'; sc.openEndlessResult(true); }, 900],
+  mastery_card: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), lessons: { card: true, boosters: true }, levelStars: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [i + 1, 2])), sagaMedals: { 22: [1] }, trial: { date: 'x', unit: 'mortar', left: 0, on: false } }); sc.openTitle('road'); sc.openLevelSheet(22); }, 900],
+  mastery_win: [(sc) => { sc.closeModal(); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.s.stats.biggestChain = 12; sc.s.phase = 'won'; sc.openResult(true); }, 1500); }, 3200],
   qa_tools: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openQaTools(); }, 900],
   units_tab: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { bolts: 500, gems: 120, levelStars: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [i + 1, 2])), units: { cannon: { level: 2, cards: 9 }, coil: { level: 1, cards: 1 }, bell: { level: 1, cards: 0 }, rocket: { level: 1, cards: 0 } }, crates: { iron: 1, gold: 1 } }); sc.openTitle('units'); }, 1000],
   units_crate: [(sc) => { sc.openNextCrate(); }, 4500],
