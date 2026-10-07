@@ -136,7 +136,6 @@ describe('cascade (legacy ruleset)', () => {
     expect(s.grid[idxOf(4, 3)]!.primed).toBe(true);
     // a primed cannon merged with an unprimed twin -> result primed, consumed by its own root payload
     s.grid[idxOf(3, 3)] = g('cannon');
-    s.mergeCd = 0;
     const res = drop(s, idxOf(3, 3), idxOf(4, 3), s.grid[idxOf(3, 3)]!.id);
     const c = res.events.find((e) => e.type === 'cascade');
     expect(c && c.type === 'cascade' && c.result.discharged.length).toBe(1);
@@ -298,6 +297,31 @@ describe('game', () => {
     run(s, 1);
     expect(s.drops.length).toBe(0);
     expect(s.stats.kickFuses).toBeGreaterThan(fusesBefore);
+  });
+
+  it('two legal merges back to back both succeed (no merge cooldown)', () => {
+    const s = newGame(23);
+    s.grid.fill(null);
+    s.grid[idxOf(0, 0)] = g('cannon', 2);
+    s.grid[idxOf(0, 1)] = g('cannon', 2);
+    s.grid[idxOf(5, 3)] = g('bell', 1);
+    s.grid[idxOf(5, 4)] = g('bell', 1);
+    expect(drop(s, idxOf(0, 0), idxOf(0, 1), s.grid[idxOf(0, 0)]!.id).ok).toBe(true);
+    expect(drop(s, idxOf(5, 3), idxOf(5, 4), s.grid[idxOf(5, 3)]!.id).ok).toBe(true);
+    expect(s.grid[idxOf(5, 4)]!.rank).toBe(2);
+  });
+
+  it('a kickback fuse never upgrades the held part', () => {
+    const s = newGame(24);
+    s.grid.fill(null);
+    const held = idxOf(2, 2);
+    s.grid[held] = g('bell', 1);
+    const heldId = s.grid[held]!.id;
+    s.drops.push({ t: 0, fuse: true, plan: { idx: held, land: idxOf(2, 3), id: heldId } });
+    const evs = tick(s, new Set([held]));
+    expect(s.grid[held]!.id).toBe(heldId);
+    const k = evs.find((e) => e.type === 'kickback');
+    expect(k && k.type === 'kickback' && k.into).not.toBe(held);
   });
 
   it('big-cascade drops land beside a match without fusing', () => {

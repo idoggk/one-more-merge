@@ -9,10 +9,27 @@ const server = await createServer({ server: { port: 5198, strictPort: false, hos
 await server.listen();
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true });
 const page = await browser.newPage();
+const pageErrors = [];
+page.on('pageerror', (e) => pageErrors.push(String(e)));
 await page.setViewport({ width: 390, height: 763, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
-await page.goto(`${server.resolvedUrls.local[0]}?timer`, { waitUntil: 'networkidle0' });
+await page.goto(`${server.resolvedUrls.local[0]}?timer`, { waitUntil: 'networkidle0', timeout: 90000 });
 await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Fresh board from { cell: 'b1' | 'c2' | 'n3' ... } (b = bell, c = coil, n = cannon); no deliveries during the test. */
+const setBoard = (cells) =>
+  page.evaluate((cells) => {
+    const sc = window.__omm.game.scene.getScene('game');
+    const s = sc.s;
+    const fam = { b: 'bell', c: 'coil', n: 'cannon' };
+    s.grid.fill(null);
+    for (const [i, k] of Object.entries(cells)) s.grid[+i] = { id: s.nextId++, family: fam[k[0]], rank: +k.slice(1), cd: 99 };
+    s.supplyTimer = 1e9;
+    s.reactive = false; // merges owe no parts here: cells stay where the test put them
+    s.pending = [];
+    s.drops = [];
+    sc.reconcile(true);
+  }, cells);
 
 // board: bell1 @0, coil2 @12, cannon3 @13, bell2 @20, bell2 @24
 await page.evaluate(() => {
@@ -22,13 +39,8 @@ await page.evaluate(() => {
   Object.assign(sc.meta, { tutorialDone: true, toys: {}, tips: { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true } });
   sc.retry(false, -1);
   sc.finishIntro(true);
-  const s = sc.s;
-  const mk = (f, r) => ({ id: s.nextId++, family: f, rank: r, cd: 99 });
-  s.grid.fill(null);
-  Object.assign(s.grid, { 0: mk('bell', 1), 12: mk('coil', 2), 13: mk('cannon', 3), 20: mk('bell', 2), 24: mk('bell', 2) });
-  s.supplyTimer = 1e9; // no deliveries during the test
-  sc.reconcile(true);
 });
+await setBoard({ 0: 'b1', 12: 'c2', 13: 'n3', 20: 'b2', 24: 'b2' });
 await wait(300);
 const geo = await page.evaluate(() => {
   const sc = window.__omm.game.scene.getScene('game');
@@ -37,39 +49,52 @@ const geo = await page.evaluate(() => {
   return { left: r.left, top: r.top, k: r.width / 720, x0: v.x, y0: v.y };
 });
 const CELL = 124;
+/** On touch the held piece floats this many world px above the finger (GameScene DRAG_LIFT_TOUCH). */
+const LIFT = 85;
 const scr = (i, dx = 0, dy = 0) => ({ x: geo.left + (geo.x0 + (i % 5) * CELL + dx) * geo.k, y: geo.top + (geo.y0 + Math.floor(i / 5) * CELL + dy) * geo.k });
 
-/** Drag with the finger: grab at an offset inside `from`, release where the PIECE (40 world px above the finger) is over `to`. */
-async function drag(from, to, grab = { x: 18, y: 26 }, steps = 14) {
-  const a = scr(from, grab.x, grab.y);
-  const b = scr(to, grab.x * 0.3, 40 + grab.y * 0.3);
-  await page.touchscreen.touchStart(a.x, a.y);
+let finger = null;
+/** Put the finger down at an offset inside `from`. */
+async function press(from, grab = { x: 18, y: 26 }) {
+  finger = scr(from, grab.x, grab.y);
+  await page.touchscreen.touchStart(finger.x, finger.y);
+}
+/** Slide the finger until the PIECE (LIFT world px above the finger) is over `to`. */
+async function slide(to, grab = { x: 18, y: 26 }, steps = 14) {
+  const a = finger;
+  const b = scr(to, grab.x * 0.3, LIFT + grab.y * 0.3);
   for (let i = 1; i <= steps; i++) {
     await page.touchscreen.touchMove(a.x + ((b.x - a.x) * i) / steps, a.y + ((b.y - a.y) * i) / steps);
     await wait(16);
   }
+  finger = b;
+}
+async function release(settle = 450) {
   await wait(60);
   await page.touchscreen.touchEnd();
-  await wait(450);
+  await wait(settle);
+}
+/** Drag with the finger: grab at an offset inside `from`, release where the PIECE is over `to`. */
+async function drag(from, to, grab = { x: 18, y: 26 }, steps = 14, settle = 450) {
+  await press(from, grab);
+  await slide(to, grab, steps);
+  await release(settle);
 }
 const state = () =>
   page.evaluate(() => {
     const sc = window.__omm.game.scene.getScene('game');
     const s = sc.s;
-    const v0 = { x: 112, y: 0 };
     const cells = s.grid.map((g) => (g ? `${g.family[0]}${g.rank}` : '.'));
     const off = [];
-    const first = sc.views.values().next().value;
     s.grid.forEach((g, i) => {
       if (!g) return;
       const v = sc.views.get(g.id);
       const c = sc.cellCenter(i);
-      if (!v || Math.abs(v.x - c.x) > 1 || Math.abs(v.y - c.y) > 1 || Math.abs(v.angle) > 0.5 || Math.abs(v.scale - 1) > 0.01) off.push([i, g.family, v && Math.round(v.x), v && Math.round(v.y)]);
+      if (!v || !v.visible || Math.abs(v.x - c.x) > 1 || Math.abs(v.y - c.y) > 1 || Math.abs(v.angle) > 0.5 || Math.abs(v.scale - 1) > 0.01) off.push([i, g.family, v && Math.round(v.x), v && Math.round(v.y)]);
     });
-    void v0;
-    void first;
-    return { cells, off, views: sc.views.size, live: s.grid.filter(Boolean).length };
+    return { cells, off, views: sc.views.size, live: s.grid.filter(Boolean).length, dragIdx: sc.dragIdx, explaining: sc.explaining, paused: sc.paused, merges: s.stats.merges };
   });
+const clean = (st) => !st.off.length && st.views === st.live && st.dragIdx === -1;
 
 let fails = 0;
 const check = (name, cond, info) => {
@@ -91,6 +116,97 @@ check('fast short flick still lands exactly', st.cells[23] === 'b3' && !st.off.l
 await drag(23, 23, { x: 10, y: 10 }, 6); // pick up and put back
 st = await state();
 check('pick up and drop on itself returns home', st.cells[23] === 'b3' && !st.off.length, st);
+
+// --- merge-flow audit (t-0ed230cd) ---
+// 6) a second legal merge right after the first (a fast flick; the old 100 ms merge cooldown refused these) lands
+await setBoard({ 0: 'n1', 1: 'n1', 3: 'b2', 4: 'b2' });
+await wait(200);
+let m0 = (await state()).merges;
+await drag(0, 1, { x: 0, y: 0 }, 6, 0);
+await drag(3, 4, { x: 0, y: 0 }, 4);
+st = await state();
+check('rapid double merge: both merges land', st.cells[1] === 'c2' && st.cells[4] === 'b3' && st.merges === m0 + 2 && clean(st), st);
+
+// 7) a kickback fuse aimed at the held part goes elsewhere; the hold survives and the merge lands
+await setBoard({ 6: 'b1', 8: 'b1', 20: 'c3' });
+await wait(200);
+await press(6, { x: 0, y: 0 });
+await slide(7, { x: 0, y: 0 }, 6);
+const heldId = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const s = sc.s;
+  const id = s.grid[6].id;
+  s.drops.push({ t: 0, fuse: true, plan: { idx: 6, land: 1, id } });
+  return id;
+});
+await wait(250);
+const mid = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  return { id: sc.s.grid[6]?.id, dragIdx: sc.dragIdx, held: !!sc.dragView };
+});
+await slide(8, { x: 0, y: 0 }, 6);
+await release();
+st = await state();
+check('kickback during hold: held part untouched, merge lands', mid.id === heldId && mid.dragIdx === 6 && mid.held && st.cells[8] === 'b2' && st.cells[6] === '.' && clean(st), { mid, st });
+
+// 8) the game removes the held part (boss suction): the drag cancels cleanly, the release does nothing
+await setBoard({ 6: 'b1', 8: 'b1' });
+await wait(200);
+m0 = (await state()).merges;
+await press(6, { x: 0, y: 0 });
+await slide(7, { x: 0, y: 0 }, 6);
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const id = sc.s.grid[6].id;
+  sc.s.grid[6] = null;
+  sc.handleEvents([{ type: 'bossHit', attack: 'suction', target: { cells: [6] }, removedIds: [id], outcome: 'hit' }]);
+});
+await slide(8, { x: 0, y: 0 }, 6);
+await release(600);
+st = await state();
+check('held part removed by the game: drag cancels cleanly', st.cells[6] === '.' && st.cells[8] === 'b1' && st.merges === m0 && clean(st), st);
+
+// 9) a pausing explainer that fires mid-hold waits for the finger; the drag is not eaten
+await setBoard({ 6: 'b1', 8: 'b1' });
+await wait(200);
+await press(6, { x: 0, y: 0 });
+await slide(7, { x: 0, y: 0 }, 6);
+await page.evaluate(() => window.__omm.game.scene.getScene('game').explain('touch_test_card', [{ text: 'TEST CARD', spots: [] }]));
+await wait(200);
+const during = await state();
+await slide(8, { x: 0, y: 0 }, 6);
+await release();
+st = await state();
+check('explainer during hold waits for finger-up, merge lands', !during.explaining && !during.paused && during.dragIdx === 6 && st.cells[8] === 'b2' && st.explaining && clean(st), { during, st });
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+});
+
+// 10) touchcancel mid-drag (iOS system gesture) cancels: no merge, the piece goes home
+await setBoard({ 6: 'b1', 8: 'b1' });
+await wait(200);
+m0 = (await state()).merges;
+await press(6, { x: 0, y: 0 });
+await slide(8, { x: 0, y: 0 }, 10);
+await page.evaluate(() => {
+  // the browser's own touchcancel for the live touch (CDP can't cancel a touch from a second session)
+  const sc = window.__omm.game.scene.getScene('game');
+  const canvas = document.querySelector('canvas');
+  const p = sc.input.activePointer;
+  const r = canvas.getBoundingClientRect();
+  const t = new Touch({ identifier: p.identifier, target: canvas, clientX: r.left + p.x * (r.width / 720), clientY: r.top + p.y * (r.width / 720) });
+  canvas.dispatchEvent(new TouchEvent('touchcancel', { changedTouches: [t], touches: [], bubbles: true, cancelable: true }));
+});
+await wait(450);
+st = await state();
+check('touchcancel cancels the drag, never commits', st.cells[6] === 'b1' && st.cells[8] === 'b1' && st.merges === m0 && clean(st), st);
+await page.touchscreen.touchEnd(); // puppeteer's finger is still down; lifting it must not commit anything either
+await wait(300);
+const after = await state();
+check('touchcancel: a late finger-up does nothing', after.cells[6] === 'b1' && after.cells[8] === 'b1' && after.merges === m0 && clean(after), after);
+
+check('no page errors', !pageErrors.length, pageErrors);
 await browser.close();
 await server.close();
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');

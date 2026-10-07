@@ -25,7 +25,6 @@ describe('ranks 7-8 (ChatGPT r16)', () => {
     expect(s.grid[idxOf(4, 1)]!.rank).toBe(LEVELS[20].starting_rank);
     s.grid[idxOf(4, 1)] = g('cannon', 6);
     s.grid[idxOf(4, 2)] = g('cannon', 6);
-    s.mergeCd = 0;
     expect(drop(s, idxOf(4, 1), idxOf(4, 2), s.grid[idxOf(4, 1)]!.id).ok).toBe(true);
     expect(s.grid[idxOf(4, 2)]!.rank).toBe(7);
   });

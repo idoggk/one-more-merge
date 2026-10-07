@@ -20,7 +20,6 @@ describe('teaching levels (ChatGPT r18)', () => {
       [idxOf(3, 1), idxOf(4, 1)],
     ]) {
       const s = newLevel(LEVELS[1]);
-      s.mergeCd = 0;
       const res = drop(s, from, to, s.grid[from]!.id);
       expect(res.ok).toBe(true);
       expect(cascadeCount(res.events)).toBe(3);

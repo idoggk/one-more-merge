@@ -42,7 +42,6 @@ export const TUNING = {
   hardHpMult: 1.4,
   /** Battery-primed cannon: next chain shot x this. */
   batteryBonus: 1.5,
-  mergeCooldown: 0.1,
   demoHp: 20,
   /** Passive (auto) cannon shots deal this fraction of a cascade shot. 1 = rev3 rules. */
   passiveMult: 0.15,

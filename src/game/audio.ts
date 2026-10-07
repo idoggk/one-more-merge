@@ -243,11 +243,36 @@ export const sfx = {
     bandNoise(0.3, 0.06, 0.3, 1200, 0.5);
   },
 };
+/** iOS Safari has no navigator.vibrate. Since iOS 17.4, toggling an `<input type="checkbox" switch>` plays the
+ *  system haptic tick, and clicking its <label> from script does it too. UNDOCUMENTED WebKit behaviour: it may stop
+ *  working in any iOS update; it then does nothing (the hidden switch just flips). Built once, lazily. */
+let iosTick: HTMLLabelElement | null | undefined;
+function iosHapticLabel(): HTMLLabelElement | null {
+  if (iosTick !== undefined) return iosTick;
+  iosTick = null;
+  if (typeof document === 'undefined' || typeof navigator === 'undefined' || !(navigator.maxTouchPoints > 0)) return null;
+  const label = document.createElement('label');
+  label.setAttribute('aria-hidden', 'true');
+  label.style.display = 'none';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.setAttribute('switch', '');
+  input.tabIndex = -1;
+  label.appendChild(input);
+  document.body.appendChild(label);
+  iosTick = label;
+  return label;
+}
 export function haptic(ms = 10) {
   try {
-    navigator.vibrate?.(ms);
+    // Android (and anything else with the Vibration API): unchanged
+    if (typeof navigator.vibrate === 'function') {
+      navigator.vibrate(ms);
+      return;
+    }
+    iosHapticLabel()?.click();
   } catch {
-    /* ignore */
+    /* ignore: haptics are a bonus, never an error */
   }
 }
 

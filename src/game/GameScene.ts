@@ -51,8 +51,12 @@ import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_T
 
 export const W = 720;
 const CELL = 124;
-/** A held piece floats this far above the finger so it stays visible; targeting uses the piece, not the finger. */
+/** A held piece floats this far above the pointer so it stays visible; targeting uses the piece, not the finger.
+ *  Touch lifts higher (merge-flow audit: at 40 px the thumb still covered the piece and its target). */
 const DRAG_LIFT = 40;
+const DRAG_LIFT_TOUCH = 85;
+/** A merging piece flies into its partner over this long; the merged gadget pops when it arrives. */
+const MERGE_ARRIVE = 110;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
@@ -257,7 +261,6 @@ export class GameScene extends Phaser.Scene {
   hoverIdx = -1;
   downAt = { x: 0, y: 0 };
   moved = false;
-  selectedIdx = -1;
   scrapHold = 0;
 
   // ui
@@ -542,7 +545,8 @@ export class GameScene extends Phaser.Scene {
     this.s = s;
     this.pulledIds.clear();
     this.acc = 0;
-    this.selectedIdx = -1;
+    this.heldQueue = []; // cards still waiting for a finger-up belong to the previous run
+    if (!this.explaining) this.explainQueue = [];
     this.idleTime = 0;
     this.tutorialStep = 0;
     this.coach?.clear();
@@ -928,9 +932,9 @@ export class GameScene extends Phaser.Scene {
     for (const [id, v] of this.views) {
       if (live.has(id)) continue;
       this.views.delete(id);
-      if (v === this.dragView) this.dragView = null;
+      if (v === this.dragView) this.cancelDrag();
       this.tweens.killTweensOf(v);
-      if (mergeInto) this.tweens.add({ targets: v, x: mergeInto.x, y: mergeInto.y, scale: 0.6, alpha: 0, duration: 110, onComplete: () => v.destroy() });
+      if (mergeInto) this.tweens.add({ targets: v, x: mergeInto.x, y: mergeInto.y, scale: 0.6, alpha: 0, duration: MERGE_ARRIVE, onComplete: () => v.destroy() });
       else this.tweens.add({ targets: v, scale: 0, alpha: 0, duration: 150, onComplete: () => v.destroy() });
     }
   }
@@ -1041,11 +1045,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.itemLesson) return; // only the item may be used until it is applied
     const idx = this.cellAt(p.worldX, p.worldY);
-    if (idx < 0 || !this.s.grid[idx]) {
-      if (this.selectedIdx >= 0 && idx >= 0) return; // handled on up (move to empty)
-      if (this.selectedIdx >= 0 && this.overScrap(p.worldX, p.worldY)) return;
-      return;
-    }
+    if (idx < 0 || !this.s.grid[idx]) return;
     if (bossBlocked(this.s.boss).noDrag.has(idx)) {
       // r23: a clamped machine explains itself when touched
       const v = this.views.get(this.s.grid[idx]!.id);
@@ -1076,12 +1076,12 @@ export class GameScene extends Phaser.Scene {
     if (!this.moved && Phaser.Math.Distance.Between(p.worldX, p.worldY, this.downAt.x, this.downAt.y) < 12) return;
     if (!this.moved) {
       this.moved = true;
-      this.selectedIdx = -1;
+      this.lift = p.wasTouch ? DRAG_LIFT_TOUCH : DRAG_LIFT;
       sfx.pickup();
-      this.dragView.setDepth(55);
+      this.dragView.setDepth(55).setVisible(true);
       this.tweens.killTweensOf(this.dragView);
       this.tweens.add({ targets: this.dragView, scale: 1.08, duration: 75, ease: 'Cubic.Out' });
-      // the piece starts where it was grabbed and glides up above the finger (no 40px jump)
+      // the piece starts where it was grabbed and glides up above the finger (no jump)
       this.grabOff = { x: p.worldX - this.dragView.x, y: p.worldY - this.dragView.y };
       this.liftAt = this.time.now;
     }
@@ -1094,26 +1094,38 @@ export class GameScene extends Phaser.Scene {
       this.hoverIdx = h;
       this.drawHeld();
     }
-    if (this.overScrap(p.worldX, p.worldY) !== (this.scrapHold > 0 || this.overScrapFlag)) {
-      this.overScrapFlag = this.overScrap(p.worldX, p.worldY);
+    if (this.heldOverScrap(p) !== (this.scrapHold > 0 || this.overScrapFlag)) {
+      this.overScrapFlag = this.heldOverScrap(p);
       this.scrapHold = 0;
     }
+  }
+  /** SCRAP test for a held piece: the zone keeps its place relative to the PIECE whatever the lift, so a higher
+   *  touch lift never turns a drop on the bottom-right cell into a scrap. */
+  heldOverScrap(p: Phaser.Input.Pointer) {
+    return this.overScrap(p.worldX, p.worldY - (this.lift - DRAG_LIFT));
   }
   overScrapFlag = false;
   dragShadow?: Phaser.GameObjects.Ellipse;
   grabOff = { x: 0, y: 0 };
   liftAt = 0;
-  /** Held piece position: eases from the grab point to DRAG_LIFT above the finger over 90ms (cubic-out). */
+  lift = DRAG_LIFT;
+  /** Held piece position: eases from the grab point to `lift` above the finger over 90ms (cubic-out). */
   placeDrag(p: Phaser.Input.Pointer) {
     if (!this.dragView) return;
     const t = Math.min(1, (this.time.now - this.liftAt) / 90);
     const k = 1 - Math.pow(1 - t, 3);
-    this.dragView.setPosition(p.worldX - this.grabOff.x * (1 - k), p.worldY - this.grabOff.y * (1 - k) - DRAG_LIFT * k);
+    this.dragView.setPosition(p.worldX - this.grabOff.x * (1 - k), p.worldY - this.grabOff.y * (1 - k) - this.lift * k);
     if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
     this.dragShadow.setPosition(this.dragView.x, this.dragView.y + 62).setVisible(true);
   }
 
   onUp(p: Phaser.Input.Pointer) {
+    if (p.wasCanceled) {
+      // touchcancel (iOS gesture, call, notification): the hold is abandoned, never committed
+      this.itemDrag = null;
+      this.cancelDrag();
+      return;
+    }
     if (this.itemDrag) {
       const d = this.itemDrag;
       this.itemDrag = null;
@@ -1125,37 +1137,21 @@ export class GameScene extends Phaser.Scene {
       this.cancelDrag();
       return;
     }
-    const upIdx = this.cellAt(p.worldX, p.worldY);
-    // tap-to-select flow
-    if (this.dragIdx >= 0 && !this.moved) {
+    if (this.dragIdx < 0) return;
+    // a tap (no drag) inspects the machine
+    if (!this.moved) {
       const tapped = this.dragIdx;
       this.dragIdx = -1;
       this.dragView = null;
-      this.selectedIdx = -1;
       this.drawHeld();
       if (this.s.phase === 'playing') this.openInspect(tapped);
-      return;
-    }
-    if (this.dragIdx < 0) {
-      if (this.selectedIdx >= 0) {
-        if (upIdx >= 0) {
-          const from = this.selectedIdx;
-          this.selectedIdx = -1;
-          this.commitDrop(from, upIdx, this.s.grid[from]?.id ?? -1);
-        } else if (this.overScrap(p.worldX, p.worldY) && this.s.phase === 'playing') {
-          const from = this.selectedIdx;
-          this.selectedIdx = -1;
-          this.doScrap(from, this.s.grid[from]?.id ?? -1);
-        } else this.selectedIdx = -1;
-        this.drawHeld();
-      }
       return;
     }
     const from = this.dragIdx;
     const id = this.dragId;
     const view = this.dragView;
     // the piece is drawn above the finger: target where the PIECE is, same rule as the live highlight
-    const dest = this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX, p.worldY - DRAG_LIFT);
+    const dest = this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX, p.worldY - this.lift);
     const ga = this.s.grid[from], gb = dest >= 0 ? this.s.grid[dest] : null;
     tlog.log('drag_end', { from, to: dest, highlighted: this.hoverIdx, legal: !!(ga && gb && canMerge(ga, gb, this.s)), kind: !gb ? 'move' : ga && canMerge(ga, gb, this.s) ? 'merge' : 'mismatch', ms: Math.round(this.time.now - this.liftAt) });
     this.dragShadow?.setVisible(false);
@@ -1164,7 +1160,7 @@ export class GameScene extends Phaser.Scene {
     this.hoverIdx = -1;
     this.dragView = null; // must be cleared BEFORE commitDrop so reconcile() animates this piece into its new cell
     if (view) view.setDepth(10);
-    if (this.overScrap(p.worldX, p.worldY) && this.s.phase === 'playing') {
+    if (this.heldOverScrap(p) && this.s.phase === 'playing') {
       const g = this.s.grid[from];
       const needsHold = g && g.rank >= 3;
       if (!needsHold || this.scrapHold >= 0.25) this.doScrap(from, id);
@@ -1184,19 +1180,38 @@ export class GameScene extends Phaser.Scene {
     view.setAngle(0).setDepth(10);
     // return to wherever the model has it NOW (a chain may have moved it while it was held)
     const real = this.s.grid.findIndex((g) => g?.id === view.gid);
-    const { x, y } = cellXY(real >= 0 ? real : idx);
+    if (real < 0) return; // removed/replaced: its removal animation owns the sprite
+    const { x, y } = cellXY(real);
     this.tweens.killTweensOf(view);
     this.tweens.add({ targets: view, x, y, scale: 1, duration: 140, ease: 'Cubic.Out' });
   }
 
-  cancelDrag() {
+  /** The ONE way a hold ends without a drop: modals, explainers, touchcancel, and the game removing / replacing /
+   *  moving the held part (kickback, boss bomb/suction, vacuum remix, boss moves). With `ids`, only cancels when
+   *  the held part is one of them. Call it BEFORE animating a removed sprite away. The finger then holds nothing,
+   *  and its release is a no-op. */
+  cancelDrag(ids?: readonly number[]) {
+    if (ids && (this.dragIdx < 0 || !ids.includes(this.dragId))) return;
     if (this.dragIdx >= 0) this.snapBack(this.dragView, this.dragIdx);
     this.dragShadow?.setVisible(false);
-    if (this.dragView) this.dragView.setDepth(10);
+    if (this.dragView) this.dragView.setDepth(10).setAngle(0);
     this.dragIdx = -1;
     this.dragView = null;
     this.hoverIdx = -1;
+    this.overScrapFlag = false;
+    this.scrapHold = 0;
     this.drawHeld();
+  }
+
+  /** Finger is on a part (held or about to drag) or on the power-up. */
+  holding() {
+    return this.dragIdx >= 0 || !!this.itemDrag;
+  }
+  heldQueue: (() => void)[] = [];
+  /** Run `fn` now, or as soon as the finger lets go: cards that pause the game never eat a drag in progress. */
+  afterHold(fn: () => void) {
+    if (this.holding()) this.heldQueue.push(fn);
+    else fn();
   }
 
   commitDrop(from: number, to: number, id: number): boolean {
@@ -1249,15 +1264,20 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({ targets: sb, scale: s0, angle: 90, alpha: 0, duration: 450, ease: 'Quad.Out', onComplete: () => sb.destroy() });
       }
       if (nv) {
+        // ONE pop, when the two parts arrive (the chain's root beat skips this gadget so it can't cut the pop short)
         this.tweens.killTweensOf(nv); // the spawn pop from reconcile() would fight the merge punch
         const c = cellXY(to);
-        nv.setPosition(c.x, c.y).setScale(0.9);
-        this.tweens.chain({
-          targets: nv,
-          tweens: [
-            { scale: 1.16, duration: 90, ease: 'Back.Out' },
-            { scale: 1, duration: 120, ease: 'Sine.Out' },
-          ],
+        nv.setPosition(c.x, c.y).setScale(0.9).setVisible(false);
+        this.time.delayedCall(MERGE_ARRIVE, () => {
+          if (!nv.active) return;
+          nv.setVisible(true);
+          this.tweens.chain({
+            targets: nv,
+            tweens: [
+              { scale: 1.16, duration: 90, ease: 'Back.Out' },
+              { scale: 1, duration: 120, ease: 'Sine.Out' },
+            ],
+          });
         });
       }
       const ng = this.s.grid[to]!;
@@ -1337,7 +1357,7 @@ Now beat the real level.`, this.coachY());
   drawHeld() {
     const g = this.overlayG.clear();
     this.previewText.setVisible(false);
-    const src = this.dragIdx >= 0 && this.moved ? this.dragIdx : this.selectedIdx;
+    const src = this.dragIdx >= 0 && this.moved ? this.dragIdx : -1;
     // while holding: everything you can't merge with fades, matches stay bright (playtest: ranks were confused)
     const held = src >= 0 ? this.s.grid[src] : null;
     this.s.grid.forEach((b, i) => {
@@ -1442,8 +1462,13 @@ Now beat the real level.`, this.coachY());
       if (this.dragIdx >= 0 && this.moved && this.overScrapFlag) this.scrapHold += dms / 1000;
       if (this.s.phase === 'playing') this.idleTime += dms / 1000;
     }
-    if (this.dragIdx >= 0 && !this.input.activePointer.isDown) this.onUp(this.input.activePointer);
+    if (this.dragIdx >= 0 && !this.input.activePointer.isDown) this.onUp(this.input.activePointer); // (onUp cancels on touchcancel)
     else if (this.dragIdx >= 0 && this.moved && this.time.now - this.liftAt < 120) this.placeDrag(this.input.activePointer);
+    if (this.heldQueue.length && !this.holding() && !this.modal) {
+      const q = this.heldQueue;
+      this.heldQueue = [];
+      for (const fn of q) fn();
+    }
     this.updateHints();
     this.drawHud(dms);
     this.animateIdle();
@@ -1669,7 +1694,10 @@ Now beat the real level.`, this.coachY());
     tlog.log('explain', { id });
     this.explainQueue.push(...cards);
     this.explainTotal = this.explainQueue.length;
-    if (!this.explaining) this.nextExplain();
+    // the card pauses the game: it waits until the finger is up so it never eats a drag in progress
+    this.afterHold(() => {
+      if (!this.explaining && this.explainQueue.length) this.nextExplain();
+    });
   }
 
   nextExplain() {
@@ -1739,7 +1767,7 @@ Now beat the real level.`, this.coachY());
     this.tutorialText.setText('');
     if (!this.meta.hints || this.s.phase !== 'playing') return;
     // r35: the board holds still now, so thinking is allowed: hint after 8 s, and point at the pair with the biggest chain
-    if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0 && this.selectedIdx < 0) {
+    if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0) {
       let best: [number, number] | null = null, bc = -1;
       for (const [a, b] of legalPairs(this.s))
         for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
@@ -2067,6 +2095,7 @@ Now beat the real level.`, this.coachY());
           tlog.log('remix_hit', { kind: e.kind, outcome: e.outcome });
           const c0 = cellXY(e.cells[0]);
           if (e.kind === 'vacuum' && e.removedId !== undefined) {
+            this.cancelDrag([e.removedId]);
             const v = this.views.get(e.removedId);
             if (v) {
               this.views.delete(e.removedId);
@@ -2117,8 +2146,8 @@ Now beat the real level.`, this.coachY());
             this.explain(`xb_${e.attack}`, [{ text: `FINAL PHASE: NEW ATTACK!\n${mini?.copy ?? ATTACK_COPY[e.attack].why}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd?.mini && !this.meta.tips[`xb_${e.attack}`]) {
             this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
-            // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card
+          } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && !this.holding() && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
+            // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card (never mid-drag: next clamp)
           } else if (bd && this.meta.tips.x_boss && !this.meta.tips[`xb_${e.attack}`]) {
             this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]); // r22: bubble in the bottom lane, clear of stage and board
@@ -2168,7 +2197,7 @@ Now beat the real level.`, this.coachY());
           tlog.log('boss_hit', { attack: e.attack, removed: e.removedIds?.length ?? 0 });
           if (e.moves?.length) {
             // r27 movement attacks: the engine already moved the pieces; reconcile slides the sprites
-            if (this.dragIdx >= 0 && e.moves.some((m) => m.from === this.dragIdx)) this.cancelDrag();
+            this.cancelDrag(e.moves.map((m) => m.id));
             const word = { conveyor: 'SLIDE!', mirror: 'SWAP!', pull: 'YANK!', bounce: 'BOING!' }[e.attack as 'conveyor'] ?? 'MOVED!';
             const cp = cellXY(e.moves[0].to);
             this.floatText(cp.x, cp.y - 30, word, '#d9c2ff', 38, 300);
@@ -2186,6 +2215,7 @@ Now beat the real level.`, this.coachY());
               }
               this.floatText(cp.x, cp.y - 30, e.attack === 'bomb' ? (e.removedIds?.length ? 'BOOM!' : 'FIZZLE') : 'JUNK!', '#ffd2c8', 40, 300);
             }
+            this.cancelDrag(e.removedIds ?? []);
             for (const rid of e.removedIds ?? []) {
               const v = this.views.get(rid);
               if (v) {
@@ -2197,6 +2227,7 @@ Now beat the real level.`, this.coachY());
             break;
           }
           if (e.attack === 'suction' && e.removedIds?.length) {
+            this.cancelDrag(e.removedIds);
             for (const rid of e.removedIds) {
               const v = this.views.get(rid);
               if (v) {
@@ -2264,14 +2295,14 @@ Now beat the real level.`, this.coachY());
           } });
           const first = !this.meta.tips[`item_${e.kind}`];
           if (first && this.s.phase === 'playing') {
-            this.time.delayedCall(480, () => {
+            this.time.delayedCall(480, () => this.afterHold(() => {
               if (this.s.phase !== 'playing' || !this.s.itemTray) return;
               this.cancelDrag();
               this.itemLesson = true;
               this.coach.focus([{ x: ITEM_X, y: TRAY_Y, r: 52 }]);
               this.coach.say(`NEW POWER-UP: ${GameScene.ITEM_COPY[e.kind].name}!\n${GameScene.ITEM_COPY[e.kind].how}`, this.nearY([{ x: ITEM_X, y: TRAY_Y }]));
               this.coach.drag({ x: ITEM_X, y: TRAY_Y }, (() => { const i = this.s.grid.findIndex((x) => !!x && itemFits(e.kind, x.family) && !x.item); return i >= 0 ? cellXY(i) : { x: W / 2, y: BY + CELL }; })());
-            });
+            }));
           }
           break;
         }
@@ -2301,6 +2332,9 @@ Now beat the real level.`, this.coachY());
           break;
       }
     }
+    // belt and braces: the engine keeps held cells out of kickback/boss/remix targets, but if the held part was
+    // still removed, replaced or moved, the hold ends here (never a drag of a part that is no longer there)
+    if (this.dragIdx >= 0 && this.s.grid[this.dragIdx]?.id !== this.dragId) this.cancelDrag();
     if (needReconcile) this.reconcile(false, spawn);
     if (this.s.phase === 'choice' && !this.modal && events.some((e) => e.type === 'kill' && !e.final && !e.demo)) {
       this.time.delayedCall(450, () => this.openChoice());
@@ -2775,7 +2809,8 @@ Now beat the real level.`, this.coachY());
       this.time.delayedCall(delay, () => {
         const g = this.s.grid[a.idx];
         const v = g && g.id === a.id ? this.views.get(a.id) : undefined;
-        if (v && v !== this.dragView) {
+        const mergePop = !kickback && a.depth === 0 && a.idx === r.rootIdx; // commitDrop already pops the merged gadget
+        if (v && v !== this.dragView && !mergePop) {
           this.tweens.killTweensOf(v);
           v.setScale(1.3).setPosition(x, a.family === 'cannon' ? y + 12 : y);
           this.tweens.add({ targets: v, scale: 1, x, y, duration: 240, ease: 'Back.Out' });
@@ -3020,7 +3055,7 @@ Now beat the real level.`, this.coachY());
         this.time.delayedCall(380, () => this.bossNameCard(bd));
         this.time.delayedCall(1500, () => this.s.phase === 'playing' && this.showEvent(bd.mini ? 'MINI-BOSS!' : 'BOSS!', '#ffcf33', 1200));
         // r34/r38 onboarding: the first time a boss wakes, ONE paused card: name, rule, board diagram, GOT IT
-        this.time.delayedCall(1700, () => this.bossWakeCard(bd));
+        this.time.delayedCall(1700, () => this.afterHold(() => this.bossWakeCard(bd)));
         tlog.log('stage_boss', { at: +this.s.elapsed.toFixed(1) });
       } else if (sc && this.s.goal) {
         const g = this.s.goal;

@@ -99,7 +99,6 @@ export interface GameState {
   odLeft: number;
   perks: PerkId[];
   offer: PerkId[];
-  mergeCd: number;
   tutorialMerges: number;
   kickRng: number;
   drops: { t: number; fuse: boolean; plan?: DropPlan | null }[];
@@ -208,7 +207,6 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     odLeft: 0,
     perks: [],
     offer: [],
-    mergeCd: 0,
     tutorialMerges: 0,
     kickRng: (seed ^ 0x51ed270b) >>> 0,
     drops: [],
@@ -572,10 +570,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     }
     return r;
   }
-  if (canMerge(a, b, s)) {
-    if (s.mergeCd > 0) return { ok: false, events: ev };
-    return merge(s, from, to);
-  }
+  if (canMerge(a, b, s)) return merge(s, from, to); // no cooldown: a legal second merge is never refused
   // r29 terrain + links (Oil Otter / Portal Possum / Rivet Rhino): resolve where a manual move really lands
   const act = s.boss?.active;
   const atk = s.boss && act ? castAttack(s.boss, act) : null;
@@ -630,7 +625,6 @@ function merge(s: GameState, from: number, to: number): CommandResult {
     // r38 (ChatGPT review): earned parts land after the merge's payoff, not during it
     s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
   }
-  s.mergeCd = TUNING.mergeCooldown;
 
   let odStart = false;
   if (s.phase === 'playing' && !s.noOverdrive) {
@@ -869,7 +863,6 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
 export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): GameEvent[] {
   const ev: GameEvent[] = [];
   if (s.puzzle) return ev; // r42: puzzles have no time
-  s.mergeCd = Math.max(0, s.mergeCd - TICK);
   if (s.phase !== 'playing') return ev;
   if (s.itemGrantAt !== undefined && !s.itemGranted && s.elapsed >= s.itemGrantAt) grantItem(s, ev); // r25 explicit teaching grant (goal levels have no HP thresholds)
   const dt = Math.min(TICK, s.timeLeft);
@@ -1069,7 +1062,8 @@ export function dropReserved(s: GameState): number[] {
 
 /** A loose part lands next to a lonely gadget and (threshold drops) fuses with it: one bounded secondary cascade. */
 function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], fuse: boolean, planned: DropPlan | null) {
-  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !s.grid[p.land] && !reserved.has(p.land) && !bossPendingCells(s.boss).includes(p.land);
+  // a fuse never upgrades the part under the finger (reserved = held cell + hover target)
+  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !(fuse && reserved.has(p.idx)) && !s.grid[p.land] && !reserved.has(p.land) && !bossPendingCells(s.boss).includes(p.land);
   const pick = valid(planned) ? planned : planDrop(s, reserved, fuse);
   if (pick) {
     const old = s.grid[pick.idx]!;
@@ -1088,7 +1082,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
     applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
