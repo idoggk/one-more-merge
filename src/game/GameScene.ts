@@ -5671,12 +5671,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
           if (inReach) g.lineStyle(4, 0xffcf33, 0.9).strokeRoundedRect(at(r, k).x - cs / 2 + 6, at(r, k).y - cs / 2 + 6, cs - 12, cs - 12, 12);
         }
     }
-    const mon = this.add.image(cx, cy - (ROWS_D * cs) / 2 - 30, 'target_0');
-    mon.setScale(64 / Math.max(mon.width, mon.height));
+    const mon = this.fitVisible(this.add.image(cx, cy - (ROWS_D * cs) / 2 - 30, 'target_0'), 70);
     c.add(mon);
     const imgs = d.pieces.map(([f, r, k]) => {
-      const im = this.add.image(at(r, k).x, at(r, k).y, `${f}_1`);
-      im.setScale((cs - 14) / Math.max(im.width, im.height));
+      const im = this.fitVisible(this.add.image(at(r, k).x, at(r, k).y, `${f}_1`), cs - 14);
       c.add(im);
       return im;
     });
