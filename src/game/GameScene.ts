@@ -43,6 +43,7 @@ import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type 
 import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
+import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
@@ -150,6 +151,8 @@ interface Meta {
   screwdrivers?: number;
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
+  /** r41 Workshop Season record. */
+  season?: SeasonRec;
   /** r40 Saga Mastery medals: level -> contract indexes completed. */
   sagaMedals?: Record<string, number[]>;
   /** r40 Endless Road: the next floor to play and the best floor cleared. */
@@ -3222,6 +3225,11 @@ Now beat the real level.`, this.coachY());
     if (won) {
       m.wins++;
       got = starsFor(def, s.elapsed);
+      if (fresh) {
+        this.seasonEv('levelWin');
+        if (s.stats.biggestChain >= 8) this.seasonEv('chain8');
+        if (got === 3) this.seasonEv('threeStars');
+      }
       const prev = stars[key] ?? 0;
       firstClear = prev === 0;
       const rw = levelReward(def);
@@ -3237,6 +3245,7 @@ Now beat the real level.`, this.coachY());
         contractsFor(def).forEach((ct, ci) => {
           if (doneHere.includes(ci) || !contractMet(ct, s)) return;
           doneHere.push(ci);
+          this.seasonEv('medal');
           bolts += MASTERY_BOLTS;
           const total = Object.values(medals).reduce((t, v) => t + v.length, 0);
           lines.push(`MASTERY \u2713 ${contractText(ct)}  +${MASTERY_BOLTS}`);
@@ -3587,6 +3596,7 @@ Now beat the real level.`, this.coachY());
     let crate = false;
     if (won && !rec.won.includes(bt.slot)) {
       rec.won.push(bt.slot);
+      this.seasonEv('bountyWin');
       bolts += BOUNTY_BOLTS;
       m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.bountyWin;
       this.giveCrate('wood'); // r32
@@ -3678,6 +3688,7 @@ Now beat the real level.`, this.coachY());
       if ((r.granted ?? 0) < RUSH_REWARDS[2] && due >= RUSH_REWARDS[2]) {
         this.giveCrate('gold');
         m.gems = (m.gems ?? 0) + GEM_REWARDS.rushFull;
+        this.seasonBonus(BONUS_XP.rushFull, 'BOSS RUSH');
       }
       m.bolts = (m.bolts ?? 0) + delta;
       r.granted = due;
@@ -4176,6 +4187,17 @@ Now beat the real level.`, this.coachY());
     const play = endlessOpen
       ? this.button(c, W / 2, H - 182, 620, `ENDLESS  \u00b7  FLOOR ${this.endlessRec().floor}`, 0x8e58c9, () => this.startEndless(), 1.0)
       : this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
+    // r41 Workshop Season entry (left, mirrors QA)
+    if (this.currentLevel() > 3) {
+      const sr = this.seasonRec();
+      const sb = this.add.container(86, 236);
+      sb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-62, -36, 124, 72, 20).fillStyle(0xe0a020, 1).fillRoundedRect(-58, -32, 116, 64, 17));
+      sb.add(this.add.text(0, -9, 'SEASON', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
+      sb.add(this.add.text(0, 14, `${seasonTier(sr)}/${SEASON_TIERS}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5));
+      if (this.seasonClaimable() > 0) sb.add(this.add.circle(54, -30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
+      sb.add(this.add.zone(0, 0, 124, 72).setInteractive({ useHandCursor: true }).on('pointerup', () => (sfx.click(), this.openSeason())));
+      c.add(sb);
+    }
     // r34 (Ido: "where are the reset and jump-to buttons?"): QA tools one tap from the road
     const qa = this.add.container(W - 66, 236);
     qa.add(this.add.circle(0, 0, 40, 0xd8261a).setStrokeStyle(5, 0x2b1d2e));
@@ -4300,6 +4322,7 @@ Now beat the real level.`, this.coachY());
     store(META_KEY, JSON.stringify(m));
     const n = yd.clears + 1;
     tlog.log('yard_start', { week: yd.week, n });
+    this.seasonEv('yardPlay');
     this.closeModal();
     const data: YardData = { n, seed: (yd.week * 1000 + n) >>> 0, onEnd: (won) => this.endYard(n, won) }; // (this scene sleeps meanwhile: its own clock is stopped)
     this.scene.launch('yard', data);
@@ -4324,6 +4347,7 @@ Now beat the real level.`, this.coachY());
         if (r.gems) m.gems = (m.gems ?? 0) + r.gems;
         if (r.crate) this.giveCrate(r.crate);
         if (r.epic) {
+          this.seasonBonus(BONUS_XP.yardGrand, 'SCREW YARD');
           // the grand prize: a card of an epic unit (a missing one first)
           const epics = UNITS.filter((u) => u.rarity === 'epic');
           const miss = epics.filter((u) => !this.ownsUnit(u.id));
@@ -4584,6 +4608,127 @@ Merge them into a RANK ${rank}!`, this.coachY());
     }
   }
 
+  /** r41 Workshop Season: today's record (rolled to the current day / week / season). */
+  seasonRec(): SeasonRec {
+    const day = Math.floor(Date.now() / 86400000);
+    this.meta.season = rollSeason(this.meta.season, day);
+    return this.meta.season;
+  }
+
+  seasonEv(ev: SeasonEvent, n = 1) {
+    const rec = this.seasonRec();
+    const before = seasonTier(rec);
+    const xp = seasonCount(rec, ev, n);
+    if (!xp) return;
+    store(META_KEY, JSON.stringify(this.meta));
+    tlog.log('season_xp', { ev, xp, total: rec.xp });
+    this.time.delayedCall(400, () => this.showToast(seasonTier(rec) > before ? `SEASON TIER ${seasonTier(rec)}!` : `+${xp} SEASON XP`));
+  }
+
+  seasonBonus(xp: number, why: string) {
+    const rec = this.seasonRec();
+    rec.xp += xp;
+    tlog.log('season_bonus', { why, xp });
+  }
+
+  seasonClaimable() {
+    const rec = this.seasonRec();
+    const t = seasonTier(rec);
+    let n = 0;
+    for (let k = 1; k <= t; k++) {
+      if (!rec.claimed.free.includes(k)) n++;
+      if (rec.premium && !rec.claimed.prem.includes(k)) n++;
+    }
+    return n;
+  }
+
+  seasonRewardText(r: SeasonReward) {
+    const u = FAMILY_INFO[seasonUnit(this.seasonRec().id) as 'cannon'].name.toUpperCase().replace('SIGNAL ', '');
+    return [r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.unitCards ? `${r.unitCards} ${u}` : ''].filter(Boolean).join(' + ');
+  }
+
+  grantSeasonReward(r: SeasonReward) {
+    const m = this.meta;
+    if (r.bolts) m.bolts = (m.bolts ?? 0) + r.bolts;
+    if (r.gems) m.gems = (m.gems ?? 0) + r.gems;
+    if (r.crate) this.giveCrate(r.crate);
+    if (r.unitCards) {
+      const u = seasonUnit(this.seasonRec().id);
+      this.applyCards([{ unit: u, count: r.unitCards, isNew: !this.ownsUnit(u) }]);
+    }
+  }
+
+  /** r41 SEASON panel: XP bar, today's + this week's tasks, the tier track around the current tier, claim all, premium. */
+  openSeason() {
+    this.closeModal();
+    const m = this.meta;
+    const rec = this.seasonRec();
+    const day = Math.floor(Date.now() / 86400000);
+    const tier = seasonTier(rec);
+    const PH = 1220;
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    this.sheetTitle(c, top, 'WORKSHOP SEASON', `Tier ${tier}/${SEASON_TIERS}  ·  ends in ${seasonDayLeft(day)} days`);
+    // XP bar
+    const into = tier >= SEASON_TIERS ? TIER_XP : rec.xp - tier * TIER_XP;
+    const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(80, top + 168, W - 160, 30, 15).fillStyle(0xe0a020, 1).fillRoundedRect(84, top + 172, Math.max(22, (W - 168) * (into / TIER_XP)), 22, 11);
+    c.add(g);
+    c.add(this.add.text(W / 2, top + 183, `${into}/${TIER_XP} XP`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
+    // tasks
+    const taskLine = (y: number, text: string, have: number, need: number, xp: number) => {
+      const done = have >= need;
+      c.add(this.add.text(86, y, `${done ? '\u2713' : '\u25cb'} ${text}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: done ? '#3a8a2a' : '#3b2533' }).setOrigin(0, 0.5));
+      c.add(this.add.text(W - 86, y, done ? 'DONE' : `${have}/${need}  \u00b7  +${xp}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: done ? '#3a8a2a' : '#8a6a5a' }).setOrigin(1, 0.5));
+    };
+    c.add(this.add.text(86, top + 230, 'TODAY', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#b06a1a' }).setOrigin(0, 0.5));
+    dailyTasks(rec.day).forEach((t, i) => taskLine(top + 264 + i * 34, t.text, rec.daily[i], t.n, 15));
+    c.add(this.add.text(86, top + 378, 'THIS WEEK', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#b06a1a' }).setOrigin(0, 0.5));
+    weeklyTasks(rec.week).forEach((t, i) => taskLine(top + 412 + i * 34, t.text, rec.weekly[i], t.n, 100));
+    // track: 6 tiers from the current one
+    c.add(this.add.text(W / 2 - 100, top + 560, 'FREE', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2 + 170, top + 560, rec.premium ? 'PREMIUM \u2713' : 'PREMIUM', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#8e58c9' }).setOrigin(0.5));
+    const first = Math.max(1, Math.min(SEASON_TIERS - 5, tier));
+    for (let k = 0; k < 6; k++) {
+      const t = first + k;
+      const y = top + 604 + k * 66;
+      const [fr, pr] = tierRewards(t);
+      const reached = t <= tier;
+      c.add(this.add.graphics().fillStyle(reached ? 0x8ef08a : 0xfbe7c6, reached ? 0.45 : 1).fillRoundedRect(70, y - 28, W - 140, 56, 14));
+      c.add(this.add.text(96, y, `${t}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0, 0.5));
+      const fDone = rec.claimed.free.includes(t), pDone = rec.claimed.prem.includes(t);
+      c.add(this.add.text(W / 2 - 100, y, `${fDone ? '\u2713 ' : ''}${this.seasonRewardText(fr)}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: fDone ? '#3a8a2a' : '#5a4a5a' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2 + 170, y, `${pDone ? '\u2713 ' : rec.premium ? '' : '\u{1F512} '}${this.seasonRewardText(pr)}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: pDone ? '#3a8a2a' : '#6a4a8a' }).setOrigin(0.5));
+    }
+    const claim = this.seasonClaimable();
+    this.button(c, W / 2, top + 1018, 420, claim ? `CLAIM ALL (${claim})` : 'NOTHING TO CLAIM', claim ? 0x5fbf4a : 0x81736c, () => {
+      if (!claim) return;
+      for (let t = 1; t <= tier; t++) {
+        const [fr, pr] = tierRewards(t);
+        if (!rec.claimed.free.includes(t)) {
+          rec.claimed.free.push(t);
+          this.grantSeasonReward(fr);
+        }
+        if (rec.premium && !rec.claimed.prem.includes(t)) {
+          rec.claimed.prem.push(t);
+          this.grantSeasonReward(pr);
+        }
+      }
+      store(META_KEY, JSON.stringify(m));
+      tlog.log('season_claim', { tier });
+      sfx.star?.(3);
+      this.openSeason();
+    }, 0.8);
+    if (!rec.premium)
+      this.button(c, W / 2 - 150, top + 1118, 270, 'PREMIUM $4.99', 0x8e58c9, () => {
+        rec.premium = true;
+        store(META_KEY, JSON.stringify(m));
+        tlog.log('season_premium_mock', { id: rec.id });
+        this.showToast('PREMIUM UNLOCKED (TEST)');
+        this.openSeason();
+      }, 0.7);
+    this.button(c, rec.premium ? W / 2 : W / 2 + 150, top + 1118, 220, 'BACK', 0x8a6a4a, () => this.openTitle('road'), 0.7);
+  }
+
   /** r40 ENDLESS ROAD: opens when Level 80 is cleared. */
   endlessOpen() {
     return (this.meta.levelStars?.[String(ENDLESS_UNLOCK)] ?? 0) > 0;
@@ -4618,6 +4763,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
         lines.push(`+1 ${rw.crate.toUpperCase()} CRATE`);
       }
       rec.best = Math.max(rec.best, floor);
+      this.seasonEv('levelWin');
+      this.seasonEv('endlessFloor');
+      if (this.s.stats.biggestChain >= 8) this.seasonEv('chain8');
       rec.floor = floor + 1;
       m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin;
       const toBlock = 10 - endlessPos(rec.floor) + 1;
@@ -5124,6 +5272,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     st.cards -= needC;
     m.bolts = (m.bolts ?? 0) - needB;
     st.level++;
+    this.seasonEv('unitUp');
     store(META_KEY, JSON.stringify(m));
     tlog.log('unit_upgrade', { unit: u.id, level: st.level, bolts: needB, cards: needC });
     sfx.win();
@@ -5200,6 +5349,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const box = this.add.container(W / 2, top + 260);
     // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
     // No closed gold crate yet: the iron crate tinted gold stands in.
+    this.seasonEv('crateOpen');
     const ck = this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
     let crateIm: Phaser.GameObjects.Image | null = null;
     if (ck) {

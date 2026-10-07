@@ -119,6 +119,8 @@ const states = {
   endless_win: [(sc) => { sc.s.phase = 'won'; sc.openEndlessResult(true); }, 900],
   mastery_card: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), lessons: { card: true, boosters: true }, levelStars: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [i + 1, 2])), sagaMedals: { 22: [1] }, trial: { date: 'x', unit: 'mortar', left: 0, on: false } }); sc.openTitle('road'); sc.openLevelSheet(22); }, 900],
   mastery_win: [(sc) => { sc.closeModal(); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.s.stats.biggestChain = 12; sc.s.phase = 'won'; sc.openResult(true); }, 1500); }, 3200],
+  season_road: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), levelStars: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [i + 1, 2])) }); const r = sc.seasonRec(); r.xp = 840; r.daily = [3, 0, 1]; r.weekly = [6, 1, 0, 2]; r.claimed = { free: [1, 2, 3, 4, 5, 6], prem: [] }; sc.openTitle('road'); }, 1000],
+  season_panel: [(sc) => { sc.openSeason(); }, 900],
   qa_tools: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openQaTools(); }, 900],
   units_tab: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { bolts: 500, gems: 120, levelStars: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [i + 1, 2])), units: { cannon: { level: 2, cards: 9 }, coil: { level: 1, cards: 1 }, bell: { level: 1, cards: 0 }, rocket: { level: 1, cards: 0 } }, crates: { iron: 1, gold: 1 } }); sc.openTitle('units'); }, 1000],
   units_crate: [(sc) => { sc.openNextCrate(); }, 4500],
