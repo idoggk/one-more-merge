@@ -330,3 +330,7 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Declined: "board Mortar is old art" (per-rank sprites by design).
 - `tools/boss-audit.ts`: every final-phase attack is pre-taught by its chapter's mini-boss. Found a regression of r34 (frost moved off L19 -> new at the L20 boss): frost restored on L19 (refit). Junkzilla split / Rivet Rhino tow / Chrono ransom are boss signatures with no light version; the paused wake card is their lesson.
 - Full FASTKILL smoke 80/80, no errors.
+
+### Round 40 — runway + unit targeting (ChatGPT "next 5": Endless Road > Saga Mastery > Season > Featured Unit > Level Factory)
+- ENDLESS ROAD (`src/core/endless.ts`): opens when L80 is cleared; the road's PLAY button becomes ENDLESS · FLOOR n. Floors are built from calibrated chapter 4-8 levels (block of 10: floor 5 = mini-boss level, floor 10 = boss level), HP +5% per floor in a block and x1.12 per block, seeded per floor. First clear: 8 Bolts (+Wood crate on x5, Iron on x10, Gold every 30th) + a screwdriver; replays 2 Bolts. Declined ChatGPT's "loss sends you back to the last checkpoint" (up to 9 floors of replay = the retry pain it warned about itself): a loss retries the same floor. QA jump 81 clears the saga.
+- FEATURED CRATE (crate shop, top row): featured unit rotates every 48 h among the 9 non-starters (owned or not); 120 Gems / 540 for 5; an Iron roll where cards of the featured unit's rarity become it 60% of the time; guaranteed within 5 crates (counter shown, resets on a drop).
