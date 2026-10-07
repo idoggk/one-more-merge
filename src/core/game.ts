@@ -137,6 +137,8 @@ export interface GameState {
   bounty?: { id: string; twist: string; date: string; slot: number };
   /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
   rush?: { id: string; slot: number; week: number };
+  /** r40 Endless Road floor this state plays (presentation + rewards only). */
+  endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
   goal?: { kind: 'rank' | 'chain'; n: number; best: number } | null;
   /** r33 stage (Ido: "a number of machines to defeat, like JunkIlla"): HP machines in a row on one board + one clock.

@@ -41,6 +41,7 @@ import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, GEM_REWARDS, UNIT_PERKS, 
 import { Rng } from '../core/rng';
 import { featuredUnit, rollCrate, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
+import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
@@ -148,6 +149,8 @@ interface Meta {
   screwdrivers?: number;
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
+  /** r40 Endless Road: the next floor to play and the best floor cleared. */
+  endless?: { floor: number; best: number };
   /** r38 collection milestones claimed (index into COLLECTION_GOALS). */
   collClaimed?: number;
   yard?: { week: number; clears: number; paid: number };
@@ -646,7 +649,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -1753,7 +1756,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.s.goal ? 'GOAL' : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : s.endless ? `FLOOR ${s.endless}` : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.s.goal ? 'GOAL' : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1807,7 +1810,7 @@ Now beat the real level.`, this.coachY());
     this.drawClock(demo || !!s.showcase);
     this.practiceText.setVisible(s.practice && !demo);
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
-    const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty ? LEVELS[s.level - 1] : undefined;
+    const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
     if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
     if (ldef && s.phase === 'playing' && !demo) {
       const [g2, g3] = starGoals(ldef);
@@ -2437,7 +2440,7 @@ Now beat the real level.`, this.coachY());
     r.fillStyle(0xfff0cf, 1).fillCircle(CLOCK_X, HP_Y, 36);
     if (frac > 0) r.lineStyle(10, col, 1).beginPath().arc(CLOCK_X, HP_Y, 43, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
     // r39: gold ticks where the 2- and 3-star times fall (still reachable ones bright, missed ones faded)
-    const sdef = s.level !== undefined && !s.rush && !s.bounty ? LEVELS[s.level - 1] : undefined;
+    const sdef = s.level !== undefined && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
     if (sdef?.star_times)
       for (const st of sdef.star_times) {
         const a = -Math.PI / 2 + Math.PI * 2 * Math.max(0, (total - st) / total);
@@ -3109,6 +3112,7 @@ Now beat the real level.`, this.coachY());
     if (this.modal) this.closeModal();
     if (this.s.rush) return this.openRushResult(won);
     if (this.s.bounty) return this.openBountyResult(won);
+    if (this.s.endless) return this.openEndlessResult(won);
     if (this.s.level !== undefined) return this.openLevelResult(won);
     const s = this.s;
     const m = this.meta;
@@ -3472,6 +3476,7 @@ Now beat the real level.`, this.coachY());
     if (hardArg === undefined && this.s.daily) return this.startDaily();
     if (hardArg === undefined && this.s.rush) return this.startRush();
     if (hardArg === undefined && this.s.bounty) return this.startBounty(this.s.bounty.slot);
+    if (hardArg === undefined && this.s.endless) return this.startEndless();
     if (hardArg === undefined && this.s.level !== undefined) return this.startLevel(this.s.level);
     const hard = hardArg ?? this.s.hard;
     const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
@@ -4140,7 +4145,10 @@ Now beat the real level.`, this.coachY());
     c.add(strip);
     const def = LEVELS[cur - 1];
     const tag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
-    const play = this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
+    const endlessOpen = this.endlessOpen();
+    const play = endlessOpen
+      ? this.button(c, W / 2, H - 182, 620, `ENDLESS  \u00b7  FLOOR ${this.endlessRec().floor}`, 0x8e58c9, () => this.startEndless(), 1.0)
+      : this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
     // r34 (Ido: "where are the reset and jump-to buttons?"): QA tools one tap from the road
     const qa = this.add.container(W - 66, 236);
     qa.add(this.add.circle(0, 0, 40, 0xd8261a).setStrokeStyle(5, 0x2b1d2e));
@@ -4539,6 +4547,58 @@ Merge them into a RANK ${rank}!`, this.coachY());
     }
   }
 
+  /** r40 ENDLESS ROAD: opens when Level 80 is cleared. */
+  endlessOpen() {
+    return (this.meta.levelStars?.[String(ENDLESS_UNLOCK)] ?? 0) > 0;
+  }
+
+  endlessRec() {
+    return (this.meta.endless ??= { floor: 1, best: 0 });
+  }
+
+  startEndless() {
+    const rec = this.endlessRec();
+    const def = endlessDef(rec.floor);
+    tlog.log('endless_start', { floor: rec.floor, template: def.level });
+    this.startState(newLevel(def, { toys: this.activeToys(), shooter: this.teamShooter(), relays: this.teamRelays() }));
+    this.s.endless = rec.floor;
+    const pos = endlessPos(rec.floor);
+    this.time.delayedCall(700, () => this.showEvent(`ENDLESS ROAD  \u00b7  FLOOR ${rec.floor}${pos === 10 ? '  \u00b7  BOSS' : pos === 5 ? '  \u00b7  MINI-BOSS' : ''}`, '#d9c2ff', 1800));
+  }
+
+  openEndlessResult(won: boolean) {
+    const m = this.meta;
+    const rec = this.endlessRec();
+    const floor = this.s.endless!;
+    const lines: string[] = [];
+    if (won) {
+      const first = floor > rec.best;
+      const rw = endlessReward(floor, first);
+      m.bolts = (m.bolts ?? 0) + rw.bolts;
+      lines.push(`+${rw.bolts} BOLTS${first ? '' : '  (replay)'}`);
+      if (rw.crate) {
+        this.giveCrate(rw.crate);
+        lines.push(`+1 ${rw.crate.toUpperCase()} CRATE`);
+      }
+      rec.best = Math.max(rec.best, floor);
+      rec.floor = floor + 1;
+      m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin;
+      const toBlock = 10 - endlessPos(rec.floor) + 1;
+      lines.push(endlessPos(rec.floor) === 10 ? 'Next: a BOSS floor!' : endlessPos(rec.floor) === 5 ? 'Next: a MINI-BOSS floor!' : `${toBlock} floor${toBlock > 1 ? 's' : ''} to the next boss`);
+    }
+    store(META_KEY, JSON.stringify(m));
+    tlog.log('endless_end', { floor, won, best: rec.best });
+    const c = this.panel(720);
+    const top = H / 2 - 360;
+    c.add(this.add.text(W / 2, top + 70, won ? `FLOOR ${floor} CLEARED!` : `FLOOR ${floor}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 130, `ENDLESS ROAD  \u00b7  best floor ${rec.best}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#7a5a4a' }).setOrigin(0.5));
+    const rx = !won ? this.upgradePrescription() : null;
+    const body = won ? lines.join('\n') : `Out of time. Try the floor again${rx ? `\n\n${rx.text}` : ''}`;
+    c.add(this.add.text(W / 2, top + 200, body, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    this.button(c, W / 2, top + 540, 460, won ? `NEXT  \u00b7  FLOOR ${rec.floor}` : 'TRY AGAIN', won ? 0x8e58c9 : 0xe8452c, () => this.startEndless(), 1.0);
+    this.button(c, W / 2, top + 640, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
+  }
+
   /** r38: today's featured trial unit (not owned, or owned below level 3; never a starter). */
   featuredTrial(): Family | null {
     if (this.currentLevel() - 1 < TRIAL_UNLOCK) return null;
@@ -4698,7 +4758,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const lvT = this.add.text(W / 2, top + 400, `${jump}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#e8452c' }).setOrigin(0.5);
     c.add(lvT);
     const set = (d: number) => {
-      jump = Math.max(1, Math.min(LEVELS.length, jump + d));
+      jump = Math.max(1, Math.min(LEVELS.length + 1, jump + d));
       lvT.setText(`${jump}`);
     };
     ([[-10, 110], [-1, 240], [1, W - 240], [10, W - 110]] as const).forEach(([d, x]) => this.button(c, x, top + 400, 110, d > 0 ? `+${d}` : `${d}`, 0x8a6a4a, () => set(d), 0.7));
@@ -4711,7 +4771,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       save();
       tlog.log('qa_jump', { level: jump });
       this.openTitle('road');
-      this.openLevelSheet(jump);
+      if (jump <= LEVELS.length) this.openLevelSheet(jump);
     }, 0.85);
     // 3) give stuff
     this.button(c, W / 2, top + 640, 520, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
