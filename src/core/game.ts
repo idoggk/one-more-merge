@@ -109,6 +109,8 @@ export interface GameState {
   unitLevel?: Partial<Record<Family, number>>;
   /** r32 squad relays: Relay A takes the Coil cells / bag share, Relay B the Bell ones. */
   relays?: [Family, Family];
+  /** r32 'every Nth fire' milestone counters for this level (per family). */
+  fireCount?: Record<string, number>;
   /** r30 Monster Bounty fight (daily; results go to the bounty flow). */
   bounty?: { id: string; twist: string; date: string; slot: number };
   /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
@@ -570,7 +572,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, items: s.phase === 'playing' });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing' });
   applyMoves(s, result);
   spendItems(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
@@ -634,6 +636,7 @@ function applyMoves(s: GameState, r: CascadeResult) {
   for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
   for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
   // r32 Amplifier / Beacon: spend marks that fired, then place new ones (a stronger mark wins)
+  for (const [f, n] of Object.entries(r.fires ?? {})) (s.fireCount ??= {})[f] = (s.fireCount[f] ?? 0) + n;
   for (const g of s.grid) if (g?.amp && r.ampsUsed?.includes(g.id)) delete g.amp;
   for (const m of r.amps ?? []) {
     const g = s.grid.find((x) => x?.id === m.id);
@@ -752,7 +755,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     if (g.cd <= 1e-9) {
       g.cd += cannonPeriod(s);
       const hot = bossCascadeMods(s.boss).hotCol;
-      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult * (s.unitMult?.cannon ?? 1) * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
+      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult * (s.unitMult?.cannon ?? 1) * ((s.unitLevel?.cannon ?? 1) >= 9 && g.rank >= 7 ? 2 : 1) * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
       ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
       applyDamage(s, dmg, ev, 'passive');
       if (s.phase !== 'playing') return ev;
@@ -835,7 +838,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel });
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
 }
 
 export function serialize(s: GameState): string {
@@ -915,7 +918,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
     applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });

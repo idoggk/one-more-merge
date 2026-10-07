@@ -53,6 +53,40 @@ export function sparkCells(idx: number): number[] {
   return DIRS.filter(([dr, dc]) => inside(r + dr, c + dc)).map(([dr, dc]) => at(r + dr, c + dc));
 }
 
+/** r32 Mortar: x0.9 at depth 1 rising +0.15 per link; L3 Bigger Shell cap 1.80 (rank 4+), L6 High Arc (every 6th: depth+2), L9 Siege Shot (rank 7-8: depth >= 4). */
+function mortarMult(a: Activation, level: number, nth: number) {
+  let d = Math.max(1, a.depth);
+  if (level >= 6 && nth > 0 && nth % 6 === 0) d += 2;
+  if (level >= 9 && a.rank >= 7) d = Math.max(d, 4);
+  return Math.min(level >= 3 && a.rank >= 4 ? 1.8 : 1.65, 0.9 + 0.15 * (d - 1));
+}
+
+/** r32 relay milestone geometry (extra cells a relay wakes; same-family / fired filters still apply). */
+function relayPerkCells(idx: number, a: Activation, level: number, nth: number): number[] {
+  const [r, c] = rc(idx);
+  const out: number[] = [];
+  const add = (rr: number, cc: number) => inside(rr, cc) && !(rr === r && cc === c) && out.push(at(rr, cc));
+  const nthIs = (n: number) => nth > 0 && nth % n === 0;
+  if (a.family === 'coil') {
+    const reach = level >= 9 && a.rank >= 7 ? 4 : level >= 3 && a.rank >= 5 ? 3 : 2;
+    for (let d = 3; d <= reach; d++) for (const [dr, dc] of DIRS) add(r + dr * d, c + dc * d);
+    if (level >= 6 && nthIs(6)) for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) add(r + dr, c + dc);
+  } else if (a.family === 'bell') {
+    if (level >= 3 && a.rank >= 4) [add(r - 1, c), add(r + 1, c)];
+    if (level >= 6 && nthIs(6)) for (let cc = 0; cc < COLS; cc++) [add(r - 1, cc), add(r + 1, cc)];
+    if (level >= 9 && a.rank >= 7) for (let rr = 0; rr < ROWS; rr++) add(rr, c);
+  } else if (a.family === 'horn') {
+    if (level >= 3 && a.rank >= 4) [add(r, c - 1), add(r, c + 1)];
+    if (level >= 6 && nthIs(6)) for (let rr = 0; rr < ROWS; rr++) [add(rr, c - 1), add(rr, c + 1)];
+    if (level >= 9 && a.rank >= 7) for (let cc = 0; cc < COLS; cc++) add(r, cc);
+  } else if (a.family === 'fuse_box') {
+    if (level >= 3 && a.rank >= 4) for (const [dr, dc] of [[-2, -2], [-2, 2], [2, -2], [2, 2]]) add(r + dr, c + dc);
+    if (level >= 6 && nthIs(5)) for (const [dr, dc] of DIRS) add(r + dr, c + dc);
+    if (level >= 9 && a.rank >= 7) for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) for (let k = 1; k < 6; k++) add(r + dr * k, c + dc * k);
+  }
+  return out;
+}
+
 export interface CascadeOpts {
   perks: readonly PerkId[];
   overdrive: boolean;
@@ -68,8 +102,10 @@ export interface CascadeOpts {
   items?: boolean;
   /** r32 unit levels: damage multiplier per family (collection progression). */
   unitMult?: Partial<Record<Family, number>>;
-  /** r32 helper strength by level (Amplifier / Beacon mark multipliers). */
+  /** r32 helper strength by level (Amplifier / Beacon mark multipliers) + L3/L6/L9 milestone perks. */
   unitLevel?: Partial<Record<Family, number>>;
+  /** r32 'every Nth fire' counters carried in from earlier cascades this level. */
+  fireBase?: Record<string, number>;
 }
 
 /**
@@ -77,7 +113,7 @@ export interface CascadeOpts {
  * (first occupied cell blocks). Pull that gadget if it has not activated / is not queued, is not reserved and is not a magnet.
  * First eligible ray only.
  */
-export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>, skipDir = -1): { from: number; to: number; dir: number } | null {
+export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, reserved: ReadonlySet<number>, skipDir = -1, maxK = 3): { from: number; to: number; dir: number } | null {
   const [r, c] = rc(idx);
   for (let di = 0; di < DIRS.length; di++) {
     if (di === skipDir) continue;
@@ -85,7 +121,7 @@ export function magnetPull(grid: Grid, idx: number, busy: ReadonlySet<number>, r
     if (!inside(r + dr, c + dc)) continue;
     const to = at(r + dr, c + dc);
     if (grid[to] || reserved.has(to)) continue;
-    for (let k = 2; k <= 3; k++) {
+    for (let k = 2; k <= maxK; k++) {
       const rr = r + dr * k, cc = c + dc * k;
       if (!inside(rr, cc)) break;
       const from = at(rr, cc);
@@ -162,6 +198,12 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const amps: { id: number; mult: number }[] = [];
   const ampsUsed: number[] = [];
   const lvl = (f: Family) => opts.unitLevel?.[f] ?? 1;
+  // r32 milestone perks: per-family fire counter (base from earlier cascades) -> 'every Nth fire' bonuses
+  const fires: Record<string, number> = {};
+  const nthOf = new Map<number, number>();
+  const every = (a: Activation, n: number) => (nthOf.get(a.id) ?? 0) % n === 0;
+  const hasPerk = (f: Family, milestone: number, minRank: number, a: Activation) => lvl(f) >= milestone && a.rank >= minRank;
+  const nthEvery = (f: Family, milestone: number, n: number, a: Activation) => lvl(f) >= milestone && every(a, n);
   const mark = (idx: number, mult: number, from: number) => {
     const g = grid[idx];
     if (!g) return;
@@ -241,6 +283,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
     fired.add(a.id);
+    fires[a.family] = (fires[a.family] ?? 0) + 1;
+    nthOf.set(a.id, (opts.fireBase?.[a.family] ?? 0) + fires[a.family]);
     if (ampNow.has(a.id)) {
       ampOn.set(a.id, ampNow.get(a.id)!);
       ampNow.delete(a.id);
@@ -257,18 +301,21 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if (a.family === 'arc_welder') {
       // r32 Arc Welder: arcs to the strongest unfired machine touching it (8 neighbours), highest rank then row-major
       const [r0, c0] = rc(idx);
-      let best = -1;
-      for (let dr = -1; dr <= 1; dr++)
-        for (let dc = -1; dc <= 1; dc++) {
-          if (!dr && !dc) continue;
-          if (!inside(r0 + dr, c0 + dc)) continue;
-          const n = at(r0 + dr, c0 + dc);
-          const g = grid[n];
-          if (!g || visited.has(n) || blockSet.has(n) || lockedSet.has(n)) continue;
-          if (opts.splitB !== undefined && c0 <= opts.splitB !== (n % COLS) <= opts.splitB) continue;
-          if (best < 0 || g.rank > grid[best]!.rank || (g.rank === grid[best]!.rank && n < best)) best = n;
-        }
-      if (best >= 0) {
+      // L9 Twin Arc: rank 7-8 arcs to 2; L6 Forked Arc: every 5th fire +1 target
+      const targets = (hasPerk('arc_welder', 9, 7, a) ? 2 : 1) + (nthEvery('arc_welder', 6, 5, a) ? 1 : 0);
+      for (let t = 0; t < targets; t++) {
+        let best = -1;
+        for (let dr = -1; dr <= 1; dr++)
+          for (let dc = -1; dc <= 1; dc++) {
+            if (!dr && !dc) continue;
+            if (!inside(r0 + dr, c0 + dc)) continue;
+            const n = at(r0 + dr, c0 + dc);
+            const g = grid[n];
+            if (!g || visited.has(n) || blockSet.has(n) || lockedSet.has(n)) continue;
+            if (opts.splitB !== undefined && c0 <= opts.splitB !== (n % COLS) <= opts.splitB) continue;
+            if (best < 0 || g.rank > grid[best]!.rank || (g.rank === grid[best]!.rank && n < best)) best = n;
+          }
+        if (best < 0) break;
         edges.push({ from: idx, to: best, kind: 'arc' });
         enqueue(idx, best, a.depth + 1);
       }
@@ -292,18 +339,24 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'fan') {
-      const p = fanPush(grid, idx, new Set(visited.keys()), blockSet, a.rank >= MAX_RANK && !TUNING.clarity);
-      if (p) {
+      // L3 Strong Gust (rank 4+ pushes 2 cells), L6 Double Gust (every 4th), L9 Launch (rank 7-8 wakes what it pushed)
+      const pushes = nthEvery('fan', 6, 4, a) ? 2 : 1;
+      const busy = new Set(visited.keys());
+      for (let k = 0; k < pushes; k++) {
+        const p = fanPush(grid, idx, busy, blockSet, hasPerk('fan', 3, 4, a) || (a.rank >= MAX_RANK && !TUNING.clarity));
+        if (!p) break;
         moves.push({ ...p, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'fan' });
         grid[p.to] = grid[p.from];
         grid[p.from] = null;
+        busy.add(p.to);
+        if (hasPerk('fan', 9, 7, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
       }
       continue;
     }
     if (a.family === 'battery') {
       // MAX Split Charge (ChatGPT r9): run the primer selection twice (the first target is then ineligible)
-      for (let k = 0; k < (a.rank >= MAX_RANK && !TUNING.clarity ? 2 : 1); k++) {
+      for (let k = 0; k < (nthEvery('battery', 6, 5, a) || (a.rank >= MAX_RANK && !TUNING.clarity) ? 2 : 1); k++) {
         const id = batteryPrime(grid, idx, primedNow, fired, blockSet);
         if (id === null) break;
         primes.push(id);
@@ -315,26 +368,39 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
     if (a.family === 'amplifier') {
       // r32 Amplifier: marks the strongest shooter/relay orthogonally touching it (unfired), row-major tie
-      let best = -1;
-      for (const n of sparkCells(idx)) {
-        const g = grid[n];
-        if (!g || fired.has(g.id) || !(isShooter(g.family) || isRelay(g.family))) continue; // queued-but-unfired counts
-        if (best < 0 || g.rank > grid[best]!.rank) best = n;
-      }
-      if (best >= 0) mark(best, 1.3 + 0.03 * (lvl('amplifier') - 1), idx);
+      // L3 Wide Pickup (rank 4+: 8 neighbours), L6 Dual Channel (every 5th: 2 targets), L9 Long Range (rank 7-8: Chebyshev 2)
+      const [r0, c0] = rc(idx);
+      const reach = hasPerk('amplifier', 9, 7, a) ? 2 : 1;
+      const diag = hasPerk('amplifier', 3, 4, a) || reach > 1;
+      const cand: number[] = [];
+      for (let dr = -reach; dr <= reach; dr++)
+        for (let dc = -reach; dc <= reach; dc++) {
+          if ((!dr && !dc) || !inside(r0 + dr, c0 + dc) || (!diag && dr && dc)) continue;
+          const n = at(r0 + dr, c0 + dc);
+          const g = grid[n];
+          if (g && !fired.has(g.id) && (isShooter(g.family) || isRelay(g.family))) cand.push(n); // queued-but-unfired counts
+        }
+      cand.sort((x, y) => grid[y]!.rank - grid[x]!.rank || x - y);
+      for (const n of cand.slice(0, nthEvery('amplifier', 6, 5, a) ? 2 : 1)) mark(n, 1.3 + 0.03 * (lvl('amplifier') - 1), idx);
       continue;
     }
     if (a.family === 'signal_beacon') {
       // r32 Signal Beacon: nearest unfired shooter AND nearest unfired relay anywhere (Manhattan, rank, row-major)
+      // L3 Third Signal (rank 4+: also the nearest helper), L6 Broadcast Boost (every 6th: +0.25), L9 GO! (rank 7-8: wakes them)
       const [r0, c0] = rc(idx);
-      for (const want of [isShooter, isRelay]) {
+      const isHelper = (f: Family) => !isShooter(f) && !isRelay(f);
+      const kinds = hasPerk('signal_beacon', 3, 4, a) ? [isShooter, isRelay, isHelper] : [isShooter, isRelay];
+      const mult = 1.15 + 0.02 * (lvl('signal_beacon') - 1) + (nthEvery('signal_beacon', 6, 6, a) ? 0.25 : 0);
+      for (const want of kinds) {
         let best = -1, bd = 99;
         grid.forEach((g, n) => {
           if (!g || n === idx || fired.has(g.id) || !want(g.family)) return;
           const d = Math.abs(Math.floor(n / COLS) - r0) + Math.abs((n % COLS) - c0);
           if (d < bd || (d === bd && g.rank > grid[best]!.rank)) [best, bd] = [n, d];
         });
-        if (best >= 0) mark(best, 1.15 + 0.02 * (lvl('signal_beacon') - 1), idx);
+        if (best < 0) continue;
+        mark(best, mult, idx);
+        if (hasPerk('signal_beacon', 9, 7, a) && !visited.has(best)) enqueue(idx, best, a.depth + 1);
       }
       continue;
     }
@@ -342,8 +408,9 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       // MAX Twin Pull (ChatGPT r9): a second pull on the updated board, other direction, never the first moved piece
       let skip = -1;
       const busy = new Set(visited.keys());
-      for (let k = 0; k < (a.rank >= MAX_RANK && !TUNING.clarity ? 2 : 1); k++) {
-        const p = magnetPull(grid, idx, busy, blockSet, skip);
+      // L3 Strong Magnet (search +1 cell), L6 Double Pull (every 4th), L9 Snap In (rank 7-8 wakes what it pulled)
+      for (let k = 0; k < (nthEvery('magnet', 6, 4, a) || (a.rank >= MAX_RANK && !TUNING.clarity) ? 2 : 1); k++) {
+        const p = magnetPull(grid, idx, busy, blockSet, skip, lvl('magnet') >= 3 ? 4 : 3);
         if (!p) break;
         moves.push({ from: p.from, to: p.to, id: grid[p.from]!.id });
         edges.push({ from: p.from, to: p.to, kind: 'magnet' });
@@ -351,6 +418,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         grid[p.from] = null;
         skip = p.dir;
         busy.add(p.to);
+        if (hasPerk('magnet', 9, 7, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
       }
       continue;
     }
@@ -358,7 +426,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
     const [ar, ac] = rc(idx);
     if (opts.restRow !== undefined && ar === opts.restRow) continue; // resting row: deals damage, wakes nobody
-    for (const to of routeCells(idx, a.family, a.rank, opts.perks)) {
+    for (const to of [...new Set([...routeCells(idx, a.family, a.rank, opts.perks), ...relayPerkCells(idx, a, lvl(a.family), nthOf.get(a.id) ?? 0)])]) {
       if (!grid[to] || to === idx || lockedSet.has(to)) continue;
       if (opts.splitB !== undefined && ac <= opts.splitB !== to % COLS <= opts.splitB) continue; // Junkzilla's divider
       if (!TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
@@ -374,13 +442,19 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
     const perk = isShooter(a.family) && opts.perks.includes('twin') ? 1.4 : 1;
-    const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
+    // Battery prime grows with level (+0.03) and L3 High Voltage (+0.20)
+    const prime = bonus.has(a.id) ? TUNING.batteryBonus + 0.03 * (lvl('battery') - 1) + (lvl('battery') >= 3 ? 0.2 : 0) : 1;
     const hot = isShooter(a.family) && opts.hotCol !== undefined && a.idx % COLS === opts.hotCol ? 0.5 : 1;
     const oc = overcharged.has(a.id) ? 2 : 1;
     // r32 Mortar: deeper in the chain = harder hit (x0.9 at depth 1 ... x1.65 cap); Arc Welder hits x0.75
-    const deep = a.family === 'mortar' ? Math.min(1.65, 0.9 + 0.15 * (Math.max(1, a.depth) - 1)) : a.family === 'arc_welder' ? 0.75 : 1;
+    const deep = a.family === 'mortar' ? mortarMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0) : a.family === 'arc_welder' ? (hasPerk('arc_welder', 3, 4, a) ? 0.9 : 0.75) : 1;
+    // shooter milestones: Cannon L3 Heavy Barrel / L6 Lucky Eight; Rocket L3 Warhead / L6 Sixth Salvo / L9 Deep Burn
+    const ms =
+      a.family === 'cannon' ? (hasPerk('cannon', 3, 4, a) ? 1.2 : 1) * (nthEvery('cannon', 6, 8, a) ? 2 : 1)
+      : a.family === 'rocket' ? (hasPerk('rocket', 3, 4, a) ? 1.15 : 1) * (nthEvery('rocket', 6, 6, a) ? 1.5 : 1) * (hasPerk('rocket', 9, 7, a) && a.depth >= 4 ? 1.35 : 1)
+      : 1;
     const amp = ampOn.get(a.id) ?? 1;
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * (opts.unitMult?.[a.family] ?? 1);
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * (opts.unitMult?.[a.family] ?? 1);
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');
@@ -388,5 +462,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, count: acts.length, comboMult, total };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total };
 }

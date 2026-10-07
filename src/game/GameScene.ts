@@ -36,7 +36,7 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { boltsFor, cardsFor, CRATES, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { boltsFor, cardsFor, CRATES, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { featuredUnit, rollCrate, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
@@ -4386,8 +4386,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const st = this.meta.units?.[u.id];
     const owned = !!st && st.level >= 1;
     this.closeModal();
-    const c = this.panel(1060);
-    const top = H / 2 - 530;
+    const c = this.panel(1180);
+    const top = H / 2 - 590;
     const info = FAMILY_INFO[u.id as 'cannon'];
     c.add(this.add.text(W / 2, top + 60, owned ? info.name.toUpperCase() : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#2a2233' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 112, `${u.rarity.toUpperCase()}  \u00b7  ${u.role}${owned ? `  \u00b7  LEVEL ${st!.level}` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
@@ -4397,17 +4397,23 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.machineDemo(c, W / 2, top + 330, u.id);
       c.add(this.add.text(W / 2, top + 520, gi.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
     } else c.add(this.add.text(W / 2, top + 330, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+    // r32 milestone perks: L3 / L6 / L9, lit when reached
+    (UNIT_PERKS[u.id] ?? []).forEach(([name, txt], i) => {
+      const need = [3, 6, 9][i];
+      const got = owned && st!.level >= need;
+      c.add(this.add.text(W / 2, top + 660 + i * 44, `LV${need}  ${name}: ${txt}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '21px', color: got ? '#2a8a3a' : '#9a8a7a' }).setOrigin(0.5));
+    });
     if (owned) {
       const lv = st!.level;
-      c.add(this.add.text(W / 2, top + 690, lv >= MAX_UNIT_LEVEL ? `${levelPerkText(u, lv)}  \u00b7  MAX LEVEL` : `${levelPerkText(u, lv)}  \u2192  ${levelPerkText(u, lv + 1)} at LV ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2, top + 810, lv >= MAX_UNIT_LEVEL ? `${levelPerkText(u, lv)}  \u00b7  MAX LEVEL` : `${levelPerkText(u, lv)}  \u2192  ${levelPerkText(u, lv + 1)} at LV ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
       if (lv < MAX_UNIT_LEVEL) {
         const needC = cardsFor(u, lv), needB = boltsFor(u, lv);
         const ok = this.canUpgrade(u);
-        c.add(this.add.text(W / 2, top + 750, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
-        this.button(c, W / 2, top + 850, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
+        c.add(this.add.text(W / 2, top + 870, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
+        this.button(c, W / 2, top + 960, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
       }
     }
-    this.button(c, W / 2, top + 980, 280, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
+    this.button(c, W / 2, top + 1100, 280, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
     tlog.log('unit_detail', { unit: u.id, owned });
   }
 

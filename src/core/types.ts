@@ -46,6 +46,8 @@ export interface CascadeResult {
   edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' }[];
   /** Cannons primed by batteries during this cascade (ids). Caller applies. */
   primes: number[];
+  /** r32 perks: chain fires per family in this cascade (feeds the 'every Nth fire' milestone counters). */
+  fires?: Record<string, number>;
   /** r32: Amplifier / Beacon marks placed this cascade, and marks spent. Caller applies. */
   amps?: { id: number; mult: number }[];
   ampsUsed?: number[];

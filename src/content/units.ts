@@ -83,3 +83,20 @@ export const SHOP = {
 };
 /** Free Gems (ChatGPT r32, ~7/day for an active player). */
 export const GEM_REWARDS = { dailyBench: 2, allBounties: 2, rushFull: 20, chapterBoss: 5 };
+
+/** L3 / L6 / L9 milestone perks (ChatGPT r32, implemented in core/cascade.ts). */
+export const UNIT_PERKS: Record<string, [string, string][]> = {
+  cannon: [['Heavy Barrel', 'Rank 4+ chain shots x1.2'], ['Lucky Eight', 'Every 8th chain shot x2'], ['Big Loader', 'Rank 7-8 auto-shots x2']],
+  rocket: [['Warhead', 'Rank 4+ hits x1.15'], ['Sixth Salvo', 'Every 6th fire x1.5'], ['Deep Burn', 'Rank 7-8 four links deep x1.35']],
+  mortar: [['Bigger Shell', 'Rank 4+ depth cap x1.80'], ['High Arc', 'Every 6th fire counts 2 links deeper'], ['Siege Shot', 'Rank 7-8 always hits as 4 deep']],
+  arc_welder: [['Hot Arc', 'Rank 4+ own shot x0.9'], ['Forked Arc', 'Every 5th fire arcs once more'], ['Twin Arc', 'Rank 7-8 arcs to two machines']],
+  coil: [['Long Coil', 'Rank 5+ reaches 3 cells'], ['Static Leak', 'Every 6th fire also wakes its diagonals'], ['Supercoil', 'Rank 7-8 reaches 4 cells']],
+  bell: [['Side Chime', 'Rank 4+ also wakes above + below'], ['Grand Chime', 'Every 6th ring wakes the rows above + below'], ['Cathedral Bell', 'Rank 7-8 rings row AND column']],
+  horn: [['Side Blast', 'Rank 4+ also wakes left + right'], ['Brassquake', 'Every 6th blast wakes the side columns'], ['Grand Horn', 'Rank 7-8 blasts column AND row']],
+  fuse_box: [['Long Fuse', 'Rank 4+ also sparks 2 cells diagonally'], ['Cross Spark', 'Every 5th spark also wakes up/down/left/right'], ['Fuse Rays', 'Rank 7-8 sparks full diagonals']],
+  magnet: [['Strong Magnet', 'Pulls from 1 cell further'], ['Double Pull', 'Every 4th fire pulls twice'], ['Snap In', 'Rank 7-8 wakes what it pulled']],
+  battery: [['High Voltage', 'Primes +0.20 stronger'], ['Twin Charge', 'Every 5th fire primes two shooters'], ['Universal Socket', 'Primes any shooter']],
+  fan: [['Strong Gust', 'Rank 4+ pushes 2 cells'], ['Double Gust', 'Every 4th fire pushes twice'], ['Launch', 'Rank 7-8 wakes what it pushed']],
+  amplifier: [['Wide Pickup', 'Rank 4+ marks diagonal neighbours too'], ['Dual Channel', 'Every 5th fire marks two'], ['Long Range', 'Rank 7-8 marks 2 cells away']],
+  signal_beacon: [['Third Signal', 'Rank 4+ also marks the nearest helper'], ['Broadcast Boost', 'Every 6th fire marks +0.25'], ['GO! Signal', 'Rank 7-8 also wakes what it marks']],
+};
