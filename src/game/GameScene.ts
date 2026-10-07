@@ -3263,7 +3263,10 @@ Now beat the real level.`, this.coachY());
     const nextN = Math.min(LEVELS.length, n + 1);
     if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road')), 1.1);
     else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => this.openLevelSheet(n), 1.1);
-    this.button(c, W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
+    // r37: a crate to open or a unit ready to level up gets its own button here (units are the main progression)
+    const unitCta = this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP ↑' : '';
+    this.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
+    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => this.openTitle('units'), 0.78);
   }
 
   /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
