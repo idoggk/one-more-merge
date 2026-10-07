@@ -69,16 +69,16 @@ async function slide(to, grab = { x: 18, y: 26 }, steps = 14) {
   }
   finger = b;
 }
-async function release(settle = 450) {
-  await wait(60);
+async function release(settle = 450, still = 60) {
+  await wait(still);
   await page.touchscreen.touchEnd();
   await wait(settle);
 }
 /** Drag with the finger: grab at an offset inside `from`, release where the PIECE is over `to`. */
-async function drag(from, to, grab = { x: 18, y: 26 }, steps = 14, settle = 450) {
+async function drag(from, to, grab = { x: 18, y: 26 }, steps = 14, settle = 450, still = 60) {
   await press(from, grab);
   await slide(to, grab, steps);
-  await release(settle);
+  await release(settle, still);
 }
 const state = () =>
   page.evaluate(() => {
@@ -122,10 +122,24 @@ check('pick up and drop on itself returns home', st.cells[23] === 'b3' && !st.of
 await setBoard({ 0: 'n1', 1: 'n1', 3: 'b2', 4: 'b2' });
 await wait(200);
 let m0 = (await state()).merges;
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const orig = sc.commitDrop;
+  sc.dropTimes = [];
+  sc.commitDrop = function (...a) {
+    sc.dropTimes.push(sc.s.elapsed);
+    return orig.apply(this, a);
+  };
+});
 await drag(0, 1, { x: 0, y: 0 }, 6, 0);
-await drag(3, 4, { x: 0, y: 0 }, 4);
+await drag(3, 4, { x: 0, y: 0 }, 3, 450, 0);
+const gap = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  delete sc.commitDrop;
+  return Math.round((sc.dropTimes[1] - sc.dropTimes[0]) * 1000);
+});
 st = await state();
-check('rapid double merge: both merges land', st.cells[1] === 'c2' && st.cells[4] === 'b3' && st.merges === m0 + 2 && clean(st), st);
+check(`rapid double merge: both merges land (${gap} ms sim time apart)`, st.cells[1] === 'c2' && st.cells[4] === 'b3' && st.merges === m0 + 2 && clean(st), st);
 
 // 7) a kickback fuse aimed at the held part goes elsewhere; the hold survives and the merge lands
 await setBoard({ 6: 'b1', 8: 'b1', 20: 'c3' });
