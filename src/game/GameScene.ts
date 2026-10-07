@@ -3484,6 +3484,15 @@ Now beat the real level.`, this.coachY());
         const isB = n % 10 === 0 || !!def.mini_boss;
         const tag = this.add.text(x + side * (size / 2 + 12), y, def.mini_boss ? 'MINI-BOSS' : isB ? 'BOSS' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isB ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
         road.add(tag);
+        // r28: the boss waiting there (a silhouette until it is beaten)
+        const bd = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : isB ? BOSSES[n / 10 - 1] : undefined;
+        const pk = bd ? `boss_${bd.id}_intact` : '';
+        if (pk && this.hasArt(pk)) {
+          const pi = this.add.image(tag.x + side * (tag.width + 46), y - 6, pk);
+          pi.setScale(84 / Math.max(pi.width, pi.height));
+          if (!(stars[String(n)] ?? 0)) pi.setTint(0x2b1d2e).setAlpha(0.8);
+          road.add(pi);
+        }
       }
       if (n === cur) {
         const ring = this.add.circle(x, y, size * 0.6, 0xffcf33, 0.2).setStrokeStyle(5, 0xffcf33, 0.9);
@@ -3544,8 +3553,17 @@ Now beat the real level.`, this.coachY());
     const chapter = Math.ceil(cur / 10);
     const doneInCh = Math.min(10, LEVELS.slice((chapter - 1) * 10, chapter * 10).filter((d) => stars[String(d.level)]).length);
     const strip = this.add.container(W / 2, 140).setVisible(cur > 3);
-    strip.add(this.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-(W - 60) / 2, -30, W - 60, 60, 20));
-    strip.add(this.add.text(-(W - 60) / 2 + 24, 0, `CHAPTER ${chapter}  \u00b7  ${doneInCh} of 10 cleared`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf' }).setOrigin(0, 0.5));
+    // r28: each chapter wears its setting's colours (ChatGPT CAST_CONFIG road strip palette)
+    const CH = [
+      { name: 'KITCHEN', fill: 0xe9c9a3, accent: 0xae7040 },
+      { name: 'LAUNDRY', fill: 0xb8d7d1, accent: 0x458f87 },
+      { name: 'GARAGE', fill: 0xd7b38a, accent: 0xa8753e },
+      { name: 'ARCADE', fill: 0xb9a7d8, accent: 0x795aa8 },
+      { name: 'MUSIC ATTIC', fill: 0xdec29a, accent: 0xb08042 },
+      { name: 'SCRAPYARD', fill: 0xbac5cd, accent: 0x66818e },
+    ][(chapter - 1) % 6];
+    strip.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-(W - 60) / 2 - 3, -33, W - 54, 66, 22).fillStyle(CH.fill, 1).fillRoundedRect(-(W - 60) / 2, -30, W - 60, 60, 20).fillStyle(CH.accent, 1).fillRoundedRect(-(W - 60) / 2, -30, 14, 60, { tl: 20, bl: 20, tr: 0, br: 0 }));
+    strip.add(this.add.text(-(W - 60) / 2 + 30, 0, `CH ${chapter} \u00b7 ${CH.name}  \u00b7  ${doneInCh}/10`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#302b35' }).setOrigin(0, 0.5));
     if (this.hasArt('chest_closed')) {
       const ch = this.add.image((W - 60) / 2 - 40, -4, 'chest_closed');
       ch.setScale(64 / Math.max(ch.width, ch.height));
@@ -3555,7 +3573,7 @@ Now beat the real level.`, this.coachY());
     strip.on('pointerup', () => this.showToast(`CLEAR LEVEL ${chapter * 10} FOR THE CHAPTER ${chapter} MEDAL`));
     c.add(strip);
     const def = LEVELS[cur - 1];
-    const tag = cur % 10 === 0 ? '  ·  BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
+    const tag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
     const play = this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.drawNav(c, 'road');

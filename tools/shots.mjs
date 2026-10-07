@@ -52,6 +52,7 @@ const states = {
   cast31: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(31); sc.finishIntro(true); }, 1500],
   cast41: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(41); sc.finishIntro(true); }, 1500],
   cast52: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(52); sc.finishIntro(true); }, 1500],
+  road24: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 37 }, (_, i) => [i + 1, 2])), lessons: { road: true, card: true, boosters: true } }); sc.openTitle('road'); }, 1200],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {
