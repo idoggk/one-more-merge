@@ -37,8 +37,15 @@ function novice(s: GameState, rng: Rng): [number, number] | null {
   return rng.next() < 0.5 ? [a, b] : [b, a];
 }
 
+// r32: --squad applies ChatGPT's expected average unit levels per chapter (shooter / relays / helper midpoints)
+const SQUAD = args.includes('--squad');
+const EXPECT = [[1.5, 1.5], [2.5, 2.5], [3, 2.5], [3.5, 3], [4, 3.5], [4.5, 4], [5, 4.5], [5.5, 5]];
 function play(def: LevelDef, botSeed: number, idle = false): boolean {
   const s = newLevel(def);
+  if (SQUAD) {
+    const [sh, rl] = EXPECT[Math.min(7, Math.ceil(def.level / 10) - 1)];
+    s.unitMult = { cannon: 1 + 0.04 * (sh - 1), rocket: 1 + 0.04 * (sh - 1), coil: 1 + 0.02 * (rl - 1), bell: 1 + 0.02 * (rl - 1) };
+  }
   const rng = new Rng(botSeed);
   let next = EVERY;
   while (s.phase === 'playing' || s.phase === 'choice') {
