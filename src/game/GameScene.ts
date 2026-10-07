@@ -2029,6 +2029,14 @@ Now beat the real level.`, this.coachY());
           tlog.log('boss_ransom', { saved: e.saved });
           break;
         }
+        case 'bossRansomHalf': {
+          const i = this.s.grid.findIndex((g) => g?.id === e.id);
+          if (i >= 0) {
+            const q = cellXY(i);
+            this.floatText(q.x, q.y - 40, '1/2  ·  SAME CHAIN!', '#9a63ff', 30, 500);
+          }
+          break;
+        }
         case 'bossFinal': {
           this.showEvent('FINAL PHASE  \u00b7  NEW ATTACK', '#ffd24a', 1400);
           this.shake(120, 0.004);

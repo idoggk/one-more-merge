@@ -100,6 +100,7 @@ export type BossEvent =
   | { type: 'bossDefuse'; attack: BossAttack; cells: number[] }
   | { type: 'bossFinal'; second: BossAttack }
   | { type: 'bossRansom'; saved: boolean; cost: number }
+  | { type: 'bossRansomHalf'; id: number }
   | { type: 'bossEnd'; attack: BossAttack }
   | { type: 'bossPhase'; phase: number };
 
@@ -138,7 +139,9 @@ export function bossRansomCheck(b: BossState | null | undefined, activatedIds: n
     b.pending = null;
     return [{ type: 'bossRansom', saved: true, cost: 0 }];
   }
-  return [];
+  // r30 (ChatGPT): one of two woke -> say "1/2, same chain" so the rule is learned by doing
+  const one = activatedIds.includes(x) ? x : activatedIds.includes(y) ? y : -1;
+  return one >= 0 ? [{ type: 'bossRansomHalf', id: one }] : [];
 }
 /** r29: a manual merge moves ransom / tow markers onto the result id. */
 export function bossRelabel(b: BossState | null | undefined, oldIds: number[], newId: number) {
