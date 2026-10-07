@@ -55,7 +55,7 @@ export class ScrewScene extends Phaser.Scene {
     const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     back.on('pointerup', () => this.finish(false, true));
     // the pile
-    const top = 400;
+    const top = 430;
     this.scale0 = Math.min((W - 30) / YARD_W, (H - top - 40) / YARD_H, 1.12);
     this.cy = top + (H - top) / 2;
     this.yard = this.add.container(W / 2, this.cy).setScale(this.scale0);
@@ -68,11 +68,14 @@ export class ScrewScene extends Phaser.Scene {
       g.fillStyle(tint, 0.9).fillRoundedRect(-p.len / 2, -p.thick / 2, p.len, p.thick, 22);
       g.fillStyle(0xffffff, 0.22).fillRoundedRect(-p.len / 2 + 8, -p.thick / 2 + 6, p.len - 16, 12, 6);
       g.lineStyle(4, INK, 0.9).strokeRoundedRect(-p.len / 2, -p.thick / 2, p.len, p.thick, 22);
+      // rivets in the corners of long bars, then the screw holes
+      if (p.thick < p.len * 0.8) for (const sx of [-1, 1]) g.fillStyle(INK, 0.3).fillCircle(sx * (p.len / 2 - 70), 0, 6);
       for (const sid of p.screws) {
         const s = lvl.screws[sid];
         const dx = s.x - p.x, dy = s.y - p.y;
         const lx = dx * Math.cos(-p.angle) - dy * Math.sin(-p.angle);
-        g.fillStyle(INK, 0.55).fillCircle(lx, 0, 25);
+        const ly = dx * Math.sin(-p.angle) + dy * Math.cos(-p.angle);
+        g.fillStyle(INK, 0.55).fillCircle(lx, ly, 25);
       }
       pc.add(g);
       this.yard.add(pc);
@@ -104,8 +107,8 @@ export class ScrewScene extends Phaser.Scene {
   }
 
   boxX = (slot: number) => W / 2 + (slot - (OPEN_BOXES - 1) / 2) * 300;
-  boxY = 178;
-  trayY = 320;
+  boxY = 200;
+  trayY = 345;
   trayX = (i: number) => W / 2 + (i - (TRAY_CAP - 1) / 2) * 92;
   slotX = (slot: number, k: number) => this.boxX(slot) + (k - 1) * 64;
 
@@ -115,6 +118,8 @@ export class ScrewScene extends Phaser.Scene {
     this.ui.add(g);
     this.st.boxes.forEach((b, slot) => {
       const x = this.boxX(slot);
+      // toolbox: handle on top, body below
+      g.lineStyle(12, INK, 1).strokeRoundedRect(x - 50, this.boxY - 82, 100, 46, 14);
       g.fillStyle(INK, 1).fillRoundedRect(x - 120, this.boxY - 52, 240, 104, 22);
       if (!b) return;
       g.fillStyle(SCREW_COLORS[b.color], 1).fillRoundedRect(x - 114, this.boxY - 46, 228, 92, 18);
@@ -128,6 +133,11 @@ export class ScrewScene extends Phaser.Scene {
     this.ui.add(this.add.text(W / 2, this.boxY + 70, left > 0 ? `${left} more toolbox${left > 1 ? 'es' : ''}` : 'last toolboxes!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
     // tray
     g.fillStyle(INK, 0.85).fillRoundedRect(W / 2 - (TRAY_CAP * 92) / 2 - 10, this.trayY - 44, TRAY_CAP * 92 + 20, 88, 22);
+    const nearFull = this.st.tray.length >= TRAY_CAP - 1;
+    if (nearFull) {
+      g.lineStyle(6, 0xe8452c, 1).strokeRoundedRect(W / 2 - (TRAY_CAP * 92) / 2 - 14, this.trayY - 48, TRAY_CAP * 92 + 28, 96, 24);
+      this.ui.add(this.add.text(W / 2, this.trayY + 66, '1 SLOT LEFT!', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#e8452c', stroke: '#fff0cf', strokeThickness: 6 }).setOrigin(0.5));
+    }
     for (let i = 0; i < TRAY_CAP; i++) {
       const danger = i === TRAY_CAP - 1;
       g.fillStyle(danger ? 0x7a2a2a : 0x5a4a5a, 1).fillCircle(this.trayX(i), this.trayY, 30);

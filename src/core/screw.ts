@@ -190,17 +190,21 @@ function tryGenerate(n: number, seed: number, easy: boolean, noMix = false): Yar
   const plates: Plate[] = [];
   const screws: Screw[] = [];
   for (let i = 0; i < P.plates; i++) {
-    const len = 200 + rng.int(9) * 22;
-    const angle = ((rng.int(12) * 15) / 180) * Math.PI;
-    // keep both ends inside the yard
-    const hx = Math.abs(Math.cos(angle)) * (len / 2) + PLATE_T / 2, hy = Math.abs(Math.sin(angle)) * (len / 2) + PLATE_T / 2;
+    // r37: a quarter of the plates (never the first) are square panels with four corner screws
+    const square = i > 0 && rng.next() < 0.25;
+    const len = square ? 130 + rng.int(4) * 15 : 200 + rng.int(9) * 22;
+    const thick = square ? len : PLATE_T;
+    const angle = ((rng.int(square ? 6 : 12) * 15) / 180) * Math.PI;
+    // keep the whole plate inside the yard
+    const ca = Math.abs(Math.cos(angle)), sa = Math.abs(Math.sin(angle));
+    const hx = ca * (len / 2) + sa * (thick / 2), hy = sa * (len / 2) + ca * (thick / 2);
     const x = (rng.next() * 2 - 1) * Math.max(0, YARD_W / 2 - hx);
     const y = (rng.next() * 2 - 1) * Math.max(0, YARD_H / 2 - hy);
-    const p: Plate = { id: i, x, y, len, thick: PLATE_T, angle, z: i, screws: [] };
-    const offs = len >= 330 ? [-1, 0, 1] : [-1, 1];
-    for (const o of offs) {
-      const d = o * (len / 2 - 30);
-      const sc: Screw = { id: screws.length, plate: i, x: x + Math.cos(angle) * d, y: y + Math.sin(angle) * d, color: 0 };
+    const p: Plate = { id: i, x, y, len, thick, angle, z: i, screws: [] };
+    const a = len / 2 - 28;
+    const local: [number, number][] = square ? [[-a, -a], [a, -a], [a, a], [-a, a]] : (len >= 330 ? [-1, 0, 1] : [-1, 1]).map((o) => [o * (len / 2 - 30), 0]);
+    for (const [lx, ly] of local) {
+      const sc: Screw = { id: screws.length, plate: i, x: x + Math.cos(angle) * lx - Math.sin(angle) * ly, y: y + Math.sin(angle) * lx + Math.cos(angle) * ly, color: 0 };
       screws.push(sc);
       p.screws.push(sc.id);
     }
@@ -209,7 +213,7 @@ function tryGenerate(n: number, seed: number, easy: boolean, noMix = false): Yar
   // screw count must split into toolboxes of 3: add middle screws to the longest plates without one
   for (const p of plates.slice().sort((a, b) => b.len - a.len)) {
     if (screws.length % BOX_SIZE === 0) break;
-    if (p.screws.length >= 3) continue;
+    if (p.screws.length !== 2) continue;
     const sc: Screw = { id: screws.length, plate: p.id, x: p.x, y: p.y, color: 0 };
     screws.push(sc);
     p.screws.push(sc.id);
