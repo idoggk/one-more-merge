@@ -2416,7 +2416,7 @@ Now beat the real level.`, this.coachY());
     for (const e of r.edges) {
       const a = cellXY(e.from);
       const b = cellXY(e.to);
-      const col = e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : 0xffffff;
+      const col = e.kind === 'item' ? 0xff9a3c : e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
         if (e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime') this.signatureFx(e.kind, a, b);
@@ -2426,12 +2426,28 @@ Now beat the real level.`, this.coachY());
           const len = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
           arc.setRotation(Math.atan2(b.y - a.y, b.x - a.x)).setDisplaySize(len, Math.min(60, (arc.height / arc.width) * len * 1.4));
           this.tweens.add({ targets: arc, alpha: 0, delay: 220, duration: 220, onComplete: () => arc.destroy() });
-        } else lg.lineStyle(e.kind === 'spark' ? 5 : 8, col, 0.85).lineBetween(a.x, a.y, b.x, b.y);
+        } else lg.lineStyle(e.kind === 'spark' ? 5 : e.kind === 'item' ? 11 : 8, col, 0.85).lineBetween(a.x, a.y, b.x, b.y);
         const p = this.add.image(a.x, a.y, 'spark').setTint(col).setDepth(31).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD);
         this.tweens.add({ targets: p, x: b.x, y: b.y, angle: 180, duration: Math.max(60, step), onComplete: () => p.destroy() });
       });
     }
     this.tweens.add({ targets: lg, alpha: 0, delay: windup + maxDepth * step + 200, duration: 250, onComplete: () => lg.destroy() });
+    // r25: a power-up that fires pops its icon over its machine (OVERCHARGE also shows x1.5)
+    for (const id of r.itemUsed ?? []) {
+      const kind = this.itemBadges.get(id)?.getData('kind') as string | undefined;
+      const act = r.activations.find((x) => x.id === id);
+      if (!kind || !act) continue;
+      const { x, y } = cellXY(act.idx);
+      this.time.delayedCall(windup + act.depth * step, () => {
+        const im = this.add.image(x, y - 20, `item_${kind}`).setDepth(62);
+        im.setScale(40 / Math.max(im.width, im.height));
+        this.tweens.add({ targets: im, y: y - 90, scale: im.scale * 1.8, alpha: 0, duration: 650, ease: 'Quad.Out', onComplete: () => im.destroy() });
+        this.ring(x, y, 0xff9a3c, 70, 10, 320);
+        if (kind === 'overcharge') this.floatText(x + 40, y - 40, 'x1.5', '#ff9a3c', 34, 200);
+        sfx.merge?.(4);
+      });
+      tlog.log('item_used', { kind });
+    }
 
     // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
     // live chain counter in the lane: counts up beat by beat, then the final line lands on the hit
