@@ -3796,14 +3796,19 @@ Now beat the real level.`, this.coachY());
     m.homeSeen = { ...(m.mastery ?? {}) };
     store(META_KEY, JSON.stringify(m));
     // r38 (ChatGPT review): four fixed sockets on a shelf plank, never free-placed
-    if ((m.trophies ?? []).length) {
+    const anyTrophy = Object.values(m.bossMastery ?? {}).some((v) => v >= TROPHY_AT);
+    if (anyTrophy) {
       const sy = feetY + 20, xs = [70, 160, W - 160, W - 70];
-      const sh = this.add.graphics();
-      for (const [x0, x1] of [[22, 208], [W - 208, W - 22]]) sh.fillStyle(0x2b1d2e, 1).fillRoundedRect(x0, sy, x1 - x0, 16, 6).fillStyle(0x8a5a3a, 1).fillRoundedRect(x0 + 3, sy + 3, x1 - x0 - 6, 10, 4);
-      for (const x of xs) sh.fillStyle(0x2b1d2e, 0.35).fillEllipse(x, sy + 1, 64, 12);
-      c.add(sh);
-      (m.trophies ?? []).slice(0, TROPHY_SHELF).forEach((id, i) => {
-        const im = this.trophyImage(id, xs[i], sy + 2, 84);
+      const shelf = m.trophies ?? [];
+      xs.forEach((x, i) => {
+        // brass plinth per socket (ChatGPT shelf_plate); an empty socket shows the bare plinth
+        if (this.hasArt('shelf_plate')) {
+          const pl = this.add.image(x, sy + 14, 'shelf_plate').setOrigin(0.5, 1);
+          pl.setScale(86 / pl.width);
+          c.add(pl);
+        } else c.add(this.add.graphics().fillStyle(0x2b1d2e, 0.35).fillEllipse(x, sy + 1, 64, 12));
+        const id = shelf[i];
+        const im = id ? this.trophyImage(id, x, sy + 2, 84) : null;
         if (im) c.add(im);
       });
     }
@@ -4935,6 +4940,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (!owned) im.setTint(0x2b1d2e).setAlpha(0.6);
       cc.add(im);
     }
+    // r38 rarity frame art (ChatGPT v22, transparent centre) over the card edge
+    if (this.hasArt(`card_${u.rarity}`)) cc.add(this.add.image(0, 2, `card_${u.rarity}`).setDisplaySize(214, 274));
     cc.add(this.add.text(0, 88, owned ? FAMILY_INFO[u.id as 'cannon'].name.toUpperCase() : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
     if (owned) {
       cc.add(this.add.text(-78, -72, `LV ${st!.level}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: '#2b1d2e', padding: { x: 6, y: 2 } }).setOrigin(0, 0.5));
