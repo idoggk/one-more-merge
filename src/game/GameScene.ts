@@ -1,25 +1,19 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyItem,
+import {
   canMerge,
   capOf,
-  choosePerk,
-  finishTutorial,
   deserialize,
-  drop,
   legalPairs,
   newGame,
   newLevel,
-  useTimeCapsule,
   odNeeded,
   peekNext,
   mergeEarns,
   previewMerge,
-  scrap,
   serialize,
   supplyPeriod,
-  tick,
   type GameEvent,
   type GameState,
 } from '../core/game';
@@ -48,6 +42,7 @@ import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/
 import puzzleData from '../content/puzzles.json';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
+import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
@@ -310,6 +305,8 @@ export class GameScene extends Phaser.Scene {
   tutorialText!: Phaser.GameObjects.Text;
   practiceText!: Phaser.GameObjects.Text;
   modal: Phaser.GameObjects.Container | null = null;
+  /** r43: this attempt's command log (best-chain replay on the results screen). */
+  runLog: RunLog = newRunLog();
   linkG!: Phaser.GameObjects.Graphics;
   sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   chunks!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -545,6 +542,7 @@ export class GameScene extends Phaser.Scene {
     for (const v of this.views.values()) v.destroy();
     this.views.clear();
     this.s = s;
+    this.runLog = newRunLog();
     this.pulledIds.clear();
     this.acc = 0;
     this.heldQueue = []; // cards still waiting for a finger-up belong to the previous run
@@ -1247,7 +1245,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.pulledMerge = merging && (this.pulledIds.has(a!.id) || this.pulledIds.has(b!.id));
     const prevBest = this.s.stats.bestRank;
-    const res = drop(this.s, from, to, id);
+    const res = recordCommand(this.runLog, this.s, { k: 'drop', from, to, id });
     if (!res.ok) {
       sfx.invalid();
       tlog.log('invalid');
@@ -1344,7 +1342,7 @@ Now beat the real level.`, this.coachY());
   }
 
   doScrap(idx: number, id: number) {
-    const res = scrap(this.s, idx, id);
+    const res = recordCommand(this.runLog, this.s, { k: 'scrap', idx, id });
     if (!res.ok) return;
     tlog.log('scrap', { rank: (res.events[0] as { gadget?: Gadget }).gadget?.rank });
     sfx.scrap();
@@ -1458,7 +1456,7 @@ Now beat the real level.`, this.coachY());
         const reserved = new Set<number>();
         if (this.dragIdx >= 0) reserved.add(this.dragIdx);
         if (this.hoverIdx >= 0) reserved.add(this.hoverIdx);
-        const ev = tick(this.s, reserved);
+        const ev = recordTick(this.runLog, this.s, reserved);
         if (ev.length) this.handleEvents(ev);
         if (this.modal) break;
       }
@@ -1603,7 +1601,7 @@ Now beat the real level.`, this.coachY());
     this.coach.clear();
     if (!step) {
       // script done: the real run starts on the board they just built
-      const ev = finishTutorial(this.s);
+      const ev = recordCommand(this.runLog, this.s, { k: 'tutorial' }).events;
       this.meta.tutorialDone = true;
       store(META_KEY, JSON.stringify(this.meta));
       tlog.log('tutorial_done');
@@ -1841,7 +1839,7 @@ Now beat the real level.`, this.coachY());
         prog = this.tweens.add({ targets: o, t: 1, duration: 350, onUpdate: () => rim.clear().lineStyle(6, 0xffcf33, 1).beginPath().arc(0, 0, 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * o.t).strokePath() });
         holdT = this.time.delayedCall(350, () => {
           cancel();
-          if (!useTimeCapsule(this.s)) return;
+          if (!recordCommand(this.runLog, this.s, { k: 'capsule' }).ok) return;
           this.meta.capsules = Math.max(0, (this.meta.capsules ?? 0) - 1);
           store(META_KEY, JSON.stringify(this.meta));
           tlog.log('booster', { kind: 'time_capsule', level: this.s.level, at: +this.s.elapsed.toFixed(1), left: this.meta.capsules });
@@ -2419,7 +2417,7 @@ Now beat the real level.`, this.coachY());
       if (g) this.showEvent(g.item ? 'This machine already has a power-up' : GameScene.ITEM_COPY[kind].wrong, '#ffd2c8', 1400);
       return;
     }
-    const r = applyItem(this.s, idx, g.id);
+    const r = recordCommand(this.runLog, this.s, { k: 'item', idx, id: g.id });
     if (!r.ok) return;
     this.handleEvents(r.events);
   }
@@ -3177,7 +3175,7 @@ Now beat the real level.`, this.coachY());
         sfx.click();
         this.closeModal();
         tlog.log('perk', { id });
-        const res = choosePerk(this.s, id);
+        const res = recordCommand(this.runLog, this.s, { k: 'perk', perk: id });
         this.handleEvents(res.events);
         this.showEvent(p.name + '  ·  ' + p.text, '#ffd24a', 2400);
         this.save();
@@ -3192,7 +3190,7 @@ Now beat the real level.`, this.coachY());
     if (this.s.bounty) return this.openBountyResult(won);
     if (this.s.endless) return this.openEndlessResult(won);
     if (this.s.puzzle) return this.openPuzzleResult(won);
-    if (this.s.level !== undefined) return this.openLevelResult(won);
+    if (this.s.level !== undefined) return this.playBestChain(() => this.openLevelResult(won));
     const s = this.s;
     const m = this.meta;
     m.runs++;
@@ -3271,6 +3269,110 @@ Now beat the real level.`, this.coachY());
     txt(top + 720, details, 20, '#8a7a6a', 'Arial');
     this.button(c, W / 2, top + 820, 520, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.15);
     this.button(c, W / 2, top + 932, 260, 'HOME', 0x27a4c0, () => this.openTitle(), 0.78);
+  }
+
+  /** r43 pride moment: before the level result, rebuild the board right before this attempt's biggest player chain
+   *  (start state + command log, see core/replay) and play that chain back in slow motion (~3 s, tap to skip).
+   *  A small self-contained board on its own layer: no sprites from the live board, no physics, a few dozen images. */
+  playBestChain(done: () => void) {
+    const log = this.runLog;
+    const best = log.best;
+    if (!best || best.count < 3) return done();
+    let before: GameState | null = null;
+    let cascade: CascadeResult | null = null;
+    const a = log.actions[best.at];
+    try {
+      before = replayRun(log, best.at);
+      if (before && a?.k === 'drop') {
+        const after = JSON.parse(JSON.stringify(before)) as GameState;
+        const e = applyCommand(after, a).events.find((x) => x.type === 'cascade');
+        if (e?.type === 'cascade') cascade = e.result;
+      }
+    } catch {
+      cascade = null;
+    }
+    // a replay that does not reproduce the recorded chain is never shown (no faked pride moment)
+    if (!before || !cascade || a?.k !== 'drop' || cascade.count !== best.count) return done();
+    tlog.log('best_chain_replay', { level: this.s.level, count: best.count });
+
+    const c = this.add.container(0, 0).setDepth(100);
+    this.modal = c;
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive();
+    c.add(dim);
+    const MC = 96;
+    const ox = W / 2 - (COLS * MC) / 2, oy = H / 2 - (ROWS * MC) / 2 + 30;
+    const at = (i: number) => ({ x: ox + (i % COLS) * MC + MC / 2, y: oy + Math.floor(i / COLS) * MC + MC / 2 });
+    const bg = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(ox - 14, oy - 14, COLS * MC + 28, ROWS * MC + 28, 24);
+    for (let i = 0; i < ROWS * COLS; i++) bg.fillStyle(0xfbe7c6, 0.14).fillRoundedRect(at(i).x - MC / 2 + 4, at(i).y - MC / 2 + 4, MC - 8, MC - 8, 12);
+    c.add(bg);
+    const piece = (fam: Family, rank: number, i: number) => {
+      const p = at(i);
+      const key = `${fam}_${rank}`;
+      const img = this.add.image(p.x, p.y, this.textures.exists(key) ? key : 'slot');
+      img.setScale((MC - 14) / Math.max(img.width, img.height, 1));
+      c.add(img);
+      return img;
+    };
+    const views = new Map<number, Phaser.GameObjects.Image>();
+    before.grid.forEach((g, i) => {
+      if (g && i !== a.from && i !== a.to) views.set(i, piece(g.family, g.rank, i));
+    });
+    const ga = before.grid[a.from]!;
+    const mover = piece(ga.family, ga.rank, a.from);
+    const target = piece(ga.family, ga.rank, a.to);
+    const links = this.add.graphics();
+    c.add(links);
+    const title = this.add.text(W / 2, oy - 70, 'YOUR BEST CHAIN', { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#ffd24a' }).setOrigin(0.5);
+    const counter = this.add.text(W / 2, oy + ROWS * MC + 60, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#ffffff' }).setOrigin(0.5);
+    const skip = this.add.text(W / 2, H - 60, 'tap to skip', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#c8b8a8' }).setOrigin(0.5);
+    c.add([title, counter, skip]);
+
+    let finished = false;
+    const timers: Phaser.Time.TimerEvent[] = [];
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      for (const t of timers) t.remove(false);
+      this.tweens.killTweensOf(c.list);
+      if (this.modal === c) this.modal = null;
+      c.destroy();
+      done();
+    };
+    dim.on('pointerup', finish);
+    const later = (ms: number, fn: () => void) => timers.push(this.time.delayedCall(ms, () => !finished && fn()));
+
+    // 1) the merge slides in slowly (0.45 s), 2) each activation lights up in order (~2 s), 3) hold on the count
+    const MERGE = 450;
+    const p = at(a.to);
+    this.tweens.add({ targets: mover, x: p.x, y: p.y, duration: MERGE, ease: 'Quad.InOut' });
+    later(MERGE, () => {
+      mover.destroy();
+      const key = `${ga.family}_${Math.min(ga.rank + 1, capOf(before!, ga.family))}`;
+      if (this.textures.exists(key)) target.setTexture(key).setScale((MC - 14) / Math.max(target.width, target.height, 1));
+      views.set(a.to, target);
+    });
+    const acts = cascade.activations;
+    const step = Math.min(300, 2000 / acts.length);
+    acts.forEach((act, k) => {
+      later(MERGE + 80 + k * step, () => {
+        const q = at(act.idx);
+        if (act.parent >= 0 && act.parent !== act.idx) {
+          const f = at(act.parent);
+          links.lineStyle(8, 0xffcf33, 0.85).lineBetween(f.x, f.y, q.x, q.y);
+        }
+        links.lineStyle(5, 0xffcf33, 1).strokeCircle(q.x, q.y, MC / 2 - 4);
+        const v = views.get(act.idx);
+        if (v && !REDUCED_MOTION) this.tweens.add({ targets: v, scale: v.scale * 1.3, duration: Math.max(80, step * 0.5), yoyo: true, ease: 'Quad.Out' });
+        counter.setText(`CHAIN x${k + 1}`);
+        sfx.click();
+      });
+    });
+    const end = MERGE + 80 + acts.length * step;
+    later(end, () => {
+      counter.setColor('#ffd24a');
+      if (!REDUCED_MOTION) this.tweens.add({ targets: counter, scale: 1.25, duration: 160, yoyo: true, ease: 'Back.Out' });
+    });
+    later(end + 650, finish);
   }
 
   /** SAGA level result: stars, Bolts (first clear / replay / new stars / eligible fail), free boosters, next step. */
