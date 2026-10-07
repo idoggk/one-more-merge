@@ -77,7 +77,7 @@ for (const def of LEVELS) {
   // levels 1-3 are onboarding: near-certain wins
   // r20 bosses: L10 80%, L20-60 72%
   // r23 (ChatGPT): chapter 1 near-sure, ramp after L10
-  const R23: Record<number, number> = { 8: 0.95, 10: 0.95, 11: 0.95, 16: 0.95, 14: 0.8, 18: 0.92, 19: 0.8, 20: 0.85 };
+  const R23: Record<number, number> = { 8: 0.95, 10: 0.95, 11: 0.95, 16: 0.95, 14: 0.9, 18: 0.92, 19: 0.8, 20: 0.85 };
   // r26 (ChatGPT): chapters 3-6 by chapter position (relief at 1 and 6, Hard at 4 and 9, teaching at 7 in ch.4/5)
   const R26 = [
     [0.95, 0.94, 0.95, 0.8, 0.9, 0.95, 0.9, 0.9, 0.78, 0.85], // position 8 = mini-boss (r27: 90/88/86/85)

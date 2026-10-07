@@ -23,7 +23,7 @@ export interface Gadget {
 
 /** r25 power-up items: OVERCHARGE (shooter, next 2 chain shots x1.5), SPARK (shooter wakes U/R/D/L once), CORNER (Bell wakes diagonals once). */
 export type ItemKind = 'overcharge' | 'spark' | 'corner';
-export const ITEM_INTRO: Record<ItemKind, number> = { overcharge: 13, spark: 16, corner: 22 };
+export const ITEM_INTRO: Record<ItemKind, number> = { overcharge: 13, spark: 26, corner: 22 };
 export const itemFits = (kind: ItemKind, f: Family) => (kind === 'corner' ? f === 'bell' : f === 'cannon' || f === 'rocket');
 
 export type Grid = (Gadget | null)[];

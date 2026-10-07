@@ -27,7 +27,7 @@ import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
-import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starGoals, starsFor } from '../content/levels';
+import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals, starsFor } from '../content/levels';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
@@ -48,6 +48,8 @@ const DRAG_LIFT = 40;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
+/** r34: clock ring centre x (left of the HP bar); the machine counter mirrors it on the right. */
+const CLOCK_X = 62;
 /** r25 item tray slot, between NEXT (+ Time Capsule) and SCRAP. */
 const ITEM_X = W - 208;
 // Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
@@ -236,6 +238,10 @@ export class GameScene extends Phaser.Scene {
   shownHp = 0;
   headerText!: Phaser.GameObjects.Text;
   timerText!: Phaser.GameObjects.Text;
+  /** r34 onboarding: the clock lives beside the HP bar (where the eyes are), as a draining ring; machine counter on the right. */
+  clockRing!: Phaser.GameObjects.Graphics;
+  stagePips!: Phaser.GameObjects.Text;
+  lastSec = -1;
   starChase: Phaser.GameObjects.Text | null = null;
   shieldChip: Phaser.GameObjects.Text | null = null;
   shieldG!: Phaser.GameObjects.Graphics;
@@ -382,7 +388,6 @@ export class GameScene extends Phaser.Scene {
     this.headerText = this.add.text(70, 27, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' });
     this.timerText = this.add.text(W - 28, 22, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#3b2533' }).setOrigin(1, 0);
     this.odGauge = this.add.graphics();
-    if (this.hasArt('icon_timer')) this.add.image(W - 132, 46, 'icon_timer').setDisplaySize(42, 42);
     if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
@@ -401,6 +406,9 @@ export class GameScene extends Phaser.Scene {
       this.add.image(W / 2, HP_Y, 'hp_frame').setDisplaySize(476, 50);
     }
     this.hpText = this.add.text(W / 2, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#2a2233', stroke: '#fff0cf', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
+    this.clockRing = this.add.graphics().setDepth(3);
+    this.timerText.setPosition(CLOCK_X, HP_Y + 1).setOrigin(0.5).setFontSize(27).setDepth(4);
+    this.stagePips = this.add.text(W - CLOCK_X, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center', lineSpacing: -6 }).setOrigin(0.5).setDepth(4);
 
     // event lane (single place for chain results / warnings, never over the HP bar or gadgets)
     this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
@@ -1671,7 +1679,7 @@ Now beat the real level.`, this.coachY());
     if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
     if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
     if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
-    if (s.target === 1) this.tip('next', 'Next monster! Your machine and\nupgrades carry over. Keep going!');
+    if (s.stage?.i === 1 && !s.goal) this.tip('next_machine', 'Machine 2! Your board stays.\nBeat every machine before the clock runs out.', { x: W - CLOCK_X, y: HP_Y });
   }
 
   updateHints() {
@@ -1753,7 +1761,8 @@ Now beat the real level.`, this.coachY());
     (this.capsuleBtn?.getByName('stock') as Phaser.GameObjects.Text | undefined)?.setText(`hold  ·  ${this.meta.capsules ?? 0} left`);
     const t = Math.ceil(s.timeLeft);
     this.timerText.setText(demo || s.showcase ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
-    this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
+    this.timerText.setColor(s.timeLeft < 10 && !demo ? '#d8261a' : '#3b2533');
+    this.drawClock(demo || !!s.showcase);
     this.practiceText.setVisible(s.practice && !demo);
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
     const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty ? LEVELS[s.level - 1] : undefined;
@@ -2355,6 +2364,37 @@ Now beat the real level.`, this.coachY());
   }
 
   /** Transient message in the event lane. Remix warnings (drawRemix) override it while active. */
+  /** r34: draining clock ring + 30 s warning + last-10 countdown over the board (the board is where the player looks). */
+  drawClock(hidden: boolean) {
+    const s = this.s;
+    const r = this.clockRing.clear();
+    const sc = s.stage ? this.stageCount() : undefined;
+    this.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
+    if (sc) {
+      r.fillStyle(0x2b1d2e, 1).fillRoundedRect(W - CLOCK_X - 46, HP_Y - 26, 92, 52, 16);
+    }
+    if (hidden || s.phase === 'tutorial') return;
+    const total = s.levelTime ?? TUNING.runTime;
+    const frac = Phaser.Math.Clamp(s.timeLeft / Math.max(1, total), 0, 1);
+    const col = s.timeLeft < 10 ? 0xe8452c : s.timeLeft < 30 ? 0xf2b521 : 0x5fd35f;
+    r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50);
+    r.fillStyle(0xfff0cf, 1).fillCircle(CLOCK_X, HP_Y, 36);
+    if (frac > 0) r.lineStyle(10, col, 1).beginPath().arc(CLOCK_X, HP_Y, 43, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
+    const sec = Math.ceil(s.timeLeft);
+    if (sec !== this.lastSec && s.phase === 'playing' && !this.paused) {
+      const prev = this.lastSec;
+      this.lastSec = sec;
+      if (prev > 30 && sec <= 30 && total > 45) this.showEvent('30 SECONDS LEFT!', '#ffcf33', 1600);
+      if (sec <= 10 && sec > 0 && prev > sec) {
+        this.timerText.setScale(1.45);
+        this.tweens.add({ targets: this.timerText, scale: 1, duration: 320, ease: 'Back.Out' });
+        const big = this.add.text(W / 2, BY + (CELL * ROWS) / 2, String(sec), { fontFamily: 'Lilita One, Arial Black', fontSize: '260px', color: '#e8452c', stroke: '#2b1d2e', strokeThickness: 14 }).setOrigin(0.5).setDepth(70).setAlpha(0.32).setScale(1.2);
+        this.tweens.add({ targets: big, alpha: 0, scale: 0.9, duration: 800, onComplete: () => big.destroy() });
+        this.cameras.main.flash?.(120, 120, 20, 10, false);
+      }
+    }
+  }
+
   showEvent(text: string, color = '#fff0cf', ms = 1400) {
     this.laneMsg = { text, color, until: this.time.now + ms };
     this.laneText.setScale(1.25);
@@ -2853,6 +2893,23 @@ Now beat the real level.`, this.coachY());
         this.softFlash(0x2b1d2e, 0.35, 260);
         this.time.delayedCall(380, () => this.bossNameCard());
         this.time.delayedCall(1500, () => this.showEvent(BOSSES[this.realBoss!.def].mini ? 'MINI-BOSS!' : 'BOSS!', '#ffcf33', 1200));
+        // r34 onboarding: the first time a boss wakes, stop the clock and show its attack on a board diagram
+        const bd = BOSSES[this.realBoss.def];
+        this.time.delayedCall(1700, () =>
+          this.explain(`xb_wake_${bd.id}`, [
+            {
+              text: `${bd.name} IS HERE!\n${bd.copy}`,
+              spots: [],
+              y: TRAY_Y - 40,
+              draw: () => {
+                const dg = this.bossDiagram(bd.attack);
+                const plate = this.add.graphics().fillStyle(0xfff0cf, 0.96).fillRoundedRect(-170, -70, 340, 140, 22).lineStyle(5, 0x2b1d2e, 1).strokeRoundedRect(-170, -70, 340, 140, 22);
+                const box = this.add.container(W / 2, BY + CELL * 2.2, [plate, dg]).setDepth(92).setScale(1.3);
+                return [box];
+              },
+            },
+          ]),
+        );
         tlog.log('stage_boss', { at: +this.s.elapsed.toFixed(1) });
       } else if (sc && this.s.goal) {
         const g = this.s.goal;
@@ -4049,8 +4106,15 @@ Now beat the real level.`, this.coachY());
       ? [bossDef.copy, bossDef.second ? `Final phase: also ${ATTACK_COPY[bossDef.second].what.toLowerCase()}!` : '']
       : [def.goal ? (def.waves ? `LAST MACHINE only breaks when you ${goalText(def.goal).toLowerCase()}` : `GOAL: ${goalText(def.goal)}`) : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
     const mt = parts.filter(Boolean).join('\n');
+    // r34 onboarding: the first level with a new idea says so, big and dark (not small purple print)
+    const fresh = newConcepts(n).length > 0 || !!newFam;
+    if (mt && fresh) {
+      const tag = this.add.text(W / 2, y + 4, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffffff', backgroundColor: '#e8452c', padding: { x: 14, y: 2 } }).setOrigin(0.5, 0);
+      c.add(tag);
+      y += tag.height + 14;
+    }
     if (mt) {
-      const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: bossDef ? '26px' : '22px', color: bossDef ? '#4a2a5a' : '#8e58c9', align: 'center', wordWrap: { width: W - 180 } }).setOrigin(0.5, 0);
+      const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: bossDef || fresh ? '27px' : '22px', color: bossDef || fresh ? '#3b2533' : '#8e58c9', align: 'center', wordWrap: { width: W - 170 } }).setOrigin(0.5, 0);
       c.add(t);
       y += t.height + 10;
     }
@@ -5098,7 +5162,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'fuse_box', title: 'FUSE BOX', role: 'RELAY', text: 'Sparks its four diagonal corners: wakes the OTHER kinds of machines there.', tryThis: 'Build a checkerboard around it.', unlock: 999 },
     { key: 'amplifier', title: 'AMPLIFIER', role: 'SUPPORT', text: 'When it fires it marks the strongest shooter or relay touching it. That machine\'s next hit is x1.3 (the mark waits until it fires).', tryThis: 'Park it beside your biggest machine.', unlock: 999 },
     { key: 'signal_beacon', title: 'SIGNAL BEACON', role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere on the board: their next hits are x1.15.', tryThis: 'Fire it early in a chain.', unlock: 999 },
-    { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Break the monster to half HP and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
+    { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Get halfway through a level and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
   ];
 

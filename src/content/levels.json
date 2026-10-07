@@ -305,8 +305,8 @@
     {
       "level": 5,
       "monster": "mad_fridge",
-      "hp": 10900,
-      "time_seconds": 105,
+      "hp": 9200,
+      "time_seconds": 85,
       "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
@@ -314,19 +314,14 @@
       "starting_rank": 1,
       "seed": 150005,
       "ordinary_copy_rank_cap": 1,
-      "goal": {
-        "kind": "chain",
-        "n": 12
-      },
       "waves": 2,
       "wave_visuals": [
         "toaster_twins",
-        "kettle_grump",
         "mad_fridge"
       ],
       "star_times": [
-        84,
-        63
+        68,
+        51
       ]
     },
     {
@@ -357,9 +352,9 @@
     {
       "level": 7,
       "monster": "tin_can",
-      "hp": 14750,
+      "hp": 14700,
       "time_seconds": 105,
-      "modifier": "CORNERS_4",
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -409,7 +404,7 @@
     {
       "level": 9,
       "monster": "vacuum_viper",
-      "hp": 20000,
+      "hp": 18700,
       "time_seconds": 115,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -418,7 +413,6 @@
       "starting_rank": 1,
       "seed": 150009,
       "ordinary_copy_rank_cap": 2,
-      "behaviour": "suction",
       "visual": "colander_clatter",
       "waves": 3,
       "wave_visuals": [
@@ -519,7 +513,7 @@
     {
       "level": 13,
       "monster": "mad_fridge",
-      "hp": 26850,
+      "hp": 25300,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -528,8 +522,6 @@
       "starting_rank": 1,
       "seed": 150013,
       "ordinary_copy_rank_cap": 2,
-      "shooter": "rocket",
-      "behaviour": "shield",
       "item_teach": "overcharge",
       "waves": 4,
       "wave_visuals": [
@@ -539,26 +531,25 @@
         "mad_fridge"
       ],
       "star_times": [
-        77,
-        46
+        79,
+        44
       ]
     },
     {
       "level": 14,
       "monster": "vacuum_viper",
-      "hp": 30300,
+      "hp": 29700,
       "time_seconds": 150,
       "modifier": "NONE",
-      "difficulty": "HARD",
+      "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
       "starting_rank": 1,
       "seed": 150014,
       "ordinary_copy_rank_cap": 2,
-      "behaviour": "suction",
       "goal": {
         "kind": "chain",
-        "n": 18
+        "n": 12
       },
       "visual": "sock_cyclops",
       "waves": 3,
@@ -569,16 +560,16 @@
         "sock_cyclops"
       ],
       "star_times": [
-        81,
-        61
+        75,
+        56
       ]
     },
     {
       "level": 15,
       "monster": "grand_piano_saurus",
-      "hp": 27250,
+      "hp": 34000,
       "time_seconds": 150,
-      "modifier": "GAPS",
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -597,14 +588,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        89,
-        43
+        85,
+        56
       ]
     },
     {
       "level": 16,
       "monster": "tin_can",
-      "hp": 41300,
+      "hp": 41750,
       "time_seconds": 160,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -643,7 +634,6 @@
           0
         ]
       ],
-      "item_teach": "spark",
       "item_grant_at": 8,
       "visual": "iron_duchess",
       "waves": 3,
@@ -654,7 +644,7 @@
         "iron_duchess"
       ],
       "star_times": [
-        95,
+        97,
         40
       ]
     },
@@ -719,7 +709,7 @@
     {
       "level": 19,
       "monster": "mad_fridge",
-      "hp": 42550,
+      "hp": 44000,
       "time_seconds": 165,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -728,7 +718,7 @@
       "starting_rank": 1,
       "seed": 150019,
       "ordinary_copy_rank_cap": 2,
-      "behaviour": "frost",
+      "behaviour": "suction",
       "visual": "iron_duchess",
       "waves": 4,
       "wave_visuals": [
@@ -738,8 +728,8 @@
         "iron_duchess"
       ],
       "star_times": [
-        101,
-        44
+        103,
+        49
       ]
     },
     {
@@ -895,7 +885,7 @@
     {
       "level": 25,
       "monster": "mad_fridge",
-      "hp": 65350,
+      "hp": 67100,
       "time_seconds": 180,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -904,7 +894,7 @@
       "starting_rank": 2,
       "seed": 150025,
       "ordinary_copy_rank_cap": 4,
-      "behaviour": "shield",
+      "behaviour": "frost",
       "start_extra": [
         [
           "magnet",
@@ -922,14 +912,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        105,
-        55
+        107,
+        61
       ]
     },
     {
       "level": 26,
       "monster": "grand_piano_saurus",
-      "hp": 63600,
+      "hp": 63850,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -952,9 +942,10 @@
         "traffic_cone_goblin"
       ],
       "star_times": [
-        111,
+        109,
         61
-      ]
+      ],
+      "item_teach": "spark"
     },
     {
       "level": 27,
@@ -1078,7 +1069,7 @@
     {
       "level": 31,
       "monster": "toaster_twins",
-      "hp": 91950,
+      "hp": 97900,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1087,7 +1078,6 @@
       "starting_rank": 2,
       "seed": 150031,
       "ordinary_copy_rank_cap": 5,
-      "shooter": "rocket",
       "visual": "pixel_pug",
       "waves": 5,
       "wave_visuals": [
@@ -1098,8 +1088,8 @@
         "pixel_pug"
       ],
       "star_times": [
-        85,
-        49
+        103,
+        61
       ]
     },
     {
@@ -1143,7 +1133,7 @@
     {
       "level": 33,
       "monster": "mad_fridge",
-      "hp": 91350,
+      "hp": 98650,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1153,7 +1143,6 @@
       "seed": 150033,
       "ordinary_copy_rank_cap": 5,
       "behaviour": "shield",
-      "shooter": "rocket",
       "waves": 5,
       "wave_visuals": [
         "vacuum_viper",
@@ -1163,8 +1152,8 @@
         "mad_fridge"
       ],
       "star_times": [
-        105,
-        56
+        109,
+        58
       ]
     },
     {
@@ -2428,7 +2417,7 @@
     {
       "level": 76,
       "monster": "toaster_twins",
-      "hp": 125300,
+      "hp": 122900,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2438,7 +2427,6 @@
       "seed": 150076,
       "ordinary_copy_rank_cap": 7,
       "visual": "telescope_toad",
-      "shooter": "rocket",
       "waves": 5,
       "wave_visuals": [
         "parcel_pup",
@@ -2448,8 +2436,8 @@
         "telescope_toad"
       ],
       "star_times": [
-        87,
-        47
+        93,
+        35
       ]
     },
     {

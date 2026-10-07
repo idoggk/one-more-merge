@@ -93,12 +93,22 @@ describe('r25 items', () => {
     expect(hit(true)).toBeCloseTo(hit(false) * 2);
   });
 
-  it('L16 (goal level) grants SPARK at 8 s; nothing before L13', () => {
-    const s = newLevel(LEVELS[15]);
+  it('the SPARK lesson level grants SPARK once; nothing before L13', () => {
+    const def = LEVELS.find((l) => l.item_teach === 'spark')!;
+    const s = newLevel(def);
+    const rng = new Rng(5);
     let got = false;
-    while (s.elapsed < 9 && s.phase === 'playing') {
-      const e = tick(s);
-      if (e.some((x) => x.type === 'itemGrant')) got = true;
+    let next = 1;
+    while (!got && s.phase === 'playing') {
+      if (s.elapsed >= next) {
+        next += 1;
+        const p = legalPairs(s);
+        if (p.length) {
+          const [a, b] = p[rng.int(p.length)];
+          if (drop(s, a, b, s.grid[a]!.id).events.some((x) => x.type === 'itemGrant')) got = true;
+        }
+      }
+      if (tick(s).some((x) => x.type === 'itemGrant')) got = true;
     }
     expect(got).toBe(true);
     expect(s.itemTray).toBe('spark');

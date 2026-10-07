@@ -129,3 +129,21 @@ export function levelReward(def: LevelDef): LevelReward {
   const [w, f] = def.difficulty === 'MEGA_HARD' ? [12, 28] : def.difficulty === 'HARD' ? [10, 18] : [8, 12];
   return { win_bolts: w, first_clear_bolts: f, new_star_bolts: 3, free_jumpstart: 0, free_time_capsule: 0 };
 }
+
+/** r34 onboarding: the ideas a level shows (behaviour, board twist, goal kind, mini-boss, boss, item). */
+export function conceptsOf(d: LevelDef): string[] {
+  const out: string[] = [];
+  if (d.behaviour) out.push(`beh:${d.behaviour}`);
+  if (d.modifier !== 'NONE') out.push(`mod:${d.modifier.startsWith('CORNERS') ? 'CORNERS' : d.modifier}`);
+  if (d.goal) out.push(`goal:${d.goal.kind}`);
+  if (d.mini_boss) out.push('mini');
+  if (d.level % 10 === 0) out.push('boss');
+  if (d.item_teach) out.push(`item:${d.item_teach}`);
+  return out;
+}
+/** Concepts a level shows for the first time. */
+export function newConcepts(n: number): string[] {
+  const seen = new Set(LEVELS.slice(0, n - 1).flatMap(conceptsOf));
+  const d = LEVELS[n - 1];
+  return d ? conceptsOf(d).filter((c) => !seen.has(c)) : [];
+}

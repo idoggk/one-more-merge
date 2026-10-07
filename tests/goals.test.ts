@@ -42,7 +42,8 @@ describe('r23 goal levels', () => {
     expect(evs).not.toContain('threshold'); // no HP-panel kickback on goal levels
   });
   it('CHAIN: one player-rooted cascade of N wins', () => {
-    const def = LEVELS[4];
+    // r34: the first chain-goal level, played as the goal alone
+    const def = { ...LEVELS.find((l) => l.goal?.kind === 'chain')!, waves: undefined };
     expect(def.goal?.kind).toBe('chain');
     const s = newLevel(def);
     play(s, 3, random);
@@ -65,14 +66,14 @@ describe('r23 behaviours and twists', () => {
     expect(evs).toContain('shield');
   });
   it('light suction uses the boss system without armor phases', () => {
-    const s = newLevel(LEVELS[8]);
+    const s = newLevel(LEVELS.find((l) => l.behaviour === 'suction')!);
     expect(s.boss?.light).toBe(true);
     const evs = play(s, 3, random);
     expect(evs.length).toBeGreaterThan(0);
     expect(s.boss!.phaseShown).toBe(0);
   });
   it('GAPS masks (2,1) and (2,3) and nothing ever lands there', () => {
-    const s = newLevel(LEVELS[14]);
+    const s = newLevel(LEVELS.find((l) => l.modifier === 'GAPS')!);
     expect(s.masked).toEqual([11, 13]);
     const rng = new Rng(3);
     for (let t = 0; t < 1200 && s.phase === 'playing'; t++) {
