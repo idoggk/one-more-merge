@@ -1715,12 +1715,12 @@ Now beat the real level.`, this.coachY());
     this.practiceText.setVisible(s.practice && !demo);
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
     const ldef = s.level !== undefined && !s.showcase && !s.rush ? LEVELS[s.level - 1] : undefined;
-    if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
+    if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
     if (ldef && s.phase === 'playing' && !demo) {
       const [g2, g3] = starGoals(ldef);
       const goal = s.elapsed <= g3 ? 3 : s.elapsed <= g2 ? 2 : 0;
       const left = Math.ceil((goal === 3 ? g3 : g2) - s.elapsed);
-      const txt = goal ? `${'★'.repeat(goal)} ${left}s` : '';
+      const txt = goal ? `${goal}★ · ${left}s left` : '';
       if (txt !== this.starChase.text) this.starChase.setText(txt).setColor(left <= 5 ? '#ff8a5c' : '#ffcf33');
       this.starChase.setVisible(!!goal);
     } else this.starChase.setVisible(false);
@@ -1738,7 +1738,7 @@ Now beat the real level.`, this.coachY());
     hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, bw, 26, 13);
     if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, Math.max(26, bw * frac), 26, 13);
     }
-    this.hpText.setText(s.showcase ? 'PRACTICE' : s.goal ? (s.goal.kind === 'rank' ? `MAKE RANK ${s.goal.n}  \u00b7  best ${Math.max(1, s.goal.best)}` : `CHAIN x${s.goal.n}  \u00b7  best x${s.goal.best}`) : fmt(Math.max(0, Math.round(this.shownHp))));
+    this.hpText.setText(s.showcase ? 'PRACTICE' : s.goal ? (s.goal.kind === 'rank' ? `BEST RANK ${Math.max(1, s.goal.best)} / ${s.goal.n}` : `BEST CHAIN ${s.goal.best} / ${s.goal.n}`) : fmt(Math.max(0, Math.round(this.shownHp))));
     if (s.goal && this.hpFill) this.hpFill.setCrop(0, 0, this.hpFill.width * (1 - frac), this.hpFill.height).setTint(0x8ef08a);
     // r23 chain shield chip + bubble on the monster
     if (!this.shieldChip) {
@@ -1755,7 +1755,13 @@ Now beat the real level.`, this.coachY());
     }
     if (!this.hpTicks) this.hpTicks = this.add.graphics().setDepth(3);
     const ht = this.hpTicks.clear();
-    if (s.target >= 0 && TUNING.kickback && !s.goal)
+    if (this.realBoss && !BOSSES[this.realBoss.def].mini) {
+      // r30 (ChatGPT): bosses show their armor phases in the bar
+      for (const q of [0.66, 0.33]) {
+        const x = W / 2 - bw / 2 + bw * q;
+        ht.fillStyle(0x2b1d2e, 1).fillRect(x - 5, HP_Y - 19, 10, 38).fillStyle(frac > q ? 0xe0b04a : 0x8a6a3a, 1).fillRect(x - 3, HP_Y - 17, 6, 34);
+      }
+    } else if (s.target >= 0 && TUNING.kickback && !s.goal)
       for (const q of [0.75, 0.5, 0.25]) {
         const x = W / 2 - bw / 2 + bw * q;
         ht.fillStyle(0x2b1d2e, frac > q ? 0.85 : 0.3).fillRect(x - 2, HP_Y - 15, 4, 30);
@@ -2075,7 +2081,7 @@ Now beat the real level.`, this.coachY());
               this.floatText(cp.x, cp.y - 30, 'DODGED!', '#8ef08a', 44, 500);
               tlog.log('boss_dodge', { attack: e.attack });
             } else {
-              const nm = ({ clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!', slick: e.outcome === 'hit' ? 'OIL!' : 'WHIFF', portals: e.outcome === 'hit' ? 'PORTALS!' : 'WHIFF', tow: e.outcome === 'hit' ? 'LINKED!' : 'WHIFF', ransom: '' } as Record<string, string>)[e.attack] ?? 'WHIFF';
+              const nm = ({ clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!', slick: e.outcome === 'hit' ? 'OIL!' : 'WHIFF', portals: e.outcome === 'hit' ? 'PORTALS!' : 'WHIFF', tow: e.outcome === 'hit' ? 'TOWED' : 'WHIFF', ransom: '' } as Record<string, string>)[e.attack] ?? 'WHIFF';
               // the lane is busy with the attack line, so the hit word pops on the board where it happened
               const tc = e.target.cells?.[0] ?? (e.target.row !== undefined ? e.target.row * COLS + 2 : e.target.col !== undefined ? 2 * COLS + e.target.col : 2 * COLS + 2);
               const cp = cellXY(tc);
@@ -3618,8 +3624,8 @@ Now beat the real level.`, this.coachY());
         const pk = bd ? `boss_${bd.id}_intact` : '';
         if (pk && this.hasArt(pk)) {
           const pi = this.add.image(tag.x + side * (tag.width + 46), y - 6, pk);
-          pi.setScale(84 / Math.max(pi.width, pi.height));
-          if (!(stars[String(n)] ?? 0)) pi.setTint(0x2b1d2e).setAlpha(0.8);
+          pi.setScale(116 / Math.max(pi.width, pi.height));
+          if (!(stars[String(n)] ?? 0)) pi.setTint(0x3b2d4e).setAlpha(0.5);
           road.add(pi);
         }
       }
@@ -4651,6 +4657,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const t = this.time.now;
     if (atk === 'slick' && tgt.cells) {
       img('prop_oil', tgt.cells[0], CELL - 10, 0);
+      const o = cellXY(tgt.cells[0]);
+      g.lineStyle(4, 0x2ecbe6, 0.9).strokeRoundedRect(o.x - CELL / 2 + 6, o.y - CELL / 2 + 6, CELL - 12, CELL - 12, 14);
       // r30: a bold slide arrow from the oil to where a drop will end up
       const f = cellXY(tgt.cells[0]), to = cellXY(tgt.cells[1]);
       const ang = Math.atan2(to.y - f.y, to.x - f.x);
@@ -4663,8 +4671,12 @@ Merge them into a RANK ${rank}!`, this.coachY());
       img('prop_portal_violet', tgt.cells[1], CELL - 8, 1).setAngle(-t / 6);
     } else if (atk === 'tow' && idsCells.length === 2) {
       const a = cellXY(idsCells[0]), b = cellXY(idsCells[1]);
-      g.lineStyle(14, 0x2b1d2e, 1).lineBetween(a.x, a.y, b.x, b.y).lineStyle(8, 0xc0a070, 1).lineBetween(a.x, a.y, b.x, b.y);
-      for (const q of [a, b]) g.fillStyle(0x2b1d2e, 1).fillCircle(q.x, q.y, 10).fillStyle(0xffd24a, 1).fillCircle(q.x, q.y, 6);
+      const pl = 0.75 + 0.25 * Math.sin(t / 143);
+      g.lineStyle(16, 0x1e2a44, 1).lineBetween(a.x, a.y, b.x, b.y).lineStyle(10, 0xd6a640, 1).lineBetween(a.x, a.y, b.x, b.y);
+      for (const q of [a, b]) {
+        g.fillStyle(0x1e2a44, 1).fillCircle(q.x, q.y, 14).fillStyle(0x2ecbe6, 1).fillCircle(q.x, q.y, 9);
+        g.lineStyle(4, 0x2ecbe6, pl).strokeRoundedRect(q.x - CELL / 2 + 6, q.y - CELL / 2 + 6, CELL - 12, CELL - 12, 14);
+      }
     }
   }
 
@@ -4738,10 +4750,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
         if (atk === 'tow') g.lineStyle(10, 0x2b1d2e, 0.7 * pulse).lineBetween(a1.x, a1.y, a2.x, a2.y).lineStyle(6, 0xffd2c8, pulse).lineBetween(a1.x, a1.y, a2.x, a2.y);
         else {
           // r30: ransom clocks on both machines + a dashed tether: "wake these two together"
+          const late = (bs.pending?.deadline ?? 0) - this.s.elapsed < 0.75;
+          const rc = late ? 0xff4b3e : 0x9a63ff;
+          const rp = late ? 0.5 + 0.5 * Math.abs(Math.sin(this.time.now / 40)) : 1;
+          for (const q of [a1, a2]) g.lineStyle(5, rc, rp).strokeRoundedRect(q.x - CELL / 2 + 5, q.y - CELL / 2 + 5, CELL - 10, CELL - 10, 14);
           const steps = 10;
           for (let k = 0; k < steps; k += 2) {
             const p0 = k / steps, p1 = (k + 1) / steps;
-            g.lineStyle(6, 0xffcf33, pulse).lineBetween(a1.x + (a2.x - a1.x) * p0, a1.y + (a2.y - a1.y) * p0, a1.x + (a2.x - a1.x) * p1, a1.y + (a2.y - a1.y) * p1);
+            g.lineStyle(6, rc, rp).lineBetween(a1.x + (a2.x - a1.x) * p0, a1.y + (a2.y - a1.y) * p0, a1.x + (a2.x - a1.x) * p1, a1.y + (a2.y - a1.y) * p1);
           }
           [a1, a2].forEach((q, k) => {
             const name = `ransom_${k}`;

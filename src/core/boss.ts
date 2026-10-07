@@ -54,9 +54,9 @@ export const ATTACK_COPY: Record<BossAttack, { what: string; why: string }> = {
   blocks: { what: 'JUNK', why: 'fire beside blocks to clear' },
   pull: { what: 'PULL UP', why: 'move it or block the arrow' },
   bounce: { what: 'BOUNCE', why: 'it jumps to the circle' },
-  slick: { what: 'OIL', why: 'drops slide along the arrow' },
+  slick: { what: 'SLICK', why: 'oil drops slide 1 cell →' },
   portals: { what: 'PORTALS', why: 'a shortcut across your board' },
-  tow: { what: 'TOW BAR', why: 'two machines move together' },
+  tow: { what: 'TOW BAR', why: 'move one → both move' },
   ransom: { what: 'TIME RANSOM', why: 'wake both in one chain' },
 };
 export const RANSOM_COST = 2;
