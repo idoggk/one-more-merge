@@ -37,7 +37,7 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { boltsFor, cardsFor, CRATES, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
 import { featuredUnit, rollCrate, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
@@ -142,6 +142,8 @@ interface Meta {
   trophies?: string[];
   /** r36 SCREW YARD weekly event: screwdrivers (one per attempt) and this week's progress. */
   screwdrivers?: number;
+  /** r38 collection milestones claimed (index into COLLECTION_GOALS). */
+  collClaimed?: number;
   yard?: { week: number; clears: number; paid: number };
   masteryPaid?: number;
   /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
@@ -3887,7 +3889,8 @@ Now beat the real level.`, this.coachY());
       const lb = this.add.text(x, y, t.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: on ? '#2b1d2e' : '#fff0cf' }).setOrigin(0.5);
       // r36: EVENTS gets a dot when a Screw Yard attempt is waiting and the week's track is not done
       const yardReady = t === 'events' && this.currentLevel() - 1 >= YARD_UNLOCK && (this.meta.screwdrivers ?? SCREWDRIVERS.start) > 0 && this.yardWeek().clears < YARD_TIERS[YARD_TIERS.length - 1].need;
-      const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0)) || yardReady;
+      const collReady = t === 'units' && (() => { const gl = COLLECTION_GOALS[this.meta.collClaimed ?? 0]; if (!gl) return false; const p = this.collectionProgress(); return (gl.kind === 'own' ? p.own : p.levels) >= gl.n; })();
+      const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0 || collReady)) || yardReady;
       if (ready) c.add(this.add.circle(x + 62, y - 30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
       if (t === 'events' && !this.meta.hardUnlocked && this.currentLevel() < 3) lb.setAlpha(0.5);
       const z = this.add.zone(x, y, 166, 96).setInteractive({ useHandCursor: true });
@@ -4797,15 +4800,55 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, 160, 'UNITS', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     // crates + shop row
     const crates = this.totalCrates();
-    this.button(c, W / 2 - 150, 240, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x8a6a4a, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
-    this.button(c, W / 2 + 150, 240, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
+    this.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x8a6a4a, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
+    this.button(c, W / 2 + 150, 232, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
+    this.collectionStrip(c, 304);
     // 3-column card grid
     // 13 units: 4 columns of slightly smaller cards
     UNITS.forEach((u, k) => {
-      const x = W / 2 + ((k % 4) - 1.5) * 172, y = 410 + Math.floor(k / 4) * 238;
+      const x = W / 2 + ((k % 4) - 1.5) * 172, y = 438 + Math.floor(k / 4) * 232;
       c.add(this.unitCard(u, x, y).setScale(0.8));
     });
     this.drawNav(c, 'units');
+  }
+
+  /** r38 collection milestones: the next goal, progress and reward; CLAIM when reached. */
+  collectionProgress() {
+    const units = Object.values(this.meta.units ?? {}).filter((v) => v.level >= 1);
+    return { own: units.length, levels: units.reduce((a, v) => a + v.level, 0) };
+  }
+
+  collectionStrip(c: Phaser.GameObjects.Container, y: number) {
+    const m = this.meta;
+    const i = m.collClaimed ?? 0;
+    const goal = COLLECTION_GOALS[i];
+    const g = this.add.graphics().fillStyle(0x2b1d2e, 0.88).fillRoundedRect(40, y - 30, W - 80, 60, 20);
+    c.add(g);
+    if (!goal) {
+      c.add(this.add.text(W / 2, y, 'COLLECTION COMPLETE  \u2605', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffcf33' }).setOrigin(0.5));
+      return;
+    }
+    const p = this.collectionProgress();
+    const have = goal.kind === 'own' ? p.own : p.levels;
+    const done = have >= goal.n;
+    const r = goal.reward;
+    const prize = r.crate ? `${r.crate.toUpperCase()} CRATE` : r.gems ? `${r.gems} GEMS` : `${r.bolts} BOLTS`;
+    const what = goal.kind === 'own' ? `OWN ${goal.n} UNITS` : `${goal.n} TOTAL UNIT LEVELS`;
+    // progress fill under the text
+    g.fillStyle(0x5fbf4a, 0.45).fillRoundedRect(44, y - 26, (W - 88) * Math.min(1, have / goal.n), 52, 17);
+    c.add(this.add.text(64, y, `${what}  ${Math.min(have, goal.n)}/${goal.n}  \u2192  ${prize}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#fff0cf' }).setOrigin(0, 0.5));
+    if (done)
+      this.button(c, W - 120, y, 150, 'CLAIM', 0x5fbf4a, () => {
+        m.collClaimed = i + 1;
+        if (r.bolts) m.bolts = (m.bolts ?? 0) + r.bolts;
+        if (r.gems) m.gems = (m.gems ?? 0) + r.gems;
+        if (r.crate) this.giveCrate(r.crate);
+        store(META_KEY, JSON.stringify(m));
+        tlog.log('collection_claim', { i, prize });
+        sfx.star?.(3);
+        this.showToast(`COLLECTION: +${prize}`);
+        this.openUnitsTab();
+      }, 0.55);
   }
 
   unitCard(u: UnitDef, x: number, y: number) {

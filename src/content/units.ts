@@ -81,6 +81,19 @@ export const SHOP = {
     { gems: 1200, price: '$9.99' },
   ],
 };
+/** r38 COLLECTION MILESTONES (ChatGPT review): every unlock and level-up visibly advances a goal. In order. */
+export const COLLECTION_GOALS: { kind: 'own' | 'levels'; n: number; reward: { bolts?: number; gems?: number; crate?: CrateKind } }[] = [
+  { kind: 'own', n: 6, reward: { bolts: 150 } },
+  { kind: 'levels', n: 25, reward: { crate: 'wood' } },
+  { kind: 'own', n: 8, reward: { crate: 'iron' } },
+  { kind: 'levels', n: 35, reward: { bolts: 300 } },
+  { kind: 'own', n: 10, reward: { gems: 30 } },
+  { kind: 'levels', n: 50, reward: { crate: 'iron' } },
+  { kind: 'own', n: 13, reward: { crate: 'gold' } },
+  { kind: 'levels', n: 70, reward: { gems: 60 } },
+  { kind: 'levels', n: 100, reward: { crate: 'gold' } },
+];
+
 /** Free Gems (ChatGPT r32, ~7/day for an active player). */
 export const GEM_REWARDS = { dailyBench: 2, allBounties: 2, rushFull: 20, chapterBoss: 5 };
 
