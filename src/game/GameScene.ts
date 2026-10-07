@@ -4136,8 +4136,7 @@ Now beat the real level.`, this.coachY());
     });
     const by = top + 200 + rows * 84 + 6;
     c.add(this.add.text(W / 2, by, `Cleared this week: ${yd.clears}   ·   \u{1FA9B} screwdrivers: ${m.screwdrivers ?? SCREWDRIVERS.start}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, by + 52, 'Earn screwdrivers: win levels, Bounties,
-Rush fights and the Daily.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, by + 52, 'Earn screwdrivers: win levels, Bounties,\nRush fights and the Daily.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
     this.button(c, W / 2, top + PH - 170, 460, `PLAY YARD ${yd.clears + 1}  ·  \u{1FA9B}1`, 0x5fbf4a, () => this.startYard(), 0.95);
     this.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => this.openTitle('events'), 0.75);
   }
