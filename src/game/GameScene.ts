@@ -644,7 +644,9 @@ export class GameScene extends Phaser.Scene {
     }
     this.target.setTexture(key);
     // remix opponents reuse the three backdrops (alley / kitchen / junkyard)
-    const sk = `stage_${Math.max(0, this.s.target) % 3}`;
+    // r28: each chapter has its own backdrop when the art exists (stage_ch1..6), else the three classic stages
+    const chk = this.s.level !== undefined ? `stage_ch${Math.ceil(this.s.level / 10)}` : '';
+    const sk = chk && this.hasArt(chk) ? chk : `stage_${Math.max(0, this.s.target) % 3}`;
     if (this.hasArt(sk)) {
       this.stage.setTexture(sk).setVisible(true);
       this.stage.setScale(Math.max((W - 140) / this.stage.width, STAGE_H / this.stage.height));
