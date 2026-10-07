@@ -316,3 +316,8 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Screw Yard: thicker plates clustered to 78% of the yard, stronger shadows, first-yard tip as a top toast that leaves after the first screw, event card "TIER x/8 · screwdrivers · ends in" + grand prize line.
 - Trophies: TROPHIES button, "ON SHELF x/4" header, check badge, 3-segment gold mastery strip, four fixed sockets on a shelf plank.
 - Declined: removing the "3★ · Ns left" chip (Ido liked it); a 2-part NEXT preview (the matchmaker reads the board, so part 2 cannot be promised exactly).
+
+### Round 38b — art landed
+- v22 pack recovered from the ChatGPT Library (the chat itself stalled): 36 rank sprites (Mortar, Arc Welder in the corrected welding-box design, Horn, Fuse Box, Amplifier, Signal Beacon), 16 trophy figurines, wood/iron/gold crates closed + open (open art swaps in before the cards fly), rarity card frames, gem icon, shelf plinths. Amplifier recoloured teal in code (hue shift of the orange-red body only) - it read as the orange Fuse Box.
+- Screw Yard art (separate chat, approved piece by piece): neutral-steel long / short / square plates with see-through holes (generator now uses these three measured shapes; screw count fixed by long<->short swaps), neutral screw head tinted per colour, open toolbox with wells (tinted, screws land in the wells, a full box lifts away), tray with five wells and a red warning well.
+- `tools/import-art.py` (trim + resize + webp), `tools/import-v22.py`; `sy_` art is lazy-loaded.
