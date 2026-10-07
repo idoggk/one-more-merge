@@ -104,6 +104,8 @@ export interface GameState {
   noOverdrive?: boolean;
   /** Chapter boss fight (r20): levels 10/20/30/40/50/60. */
   boss?: BossState | null;
+  /** r30 Monster Bounty fight (daily; results go to the bounty flow). */
+  bounty?: { id: string; twist: string; date: string; slot: number };
   /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
   rush?: { id: string; slot: number; week: number };
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */

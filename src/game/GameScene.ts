@@ -36,6 +36,7 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
+import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
 export const W = 720;
 const CELL = 124;
@@ -110,6 +111,10 @@ interface Meta {
   shooter?: Family;
   /** Simplified configuration for the stranger playtest (ChatGPT r21). */
   playtestMode?: boolean;
+  /** r30 Monster Bounties: per-date record (won / mastered slots), mastery stars per opponent, milestones paid. */
+  bounty?: Record<string, { won: number[]; mastered: number[] }>;
+  bossMastery?: Record<string, number>;
+  masteryPaid?: number;
   /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
   rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[] };
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
@@ -1661,7 +1666,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1714,7 +1719,7 @@ Now beat the real level.`, this.coachY());
     this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
     this.practiceText.setVisible(s.practice && !demo);
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
-    const ldef = s.level !== undefined && !s.showcase && !s.rush ? LEVELS[s.level - 1] : undefined;
+    const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty ? LEVELS[s.level - 1] : undefined;
     if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
     if (ldef && s.phase === 'playing' && !demo) {
       const [g2, g3] = starGoals(ldef);
@@ -2885,6 +2890,7 @@ Now beat the real level.`, this.coachY());
   openResult(won: boolean) {
     if (this.modal) this.closeModal();
     if (this.s.rush) return this.openRushResult(won);
+    if (this.s.bounty) return this.openBountyResult(won);
     if (this.s.level !== undefined) return this.openLevelResult(won);
     const s = this.s;
     const m = this.meta;
@@ -3199,6 +3205,7 @@ Now beat the real level.`, this.coachY());
     // "again" (ONE MORE / RESTART, no args) repeats the same mode; a Daily repeats today's bench
     if (hardArg === undefined && this.s.daily) return this.startDaily();
     if (hardArg === undefined && this.s.rush) return this.startRush();
+    if (hardArg === undefined && this.s.bounty) return this.startBounty(this.s.bounty.slot);
     if (hardArg === undefined && this.s.level !== undefined) return this.startLevel(this.s.level);
     const hard = hardArg ?? this.s.hard;
     const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
@@ -3217,6 +3224,105 @@ Now beat the real level.`, this.coachY());
     const minis = LEVELS.filter((d) => d.mini_boss && beat(d.level)).map((d) => d.mini_boss!);
     const bosses = LEVELS.filter((d) => d.level % 10 === 0 && beat(d.level)).map((d) => BOSSES[chapterBossIdx(d.level)].id);
     return minis.length >= 1 && bosses.length >= 2 ? { minis, bosses } : null;
+  }
+
+  /** r30: every beaten boss / mini-boss id. */
+  beatenBossIds(): string[] {
+    const stars = this.meta.levelStars ?? {};
+    return LEVELS.filter((d) => (d.mini_boss || d.level % 10 === 0) && (stars[String(d.level)] ?? 0) > 0).map((d) => d.mini_boss ?? BOSSES[chapterBossIdx(d.level)].id);
+  }
+
+  /** EVENTS card: today's three bounties as portraits with their twist; tap one to fight. */
+  bountyCard(c: Phaser.GameObjects.Container, y: number) {
+    const date = localDate();
+    const list = bountiesFor(date, this.beatenBossIds());
+    const rec = this.meta.bounty?.[date] ?? { won: [], mastered: [] };
+    const cc = this.add.container(W / 2, y);
+    const h = 270;
+    if (this.hasArt('ui_card')) cc.add(this.add.image(0, 0, 'ui_card').setDisplaySize(W - 50, h));
+    else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
+    cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 40, 'MONSTER BOUNTIES', { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0, 0.5));
+    if (!list) {
+      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 90, 'Beat 3 bosses or mini-bosses to unlock\ndaily bounties.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6 }));
+      c.add(cc);
+      return;
+    }
+    cc.add(this.add.text((W - 50) / 2 - 64, -h / 2 + 40, `+${BOUNTY_BOLTS} each`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#b06a1a' }).setOrigin(1, 0.5));
+    list.forEach((b, k) => {
+      const x = (k - 1) * 205, yy = 20;
+      const key = `boss_${b.id}_intact`;
+      const done = rec.won.includes(k), mast = rec.mastered.includes(k);
+      const slot = this.add.container(x, yy);
+      slot.add(this.add.graphics().fillStyle(done ? 0xd8f0c8 : 0xead2b0, 1).fillRoundedRect(-95, -80, 190, 175, 18));
+      if (this.hasArt(key)) {
+        const im = this.add.image(0, -20, key);
+        im.setScale(110 / Math.max(im.width, im.height));
+        slot.add(im);
+      }
+      slot.add(this.add.text(0, 52, TWIST_TEXT[b.twist], { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
+      if (done) slot.add(this.add.text(70, -62, mast ? '★' : '✓', { fontFamily: 'Arial Black', fontSize: '34px', color: mast ? '#e0a020' : '#2a8a3a', stroke: '#fff0cf', strokeThickness: 5 }).setOrigin(0.5));
+      slot.setSize(190, 175).setInteractive({ useHandCursor: true });
+      slot.on('pointerup', () => (sfx.click(), this.startBounty(k)));
+      cc.add(slot);
+    });
+    c.add(cc);
+  }
+
+  startBounty(k: number) {
+    const date = localDate();
+    const list = bountiesFor(date, this.beatenBossIds());
+    if (!list) return;
+    this.closeModal();
+    const b = list[k];
+    tlog.log('bounty_start', { date, id: b.id, twist: b.twist });
+    this.startState(newBountyFight(b.id, b.twist as BountyTwist, date, k));
+    this.showEvent(`BOUNTY  \u00b7  ${TWIST_TEXT[b.twist].toUpperCase()}`, '#d9c2ff', 2200);
+  }
+
+  openBountyResult(won: boolean) {
+    const m = this.meta;
+    const bt = this.s.bounty!;
+    m.bounty = m.bounty ?? {};
+    const rec = (m.bounty[bt.date] = m.bounty[bt.date] ?? { won: [], mastered: [] });
+    let bolts = 0;
+    const masteredNow = won && (this.s.timeLeft >= MASTERY_TIME_LEFT || this.s.stats.biggestChain >= MASTERY_CHAIN);
+    if (won && !rec.won.includes(bt.slot)) {
+      rec.won.push(bt.slot);
+      bolts += BOUNTY_BOLTS;
+    }
+    let newStar = false;
+    if (masteredNow && !rec.mastered.includes(bt.slot)) {
+      rec.mastered.push(bt.slot);
+      m.bossMastery = { ...(m.bossMastery ?? {}), [bt.id]: (m.bossMastery?.[bt.id] ?? 0) + 1 };
+      newStar = true;
+    }
+    const total = Object.values(m.bossMastery ?? {}).reduce((a, b) => a + b, 0);
+    let milestone = 0;
+    for (const [need, pay] of MASTERY_MILESTONES) if (total >= need && (m.masteryPaid ?? 0) < need) {
+      milestone += pay;
+      m.masteryPaid = need;
+    }
+    bolts += milestone;
+    if (bolts) m.bolts = (m.bolts ?? 0) + bolts;
+    store(META_KEY, JSON.stringify(m));
+    tlog.log('bounty_end', { id: bt.id, won, mastered: masteredNow, bolts });
+    const c = this.panel(640);
+    const top = H / 2 - 320;
+    const name = BOSSES.find((x) => x.id === bt.id)?.name ?? '';
+    c.add(this.add.text(W / 2, top + 64, won ? 'BOUNTY CLAIMED!' : 'BOUNTY ESCAPED', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    const key = `boss_${bt.id}_intact`;
+    if (this.hasArt(key)) {
+      const im = this.add.image(W / 2, top + 210, key);
+      im.setScale(170 / Math.max(im.width, im.height));
+      if (!won) im.setAlpha(0.6);
+      c.add(im);
+    }
+    const lines = [name, won ? (masteredNow ? `MASTERY ★  ${m.bossMastery?.[bt.id] ?? 1}` : `Master it: ${MASTERY_TIME_LEFT}s left or a x${MASTERY_CHAIN} chain`) : 'Try again any time today'];
+    if (bolts) lines.push(`+${bolts} BOLTS${milestone ? '  (mastery milestone!)' : ''}`);
+    if (newStar) sfx.star?.(3);
+    c.add(this.add.text(W / 2, top + 320, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    this.button(c, W / 2 - 120, top + 540, 220, 'AGAIN', 0x5fbf4a, () => this.startBounty(bt.slot), 0.85);
+    this.button(c, W / 2 + 120, top + 540, 220, 'EVENTS', 0x27a4c0, () => this.openTitle('events'), 0.85);
   }
 
   rushRun: { i: number; times: number[] } | null = null;
@@ -3759,7 +3865,7 @@ Now beat the real level.`, this.coachY());
     const hrs = 23 - now.getHours();
     const mins = 59 - now.getMinutes();
     const dailyOpen = m.playtestMode ? lv >= 10 : lv >= 3 || m.hardUnlocked;
-    card(370, 262, today ? 'DAILY BENCH ✓' : 'DAILY BENCH', [paid ? 'Bonus collected for today' : "Today's bonus: +8 Bolts +1 Kit", `New bench in ${hrs}h ${mins}m${today ? `  ·  best ${today.targets === 3 ? `${today.time}s` : `${today.targets}/3`}` : ''}`], 0x5fbf4a, dailyOpen, m.playtestMode ? 10 : 3, () => this.startDaily());
+    card(330, 220, today ? 'DAILY BENCH ✓' : 'DAILY BENCH', [paid ? 'Bonus collected for today' : "Today's bonus: +8 Bolts +1 Kit", `New bench in ${hrs}h ${mins}m${today ? `  ·  best ${today.targets === 3 ? `${today.time}s` : `${today.targets}/3`}` : ''}`], 0x5fbf4a, dailyOpen, m.playtestMode ? 10 : 3, () => this.startDaily());
     if (m.playtestMode) {
       this.drawNav(c, 'events');
       return;
@@ -3767,9 +3873,9 @@ Now beat the real level.`, this.coachY());
     // r29 BOSS RUSH card (before the older modes)
     const rushOpen = this.rushEligible();
     const rw = m.rush?.week === weekId() ? m.rush.granted : 0;
-    card(1160, 240, 'BOSS RUSH', ['3 fights in a row  \u00b7  fresh boards', `This week: ${rw}/${RUSH_REWARDS[2]} Bolts${m.rush?.medal ? '  \u00b7  medal ✓' : ''}`], 0x8e58c9, !!rushOpen, 20, () => this.startRush());
-    card(640, 240, 'CHALLENGE', ['3 monsters, one 135s clock, tougher.', 'No boosters. Pure skill.'], 0xe8452c, lv >= 5 || m.hardUnlocked, 5, () => this.retry(true, -1), ['Classic run ›', () => this.retry(false, -1)]);
-    card(900, 240, 'REMIX', ['One big junk monster with a', 'board-attacking trick.'], 0x27a4c0, lv >= 10 || m.hardUnlocked, 10, () => this.openRemixPicker());
+    this.bountyCard(c, 585);
+    card(845, 240, 'BOSS RUSH', ['3 fights in a row  \u00b7  fresh boards', `This week: ${rw}/${RUSH_REWARDS[2]} Bolts${m.rush?.medal ? '  \u00b7  medal ✓' : ''}`], 0x8e58c9, !!rushOpen, 20, () => this.startRush());
+    card(1100, 230, 'CLASSIC MODES', ['Challenge: 3 monsters, one clock.', 'Remix: one big monster with a trick.'], 0xe8452c, lv >= 5 || m.hardUnlocked, 5, () => this.retry(true, -1), ['Remix ›', () => (lv >= 10 || m.hardUnlocked ? this.openRemixPicker() : this.showToast('REMIX UNLOCKS AT LEVEL 10'))]);
     this.drawNav(c, 'events');
   }
 
@@ -4119,6 +4225,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
       if (!e.beaten) c.add(this.add.text(x, y - 10, '?', { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#fff0cf' }).setOrigin(0.5));
       c.add(this.add.text(x, y + 116, e.beaten || met ? e.name : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: 176 }, lineSpacing: -4 }).setOrigin(0.5, 1));
+      const mst = this.meta.bossMastery?.[e.id.replace(/^boss_/, '')] ?? 0;
+      if (mst) c.add(this.add.text(x - 70, y - 100, `★${mst}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#e0a020', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
       if (this.meta.rush?.stamps?.[e.id.replace(/^boss_/, '')]) c.add(this.add.text(x + 62, y - 100, 'RUSH', { fontFamily: 'Lilita One, Arial Black', fontSize: '18px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 6, y: 2 } }).setOrigin(0.5).setAngle(12));
       c.add(this.add.text(x, y + 130, e.beaten ? `beaten  \u00b7  L${e.level}` : `level ${e.level}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: e.beaten ? '#2a8a3a' : '#7a5a4a' }).setOrigin(0.5));
     });

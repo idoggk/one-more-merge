@@ -262,3 +262,8 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **Boss Rush** (EVENTS; L20 + 1 mini + 2 bosses beaten): weekly seeded course (beaten mini, then two beaten bosses), fresh boards with event rules (rank cap 6, copy cap 4, no helpers/Rocket/boosters), HP fitted per boss/slot to 85/80/75% (`tools/rush-fit.ts` → rush.json), cumulative weekly Bolts 8/18/40 (only the delta is paid), permanent medal on first full course, gold RUSH stamps in the Monster Book.
 - `tools/smoke-levels.mjs` plays every level in the real scene and reports page errors (found + fixed a hit-face crash). `tools/item-check.ts` showed items worth +1% for random play → OVERCHARGE x2, SPARK/CORNER 2 uses.
 - Boss / cast / chapter-stage art loads after the first frame.
+
+### Round 30 — handover to a fresh ChatGPT chat, critique fixes, Monster Bounties
+- The old design chat hit its size limit; design continues in a new chat seeded with screenshots/r30/PROJECT_BRIEF.md.
+- ChatGPT critique (board-only comprehension: Slick 4/10, Tow 6/10, Ransom 2/10) → BEST CHAIN/BEST RANK goal strip, "3★ · 9s left", boss HP phase dividers at 66/33%, brass tow rod + cyan couplers + TOWED, oil cyan edge + bold slide arrow + landing glow, ransom violet frames + tether turning red in the last 0.75 s, larger lighter road silhouettes, clearer copy.
+- **Monster Bounties** (EVENTS; needs 3 beaten bosses/minis): 3 date-seeded beaten opponents per day, each with a twist (two holes / two corners / Rockets instead of Cannons), Rush event rules and fitted HP. +10 Bolts per first daily win; mastery star per bounty for >= 20 s left or a x12 chain; Monster Book shows ★N; mastery milestones 3/8/15 pay 30/60/120 Bolts. Challenge + Remix share one CLASSIC MODES card.

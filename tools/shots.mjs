@@ -62,6 +62,9 @@ const states = {
   mode_daily: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startDaily(); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 400); }, 15000],
   mode_challenge: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.retry(true, -1); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 400); }, 15000],
   mode_remix: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.retry(false, 2); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 400); }, 15000],
+  bounty_events: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [i + 1, 2])) }); sc.openTitle('events'); }, 1000],
+  bounty_fight: [(sc) => { sc.startBounty(0); sc.finishIntro(true); }, 2500],
+  bounty_result: [(sc) => { sc.s.phase = 'won'; sc.s.timeLeft = 30; sc.openBountyResult(true); }, 1200],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {
