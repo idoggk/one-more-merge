@@ -94,6 +94,11 @@ export const COLLECTION_GOALS: { kind: 'own' | 'levels'; n: number; reward: { bo
   { kind: 'levels', n: 100, reward: { crate: 'gold' } },
 ];
 
+/** r40 FEATURED CRATE (ChatGPT): Gems can target one unit. Rotates every 48 h among non-starters (owned or not).
+ *  An Iron-crate roll where a card of the featured unit's rarity becomes the featured unit 60% of the time; a featured
+ *  copy is guaranteed within every FEATURED_PITY crates (the counter resets when one drops). */
+export const FEATURED_CRATE = { gems1: 120, gems5: 540, share: 0.6, pity: 5, hours: 48 };
+
 /** Free Gems (ChatGPT r32, ~7/day for an active player). */
 export const GEM_REWARDS = { dailyBench: 2, allBounties: 2, rushFull: 20, chapterBoss: 5 };
 

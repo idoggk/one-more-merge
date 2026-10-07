@@ -1,5 +1,5 @@
 // Crate + pack opening (round 32). Pure + seeded so contents are reproducible from (seed, counter).
-import { CRATES, EPIC_PITY, NEW_UNIT_PITY, RARITY_ODDS, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
+import { CRATES, EPIC_PITY, FEATURED_CRATE, NEW_UNIT_PITY, RARITY_ODDS, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
 import { Rng } from './rng';
 import type { Family } from './types';
 
@@ -14,6 +14,8 @@ export interface PityState {
   epic: number;
   /** Crates in a row without a new unit. */
   dry: number;
+  /** r40 Featured Crates in a row without the featured unit. */
+  featured?: number;
 }
 
 const pool = (r: Rarity) => UNITS.filter((u) => u.rarity === r).map((u) => u.id);
@@ -60,6 +62,28 @@ export function rollCrate(kind: CrateKind, owned: ReadonlySet<Family>, seed: num
   const gotEpic = picks.some((u) => rarityOf(u) === 'epic');
   pity.epic = gotEpic ? 0 : pity.epic + EPIC_PITY[kind];
   pity.dry = picks.some((u) => !owned.has(u)) ? 0 : pity.dry + 1;
+  return tally(picks, owned);
+}
+
+/** r40: the featured unit for the 48-hour window containing `dayIndex` (days since epoch). */
+export function featuredGemUnit(dayIndex: number): Family {
+  const pool = UNITS.filter((u) => !STARTER_UNITS.includes(u.id)).map((u) => u.id);
+  const w = Math.floor(dayIndex / (FEATURED_CRATE.hours / 24));
+  let h = (w * 2654435761) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return pool[h % pool.length];
+}
+
+/** r40 Featured Crate: an Iron roll biased to the featured unit, with a hard guarantee. Mutates `pity.featured`. */
+export function rollFeatured(owned: ReadonlySet<Family>, seed: number, featured: Family, pity: PityState): CrateCard[] {
+  const base = rollCrate('iron', owned, seed, pity);
+  const rng = new Rng((seed ^ 0x5eed) >>> 0 || 1);
+  const fr = rarityOf(featured);
+  const picks: Family[] = [];
+  for (const c of base) for (let i = 0; i < c.count; i++) picks.push(c.unit as Family);
+  for (let k = 0; k < picks.length; k++) if (rarityOf(picks[k]) === fr && rng.next() < FEATURED_CRATE.share) picks[k] = featured;
+  if (!picks.includes(featured) && (pity.featured ?? 0) + 1 >= FEATURED_CRATE.pity) picks[0] = featured;
+  pity.featured = picks.includes(featured) ? 0 : (pity.featured ?? 0) + 1;
   return tally(picks, owned);
 }
 

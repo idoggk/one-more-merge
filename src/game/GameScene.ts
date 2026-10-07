@@ -37,9 +37,9 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
-import { featuredUnit, rollCrate, rollPack, type CrateCard, type PityState } from '../core/crates';
+import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import type { YardData } from './ScrewScene';
@@ -5215,8 +5215,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
   openUnitShop() {
     this.closeModal();
     const m = this.meta;
-    const c = this.panel(1060);
-    const top = H / 2 - 530;
+    // r40: taller panel; the Featured Crate row leads (Gems can target one unit)
+    const c = this.panel(1214);
+    const top = H / 2 - 607;
+    const D = 152;
     c.add(this.add.text(W / 2, top + 60, 'CRATE SHOP', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 112, `${m.bolts ?? 0} Bolts  \u00b7  ${m.gems ?? 0} Gems`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#7a5a4a' }).setOrigin(0.5));
     const row = (y: number, title: string, sub: string, label: string, col: number, cb: () => void) => {
@@ -5231,27 +5233,56 @@ Merge them into a RANK ${rank}!`, this.coachY());
       tlog.log('crate_buy', { kind, cur, price });
       this.openCrate(kind);
     };
-    SHOP.gemCrates.forEach((g, i) => row(top + 220 + i * 128, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
+    const day = Math.floor(Date.now() / 86400000);
+    const fu = featuredGemUnit(day);
+    const fname = FAMILY_INFO[fu as 'cannon'].name.toUpperCase();
+    const pf = (m.pity ??= { epic: 0, dry: 0 }).featured ?? 0;
+    c.add(this.add.graphics().fillStyle(0x8e58c9, 0.25).fillRoundedRect(70, top + 156, W - 140, 148, 20).lineStyle(4, 0x8e58c9, 1).strokeRoundedRect(70, top + 156, W - 140, 148, 20));
+    const pk = this.unitPortrait(fu);
+    if (this.textures.exists(pk)) c.add(this.fitVisible(this.add.image(136, top + 230, pk), 104));
+    c.add(this.add.text(200, top + 188, `FEATURED: ${fname}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0, 0.5));
+    c.add(this.add.text(200, top + 222, `60% of its rarity · guaranteed in ${FEATURED_CRATE.pity - pf} crate${FEATURED_CRATE.pity - pf > 1 ? 's' : ''}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: '#5a3a5a' }).setOrigin(0, 0.5));
+    const buyFeatured = (n: number, price: number) => {
+      if ((m.gems ?? 0) < price) return this.showToast('NOT ENOUGH GEMS');
+      m.gems = (m.gems ?? 0) - price;
+      const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
+      const all = new Map<string, CrateCard>();
+      for (let k = 0; k < n; k++) {
+        m.crateSeq = (m.crateSeq ?? 0) + 1;
+        for (const cd of rollFeatured(owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, fu, m.pity!)) {
+          const e = all.get(cd.unit);
+          if (e) e.count += cd.count;
+          else all.set(cd.unit, { ...cd });
+        }
+      }
+      const cards = [...all.values()];
+      this.applyCards(cards);
+      tlog.log('featured_buy', { unit: fu, n, price, cards: cards.map((x) => `${x.unit}x${x.count}`) });
+      this.presentCrate('iron', cards, n > 1 ? `${n} FEATURED CRATES` : 'FEATURED CRATE');
+    };
+    this.button(c, 330, top + 266, 220, `x1  ${FEATURED_CRATE.gems1} GEMS`, 0x8e58c9, () => buyFeatured(1, FEATURED_CRATE.gems1), 0.6);
+    this.button(c, 520, top + 266, 220, `x5  ${FEATURED_CRATE.gems5} GEMS`, 0x8e58c9, () => buyFeatured(5, FEATURED_CRATE.gems5), 0.6);
+    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
     const ownedNow = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
     const feat = featuredUnit(localDate(), ownedNow);
     SHOP.boltPacks.forEach((p, i) =>
-      row(top + 476 + i * 128, p.name, p.id === 'role' ? `${p.cards} cards of a role you pick` : `${p.cards} cards  \u00b7  ${p.featuredMin}+ ${FAMILY_INFO[feat as 'cannon'].name}`, `${p.bolts} BOLTS`, 0xe0a020, () => (p.id === 'role' ? this.openRolePick() : this.openPack(p.id))),
+      row(top + 476 + D + i * 128, p.name, p.id === 'role' ? `${p.cards} cards of a role you pick` : `${p.cards} cards  \u00b7  ${p.featuredMin}+ ${FAMILY_INFO[feat as 'cannon'].name}`, `${p.bolts} BOLTS`, 0xe0a020, () => (p.id === 'role' ? this.openRolePick() : this.openPack(p.id))),
     );
-    c.add(this.add.text(W / 2, top + 850, 'GEMS  (test store, no real payment)', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 850 + D, 'GEMS  (test store, no real payment)', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0.5));
     SHOP.gemPacks.forEach((p, i) => {
       const x = W / 2 + (i - 1) * 200;
-      this.button(c, x, top + 905, 180, `${p.gems}`, 0x27a4c0, () => {
+      this.button(c, x, top + 905 + D, 180, `${p.gems}`, 0x27a4c0, () => {
         m.gems = (m.gems ?? 0) + p.gems;
         store(META_KEY, JSON.stringify(m));
         tlog.log('gems_mock_buy', { gems: p.gems, price: p.price });
         this.showToast(`+${p.gems} GEMS (TEST)`);
         this.openUnitShop();
       }, 0.65);
-      c.add(this.add.text(x, top + 950, p.price, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+      c.add(this.add.text(x, top + 950 + D, p.price, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     });
     // ChatGPT r32: Gems can also buy Bolts (60 -> 300, 200 -> 1,100)
     ([[60, 300], [200, 1100]] as const).forEach(([gem, bolt], i) =>
-      this.button(c, i ? W - 160 : 160, top + 1010, 200, `${bolt}B / ${gem}G`, 0xe0a020, () => {
+      this.button(c, i ? W - 160 : 160, top + 1010 + D, 200, `${bolt}B / ${gem}G`, 0xe0a020, () => {
         if ((m.gems ?? 0) < gem) return this.showToast('NOT ENOUGH GEMS');
         m.gems = (m.gems ?? 0) - gem;
         m.bolts = (m.bolts ?? 0) + bolt;
@@ -5261,7 +5292,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
         this.openUnitShop();
       }, 0.6),
     );
-    this.button(c, W / 2, top + 1010, 200, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.7);
+    this.button(c, W / 2, top + 1010 + D, 200, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.7);
   }
 
   /** r32 (ChatGPT early guarantee): the first Iron crate lets you CHOOSE 1 of 3 units you don't own yet. */
