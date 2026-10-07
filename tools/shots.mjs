@@ -77,6 +77,8 @@ const states = {
   u2_shop: [(sc) => { sc.openUnitShop(); }, 800],
   u2_team: [(sc) => { sc.closeModal(); sc.openTitle('machine'); sc.openTeamSheet(); }, 900],
   u3_detail: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { bolts: 900, units: { ...sc.meta.units, cannon: { level: 6, cards: 30 }, coil: { level: 1, cards: 0 }, bell: { level: 1, cards: 0 }, fan: { level: 1, cards: 0 } } }); sc.openUnitDetail({ id: 'cannon', role: 'SHOOTER', rarity: 'common', slot: 'shooter' }); }, 1800],
+  u4_choice: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { gems: 300, unitChoiceDone: false, units: { cannon: { level: 1, cards: 0 }, coil: { level: 1, cards: 0 }, bell: { level: 1, cards: 0 }, fan: { level: 1, cards: 0 } } }); sc.openCrate('iron'); }, 1200],
+  u4_shop: [(sc) => { sc.openUnitShop(); }, 900],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {

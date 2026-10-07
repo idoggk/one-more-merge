@@ -37,6 +37,7 @@ import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, cha
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, CRATES, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { Rng } from '../core/rng';
 import { featuredUnit, rollCrate, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
@@ -119,6 +120,7 @@ interface Meta {
   crates?: Partial<Record<CrateKind, number>>;
   crateSeq?: number;
   pity?: PityState;
+  unitChoiceDone?: boolean;
   /** r32 squad relays (slot A unlocks in chapter 2, slot B in chapter 3). */
   relays?: [string, string];
   /** r30 Monster Bounties: per-date record (won / mastered slots), mastery stars per opponent, milestones paid. */
@@ -4443,6 +4445,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** Roll, apply and present a crate: shake, burst, then each card flips in; NEW units unlock on the spot. */
   openCrate(kind: CrateKind) {
     const m = this.meta;
+    if (kind === 'iron' && !m.unitChoiceDone && UNITS.some((u) => u.rarity === 'rare' && !this.ownsUnit(u.id))) {
+      m.unitChoiceDone = true;
+      return this.openUnitChoice(() => this.openCrate(kind));
+    }
     m.crateSeq = (m.crateSeq ?? 0) + 1;
     const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
     m.pity = m.pity ?? { epic: 0, dry: 0 };
@@ -4571,7 +4577,55 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }, 0.65);
       c.add(this.add.text(x, top + 950, p.price, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     });
-    this.button(c, W / 2, top + 1010, 260, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.75);
+    // ChatGPT r32: Gems can also buy Bolts (60 -> 300, 200 -> 1,100)
+    ([[60, 300], [200, 1100]] as const).forEach(([gem, bolt], i) =>
+      this.button(c, i ? W - 160 : 160, top + 1010, 200, `${bolt}B / ${gem}G`, 0xe0a020, () => {
+        if ((m.gems ?? 0) < gem) return this.showToast('NOT ENOUGH GEMS');
+        m.gems = (m.gems ?? 0) - gem;
+        m.bolts = (m.bolts ?? 0) + bolt;
+        store(META_KEY, JSON.stringify(m));
+        tlog.log('gems_for_bolts', { gem, bolt });
+        this.showToast(`+${bolt} BOLTS`);
+        this.openUnitShop();
+      }, 0.6),
+    );
+    this.button(c, W / 2, top + 1010, 200, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.7);
+  }
+
+  /** r32 (ChatGPT early guarantee): the first Iron crate lets you CHOOSE 1 of 3 units you don't own yet. */
+  openUnitChoice(then: () => void) {
+    const m = this.meta;
+    const missing = UNITS.filter((u) => !this.ownsUnit(u.id) && u.rarity === 'rare').map((u) => u.id);
+    if (!missing.length) return then();
+    const rng = new Rng(((m.crateSeq ?? 1) * 2654435761) >>> 0);
+    const picks = rng.shuffle([...missing]).slice(0, 3);
+    this.closeModal();
+    const c = this.panel(640);
+    const top = H / 2 - 320;
+    c.add(this.add.text(W / 2, top + 64, 'CHOOSE A NEW UNIT', { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 110, 'It joins your collection right away', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    picks.forEach((f, k) => {
+      const x = W / 2 + (k - (picks.length - 1) / 2) * 200, y = top + 330;
+      const card = this.add.container(x, y);
+      card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -130, 176, 260, 18).fillStyle(0x3a8adf, 1).fillRoundedRect(-84, -126, 168, 252, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -100, 152, 130, 12));
+      if (this.textures.exists(`${f}_3`)) {
+        const im = this.add.image(0, -36, `${f}_3`);
+        im.setScale(110 / Math.max(im.width, im.height));
+        card.add(im);
+      }
+      const info = FAMILY_INFO[f as 'cannon'];
+      card.add(this.add.text(0, 50, info.name.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
+      card.add(this.add.text(0, 86, info.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '18px', color: '#fff0cf' }).setOrigin(0.5));
+      card.setSize(176, 260).setInteractive({ useHandCursor: true });
+      card.on('pointerup', () => {
+        m.unitChoiceDone = true;
+        this.applyCards([{ unit: f, count: 1, isNew: true }]);
+        tlog.log('unit_choice', { unit: f, from: picks });
+        sfx.win();
+        then();
+      });
+      c.add(card);
+    });
   }
 
   openRolePick() {
