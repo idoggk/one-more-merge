@@ -681,6 +681,11 @@ export class GameScene extends Phaser.Scene {
         store(META_KEY, JSON.stringify(this.meta));
         this.openHowTo(pageIdx, undefined, true);
       } else if (tdef.level >= 4 && !this.realBoss) this.explain('tap_hint', [{ text: 'Tip: TAP any machine to see what it does.\nAll machines: Pause > Machine guide.', spots: [] }]);
+      // r37: the first stage explains its HUD once (clock ring left, machine counter right), before anything moves
+      if (this.s.stage && !this.meta.tips.stage_hud)
+        this.explain('stage_hud', [
+          { text: `${this.stageCount()!.n} MACHINES to beat!\nBeat them all before this ring runs out.`, spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
+        ]);
     }
     tlog.log('intro_end', { skipped });
   }
@@ -3159,6 +3164,7 @@ Now beat the real level.`, this.coachY());
         bolts += lvB + stB;
         parts.push(`${firstClear ? 'First clear' : 'Level'} +${lvB}`);
         m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin; // r36 Screw Yard ticket
+        if (firstClear && n === YARD_UNLOCK) lines.push('NEW EVENT: SCREW YARD!  (EVENTS tab)');
         if (stB) parts.push(`Stars +${stB}`);
         if (firstClear && rw.free_jumpstart && !grants[`kit${n}`]) {
           grants[`kit${n}`] = true;
@@ -3810,7 +3816,9 @@ Now beat the real level.`, this.coachY());
       const on = t === active;
       if (on) c.add(this.add.graphics().fillStyle(0xffcf33, 1).fillRoundedRect(x - 80, y - 40, 160, 80, 22));
       const lb = this.add.text(x, y, t.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: on ? '#2b1d2e' : '#fff0cf' }).setOrigin(0.5);
-      const ready = t === 'units' && (this.unitsReady() || this.totalCrates() > 0);
+      // r36: EVENTS gets a dot when a Screw Yard attempt is waiting and the week's track is not done
+      const yardReady = t === 'events' && this.currentLevel() - 1 >= YARD_UNLOCK && (this.meta.screwdrivers ?? SCREWDRIVERS.start) > 0 && this.yardWeek().clears < YARD_TIERS[YARD_TIERS.length - 1].need;
+      const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0)) || yardReady;
       if (ready) c.add(this.add.circle(x + 62, y - 30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
       if (t === 'events' && !this.meta.hardUnlocked && this.currentLevel() < 3) lb.setAlpha(0.5);
       const z = this.add.zone(x, y, 166, 96).setInteractive({ useHandCursor: true });
