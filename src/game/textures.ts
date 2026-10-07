@@ -5,11 +5,25 @@ import { FAMILIES, type Family } from '../core/types';
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
 
+/** r29: boss / cast / chapter-stage art (~half the bytes) loads in the background after the first frame. */
+const LAZY = /^(boss_|mon_|stage_ch)/;
+const artEntries = () => Object.entries(ART).map(([path, url]) => [path.split('/').pop()!.replace(/\.(png|webp)$/, ''), url] as const);
+
 export function preloadArt(scene: Phaser.Scene) {
-  for (const [path, url] of Object.entries(ART)) {
-    const key = path.split('/').pop()!.replace(/\.(png|webp)$/, '');
-    scene.load.image(key, url);
-  }
+  for (const [key, url] of artEntries()) if (!LAZY.test(key)) scene.load.image(key, url);
+}
+
+/** Start the background load of the deferred art; `done` runs once it is all in. */
+export function loadLazyArt(scene: Phaser.Scene, done: () => void) {
+  let n = 0;
+  for (const [key, url] of artEntries())
+    if (LAZY.test(key) && !scene.textures.exists(key)) {
+      scene.load.image(key, url);
+      n++;
+    }
+  if (!n) return done();
+  scene.load.once('complete', done);
+  scene.load.start();
 }
 
 const OUT = 0x2b1d2e;

@@ -29,7 +29,7 @@ import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } f
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
 import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starGoals, starsFor } from '../content/levels';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
-import { ensureTextures, preloadArt } from './textures';
+import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
@@ -269,6 +269,12 @@ export class GameScene extends Phaser.Scene {
     const addText = this.add.text.bind(this.add);
     (this.add as unknown as { text: typeof addText }).text = (x, y, txt, style = {}) => addText(x, y, txt, { resolution: RS, ...style });
     ensureTextures(this);
+    // r29: heavy boss / cast / stage art streams in after the first frame; refresh whatever is on screen when it lands
+    this.time.delayedCall(50, () =>
+      loadLazyArt(this, () => {
+        if (this.s?.level !== undefined && this.s.phase === 'playing') this.setTargetTexture();
+      }),
+    );
     const qp0 = new URLSearchParams(location.search); // read before ?reset strips the URL
     if (qp0.has('reset')) {
       store(SAVE_KEY, null);
