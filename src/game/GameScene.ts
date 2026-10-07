@@ -3814,7 +3814,7 @@ Now beat the real level.`, this.coachY());
     // r38 (ChatGPT review): four fixed sockets on a shelf plank, never free-placed
     const anyTrophy = Object.values(m.bossMastery ?? {}).some((v) => v >= TROPHY_AT);
     if (anyTrophy) {
-      const sy = feetY + 24, xs = [82, 262, W - 262, W - 82];
+      const sy = feetY - 2, xs = [82, 262, W - 262, W - 82];
       const shelf = m.trophies ?? [];
       xs.forEach((x, i) => {
         // brass plinth per socket (ChatGPT shelf_plate); an empty socket shows the bare plinth
