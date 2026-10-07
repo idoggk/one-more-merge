@@ -58,6 +58,10 @@ const CLOCK_X = 62;
 /** r35 trophy figurines (ChatGPT spec): 3 mastery stars on one boss / mini-boss win its trophy; 4 stand by the machine. */
 const TROPHY_AT = 3;
 const TROPHY_SHELF = 4;
+/** r38 Featured Unit Trial: free battles per day with today's unit at this level; opens after this many cleared levels. */
+const TRIAL_BATTLES = 3;
+const TRIAL_LEVEL = 5;
+const TRIAL_UNLOCK = 6;
 /** r36: the Screw Yard event opens after this many cleared levels. */
 const YARD_UNLOCK = 4;
 /** r25 item tray slot, between NEXT (+ Time Capsule) and SCRAP. */
@@ -142,6 +146,8 @@ interface Meta {
   trophies?: string[];
   /** r36 SCREW YARD weekly event: screwdrivers (one per attempt) and this week's progress. */
   screwdrivers?: number;
+  /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
+  trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
   /** r38 collection milestones claimed (index into COLLECTION_GOALS). */
   collClaimed?: number;
   yard?: { week: number; clears: number; paid: number };
@@ -3305,9 +3311,16 @@ Now beat the real level.`, this.coachY());
     // r38 Upgrade Prescription (ChatGPT review): after a loss, name the squad upgrade that helps most and how close it is
     const rx = !won ? this.upgradePrescription() : null;
     if (rx) c.add(this.add.text(W / 2, top + 572, rx.text, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a5a', align: 'center', lineSpacing: 4 }).setOrigin(0.5));
-    const unitCta = this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP \u2191' : rx ? 'GET CARDS' : '';
+    // r38 trial over: point at the unit the player just tried
+    const tr = this.meta.trial;
+    const trialEnd = tr && tr.date === localDate() && tr.on && tr.left === 0 && !tr.endShown ? unitDef(tr.unit) : undefined;
+    if (trialEnd && tr) {
+      tr.endShown = true;
+      store(META_KEY, JSON.stringify(this.meta));
+    }
+    const unitCta = trialEnd ? 'KEEP BUILDING' : this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP \u2191' : rx ? 'GET CARDS' : '';
     this.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
-    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => (unitCta === 'GET CARDS' ? this.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? this.openUnitDetail(rx.u) : this.openTitle('units')), 0.78);
+    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => (trialEnd ? this.openUnitDetail(trialEnd) : unitCta === 'GET CARDS' ? this.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? this.openUnitDetail(rx.u) : this.openTitle('units')), 0.78);
   }
 
   /** r38: the squad unit (shooter, relays, helper) closest to its next level, with what that level gives. */
@@ -4309,18 +4322,24 @@ Now beat the real level.`, this.coachY());
     const wv = def.waves ? [...(def.wave_visuals ?? []), ...(bossDef ? [`@boss`] : [])] : [];
     if (wv.length) {
       // r33 stage strip: every machine of the level in order, the goal machine flagged
-      const step = Math.min(150, (W - 200) / wv.length);
+      // r38 (ChatGPT review): the boss / goal machine is the climax - drawn ~35% bigger, an arrow before it
+      const climax = !!bossDef || !!def.goal;
+      const step = Math.min(140, (W - 220) / (wv.length + (climax ? 0.8 : 0)));
+      const span = (wv.length - 1) * step + (climax ? step * 0.8 : 0);
       wv.forEach((v, i) => {
-        const x = W / 2 + (i - (wv.length - 1) / 2) * step;
+        const last = climax && i === wv.length - 1;
+        const x = W / 2 - span / 2 + i * step + (last ? step * 0.8 : 0);
+        const size = last ? (step - 14) * 1.35 : step - 14;
         const key = v === '@boss' ? tk : CAST[v] && this.hasArt(`mon_${v}`) ? `mon_${v}` : `target_${MONSTER_INDEX[v] ?? 0}`;
         if (this.textures.exists(key)) {
-          const im = this.add.image(x, top + 250, key);
-          im.setScale((step - 14) / Math.max(im.width, im.height));
+          const im = this.add.image(x, top + 250 - (last ? size * 0.12 : 0), key);
+          im.setScale(size / Math.max(im.width, im.height));
           c.add(im);
         }
+        if (last) c.add(this.add.text(x - step * 0.95, top + 250, '\u2192', { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5));
         const isGoal = !!def.goal && i === wv.length - 1;
         const isBoss = v === '@boss';
-        c.add(this.add.text(x, top + 250 + step / 2 + 4, isBoss ? (miniDef ? 'MINI' : 'BOSS') : isGoal ? 'GOAL' : `${i + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isBoss ? '#e8452c' : isGoal ? '#5fbf4a' : '#3b2533', padding: { x: 8, y: 1 } }).setOrigin(0.5));
+        c.add(this.add.text(x, top + 250 + (step - 14) / 2 + 12, isBoss ? (miniDef ? 'MINI-BOSS' : 'BOSS') : isGoal ? 'GOAL' : `${i + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isBoss ? '#e8452c' : isGoal ? '#5fbf4a' : '#3b2533', padding: { x: 8, y: 1 } }).setOrigin(0.5));
       });
     } else if (this.textures.exists(tk)) {
       const im = this.add.image(W / 2, top + 250, tk);
@@ -4418,6 +4437,17 @@ Now beat the real level.`, this.coachY());
         (m.lessons ??= {}).card = true;
         store(META_KEY, JSON.stringify(m));
       }
+    } else if (!sc && !isBoss && this.trialToday() && this.meta.trial!.left > 0) {
+      const t = this.meta.trial!;
+      const nm = FAMILY_INFO[t.unit as 'cannon'].name.toUpperCase();
+      const lbl = this.add.text(W / 2, top + PH - 162, t.on ? `\u2713 ${nm} TRIAL ON  \u00b7  ${t.left} left today` : `TRY ${nm} LV ${TRIAL_LEVEL}  \u00b7  ${t.left} free battles today`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: t.on ? '#5fbf4a' : '#8e58c9', padding: { x: 14, y: 6 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      lbl.on('pointerup', () => {
+        t.on = !t.on;
+        store(META_KEY, JSON.stringify(this.meta));
+        tlog.log('trial_toggle', { unit: t.unit, on: t.on });
+        this.openLevelSheet(n);
+      });
+      c.add(lbl);
     } else if (!isBoss && n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
     const close = this.add.text(W - 70, top + 44, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerup', () => this.openTitle());
@@ -4469,7 +4499,47 @@ Merge them into a RANK ${rank}!`, this.coachY());
     m.tutorialDone = true;
     store(META_KEY, JSON.stringify(m));
     tlog.log('level_start', { level: n, jumpstart });
-    this.startState(newLevel(def, { toys: this.activeToys(), shooter: this.teamShooter(), jumpstart, relays: this.teamRelays() }));
+    // r38 trial: today's featured unit takes its slot at TRIAL_LEVEL for TRIAL_BATTLES battles
+    const tu = this.trialActive();
+    const td = tu ? unitDef(tu) : undefined;
+    let shooter = this.teamShooter(), relays = this.teamRelays(), toys = this.activeToys();
+    if (td?.slot === 'shooter') shooter = td.id;
+    else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
+    else if (td?.slot === 'helper') toys = [td.id];
+    this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
+    if (td && m.trial) {
+      this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
+      this.s.unitLevel = { ...(this.s.unitLevel ?? {}), [td.id]: TRIAL_LEVEL };
+      m.trial.left--;
+      store(META_KEY, JSON.stringify(m));
+      tlog.log('trial_battle', { unit: td.id, left: m.trial.left });
+      this.time.delayedCall(900, () => this.showEvent(`TRIAL: ${FAMILY_INFO[td.id as 'cannon'].name.toUpperCase()} LV ${TRIAL_LEVEL}`, '#d9c2ff', 1600));
+    }
+  }
+
+  /** r38: today's featured trial unit (not owned, or owned below level 3; never a starter). */
+  featuredTrial(): Family | null {
+    if (this.currentLevel() - 1 < TRIAL_UNLOCK) return null;
+    const pool = UNITS.filter((u) => !STARTER_UNITS.includes(u.id) && (this.meta.units?.[u.id]?.level ?? 0) < 3).map((u) => u.id);
+    if (!pool.length) return null;
+    let h = 7;
+    for (const ch of localDate()) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
+    return pool[h % pool.length];
+  }
+
+  /** The trial record for today (created on first look), or null when no trial is offered. */
+  trialToday() {
+    const m = this.meta;
+    const today = localDate();
+    const f = this.featuredTrial();
+    if (!f) return null;
+    if (!m.trial || m.trial.date !== today) m.trial = { date: today, unit: f, left: TRIAL_BATTLES, on: false };
+    return m.trial;
+  }
+
+  trialActive(): Family | null {
+    const t = this.meta.trial;
+    return t && t.date === localDate() && t.on && t.left > 0 ? (t.unit as Family) : null;
   }
 
   homeC: Phaser.GameObjects.Container | null = null;

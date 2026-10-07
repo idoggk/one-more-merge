@@ -63,7 +63,12 @@ for (const def of LEVELS) {
   if (L <= 10) {
     const e3 = Math.min(Math.floor(T * 0.6), Math.ceil((steady.t || T * 0.6) * 1.3));
     out[L] = [Math.max(e3 + 4, Math.floor(T * 0.8)), e3];
-  } else out[L] = [s2, s3];
+  } else {
+    // r38: the expert chain-seeker bot made 3 stars unreachable for ordinary players (L13: 0:26 on a 1:35 clock);
+    // floors at 65% / 45% of the clock (ChatGPT review suggested 75% / 60% as a starting point)
+    const f2 = Math.min(Math.floor(T * 0.8), Math.max(s2, Math.floor(T * 0.65)));
+    out[L] = [f2, Math.min(f2 - 2, Math.max(s3, Math.floor(T * 0.45)))];
+  }
   console.log(`L${String(L).padStart(2)} T=${T}s  human2s win ${Math.round(steady.win * 100)}% ${steady.t.toFixed(1)}s  chain1.5 win ${Math.round(fast.win * 100)}% ${fast.t.toFixed(1)}s  -> stars ${out[L][0]}s / ${out[L][1]}s (old ${Math.floor(T * 0.8)} / ${Math.floor(T * 0.6)})`);
 }
 if (args.includes('--write')) {
