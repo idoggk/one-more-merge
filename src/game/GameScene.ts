@@ -621,7 +621,7 @@ export class GameScene extends Phaser.Scene {
     if (tdef?.teach && !this.s.showcase) this.explain(`teach_${tdef.level}`, [{ text: tdef.teach.lesson, spots: [] }]);
     else if (tdef && !this.s.showcase) {
       // r24: the first level with a new machine opens its guide page (game paused by the modal)
-      const fam = tdef.level === 6 ? 'rocket' : (tdef.start_extra ?? []).map(([f]) => f).find((f) => f === 'magnet' || f === 'battery');
+      const fam = tdef.level === 6 ? 'rocket' : (tdef.start_extra ?? []).map(([f]) => f).find((f) => f === 'magnet' || f === 'battery' || f === 'fan');
       const pageIdx = fam ? GameScene.GUIDE.findIndex((p) => p.key === fam) : -1;
       if (fam && !this.meta.tips[`new_${fam}`]) {
         this.meta.tips[`new_${fam}`] = true;
@@ -1946,7 +1946,7 @@ Now beat the real level.`, this.coachY());
           // first-ever boss warning: stop the clock and show what to do (r20)
           const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
           if (bd && this.s.boss!.light) {
-            const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.' }[e.attack as 'suction' | 'frost'] ?? bd.copy;
+            const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.', hot: 'Shooters in this column hit half as hard.\nMove them out.', rest: 'Bells and Coils in this row cannot\nwake neighbours. Move them out.' }[e.attack as 'suction' | 'frost' | 'hot' | 'rest'] ?? bd.copy;
             this.explain(`x_${e.attack}`, [{ text: `WATCH OUT!\n${what}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
             // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card
@@ -2161,7 +2161,8 @@ Now beat the real level.`, this.coachY());
         s.grid.forEach((x, i) => {
           if (!x || !itemFits(kind, x.family) || x.item) return;
           const { x: cx, y: cy } = cellXY(i);
-          g.lineStyle(5, 0xffcf33, 0.6 + 0.4 * Math.sin(this.time.now / 150)).strokeRoundedRect(cx - CELL / 2 + 5, cy - CELL / 2 + 5, CELL - 10, CELL - 10, 16);
+          const ic = { overcharge: 0xff7a2a, spark: 0x5fe8ff, corner: 0x9be05a }[kind];
+          g.lineStyle(6, ic, 0.6 + 0.4 * Math.sin(this.time.now / 150)).strokeRoundedRect(cx - CELL / 2 + 5, cy - CELL / 2 + 5, CELL - 10, CELL - 10, 16);
         });
     }
     // owner badges (upper-left, clear of the rank plate) + pips for OVERCHARGE
@@ -3566,7 +3567,8 @@ Now beat the real level.`, this.coachY());
     }
     c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
-    const newFam = n === 6 ? 'rocket' : (def.start_extra ?? []).map(([f]) => f).find((f) => f === 'magnet' || f === 'battery');
+    const firstOf: Record<string, number> = { rocket: 6, magnet: 12, battery: 17, fan: 23 };
+    const newFam = n === 6 ? 'rocket' : (def.start_extra ?? []).map(([f]) => f).find((f) => firstOf[f] === n);
     const parts = bossDef
       ? [bossDef.copy]
       : [def.goal ? `GOAL: ${goalText(def.goal)}` : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
@@ -4113,6 +4115,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'bell', title: 'BELL', role: 'RELAY', text: 'Rings its whole row. Wakes every OTHER kind of machine in that row.', tryThis: 'Fill its row with Cannons and Coils.', unlock: 0 },
     { key: 'rocket', title: 'ROCKET', role: 'SHOOTER', text: 'Never shoots by itself. When a chain wakes it, it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.', unlock: 6 },
     { key: 'magnet', title: 'MAGNET', role: 'MOVER', text: 'When it fires, it pulls one machine along its line into the empty cell next to it.', tryThis: 'Use it to bring a pair together.', unlock: 12 },
+    { key: 'fan', title: 'FAN', role: 'MOVER', text: 'When it fires, it blows the first machine next to it one cell further away (if that cell is empty).', tryThis: 'Use it to push a machine into a relay\'s reach.', unlock: 23 },
     { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Break the monster to half HP and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x1.5), SPARK (shooter: wakes its neighbours once), CORNER KIT (Bell: wakes its diagonals once).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
   ];
@@ -4183,6 +4186,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       rocket: { pieces: [['coil', 1, 1], ['rocket', 1, 3], ['rocket', 0, 4]], links: [[0, 1, 1]], big: [1] },
       magnet: { pieces: [['magnet', 1, 1], ['cannon', 1, 4], ['cannon', 0, 0]], links: [], slide: [1, 1, 2, 1] },
       battery: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['battery', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, big: [1] },
+      fan: { pieces: [['fan', 1, 1], ['cannon', 1, 2], ['coil', 0, 4]], links: [], slide: [1, 1, 3, 1] },
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();

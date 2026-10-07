@@ -8,7 +8,7 @@ export type LevelModifier = 'NONE' | 'SUCTION' | 'JAM' | 'ROW_GAPS' | 'CORNERS_2
 /** r23 goal levels: the goal replaces defeating the monster. */
 export type LevelGoal = { kind: 'rank' | 'chain'; n: number };
 /** r23 ordinary-monster behaviours (one per level). */
-export type Behaviour = 'shield' | 'suction' | 'frost';
+export type Behaviour = 'shield' | 'suction' | 'frost' | 'hot' | 'rest';
 export interface LevelDef {
   level: number;
   monster: string;
@@ -60,6 +60,8 @@ export const BEHAVIOUR_TEXT: Record<Behaviour, string> = {
   shield: 'Its shield blocks a quarter of your damage. Chains of 4 open it.',
   suction: 'Move marked machines before it slurps them.',
   frost: 'Frozen rows cannot receive machines. Build elsewhere.',
+  hot: 'Shooters in the hot column hit half as hard. Move them out.',
+  rest: 'Bells and Coils in the resting row cannot wake neighbours. Move them out.',
 };
 
 export const goalText = (g: LevelGoal) => (g.kind === 'rank' ? `MAKE A RANK ${g.n} MACHINE` : `FIRE A CHAIN OF ${g.n}`);

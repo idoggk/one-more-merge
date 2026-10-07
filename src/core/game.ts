@@ -256,7 +256,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   s.itemRng = (def.seed ^ 0x17e3a5) >>> 0;
   // r23 behaviours + goals
   if (def.behaviour === 'shield') s.shieldUntil = -1;
-  if (def.behaviour === 'suction' || def.behaviour === 'frost') {
+  if (def.behaviour === 'suction' || def.behaviour === 'frost' || def.behaviour === 'hot' || def.behaviour === 'rest') {
     const bi = BOSSES.findIndex((b) => b.attack === def.behaviour);
     s.boss = { def: bi, next: 0, pending: null, active: null, phaseShown: 0, light: true };
   }

@@ -240,3 +240,8 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - OVERCHARGE (Cannon/Rocket, 2 charges: chain shot x1.5), SPARK (Cannon/Rocket, 1: wakes occupied U/R/D/L neighbours of other families), CORNER KIT (Bell, 1: wakes diagonals except Bells). Charges spend only in player-rooted cascades (not passive, not automatic kickback cascades), even when a boss modifier blocks the benefit; REST ROW blocks corner wakes, SPLIT blocks crossing item wakes; MAX HIT cap unchanged.
 - Merge keeps the attachment (with two, the destination's survives); kickback fuse transfers it; scrap/suction destroy it. Drag the item (or tap it, then a machine); valid machines get a gold rim; first item of each kind freezes the clock until it is applied (coach + hand). Badge upper-left with OVERCHARGE pips. Machine Guide has a POWER-UPS page.
 - Calibration bots never use items, so items are pure upside for players (L13+ slightly easier than the numbers).
+
+### Round 26 — chapters 3-6 variety (ChatGPT table)
+- Ch.3 displacement (Fan intro L23 + Magnet), ch.4 payloads (Battery, Rocket, SPARK, light HOT COLUMN from L37), ch.5 connections (CORNER KIT, GAPS, light REST ROW from L47), ch.6 mastery. Relief levels 21/26/31/36/41/46/51/56. Old remix modifiers (SUCTION/JAM/ROW_GAPS) retired from the saga.
+- New light behaviours `hot` / `rest` reuse the boss system (10 s, every 15 s, 2.5 s warning, 2 s active). Guaranteed items: L38 SPARK, L42/L48 CORNER (8 s grants), L55 CORNER (50% break). Item rims use the item's colour.
+- Goal tuning (goal-aware random-3s): rank 7 is unreachable with ch.3 copy caps (L28 25-36% even at 90 s) → rank 6 there; chain goals raised to x16-x22 by chapter.
