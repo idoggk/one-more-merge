@@ -12,13 +12,21 @@ export const OPEN_BOXES = 2;
 /** Board area the plates live in (centre-origin design units). */
 export const YARD_W = 600;
 export const YARD_H = 640;
-const PLATE_T = 74;
 /** r38 (ChatGPT review): plates cluster in the middle so the pile reads as one junk heap, not scattered sticks. */
 const CLUSTER = 0.78;
 const SCREW_R = 22;
 
+export type PlateKind = 'long' | 'short' | 'square';
+/** r38: plate shapes measured from ChatGPT's art - size in yard units and hole centres as fractions of len / thick from
+ *  the plate centre (long 5.06:1 with holes at 12/50/88%, short 3.1:1 at 16/84%, square with inset corner holes). */
+export const PLATE_SHAPES: Record<PlateKind, { len: number; thick: number; holes: [number, number][] }> = {
+  long: { len: 364, thick: 72, holes: [[-0.379, 0], [0, 0], [0.381, 0]] },
+  short: { len: 224, thick: 72, holes: [[-0.341, 0], [0.342, 0]] },
+  square: { len: 160, thick: 154, holes: [[-0.337, -0.315], [0.337, -0.315], [0.337, 0.315], [-0.337, 0.315]] },
+};
 export interface Plate {
   id: number;
+  kind?: PlateKind;
   x: number;
   y: number;
   /** Bar length along its axis and thickness. */
@@ -191,35 +199,41 @@ function tryGenerate(n: number, seed: number, easy: boolean, noMix = false): Yar
   const P = yardParams(n);
   const plates: Plate[] = [];
   const screws: Screw[] = [];
+  // r38: three fixed shapes matching ChatGPT's plate art (screws sit exactly on the painted holes).
+  // Kinds first, then the screw total is fixed to a multiple of 3 by swapping short <-> long (no invented holes).
+  const kinds: PlateKind[] = [];
   for (let i = 0; i < P.plates; i++) {
-    // r37: a quarter of the plates (never the first) are square panels with four corner screws
-    const square = i > 0 && rng.next() < 0.25;
-    const len = square ? 130 + rng.int(4) * 15 : 200 + rng.int(9) * 22;
-    const thick = square ? len : PLATE_T;
-    const angle = ((rng.int(square ? 6 : 12) * 15) / 180) * Math.PI;
+    const r = rng.next();
+    kinds.push(i > 0 && r < 0.25 ? 'square' : r < 0.62 ? 'long' : 'short');
+  }
+  const total = () => kinds.reduce((t, k) => t + PLATE_SHAPES[k].holes.length, 0);
+  for (let guard = 0; guard < 20 && total() % BOX_SIZE !== 0; guard++) {
+    const r = total() % BOX_SIZE;
+    const iL = kinds.lastIndexOf('long'), iS = kinds.lastIndexOf('short');
+    if (r === 2 && iS >= 0) kinds[iS] = 'long';
+    else if (r === 1 && iL >= 0) kinds[iL] = 'short';
+    else if (r === 2 && iL >= 0) kinds[iL] = 'short';
+    else if (r === 1 && iS >= 0) kinds[iS] = 'long';
+    else break;
+  }
+  kinds.forEach((kind, i) => {
+    const shape = PLATE_SHAPES[kind];
+    const len = shape.len, thick = shape.thick;
+    const angle = ((rng.int(kind === 'square' ? 6 : 12) * 15) / 180) * Math.PI;
     // keep the whole plate inside the yard
     const ca = Math.abs(Math.cos(angle)), sa = Math.abs(Math.sin(angle));
     const hx = ca * (len / 2) + sa * (thick / 2), hy = sa * (len / 2) + ca * (thick / 2);
     const x = (rng.next() * 2 - 1) * Math.max(0, (YARD_W / 2) * CLUSTER - hx * 0.6);
     const y = (rng.next() * 2 - 1) * Math.max(0, (YARD_H / 2) * CLUSTER - hy * 0.6);
-    const p: Plate = { id: i, x, y, len, thick, angle, z: i, screws: [] };
-    const a = len / 2 - 28;
-    const local: [number, number][] = square ? [[-a, -a], [a, -a], [a, a], [-a, a]] : (len >= 330 ? [-1, 0, 1] : [-1, 1]).map((o) => [o * (len / 2 - 30), 0]);
-    for (const [lx, ly] of local) {
+    const p: Plate = { id: i, kind, x, y, len, thick, angle, z: i, screws: [] };
+    for (const [fx, fy] of shape.holes) {
+      const lx = fx * len, ly = fy * thick;
       const sc: Screw = { id: screws.length, plate: i, x: x + Math.cos(angle) * lx - Math.sin(angle) * ly, y: y + Math.sin(angle) * lx + Math.cos(angle) * ly, color: 0 };
       screws.push(sc);
       p.screws.push(sc.id);
     }
     plates.push(p);
-  }
-  // screw count must split into toolboxes of 3: add middle screws to the longest plates without one
-  for (const p of plates.slice().sort((a, b) => b.len - a.len)) {
-    if (screws.length % BOX_SIZE === 0) break;
-    if (p.screws.length !== 2) continue;
-    const sc: Screw = { id: screws.length, plate: p.id, x: p.x, y: p.y, color: 0 };
-    screws.push(sc);
-    p.screws.push(sc.id);
-  }
+  });
   if (screws.length % BOX_SIZE !== 0) return null;
   // a removal order that respects covering (the topmost plate's screws are always free)
   const lvl: YardLevel = { n, seed, plates, screws, queue: [] };

@@ -79,6 +79,12 @@ export class ScrewScene extends Phaser.Scene {
         g.fillStyle(INK, 0.55).fillCircle(lx, ly, 25);
       }
       pc.add(g);
+      // r38: ChatGPT plate art (neutral steel, tinted per plate); the drawn plate above stays as its shadow + fallback
+      const artKey = p.kind ? `sy_plate_${p.kind}` : '';
+      if (artKey && this.textures.exists(artKey)) {
+        g.clear().fillStyle(INK, 0.42).fillRoundedRect(-p.len / 2 + 7, -p.thick / 2 + 12, p.len, p.thick, Math.min(36, p.thick / 2));
+        pc.add(this.add.image(0, 0, artKey).setDisplaySize(p.len, p.thick).setTint(tint));
+      }
       this.yard.add(pc);
       this.plateViews.set(p.id, pc);
       for (const sid of p.screws) {
@@ -121,7 +127,10 @@ export class ScrewScene extends Phaser.Scene {
   boxX = (slot: number) => W / 2 + (slot - (OPEN_BOXES - 1) / 2) * 300;
   boxY = 196;
   trayY = 362;
-  trayX = (i: number) => W / 2 + (i - (TRAY_CAP - 1) / 2) * 92;
+  /** r38 tray art (ChatGPT): 480 px wide, wells at 12/30/49/67/86% across. */
+  static TRAY_W = 480;
+  static TRAY_WELLS = [0.118, 0.303, 0.486, 0.671, 0.856];
+  trayX = (i: number) => (this.textures.exists('sy_tray') ? W / 2 + (ScrewScene.TRAY_WELLS[i] - 0.5) * ScrewScene.TRAY_W : W / 2 + (i - (TRAY_CAP - 1) / 2) * 92);
   /** r38 toolbox art (ChatGPT): 250 px wide; wells at 22% / 48% / 74% across, 62% down. */
   get boxArt() {
     return this.textures.exists('sy_toolbox_open');
@@ -161,7 +170,12 @@ export class ScrewScene extends Phaser.Scene {
     const left = this.st.lvl.queue.length - this.st.qi;
     this.ui.add(this.add.text(W / 2, this.boxY + (this.boxArt ? 84 : 70), left > 0 ? `${left} more toolbox${left > 1 ? 'es' : ''}` : 'last toolboxes!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
     // tray
-    g.fillStyle(INK, 0.85).fillRoundedRect(W / 2 - (TRAY_CAP * 92) / 2 - 10, this.trayY - 44, TRAY_CAP * 92 + 20, 88, 22);
+    const trayArt = this.textures.exists('sy_tray');
+    if (trayArt) {
+      const im = this.add.image(W / 2, this.trayY, 'sy_tray');
+      im.setScale(ScrewScene.TRAY_W / im.width);
+      this.ui.add(im);
+    } else g.fillStyle(INK, 0.85).fillRoundedRect(W / 2 - (TRAY_CAP * 92) / 2 - 10, this.trayY - 44, TRAY_CAP * 92 + 20, 88, 22);
     const nearFull = this.st.tray.length >= TRAY_CAP - 1;
     if (nearFull) {
       g.lineStyle(6, 0xe8452c, 1).strokeRoundedRect(W / 2 - (TRAY_CAP * 92) / 2 - 14, this.trayY - 48, TRAY_CAP * 92 + 28, 96, 24);
@@ -169,7 +183,7 @@ export class ScrewScene extends Phaser.Scene {
     }
     for (let i = 0; i < TRAY_CAP; i++) {
       const danger = i === TRAY_CAP - 1;
-      g.fillStyle(danger ? 0x7a2a2a : 0x5a4a5a, 1).fillCircle(this.trayX(i), this.trayY, 30);
+      if (!trayArt) g.fillStyle(danger ? 0x7a2a2a : 0x5a4a5a, 1).fillCircle(this.trayX(i), this.trayY, 30);
       const c = this.st.tray[i];
       if (c !== undefined) this.ui.add(this.screwSprite(SCREW_COLORS[c]).setPosition(this.trayX(i), this.trayY));
     }
