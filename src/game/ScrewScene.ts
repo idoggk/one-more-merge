@@ -46,7 +46,11 @@ export class ScrewScene extends Phaser.Scene {
     (this.add as unknown as { text: typeof addText }).text = (x, y, txt, style = {}) => addText(x, y, txt, { resolution: RS, ...style });
     this.st = newYard(generateYard(this.data0.n, this.data0.seed));
     // backdrop: the workshop floor
-    if (this.textures.exists('bg')) {
+    if (this.textures.exists('sy_background')) {
+      // r39: ChatGPT's workbench (pegboard strip on top, quiet centre for the pile)
+      const bg = this.add.image(W / 2, 0, 'sy_background').setOrigin(0.5, 0);
+      bg.setScale(Math.max(W / bg.width, H / bg.height));
+    } else if (this.textures.exists('bg')) {
       const bg = this.add.image(W / 2, H / 2, 'bg');
       bg.setScale(Math.max(W / bg.width, H / bg.height)).setTint(0xd8c8b0);
     } else this.add.rectangle(W / 2, H / 2, W, H, 0xe8cfa6);

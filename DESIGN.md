@@ -321,3 +321,12 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - v22 pack recovered from the ChatGPT Library (the chat itself stalled): 36 rank sprites (Mortar, Arc Welder in the corrected welding-box design, Horn, Fuse Box, Amplifier, Signal Beacon), 16 trophy figurines, wood/iron/gold crates closed + open (open art swaps in before the cards fly), rarity card frames, gem icon, shelf plinths. Amplifier recoloured teal in code (hue shift of the orange-red body only) - it read as the orange Fuse Box.
 - Screw Yard art (separate chat, approved piece by piece): neutral-steel long / short / square plates with see-through holes (generator now uses these three measured shapes; screw count fixed by long<->short swaps), neutral screw head tinted per colour, open toolbox with wells (tinted, screws land in the wells, a full box lifts away), tray with five wells and a red warning well.
 - `tools/import-art.py` (trim + resize + webp), `tools/import-v22.py`; `sy_` art is lazy-loaded.
+
+### Round 39 — art in context (ChatGPT art-director review) + audits
+- Canonical unit portrait everywhere (collection card + crate reveal = the tier for the unit's level); crate rows centred, buttons follow content, small NEW tags; BEACON label; grey NO CRATES; "x/y UNITS OWNED" strip; header "L25 · CYCLOPS" (the counter shows 2/4); no damage float when the chain ribbon already shows the total; MERGE -> +N in a cream pill; unit-detail demo + cards fit sprites by visible bounds.
+- Screw Yard: brass layer kept untinted over the tinted toolbox (`sy_toolbox_open_brass`, extracted by hue), dark through-holes under the plate art, "N TOOLBOXES LEFT" pill, ChatGPT workbench background.
+- Trophy shelf: 4 even sockets, trophies +45%, lock on empty plinths. Gold star-time ticks on the clock ring.
+- Authored helper extras become the selected helper (ROUND_33_RULES).
+- Declined: "board Mortar is old art" (per-rank sprites by design).
+- `tools/boss-audit.ts`: every final-phase attack is pre-taught by its chapter's mini-boss. Found a regression of r34 (frost moved off L19 -> new at the L20 boss): frost restored on L19 (refit). Junkzilla split / Rivet Rhino tow / Chrono ransom are boss signatures with no light version; the paused wake card is their lesson.
+- Full FASTKILL smoke 80/80, no errors.

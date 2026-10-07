@@ -699,7 +699,7 @@
     {
       "level": 19,
       "monster": "mad_fridge",
-      "hp": 7950,
+      "hp": 9800,
       "time_seconds": 95,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -708,7 +708,7 @@
       "starting_rank": 1,
       "seed": 150019,
       "ordinary_copy_rank_cap": 2,
-      "behaviour": "suction",
+      "behaviour": "frost",
       "visual": "iron_duchess",
       "waves": 3,
       "wave_visuals": [
@@ -717,7 +717,7 @@
         "iron_duchess"
       ],
       "star_times": [
-        61,
+        67,
         42
       ]
     },
