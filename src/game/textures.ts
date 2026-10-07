@@ -114,6 +114,46 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
     g.fillStyle(0xdfe6ea).fillRect(34 - w / 2, 88, w, 20).strokeRect(34 - w / 2, 88, w, 20);
     g.fillStyle(0xdfe6ea).fillRect(94 - w / 2, 88, w, 20).strokeRect(94 - w / 2, 88, w, 20);
     for (let i = 1; i < Math.min(rank, 4); i++) g.lineStyle(3, light, 0.9).beginPath().arc(64, 108, 14 + i * 9, Math.PI * 1.1, Math.PI * 1.9, false).strokePath();
+  } else if (fam === 'horn') {
+    // r37 placeholder until ChatGPT art: a brass horn, mouth up, wider with rank
+    const m = 26 + rank * 3;
+    g.fillStyle(dark).fillRoundedRect(36, 104, 56, 14, 5).strokeRoundedRect(36, 104, 56, 14, 5);
+    g.fillStyle(main).fillRect(58, 62, 12, 42).strokeRect(58, 62, 12, 42);
+    g.fillStyle(main).fillTriangle(64 - m, 18, 64 + m, 18, 64, 66).strokeTriangle(64 - m, 18, 64 + m, 18, 64, 66);
+    g.fillStyle(OUT).fillEllipse(64, 20, m * 2 - 8, 14);
+    g.fillStyle(light).fillRect(52, 30, 6, 22);
+  } else if (fam === 'fuse_box') {
+    // box with a lightning bolt; sparks at the four diagonals
+    g.fillStyle(main).fillRoundedRect(30, 32, 68, 76, 10).strokeRoundedRect(30, 32, 68, 76, 10);
+    g.fillStyle(light).fillRect(38, 40, 8, 58);
+    g.fillStyle(0xffe07a).fillPoints([new Phaser.Math.Vector2(70, 40), new Phaser.Math.Vector2(52, 74), new Phaser.Math.Vector2(64, 74), new Phaser.Math.Vector2(58, 100), new Phaser.Math.Vector2(80, 62), new Phaser.Math.Vector2(66, 62)], true);
+    for (const [x, y] of [[18, 20], [110, 20], [18, 118], [110, 118]].slice(0, Math.min(4, rank))) g.fillStyle(0xffe07a).fillPoints(star(x, y, 4, 4, 10), true);
+  } else if (fam === 'amplifier') {
+    // speaker cabinet: one cone per rank band
+    g.fillStyle(dark).fillRoundedRect(28, 22, 72, 92, 10).strokeRoundedRect(28, 22, 72, 92, 10);
+    g.fillStyle(main).fillCircle(64, 78, 24).strokeCircle(64, 78, 24);
+    g.fillStyle(OUT).fillCircle(64, 78, 8);
+    g.fillStyle(main).fillCircle(64, 40, 12).strokeCircle(64, 40, 12);
+    for (let i = 1; i < Math.min(rank, 4); i++) g.lineStyle(3, light, 0.9).beginPath().arc(64, 78, 28 + i * 8, -0.6, 0.6, false).strokePath();
+  } else if (fam === 'mortar') {
+    // squat wide barrel tilted up on a heavy base
+    const bw = 34 + rank * 3;
+    g.fillStyle(dark).fillRoundedRect(22, 92, 84, 24, 8).strokeRoundedRect(22, 92, 84, 24, 8);
+    g.fillStyle(main).fillRoundedRect(64 - bw / 2, 40, bw, 56, 12).strokeRoundedRect(64 - bw / 2, 40, bw, 56, 12);
+    g.fillStyle(OUT).fillEllipse(64, 42, bw - 8, 14);
+    g.fillStyle(light).fillRect(64 - bw / 2 + 6, 52, 6, 34);
+  } else if (fam === 'arc_welder') {
+    // navy welding box, two rigid electrodes and a cyan arc
+    g.fillStyle(main).fillRoundedRect(26, 60, 76, 52, 10).strokeRoundedRect(26, 60, 76, 52, 10);
+    g.fillStyle(light).fillRect(34, 70, 22, 10);
+    g.fillStyle(0xdfe6ea).fillRect(40, 22, 10, 40).strokeRect(40, 22, 10, 40).fillRect(78, 22, 10, 40).strokeRect(78, 22, 10, 40);
+    g.lineStyle(5 + Math.min(rank, 4), 0x7fe0ff, 1).beginPath().arc(64, 26, 19, Math.PI, 0, false).strokePath();
+  } else if (fam === 'signal_beacon') {
+    // lattice tower with a lamp; rings grow with rank
+    g.fillStyle(dark).fillRoundedRect(34, 104, 60, 14, 5).strokeRoundedRect(34, 104, 60, 14, 5);
+    g.fillStyle(main).fillTriangle(44, 104, 84, 104, 64, 40).strokeTriangle(44, 104, 84, 104, 64, 40);
+    g.fillStyle(0xffe07a).fillCircle(64, 32, 12).strokeCircle(64, 32, 12);
+    for (let i = 1; i <= Math.min(rank, 3); i++) g.lineStyle(4, light, 0.9).beginPath().arc(64, 32, 14 + i * 9, -2.6, -0.5, false).strokePath();
   } else {
     const w = 60 + rank * 5;
     g.fillStyle(dark).fillRoundedRect(28, 104, 72, 14, 5).strokeRoundedRect(28, 104, 72, 14, 5);

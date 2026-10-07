@@ -21,6 +21,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let n = from; n <= to; n++) {
   if (only && !only.includes(n)) continue;
   cur = n;
+  await page.evaluate((fk) => { window.__fk = fk; }, !!process.env.FASTKILL);
   await page.evaluate((lv) => {
     const sc = window.__omm.game.scene.getScene('game');
     clearInterval(window.__bot);
@@ -33,6 +34,9 @@ for (let n = from; n <= to; n++) {
       const s = sc.s;
       if (s.phase !== 'playing') return;
       if (sc.modal) sc.closeModal();
+      if (sc.explaining) sc.nextExplain();
+      // FASTKILL: push through stage transitions (next machine, goal machine, boss wake) quickly
+      if (window.__fk && !s.goal && Math.random() < 0.12) s.hp = Math.min(s.hp, 1);
       if (s.itemTray) {
         const i = s.grid.findIndex((g) => g && !g.item && (s.itemTray === 'corner' ? g.family === 'bell' : g.family === 'cannon' || g.family === 'rocket'));
         if (i >= 0) sc.tryApplyItem(i);
@@ -48,7 +52,7 @@ for (let n = from; n <= to; n++) {
   await wait(secs * 1000);
   const st = await page.evaluate(() => {
     const s = window.__omm.game.scene.getScene('game').s;
-    return `${s.phase} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}`;
+    return `${s.phase} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.stage ? ` machine ${s.stage.i + 1}/${s.stage.hps.length + (s.stage.goal ? 1 : 0)}` : ''}${s.boss && !s.boss.light ? ' BOSS' : ''}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}`;
   });
   console.log(`L${n} ${st}`);
 }
