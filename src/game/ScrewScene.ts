@@ -83,6 +83,12 @@ export class ScrewScene extends Phaser.Scene {
       const artKey = p.kind ? `sy_plate_${p.kind}` : '';
       if (artKey && this.textures.exists(artKey)) {
         g.clear().fillStyle(INK, 0.42).fillRoundedRect(-p.len / 2 + 7, -p.thick / 2 + 12, p.len, p.thick, Math.min(36, p.thick / 2));
+        // r39: empty holes read as dark through-holes, never as brown screws
+        for (const sid of p.screws) {
+          const sc = lvl.screws[sid];
+          const dx = sc.x - p.x, dy = sc.y - p.y;
+          g.fillStyle(0x211923, 1).fillCircle(dx * Math.cos(-p.angle) - dy * Math.sin(-p.angle), dx * Math.sin(-p.angle) + dy * Math.cos(-p.angle), 10);
+        }
         pc.add(this.add.image(0, 0, artKey).setDisplaySize(p.len, p.thick).setTint(tint));
       }
       this.yard.add(pc);
@@ -153,6 +159,7 @@ export class ScrewScene extends Phaser.Scene {
         if (b) im.setTint(SCREW_COLORS[b.color]);
         else im.setTint(0x2b1d2e).setAlpha(0.35);
         this.ui.add(im);
+        if (b && this.textures.exists('sy_toolbox_open_brass')) this.ui.add(this.add.image(x, this.boxY, 'sy_toolbox_open_brass').setDisplaySize(im.displayWidth, im.displayHeight));
         if (b) for (let k = 0; k < b.n; k++) this.ui.add(this.screwSprite(SCREW_COLORS[b.color]).setPosition(this.slotX(slot, k), this.slotY()).setScale(0.85));
         return;
       }
@@ -168,7 +175,7 @@ export class ScrewScene extends Phaser.Scene {
       }
     });
     const left = this.st.lvl.queue.length - this.st.qi;
-    this.ui.add(this.add.text(W / 2, this.boxY + (this.boxArt ? 84 : 70), left > 0 ? `${left} more toolbox${left > 1 ? 'es' : ''}` : 'last toolboxes!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
+    this.ui.add(this.add.text(W / 2, this.boxY + (this.boxArt ? 84 : 70), left > 0 ? `${left} TOOLBOX${left > 1 ? 'ES' : ''} LEFT` : 'LAST TOOLBOXES!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#fff0cf', backgroundColor: '#2b1d2e', padding: { x: 14, y: 3 } }).setOrigin(0.5));
     // tray
     const trayArt = this.textures.exists('sy_tray');
     if (trayArt) {
@@ -269,6 +276,7 @@ export class ScrewScene extends Phaser.Scene {
       const im = this.add.image(x, this.boxY, 'sy_toolbox_open').setTint(SCREW_COLORS[color]);
       im.setScale(ScrewScene.BOX_W / im.width);
       g.add(im);
+      if (this.textures.exists('sy_toolbox_open_brass')) g.add(this.add.image(x, this.boxY, 'sy_toolbox_open_brass').setDisplaySize(im.displayWidth, im.displayHeight));
       for (let k = 0; k < BOX_SIZE; k++) g.add(this.screwSprite(SCREW_COLORS[color]).setPosition(this.slotX(slot, k), this.slotY()).setScale(0.85));
     } else g.add(this.add.graphics().fillStyle(SCREW_COLORS[color], 1).fillRoundedRect(x - 114, this.boxY - 46, 228, 92, 18));
     this.tweens.add({ targets: g, y: -260, alpha: 0, duration: 460, ease: 'Back.In', onComplete: () => g.destroy() });

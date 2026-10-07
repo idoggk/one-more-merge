@@ -1753,7 +1753,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.stageCount() ? `${this.stageCount()!.at}/${this.stageCount()!.n} ${this.s.goal ? 'GOAL' : this.monName(true)}` : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.s.goal ? 'GOAL' : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1903,7 +1903,7 @@ Now beat the real level.`, this.coachY());
     // r38: reactive levels say what the next merge earns (the board only changes when you merge)
     const earn = mergeEarns(s);
     this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? `MERGE \u2192 +${earn}` : '');
-    this.pendingText.setColor(s.pending.length ? '#9e2416' : earn ? '#3b6a2a' : '#7a5a4a');
+    this.pendingText.setColor(s.pending.length ? '#9e2416' : '#3b2533').setBackgroundColor(this.pendingText.text && !s.pending.length ? '#fbe7c6' : '').setPadding(this.pendingText.text && !s.pending.length ? 10 : 0, 4);
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(!tut && !(s.level !== undefined && s.level < 4));
     this.trayPlate?.setVisible(!tut);
@@ -2792,7 +2792,7 @@ Now beat the real level.`, this.coachY());
       // damage number beside the opponent, never on its face
       const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
       if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
-      if (!this.s.goal) this.floatText(this.target.x + 150, this.target.y - 40, capped ? 'MAX' : fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
+      if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.target.y - 40, capped ? 'MAX' : fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
     });
   }
 
@@ -3814,18 +3814,19 @@ Now beat the real level.`, this.coachY());
     // r38 (ChatGPT review): four fixed sockets on a shelf plank, never free-placed
     const anyTrophy = Object.values(m.bossMastery ?? {}).some((v) => v >= TROPHY_AT);
     if (anyTrophy) {
-      const sy = feetY + 20, xs = [70, 160, W - 160, W - 70];
+      const sy = feetY + 24, xs = [82, 262, W - 262, W - 82];
       const shelf = m.trophies ?? [];
       xs.forEach((x, i) => {
         // brass plinth per socket (ChatGPT shelf_plate); an empty socket shows the bare plinth
         if (this.hasArt('shelf_plate')) {
           const pl = this.add.image(x, sy + 14, 'shelf_plate').setOrigin(0.5, 1);
-          pl.setScale(86 / pl.width);
+          pl.setScale(118 / pl.width);
           c.add(pl);
         } else c.add(this.add.graphics().fillStyle(0x2b1d2e, 0.35).fillEllipse(x, sy + 1, 64, 12));
         const id = shelf[i];
-        const im = id ? this.trophyImage(id, x, sy + 2, 84) : null;
+        const im = id ? this.trophyImage(id, x, sy + 2, 122) : null;
         if (im) c.add(im);
+        else c.add(this.add.text(x, sy - 22, '\u{1F512}', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.7));
       });
     }
 
@@ -4891,7 +4892,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, 160, 'UNITS', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     // crates + shop row
     const crates = this.totalCrates();
-    this.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x8a6a4a, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
+    this.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x81736c, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
     this.button(c, W / 2 + 150, 232, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
     this.collectionStrip(c, 304);
     // 3-column card grid
@@ -4924,10 +4925,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const done = have >= goal.n;
     const r = goal.reward;
     const prize = r.crate ? `${r.crate.toUpperCase()} CRATE` : r.gems ? `${r.gems} GEMS` : `${r.bolts} BOLTS`;
-    const what = goal.kind === 'own' ? `OWN ${goal.n} UNITS` : `${goal.n} TOTAL UNIT LEVELS`;
+    const what = goal.kind === 'own' ? 'UNITS OWNED' : 'TOTAL UNIT LEVELS';
     // progress fill under the text
     g.fillStyle(0x5fbf4a, 0.45).fillRoundedRect(44, y - 26, (W - 88) * Math.min(1, have / goal.n), 52, 17);
-    c.add(this.add.text(64, y, `${what}  ${Math.min(have, goal.n)}/${goal.n}  \u2192  ${prize}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#fff0cf' }).setOrigin(0, 0.5));
+    c.add(this.add.text(64, y, `${Math.min(have, goal.n)}/${goal.n} ${what}  \u00b7  ${prize}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#fff0cf' }).setOrigin(0, 0.5));
     if (done)
       this.button(c, W - 120, y, 150, 'CLAIM', 0x5fbf4a, () => {
         m.collClaimed = i + 1;
@@ -4942,6 +4943,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }, 0.55);
   }
 
+  /** r39 (ChatGPT art review): ONE canonical portrait per unit everywhere (collection, crate reveal): the rank tier
+   *  that matches its level (unowned = rank 3 silhouette). */
+  unitPortrait(id: string) {
+    const st = this.meta.units?.[id];
+    return `${id}_${st && st.level >= 1 ? Math.min(6, 1 + Math.floor((st.level - 1) / 2)) : 3}`;
+  }
+
   unitCard(u: UnitDef, x: number, y: number) {
     const st = this.meta.units?.[u.id];
     const owned = !!st && st.level >= 1;
@@ -4949,7 +4957,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
     cc.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-102, -132, 204, 268, 22).fillStyle(rc, 1).fillRoundedRect(-98, -128, 196, 260, 19).fillStyle(0xfbe7c6, 1).fillRoundedRect(-90, -100, 180, 170, 14));
     cc.add(this.add.text(0, -114, u.rarity.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
-    const art = `${u.id}_${owned ? Math.min(6, 1 + Math.floor((st!.level - 1) / 2)) : 3}`;
+    const art = this.unitPortrait(u.id);
     if (this.textures.exists(art)) {
       const im = this.fitVisible(this.add.image(0, -16, art), 140);
       if (!owned) im.setTint(0x2b1d2e).setAlpha(0.6);
@@ -4957,7 +4965,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     }
     // r38 rarity frame art (ChatGPT v22, transparent centre) over the card edge
     if (this.hasArt(`card_${u.rarity}`)) cc.add(this.add.image(0, 2, `card_${u.rarity}`).setDisplaySize(214, 274));
-    cc.add(this.add.text(0, 88, owned ? FAMILY_INFO[u.id as 'cannon'].name.toUpperCase() : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
+    cc.add(this.add.text(0, 88, owned ? FAMILY_INFO[u.id as 'cannon'].name.toUpperCase().replace('SIGNAL ', '') : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
     if (owned) {
       cc.add(this.add.text(-78, -72, `LV ${st!.level}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: '#2b1d2e', padding: { x: 6, y: 2 } }).setOrigin(0, 0.5));
       const need = st!.level >= MAX_UNIT_LEVEL ? 0 : cardsFor(u, st!.level);
@@ -5118,17 +5126,17 @@ Merge them into a RANK ${rank}!`, this.coachY());
       cards.forEach((cd, k) => {
         // up to 6 kinds in 3 columns; more (big crates/packs) in 4 smaller columns so nothing hides under the buttons
         const cols = cards.length > 6 ? 4 : 3, sc = cards.length > 6 ? 0.78 : 1;
-        const x = W / 2 + ((k % cols) - (cols - 1) / 2) * (cols === 4 ? 152 : 200), y = top + (cols === 4 ? 220 : 250) + Math.floor(k / cols) * (cols === 4 ? 190 : 250);
+        // r39: a short last row is centred under the full rows
+        const rowN = Math.floor(k / cols), inRow = Math.min(cols, cards.length - rowN * cols);
+        const x = W / 2 + ((k % cols) - (inRow - 1) / 2) * (cols === 4 ? 152 : 200), y = top + (cols === 4 ? 220 : 250) + rowN * (cols === 4 ? 190 : 250);
         const card = this.add.container(x, y).setScale(0, sc);
         const u = UNITS.find((v) => v.id === cd.unit)!;
         const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
         card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -110, 176, 220, 18).fillStyle(rc, 1).fillRoundedRect(-84, -106, 168, 212, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -80, 152, 130, 12));
-        if (this.textures.exists(`${cd.unit}_3`)) {
-          const im = this.fitVisible(this.add.image(0, -16, `${cd.unit}_3`), 112);
-          card.add(im);
-        }
+        const pk = this.unitPortrait(cd.unit);
+        if (this.textures.exists(pk)) card.add(this.fitVisible(this.add.image(0, -16, pk), 112));
         card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`.replace('SIGNAL ', ''), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
-        if (cd.isNew) card.add(this.add.text(0, -104, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 10, y: 2 } }).setOrigin(0.5).setAngle(-6));
+        if (cd.isNew) card.add(this.add.text(56, -104, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 8, y: 1 } }).setOrigin(0.5).setAngle(8));
         c.add(card);
         this.tweens.add({ targets: card, scaleX: sc, duration: 220, delay: 300 + k * 260, ease: 'Back.Out', onStart: () => sfx.star?.(Math.min(2, k)) });
       });
@@ -5136,8 +5144,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const more = this.totalCrates();
     this.time.delayedCall(900 + cards.length * 260, () => {
       if (!c.active) return;
-      if (more) this.button(c, W / 2 - 150, top + 920, 260, `NEXT (${more})`, 0x5fbf4a, () => this.openNextCrate(), 0.8);
-      this.button(c, more ? W / 2 + 150 : W / 2, top + 920, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
+      // r39: buttons follow the last row instead of a fixed y (no dead space)
+      const cols = cards.length > 6 ? 4 : 3, rows = Math.ceil(cards.length / cols);
+      const by = Math.min(top + 920, top + (cols === 4 ? 220 : 250) + (rows - 1) * (cols === 4 ? 190 : 250) + (cols === 4 ? 175 : 200));
+      if (more) this.button(c, W / 2 - 150, by, 260, `NEXT (${more})`, 0x5fbf4a, () => this.openNextCrate(), 0.8);
+      this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
     });
   }
 
