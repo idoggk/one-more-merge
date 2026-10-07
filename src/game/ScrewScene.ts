@@ -58,7 +58,7 @@ export class ScrewScene extends Phaser.Scene {
     // the pile
     const top = 430;
     this.scale0 = Math.min((W - 30) / YARD_W, (H - top - 40) / YARD_H, 1.12);
-    this.cy = top + (H - top) / 2;
+    this.cy = top + (H - top) * 0.45;
     this.yard = this.add.container(W / 2, this.cy).setScale(this.scale0);
     const lvl = this.st.lvl;
     for (const p of lvl.plates.slice().sort((a, b) => a.z - b.z)) {
@@ -95,13 +95,20 @@ export class ScrewScene extends Phaser.Scene {
     // first yard: one line of rules
     // first yard: a top toast that leaves after the first screw (never over the pile)
     if (this.data0.n === 1) {
-      const tip = this.add.text(W / 2, 128, 'TAKE A SCREW NOTHING COVERS \u2192 MATCH ITS TOOLBOX', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffcf33', backgroundColor: '#2b1d2e', padding: { x: 14, y: 6 } }).setOrigin(0.5).setDepth(80);
+      const tip = this.add.text(W / 2, this.trayY + 70, 'TAKE A SCREW NOTHING COVERS \u2192 MATCH ITS TOOLBOX', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffcf33', backgroundColor: '#2b1d2e', padding: { x: 14, y: 6 } }).setOrigin(0.5).setDepth(80);
       this.tipText = tip;
     }
   }
 
   screwSprite(color: number) {
     const c = this.add.container(0, 0);
+    // r38: ChatGPT's neutral screw head, tinted per colour (drawn fallback below)
+    if (this.textures.exists('sy_screw')) {
+      const im = this.add.image(0, 0, 'sy_screw').setTint(color);
+      im.setScale(50 / im.width);
+      c.add(im);
+      return c;
+    }
     const g = this.add.graphics();
     g.fillStyle(INK, 1).fillCircle(0, 3, 24);
     g.fillStyle(color, 1).fillCircle(0, 0, 21);
@@ -112,10 +119,17 @@ export class ScrewScene extends Phaser.Scene {
   }
 
   boxX = (slot: number) => W / 2 + (slot - (OPEN_BOXES - 1) / 2) * 300;
-  boxY = 200;
-  trayY = 345;
+  boxY = 196;
+  trayY = 362;
   trayX = (i: number) => W / 2 + (i - (TRAY_CAP - 1) / 2) * 92;
-  slotX = (slot: number, k: number) => this.boxX(slot) + (k - 1) * 64;
+  /** r38 toolbox art (ChatGPT): 250 px wide; wells at 22% / 48% / 74% across, 62% down. */
+  get boxArt() {
+    return this.textures.exists('sy_toolbox_open');
+  }
+  static BOX_W = 250;
+  static WELLS = [0.217, 0.48, 0.744];
+  slotX = (slot: number, k: number) => (this.boxArt ? this.boxX(slot) + (ScrewScene.WELLS[k] - 0.5) * ScrewScene.BOX_W : this.boxX(slot) + (k - 1) * 64);
+  slotY = () => (this.boxArt ? this.boxY + (0.62 - 0.5) * ScrewScene.BOX_W * (209 / 360) : this.boxY - 4);
 
   drawUi() {
     this.ui.removeAll(true);
@@ -123,6 +137,16 @@ export class ScrewScene extends Phaser.Scene {
     this.ui.add(g);
     this.st.boxes.forEach((b, slot) => {
       const x = this.boxX(slot);
+      if (this.boxArt) {
+        // ChatGPT's toolbox, tinted to its colour (an empty slot shows a dark, faded box)
+        const im = this.add.image(x, this.boxY, 'sy_toolbox_open');
+        im.setScale(ScrewScene.BOX_W / im.width);
+        if (b) im.setTint(SCREW_COLORS[b.color]);
+        else im.setTint(0x2b1d2e).setAlpha(0.35);
+        this.ui.add(im);
+        if (b) for (let k = 0; k < b.n; k++) this.ui.add(this.screwSprite(SCREW_COLORS[b.color]).setPosition(this.slotX(slot, k), this.slotY()).setScale(0.85));
+        return;
+      }
       // toolbox: handle on top, body below
       g.lineStyle(12, INK, 1).strokeRoundedRect(x - 50, this.boxY - 82, 100, 46, 14);
       g.fillStyle(INK, 1).fillRoundedRect(x - 120, this.boxY - 52, 240, 104, 22);
@@ -130,12 +154,12 @@ export class ScrewScene extends Phaser.Scene {
       g.fillStyle(SCREW_COLORS[b.color], 1).fillRoundedRect(x - 114, this.boxY - 46, 228, 92, 18);
       g.fillStyle(0x000000, 0.18).fillRoundedRect(x - 114, this.boxY + 14, 228, 32, { tl: 0, tr: 0, bl: 18, br: 18 });
       for (let k = 0; k < BOX_SIZE; k++) {
-        g.fillStyle(INK, 0.55).fillCircle(this.slotX(slot, k), this.boxY - 4, 25);
-        if (k < b.n) this.ui.add(this.screwSprite(SCREW_COLORS[b.color]).setPosition(this.slotX(slot, k), this.boxY - 4));
+        g.fillStyle(INK, 0.55).fillCircle(this.slotX(slot, k), this.slotY(), 25);
+        if (k < b.n) this.ui.add(this.screwSprite(SCREW_COLORS[b.color]).setPosition(this.slotX(slot, k), this.slotY()));
       }
     });
     const left = this.st.lvl.queue.length - this.st.qi;
-    this.ui.add(this.add.text(W / 2, this.boxY + 70, left > 0 ? `${left} more toolbox${left > 1 ? 'es' : ''}` : 'last toolboxes!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
+    this.ui.add(this.add.text(W / 2, this.boxY + (this.boxArt ? 84 : 70), left > 0 ? `${left} more toolbox${left > 1 ? 'es' : ''}` : 'last toolboxes!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
     // tray
     g.fillStyle(INK, 0.85).fillRoundedRect(W / 2 - (TRAY_CAP * 92) / 2 - 10, this.trayY - 44, TRAY_CAP * 92 + 20, 88, 22);
     const nearFull = this.st.tray.length >= TRAY_CAP - 1;
@@ -197,7 +221,7 @@ export class ScrewScene extends Phaser.Scene {
     this.add.existing(sv);
     const box = r.to === 'box' ? this.st.boxes[r.box!] : null;
     const tx = r.to === 'box' ? this.slotX(r.box!, Math.max(0, (r.left.length ? BOX_SIZE : box ? box.n : 1) - 1)) : this.trayX(this.st.tray.length - 1 + r.pulls.length);
-    const ty = r.to === 'box' ? this.boxY - 4 : this.trayY;
+    const ty = r.to === 'box' ? this.slotY() : this.trayY;
     this.tweens.chain({
       targets: sv,
       tweens: [
@@ -225,9 +249,15 @@ export class ScrewScene extends Phaser.Scene {
 
   boxDone(slot: number, color: number) {
     const x = this.boxX(slot);
-    const g = this.add.graphics().setDepth(40);
-    g.fillStyle(SCREW_COLORS[color], 1).fillRoundedRect(x - 114, this.boxY - 46, 228, 92, 18);
-    this.tweens.add({ targets: g, y: -220, alpha: 0, duration: 420, ease: 'Quad.In', onComplete: () => g.destroy() });
+    // the full toolbox (with its three screws) lifts away
+    const g = this.add.container(0, 0).setDepth(40);
+    if (this.boxArt) {
+      const im = this.add.image(x, this.boxY, 'sy_toolbox_open').setTint(SCREW_COLORS[color]);
+      im.setScale(ScrewScene.BOX_W / im.width);
+      g.add(im);
+      for (let k = 0; k < BOX_SIZE; k++) g.add(this.screwSprite(SCREW_COLORS[color]).setPosition(this.slotX(slot, k), this.slotY()).setScale(0.85));
+    } else g.add(this.add.graphics().fillStyle(SCREW_COLORS[color], 1).fillRoundedRect(x - 114, this.boxY - 46, 228, 92, 18));
+    this.tweens.add({ targets: g, y: -260, alpha: 0, duration: 460, ease: 'Back.In', onComplete: () => g.destroy() });
     this.flashAt(x, this.boxY, '✓', '#8ef08a');
   }
 

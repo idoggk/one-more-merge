@@ -6,7 +6,7 @@ import { FAMILIES, type Family } from '../core/types';
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
 
 /** r29: boss / cast / chapter-stage art (~half the bytes) loads in the background after the first frame. */
-const LAZY = /^(boss_|mon_|stage_ch)/;
+const LAZY = /^(boss_|mon_|stage_ch|sy_)/;
 const artEntries = () => Object.entries(ART).map(([path, url]) => [path.split('/').pop()!.replace(/\.(png|webp)$/, ''), url] as const);
 
 export function preloadArt(scene: Phaser.Scene) {
