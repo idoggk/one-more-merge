@@ -2436,6 +2436,14 @@ Now beat the real level.`, this.coachY());
     r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50);
     r.fillStyle(0xfff0cf, 1).fillCircle(CLOCK_X, HP_Y, 36);
     if (frac > 0) r.lineStyle(10, col, 1).beginPath().arc(CLOCK_X, HP_Y, 43, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
+    // r39: gold ticks where the 2- and 3-star times fall (still reachable ones bright, missed ones faded)
+    const sdef = s.level !== undefined && !s.rush && !s.bounty ? LEVELS[s.level - 1] : undefined;
+    if (sdef?.star_times)
+      for (const st of sdef.star_times) {
+        const a = -Math.PI / 2 + Math.PI * 2 * Math.max(0, (total - st) / total);
+        const live = s.elapsed <= st;
+        r.lineStyle(5, live ? 0xffcf33 : 0x8a7a5a, live ? 1 : 0.6).lineBetween(CLOCK_X + Math.cos(a) * 36, HP_Y + Math.sin(a) * 36, CLOCK_X + Math.cos(a) * 52, HP_Y + Math.sin(a) * 52);
+      }
     const sec = Math.ceil(s.timeLeft);
     if (sec !== this.lastSec && s.phase === 'playing' && !this.paused) {
       const prev = this.lastSec;
