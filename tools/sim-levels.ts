@@ -3,11 +3,12 @@
 // src/content/levels.json (hp only) unless --dry. Usage: npx vite-node tools/sim-levels.ts [--dry] [--from N] [--to N]
 import { readFileSync, writeFileSync } from 'node:fs';
 import { LEVELS, type LevelDef } from '../src/content/levels';
+import { TUNING } from '../src/content/tuning';
 import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 
 const args = process.argv.slice(2);
-const dry = args.includes('--dry');
+const dry = args.includes('--dry') || args.includes('--optA'); // the experiment never writes levels.json
 const from = Number(args[args.indexOf('--from') + 1]) || 1;
 const to = Number(args[args.indexOf('--to') + 1]) || LEVELS.length;
 const N = Number(args[args.indexOf('--n') + 1]) || 40;
@@ -15,6 +16,8 @@ const N = Number(args[args.indexOf('--n') + 1]) || 40;
 // chance a chain-goal bot picks the best previewed chain (else random): humans see some chains, not all
 const CHAIN_SKILL = Number(args[args.indexOf('--skill') + 1]) || 0.3;
 const EVERY = Number(args[args.indexOf('--every') + 1]) || 3;
+// --optA: TUNING.optionA experiment (mid-level chaos Option A); use with --dry
+if (args.includes('--optA')) TUNING.optionA = true;
 
 function novice(s: GameState, rng: Rng): [number, number] | null {
   const p = legalPairs(s);

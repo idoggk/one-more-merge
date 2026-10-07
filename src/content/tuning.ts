@@ -58,6 +58,11 @@ export const TUNING = {
   kickbackFall: 0.6,
   bigCascade: 8,
   bigCascadeCooldown: 8,
+  /** EXPERIMENT (t-ce493a56, mid-level chaos Option A), default OFF: Overdrive charges by chain size (links past the
+   *  merged part, odChain to fill), reactive parts are earned by chain size (1 per partsPerChain activations, at most
+   *  maxEarn; a board under floorBelow parts still earns 1) and land at most one per `beat` s; matchmaker share drops. */
+  optionA: false,
+  optA: { odChain: 12, partsPerChain: 3, maxEarn: 3, floorBelow: 8, beat: 1.2, matchShare: 0.35 },
 };
 
 export type Tuning = typeof TUNING;

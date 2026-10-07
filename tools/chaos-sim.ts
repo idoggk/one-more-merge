@@ -1,5 +1,5 @@
 // Chaos / decision-quality probe: random vs best bots, board load, decision flatness over the level clock.
-// Usage: npx vite-node tools/chaos-sim.ts [--levels 3,9,22] [--n 24]
+// Usage: npx vite-node tools/chaos-sim.ts [--levels 3,9,22] [--n 24] [--optA]  (--optA = TUNING.optionA experiment)
 // Columns are fifths of the level clock. trivial = a random merge scores >= 85% of the best on average (or <= 1 pair);
 // capReach = some option hits the 35% cascade cap; capped = the chosen merge did. Bots think every N s ±20%.
 import { LEVELS } from '../src/content/levels';
@@ -11,6 +11,9 @@ const args = process.argv.slice(2);
 const arg = (k: string) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
 const LV = (arg('--levels') ?? '3,5,9,13,17,22,25,31,45,55,61,66,71,76,30,40,50,60,70,80').split(',').map(Number);
 const N = Number(arg('--n')) || 24;
+if (args.includes('--optA')) TUNING.optionA = true;
+console.log(`chaos-sim | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | n ${N}`);
+const SUM: { gap: number; arr1: number; triv: number; trivR: number }[] = [];
 
 type Opt = { f: number; t: number; raw: number; eff: number; count: number; rank: number };
 const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
@@ -110,4 +113,14 @@ for (const L of LV) {
     console.log(`  [${name}] trivial ${row(a.trivial, pct)} | E[rand]/best ${row(a.ratio, pct)} | capReach ${row(a.capReach, pct)} | capped ${row(a.capped, pct)} | stageHPleft ${row(a.hpLeft, pct)}`);
     if (a.mach.size > 1) console.log(`    by machine: ${[...a.mach.entries()].sort((x, y) => x[0] - y[0]).map(([i, m]) => `m${i + 1} trivial ${pct(m.triv / m.n)} ratio ${pct(m.ratio / m.n)} n${m.n}`).join(' | ')}`);
   }
+  // mid-level = fifths 2-4 of the clock
+  const mid = (a: number[][]) => mean(a.slice(1, 4).flat());
+  SUM.push({
+    gap: (res['best 3.5s'].wins - res['rand 2.0s'].wins) / N,
+    arr1: mean(res['rand 1.0s'].arrivals.flat()),
+    triv: mid(res['best 2.0s'].trivial),
+    trivR: mid(res['rand 1.0s'].trivial),
+  });
 }
+const avg = (k: keyof (typeof SUM)[number]) => mean(SUM.map((x) => x[k]).filter((x) => !Number.isNaN(x)));
+console.log(`\nSUMMARY (${SUM.length} levels, optionA ${TUNING.optionA ? 'ON' : 'OFF'}): win gap best3.5-rand2 ${pct(avg('gap'))} | arrive/min @rand1.0s ${f(avg('arr1'), 1)} | mid-level trivial [best 2.0s] ${pct(avg('triv'))} [rand 1.0s] ${pct(avg('trivR'))}`);
