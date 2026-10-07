@@ -45,6 +45,18 @@ async function boot() {
   });
   // expose for debugging / automated checks
   (window as unknown as { __omm: unknown }).__omm = { Phaser, game };
+  // r34 splash: keep the key art up until 1.8 s after page start, then fade it once the game scene has drawn its first screen
+  const splash = document.getElementById('splash');
+  if (splash) {
+    const ready = () => !!(game.scene.getScene('game') as unknown as { s?: unknown } | null)?.s;
+    const check = () => {
+      if (ready() && performance.now() > 1800) {
+        splash.classList.add('gone');
+        setTimeout(() => splash.remove(), 600);
+      } else setTimeout(check, 100);
+    };
+    setTimeout(check, 300);
+  }
 }
 
 void boot();

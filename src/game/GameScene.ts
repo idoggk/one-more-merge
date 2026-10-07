@@ -3985,6 +3985,12 @@ Now beat the real level.`, this.coachY());
     const def = LEVELS[cur - 1];
     const tag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
     const play = this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
+    // r34 (Ido: "where are the reset and jump-to buttons?"): QA tools one tap from the road
+    const qa = this.add.container(W - 66, 236);
+    qa.add(this.add.circle(0, 0, 40, 0xd8261a).setStrokeStyle(5, 0x2b1d2e));
+    qa.add(this.add.text(0, 0, 'QA', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffffff' }).setOrigin(0.5));
+    qa.add(this.add.zone(0, 0, 90, 90).setInteractive({ useHandCursor: true }).on('pointerup', () => this.openQaTools()));
+    c.add(qa);
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.drawNav(c, 'road');
     // r17 lesson 1: first road visit

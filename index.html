@@ -13,10 +13,19 @@
     <style>
       html, body { margin: 0; height: 100%; background: #f3cf9b; overflow: hidden; touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
       #game { position: fixed; inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+      /* r34 loading splash: the key art (Cannon blasting Junkzilla) from the very first frame, faded out when the game is ready */
+      #splash { position: fixed; inset: 0; z-index: 10; background: #1d2a2e; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: opacity 0.45s ease; }
+      #splash .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      #splash .logo { position: absolute; top: max(4vh, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: min(78vw, 420px); filter: drop-shadow(0 6px 0 rgba(43, 29, 46, 0.6)); }
+      #splash .bar { position: relative; width: min(62vw, 320px); height: 18px; margin-bottom: calc(7vh + env(safe-area-inset-bottom)); border-radius: 10px; background: rgba(43, 29, 46, 0.85); border: 3px solid #2b1d2e; overflow: hidden; }
+      #splash .bar i { position: absolute; inset: 0; width: 30%; border-radius: 8px; background: #ffcf33; animation: load 1.4s ease-in-out infinite; }
+      @keyframes load { 0% { left: -30%; } 100% { left: 100%; } }
+      #splash.gone { opacity: 0; pointer-events: none; }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="splash"><img class="art" src="/src/assets/art/title.webp" alt="" /><img class="logo" src="/src/assets/art/logo.webp" alt="One More Merge" /><div class="bar"><i></i></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
