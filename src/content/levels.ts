@@ -31,6 +31,8 @@ export interface LevelDef {
   start_extra?: [string, number, number, number][];
   /** r25: the item this level teaches (prescribed for its one grant) and, on goal levels, when it is granted. */
   item_teach?: string;
+  /** r28 visual cast: the character drawn for this level (mechanics stay with `monster`). Art key mon_<id>[_dmg]. */
+  visual?: string;
   /** r27 mid-chapter mini-boss id (BOSSES entry with mini: true). */
   mini_boss?: string;
   item_grant_at?: number;
@@ -41,6 +43,22 @@ export const LEVELS: LevelDef[] = (raw as unknown as { levels: LevelDef[] }).lev
 export const STARTING_CELLS = (raw as unknown as { starting_cells: Record<'shooter' | 'coil' | 'bell', [number, number][]> }).starting_cells;
 export const SUPPLY_SECONDS: number[] = (raw as { supply_seconds: number[] }).supply_seconds;
 export const SUPPLY_FRACTIONS: number[] = (raw as { supply_phase_base_time_fractions: number[] }).supply_phase_base_time_fractions;
+
+/** r28 chapter cast (ChatGPT): display names for `visual` ids. */
+export const CAST: Record<string, { name: string; short: string }> = {
+  kettle_grump: { name: 'KETTLE GRUMP', short: 'KETTLE' },
+  colander_clatter: { name: 'COLANDER CLATTER', short: 'COLANDER' },
+  sock_cyclops: { name: 'SOCK CYCLOPS', short: 'CYCLOPS' },
+  iron_duchess: { name: 'IRON DUCHESS', short: 'DUCHESS' },
+  toolbox_terrier: { name: 'TOOLBOX TERRIER', short: 'TERRIER' },
+  traffic_cone_goblin: { name: 'CONE GOBLIN', short: 'GOBLIN' },
+  pixel_pug: { name: 'PIXEL PUG', short: 'PUG' },
+  joystick_jester: { name: 'JOYSTICK JESTER', short: 'JESTER' },
+  gramophone_goose: { name: 'GRAMOPHONE GOOSE', short: 'GOOSE' },
+  accordion_imp: { name: 'ACCORDION IMP', short: 'IMP' },
+  wheelie_warthog: { name: 'WHEELIE WARTHOG', short: 'WARTHOG' },
+  satellite_scuttler: { name: 'SATELLITE SCUTTLER', short: 'SCUTTLER' },
+};
 
 /** Monster name -> target index (art + names in TARGET_NAMES). */
 export const MONSTER_INDEX: Record<string, number> = { tin_can: 0, mad_fridge: 1, junkzilla: 2, vacuum_viper: 3, toaster_twins: 4, grand_piano_saurus: 5 };

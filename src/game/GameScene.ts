@@ -27,7 +27,7 @@ import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
-import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starGoals, starsFor } from '../content/levels';
+import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, PRICES, starGoals, starsFor } from '../content/levels';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
@@ -584,7 +584,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -637,6 +637,8 @@ export class GameScene extends Phaser.Scene {
   targetY = 0;
   setTargetTexture() {
     let key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
+    const cast = this.castOf(this.s.level);
+    if (cast && !this.realBoss) key = this.s.thresholds >= 2 && this.hasArt(`mon_${cast}_dmg`) ? `mon_${cast}_dmg` : `mon_${cast}`;
     const b = this.realBoss;
     if (b) {
       const bk = `boss_${BOSSES[b.def].id}_${['intact', 'cracked', 'critical'][bossPhase(this.s.hp, this.s.maxHp)]}`;
@@ -873,6 +875,17 @@ export class GameScene extends Phaser.Scene {
   overScrap(x: number, y: number) {
     return Math.abs(x - SCRAP_X) < 70 && Math.abs(y - TRAY_Y) < 50;
   }
+  /** r28: the cast character drawn for a level (only when its art exists). */
+  castOf(level?: number) {
+    const v = level !== undefined ? LEVELS[level - 1]?.visual : undefined;
+    return v && this.hasArt(`mon_${v}`) ? v : undefined;
+  }
+  monName(short = false) {
+    const v = this.castOf(this.s.level);
+    if (v) return short ? CAST[v].short : CAST[v].name;
+    return (short ? SHORT_NAMES : TARGET_NAMES)[Math.max(0, this.s.target)];
+  }
+
   /** The chapter boss (not an ordinary monster's light hazard, r23). */
   get realBoss() {
     return this.s.boss && !this.s.boss.light ? this.s.boss : null;
@@ -1638,7 +1651,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : SHORT_NAMES[s.target]}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -2352,7 +2365,7 @@ Now beat the real level.`, this.coachY());
 
   showFace(mood: 'hit' | 'angry' | 'dizzy' | null, ms = 0) {
     const ti = this.s.target;
-    const key = ti >= 0 && mood && !this.realBoss ? `face_${ti}_${mood}` : '';
+    const key = ti >= 0 && mood && !this.realBoss && !this.castOf(this.s.level) ? `face_${ti}_${mood}` : '';
     if (!key || !this.hasArt(key)) {
       this.face.setVisible(false);
       return;
@@ -3006,7 +3019,7 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? `${TARGET_NAMES[s.target]} down in ${s.elapsed.toFixed(1)}s` : `${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? `${this.monName()} down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
     for (let k = 0; k < 3; k++) {
       const st = this.add.image(W / 2 + (k - 1) * 130, top + 270 + (k === 1 ? -14 : 0), 'star');
       const sc = (k === 1 ? 120 : 100) / Math.max(st.width, st.height);
@@ -3630,13 +3643,14 @@ Now beat the real level.`, this.coachY());
     if (diff) c.add(this.add.text(W / 2, top + 112, diff, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: isBoss ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 12, y: 4 } }).setOrigin(0.5));
     const ti = MONSTER_INDEX[def.monster] ?? 0;
     const bossDef = miniDef ?? (isBoss ? BOSSES[(n / 10 - 1) % BOSSES.length] : null);
-    const tk = bossDef && this.hasArt(`boss_${bossDef.id}_intact`) ? `boss_${bossDef.id}_intact` : `target_${ti}`;
+    const castV = !bossDef ? this.castOf(n) : undefined;
+    const tk = bossDef && this.hasArt(`boss_${bossDef.id}_intact`) ? `boss_${bossDef.id}_intact` : castV ? `mon_${castV}` : `target_${ti}`;
     if (this.textures.exists(tk)) {
       const im = this.add.image(W / 2, top + 250, tk);
       im.setScale(180 / Math.max(im.width, im.height));
       c.add(im);
     }
-    c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef && !miniDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : castV ? CAST[castV].name : TARGET_NAMES[ti]}  ·  ${bossDef && !miniDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
     const firstOf: Record<string, number> = { rocket: 6, magnet: 12, battery: 17, fan: 23 };
     const newFam = n === 6 ? 'rocket' : (def.start_extra ?? []).map(([f]) => f).find((f) => firstOf[f] === n);
@@ -3900,7 +3914,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const mini = d.mini_boss ? BOSSES.find((x) => x.id === d.mini_boss) : undefined;
       const boss = !mini && n % 10 === 0 ? BOSSES[n / 10 - 1] : undefined;
       const b = mini ?? boss;
-      const key = b ? `boss_${b.id}` : `mon_${d.monster}`;
+      const cv = !b ? this.castOf(n) : undefined;
+      const key = b ? `boss_${b.id}` : cv ? `cast_${cv}` : `mon_${d.monster}`;
       const beatenHere = cleared(n);
       if (seen.has(key)) {
         const prev = out.find((e) => e.id === key);
@@ -3909,7 +3924,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
       seen.add(key);
       const ti = MONSTER_INDEX[d.monster] ?? 0;
-      out.push({ id: key, tab: mini ? 1 : boss ? 2 : 0, key: b ? `boss_${b.id}_intact` : `target_${ti}`, name: b ? b.name : TARGET_NAMES[ti], level: n, beaten: beatenHere });
+      out.push({ id: key, tab: mini ? 1 : boss ? 2 : 0, key: b ? `boss_${b.id}_intact` : cv ? `mon_${cv}` : `target_${ti}`, name: b ? b.name : cv ? CAST[cv].name : TARGET_NAMES[ti], level: n, beaten: beatenHere });
     }
     return out;
   }

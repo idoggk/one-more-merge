@@ -288,7 +288,8 @@
       "goal": {
         "kind": "rank",
         "n": 4
-      }
+      },
+      "visual": "kettle_grump"
     },
     {
       "level": 5,
@@ -327,7 +328,8 @@
         40,
         30
       ],
-      "shooter": "rocket"
+      "shooter": "rocket",
+      "visual": "colander_clatter"
     },
     {
       "level": 7,
@@ -348,7 +350,8 @@
       "goal": {
         "kind": "rank",
         "n": 4
-      }
+      },
+      "visual": "kettle_grump"
     },
     {
       "level": 8,
@@ -384,7 +387,8 @@
         48,
         36
       ],
-      "behaviour": "suction"
+      "behaviour": "suction",
+      "visual": "colander_clatter"
     },
     {
       "level": 10,
@@ -448,7 +452,8 @@
           2,
           2
         ]
-      ]
+      ],
+      "visual": "sock_cyclops"
     },
     {
       "level": 13,
@@ -490,7 +495,8 @@
       "goal": {
         "kind": "chain",
         "n": 18
-      }
+      },
+      "visual": "sock_cyclops"
     },
     {
       "level": 15,
@@ -560,7 +566,8 @@
         ]
       ],
       "item_teach": "spark",
-      "item_grant_at": 8
+      "item_grant_at": 8,
+      "visual": "iron_duchess"
     },
     {
       "level": 17,
@@ -585,7 +592,8 @@
           4,
           3
         ]
-      ]
+      ],
+      "visual": "sock_cyclops"
     },
     {
       "level": 18,
@@ -621,7 +629,8 @@
         43,
         26
       ],
-      "behaviour": "frost"
+      "behaviour": "frost",
+      "visual": "iron_duchess"
     },
     {
       "level": 20,
@@ -659,7 +668,8 @@
       "goal": {
         "kind": "rank",
         "n": 6
-      }
+      },
+      "visual": "toolbox_terrier"
     },
     {
       "level": 22,
@@ -677,7 +687,8 @@
         41,
         17
       ],
-      "item_teach": "corner"
+      "item_teach": "corner",
+      "visual": "traffic_cone_goblin"
     },
     {
       "level": 23,
@@ -728,7 +739,8 @@
         "kind": "rank",
         "n": 6
       },
-      "behaviour": "suction"
+      "behaviour": "suction",
+      "visual": "toolbox_terrier"
     },
     {
       "level": 25,
@@ -775,7 +787,8 @@
       "goal": {
         "kind": "rank",
         "n": 6
-      }
+      },
+      "visual": "traffic_cone_goblin"
     },
     {
       "level": 27,
@@ -804,7 +817,8 @@
           2,
           1
         ]
-      ]
+      ],
+      "visual": "toolbox_terrier"
     },
     {
       "level": 28,
@@ -844,7 +858,8 @@
         "kind": "chain",
         "n": 20
       },
-      "behaviour": "suction"
+      "behaviour": "suction",
+      "visual": "traffic_cone_goblin"
     },
     {
       "level": 30,
@@ -879,7 +894,8 @@
         39,
         28
       ],
-      "shooter": "rocket"
+      "shooter": "rocket",
+      "visual": "pixel_pug"
     },
     {
       "level": 32,
@@ -908,7 +924,8 @@
           4,
           3
         ]
-      ]
+      ],
+      "visual": "joystick_jester"
     },
     {
       "level": 33,
@@ -948,7 +965,8 @@
       "goal": {
         "kind": "rank",
         "n": 7
-      }
+      },
+      "visual": "pixel_pug"
     },
     {
       "level": 35,
@@ -995,7 +1013,8 @@
       "goal": {
         "kind": "rank",
         "n": 6
-      }
+      },
+      "visual": "joystick_jester"
     },
     {
       "level": 37,
@@ -1013,7 +1032,8 @@
         43,
         26
       ],
-      "behaviour": "hot"
+      "behaviour": "hot",
+      "visual": "pixel_pug"
     },
     {
       "level": 38,
@@ -1057,7 +1077,8 @@
           4,
           3
         ]
-      ]
+      ],
+      "visual": "joystick_jester"
     },
     {
       "level": 40,
@@ -1095,7 +1116,8 @@
       "goal": {
         "kind": "chain",
         "n": 16
-      }
+      },
+      "visual": "gramophone_goose"
     },
     {
       "level": 42,
@@ -1118,7 +1140,8 @@
         "n": 18
       },
       "item_teach": "corner",
-      "item_grant_at": 8
+      "item_grant_at": 8,
+      "visual": "accordion_imp"
     },
     {
       "level": 43,
@@ -1162,7 +1185,8 @@
         "kind": "chain",
         "n": 20
       },
-      "behaviour": "suction"
+      "behaviour": "suction",
+      "visual": "gramophone_goose"
     },
     {
       "level": 45,
@@ -1208,7 +1232,8 @@
       "goal": {
         "kind": "rank",
         "n": 6
-      }
+      },
+      "visual": "accordion_imp"
     },
     {
       "level": 47,
@@ -1226,7 +1251,8 @@
         43,
         19
       ],
-      "behaviour": "rest"
+      "behaviour": "rest",
+      "visual": "gramophone_goose"
     },
     {
       "level": 48,
@@ -1270,7 +1296,8 @@
           2,
           2
         ]
-      ]
+      ],
+      "visual": "accordion_imp"
     },
     {
       "level": 50,
@@ -1308,7 +1335,8 @@
       "goal": {
         "kind": "chain",
         "n": 18
-      }
+      },
+      "visual": "wheelie_warthog"
     },
     {
       "level": 52,
@@ -1334,7 +1362,8 @@
           4,
           3
         ]
-      ]
+      ],
+      "visual": "satellite_scuttler"
     },
     {
       "level": 53,
@@ -1385,7 +1414,8 @@
           2,
           1
         ]
-      ]
+      ],
+      "visual": "wheelie_warthog"
     },
     {
       "level": 55,
@@ -1425,7 +1455,8 @@
       "goal": {
         "kind": "rank",
         "n": 7
-      }
+      },
+      "visual": "satellite_scuttler"
     },
     {
       "level": 57,
@@ -1451,7 +1482,8 @@
           2,
           2
         ]
-      ]
+      ],
+      "visual": "wheelie_warthog"
     },
     {
       "level": 58,
@@ -1495,7 +1527,8 @@
           2,
           1
         ]
-      ]
+      ],
+      "visual": "satellite_scuttler"
     },
     {
       "level": 60,
