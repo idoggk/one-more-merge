@@ -36,6 +36,8 @@ const states = {
   guide2: [(sc) => { sc.openHowTo(2); }, 1300],
   new_rocket: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, new_rocket: false }; sc.startLevel(6); }, 4200],
   settings: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openSettings(); }, 900],
+  item_lesson: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true, x_boss: true, tap_hint: true, item_overcharge: false }; sc.startLevel(13); sc.finishIntro(true); setTimeout(() => { sc.s.itemTray = 'overcharge'; sc.s.itemGranted = true; sc.handleEvents([{ type: 'itemGrant', kind: 'overcharge', teach: true }]); }, 600); }, 2600],
+  item_applied: [(sc) => { const i = sc.s.grid.findIndex((x) => x && (x.family === 'cannon' || x.family === 'rocket')); sc.tryApplyItem(i); }, 900],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {

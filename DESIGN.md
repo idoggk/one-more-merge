@@ -234,3 +234,9 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - **MAX HIT**: one cascade deals at most 35% of a saga monster's max HP (`TUNING.cascadeCap`) — a win takes at least three real chains; the lane says MAX HIT. HP refit barely moved (the cap only bites on huge chains).
 - **Machine Guide** replaces the old How-to-play: one page per machine with a looping mini-board (source pulses, zaps to what it wakes, bolts to the monster); locked machines say where you meet them. First level with a new machine opens its page; L4+ one-time "tap any machine" hint.
 - Settings > "Start over (wipe progress)" (second tap confirms) for QA.
+
+### Round 25 — power-up items (Ido's idea; ChatGPT spec in docs/ROUND25_ITEM_RULES.md, art v18)
+- From L13, the 50% HP panel break drops a capsule into a one-slot tray instead of its kickback part (max one per level; goal levels only via an explicit teaching grant: L16 SPARK at 8 s). Deterministic item RNG; kind = the level's teaching kind, else uniform among unlocked kinds with an eligible machine (else the ordinary kickback).
+- OVERCHARGE (Cannon/Rocket, 2 charges: chain shot x1.5), SPARK (Cannon/Rocket, 1: wakes occupied U/R/D/L neighbours of other families), CORNER KIT (Bell, 1: wakes diagonals except Bells). Charges spend only in player-rooted cascades (not passive, not automatic kickback cascades), even when a boss modifier blocks the benefit; REST ROW blocks corner wakes, SPLIT blocks crossing item wakes; MAX HIT cap unchanged.
+- Merge keeps the attachment (with two, the destination's survives); kickback fuse transfers it; scrap/suction destroy it. Drag the item (or tap it, then a machine); valid machines get a gold rim; first item of each kind freezes the clock until it is applied (coach + hand). Badge upper-left with OVERCHARGE pips. Machine Guide has a POWER-UPS page.
+- Calibration bots never use items, so items are pure upside for players (L13+ slightly easier than the numbers).

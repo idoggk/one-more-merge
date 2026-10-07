@@ -58,6 +58,8 @@ export interface CascadeOpts {
   hotCol?: number;
   restRow?: number;
   splitB?: number;
+  /** r25: player-rooted cascade — attachments act and spend charges (never in passive / automatic kickback cascades). */
+  items?: boolean;
 }
 
 /**
@@ -140,6 +142,24 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const edges: CascadeResult['edges'] = [];
   const queue: number[] = [];
   const charge = new Map<number, number>();
+  // r25 attachments: snapshot at cascade start
+  const itemOf = new Map<number, { kind: string; charges: number }>();
+  if (opts.items) for (const g of input) if (g?.item && g.item.charges > 0) itemOf.set(g.id, g.item);
+  const itemUsed: number[] = [];
+  const overcharged = new Set<number>();
+  const crosses = (from: number, to: number) => opts.splitB !== undefined && from % COLS <= opts.splitB !== to % COLS <= opts.splitB;
+  /** Item wake edges: occupied neighbours (orthogonal or diagonal), excluding the owner's family; shared split predicate. */
+  const itemWakes = (idx: number, a: Activation, dirs: number[][]) => {
+    const [r, c] = rc(idx);
+    for (const [dr, dc] of dirs) {
+      if (!inside(r + dr, c + dc)) continue;
+      const n = at(r + dr, c + dc);
+      const g = grid[n];
+      if (!g || g.family === a.family || lockedSet.has(n) || crosses(idx, n)) continue;
+      edges.push({ from: idx, to: n, kind: 'item' });
+      enqueue(idx, n, a.depth + 1);
+    }
+  };
 
   const enqueue = (from: number, to: number, depth: number) => {
     if (visited.has(to)) return;
@@ -197,6 +217,14 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
     fired.add(a.id);
+    const it = itemOf.get(a.id);
+    if (it) {
+      itemUsed.push(a.id); // spent on activation even when a boss modifier blocks the benefit
+      if (it.kind === 'overcharge' && isShooter(a.family)) overcharged.add(a.id);
+      if (it.kind === 'spark' && isShooter(a.family)) itemWakes(idx, a, DIRS);
+      if (it.kind === 'corner' && a.family === 'bell' && !(opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow))
+        itemWakes(idx, a, [[-1, -1], [-1, 1], [1, -1], [1, 1]]);
+    }
     if (isShooter(a.family)) {
       if (primedNow.has(a.id)) {
         primedNow.delete(a.id);
@@ -275,7 +303,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const perk = isShooter(a.family) && opts.perks.includes('twin') ? 1.4 : 1;
     const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
     const hot = isShooter(a.family) && opts.hotCol !== undefined && a.idx % COLS === opts.hotCol ? 0.5 : 1;
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot;
+    const oc = overcharged.has(a.id) ? 1.5 : 1;
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc;
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');
@@ -283,5 +312,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, count: acts.length, comboMult, total };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, count: acts.length, comboMult, total };
 }

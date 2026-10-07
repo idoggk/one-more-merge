@@ -29,6 +29,9 @@ export interface LevelDef {
   shooter?: string;
   /** Extra starting pieces placed after the chapter starters: [family, rank, row, col]. */
   start_extra?: [string, number, number, number][];
+  /** r25: the item this level teaches (prescribed for its one grant) and, on goal levels, when it is granted. */
+  item_teach?: string;
+  item_grant_at?: number;
   teach?: { start: [string, number, number, number][]; bag?: Record<string, number>; no_kickback?: boolean; no_overdrive?: boolean; lesson: string };
 }
 

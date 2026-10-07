@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import {
+import { applyItem,
   canMerge,
   capOf,
   choosePerk,
@@ -34,6 +34,7 @@ import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { BOSSES, bossBlocked, bossPhase, BOSS_WARN } from '../core/boss';
+import { itemFits, type ItemKind } from '../core/types';
 
 export const W = 720;
 const CELL = 124;
@@ -42,6 +43,8 @@ const DRAG_LIFT = 40;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
+/** r25 item tray slot, between NEXT (+ Time Capsule) and SCRAP. */
+const ITEM_X = W - 208;
 // Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
 // so there are no letterbox bands. Header pinned top, tray pinned bottom, board + event lane above it, stage gets the rest.
 export let H = 1280;
@@ -898,6 +901,17 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!this.canAct()) return;
+    if (this.s.itemTray && Phaser.Math.Distance.Between(p.worldX, p.worldY, ITEM_X, TRAY_Y) < 52) {
+      this.itemDrag = { x: p.worldX, y: p.worldY, moved: false };
+      sfx.pickup();
+      return;
+    }
+    if (this.itemSelected) {
+      this.itemSelected = false;
+      this.tryApplyItem(this.cellAt(p.worldX, p.worldY));
+      return;
+    }
+    if (this.itemLesson) return; // only the item may be used until it is applied
     const idx = this.cellAt(p.worldX, p.worldY);
     if (idx < 0 || !this.s.grid[idx]) {
       if (this.selectedIdx >= 0 && idx >= 0) return; // handled on up (move to empty)
@@ -924,6 +938,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   onMove(p: Phaser.Input.Pointer) {
+    if (this.itemDrag && p.isDown) {
+      if (Phaser.Math.Distance.Between(p.worldX, p.worldY, this.itemDrag.x, this.itemDrag.y) > 12) this.itemDrag.moved = true;
+      this.itemDrag.x = p.worldX;
+      this.itemDrag.y = p.worldY;
+      return;
+    }
     if (this.dragIdx < 0 || !this.dragView || !p.isDown) return;
     if (!this.moved && Phaser.Math.Distance.Between(p.worldX, p.worldY, this.downAt.x, this.downAt.y) < 12) return;
     if (!this.moved) {
@@ -966,6 +986,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   onUp(p: Phaser.Input.Pointer) {
+    if (this.itemDrag) {
+      const d = this.itemDrag;
+      this.itemDrag = null;
+      if (!d.moved) this.itemSelected = true; // tap the item, then tap a machine
+      else this.tryApplyItem(this.cellAt(p.worldX, p.worldY - 30));
+      return;
+    }
     if (!this.canAct()) {
       this.cancelDrag();
       return;
@@ -1273,7 +1300,7 @@ Now beat the real level.`, this.coachY());
   // ---------- simulation loop ----------
 
   update(_t: number, dms: number) {
-    if (!this.paused && !this.modal && !this.guided) {
+    if (!this.paused && !this.modal && !this.guided && !this.itemLesson) {
       this.acc += Math.min(dms, 250) / 1000;
       while (this.acc >= TICK) {
         this.acc -= TICK;
@@ -1296,6 +1323,7 @@ Now beat the real level.`, this.coachY());
     this.coach.update(this.time.now);
     this.checkTips();
     this.drawRemix();
+    this.drawItems();
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -1609,7 +1637,7 @@ Now beat the real level.`, this.coachY());
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
       // bottom action lane (ChatGPT r16), between NEXT and SCRAP; a 350ms hold with a progress rim prevents accidents
-      const b = this.add.container(W / 2 + 40, TRAY_Y).setDepth(60);
+      const b = this.add.container(W / 2 + 30, TRAY_Y).setDepth(60);
       const bgp = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-84, -40, 168, 80, 24).fillStyle(0x27a4c0, 1).fillRoundedRect(-80, -36, 160, 72, 20);
       b.add(bgp);
       if (this.hasArt('booster_time_capsule')) {
@@ -1984,6 +2012,41 @@ Now beat the real level.`, this.coachY());
           tlog.log('goal_done', { kind: e.kind, n: e.n, at: +this.s.elapsed.toFixed(1) });
           break;
         }
+        case 'itemGrant': {
+          tlog.log('item_grant', { kind: e.kind, teach: e.teach, at: +this.s.elapsed.toFixed(1) });
+          const cap = this.add.image(this.target.x, this.target.y, 'item_capsule').setDepth(70);
+          cap.setScale(70 / Math.max(cap.width, cap.height));
+          this.tweens.add({ targets: cap, x: ITEM_X, y: TRAY_Y, duration: 420, ease: 'Quad.InOut', onComplete: () => {
+            cap.destroy();
+            sfx.capsule();
+            this.showEvent(`POWER-UP!  ${GameScene.ITEM_COPY[e.kind].name}`, '#ffd24a', 1600);
+          } });
+          const first = !this.meta.tips[`item_${e.kind}`];
+          if (first && this.s.phase === 'playing') {
+            this.time.delayedCall(480, () => {
+              if (this.s.phase !== 'playing' || !this.s.itemTray) return;
+              this.cancelDrag();
+              this.itemLesson = true;
+              this.coach.focus([{ x: ITEM_X, y: TRAY_Y, r: 52 }]);
+              this.coach.say(`NEW POWER-UP: ${GameScene.ITEM_COPY[e.kind].name}!\n${GameScene.ITEM_COPY[e.kind].how}`, this.nearY([{ x: ITEM_X, y: TRAY_Y }]));
+              this.coach.drag({ x: ITEM_X, y: TRAY_Y }, (() => { const i = this.s.grid.findIndex((x) => !!x && itemFits(e.kind, x.family) && !x.item); return i >= 0 ? cellXY(i) : { x: W / 2, y: BY + CELL }; })());
+            });
+          }
+          break;
+        }
+        case 'itemApply': {
+          sfx.merge?.(3);
+          const { x, y } = cellXY(e.idx);
+          this.floatText(x, y - 50, GameScene.ITEM_COPY[e.kind].name, '#ffcf33', 30, 300);
+          tlog.log('item_apply', { kind: e.kind });
+          if (this.itemLesson) {
+            this.itemLesson = false;
+            this.coach.clear();
+            this.meta.tips[`item_${e.kind}`] = true;
+            store(META_KEY, JSON.stringify(this.meta));
+          }
+          break;
+        }
         case 'shield':
           sfx.panelBreak(1);
           this.showEvent('SHIELD OPEN!  full damage', '#9fe8ff', 1400);
@@ -2040,6 +2103,97 @@ Now beat the real level.`, this.coachY());
     this.meta.tips.x_boss = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('guided_dodge_done', {});
+  }
+
+  itemDrag: { x: number; y: number; moved: boolean } | null = null;
+  itemSelected = false;
+  itemLesson = false;
+  itemSlot: Phaser.GameObjects.Container | null = null;
+  itemG!: Phaser.GameObjects.Graphics;
+  itemBadges = new Map<number, Phaser.GameObjects.Container>();
+
+  static ITEM_COPY: Record<ItemKind, { name: string; how: string; wrong: string }> = {
+    overcharge: { name: 'OVERCHARGE', how: 'Put this on a shooter.\nIts next two chain shots hit harder.', wrong: 'Use it on a Cannon or Rocket' },
+    spark: { name: 'SPARK', how: 'Put this on a shooter.\nNext time it fires in a chain,\nit wakes the machines next to it.', wrong: 'Use it on a Cannon or Rocket' },
+    corner: { name: 'CORNER KIT', how: 'Put this on a Bell.\nNext time it rings, it also wakes\nits diagonal neighbours.', wrong: 'Use it on a Bell' },
+  };
+
+  /** r25: attach the tray item to the machine in `idx` (if it fits), else explain why and keep the item. */
+  tryApplyItem(idx: number) {
+    const kind = this.s.itemTray;
+    const g = idx >= 0 ? this.s.grid[idx] : null;
+    if (!kind) return;
+    if (!g || !itemFits(kind, g.family) || g.item) {
+      sfx.invalid();
+      if (g) this.showEvent(g.item ? 'This machine already has a power-up' : GameScene.ITEM_COPY[kind].wrong, '#ffd2c8', 1400);
+      return;
+    }
+    const r = applyItem(this.s, idx, g.id);
+    if (!r.ok) return;
+    this.handleEvents(r.events);
+  }
+
+  /** r25: tray slot (between NEXT and SCRAP), drag ghost, valid-target rims, and owner badges with charge pips. */
+  drawItems() {
+    const s = this.s;
+    if (!this.itemG) this.itemG = this.add.graphics().setDepth(57);
+    const g = this.itemG.clear();
+    const kind = s.itemTray ?? null;
+    if (kind && !this.itemSlot) {
+      const c = this.add.container(ITEM_X, TRAY_Y).setDepth(58);
+      c.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillCircle(0, 0, 38).fillStyle(0xfff0cf, 1).fillCircle(0, 0, 33));
+      const ic = this.add.image(0, 0, `item_${kind}`);
+      ic.setScale(60 / Math.max(ic.width, ic.height)).setName('icon');
+      c.add(ic);
+      this.itemSlot = c;
+    }
+    if (!kind && this.itemSlot) {
+      this.itemSlot.destroy();
+      this.itemSlot = null;
+    }
+    if (this.itemSlot && kind) {
+      const ic = this.itemSlot.getByName('icon') as Phaser.GameObjects.Image;
+      if (ic.texture.key !== `item_${kind}`) ic.setTexture(`item_${kind}`);
+      const lift = this.itemDrag?.moved;
+      ic.setPosition(lift ? this.itemDrag!.x - ITEM_X : 0, lift ? this.itemDrag!.y - TRAY_Y - 30 : 0).setScale((lift ? 84 : 60 + 4 * Math.sin(this.time.now / 180)) / Math.max(ic.width, ic.height));
+      // while selecting: rim every machine that can take it
+      if (this.itemDrag || this.itemSelected || this.itemLesson)
+        s.grid.forEach((x, i) => {
+          if (!x || !itemFits(kind, x.family) || x.item) return;
+          const { x: cx, y: cy } = cellXY(i);
+          g.lineStyle(5, 0xffcf33, 0.6 + 0.4 * Math.sin(this.time.now / 150)).strokeRoundedRect(cx - CELL / 2 + 5, cy - CELL / 2 + 5, CELL - 10, CELL - 10, 16);
+        });
+    }
+    // owner badges (upper-left, clear of the rank plate) + pips for OVERCHARGE
+    const seen = new Set<number>();
+    for (const x of s.grid) {
+      if (!x?.item) continue;
+      seen.add(x.id);
+      const v = this.views.get(x.id);
+      if (!v) continue;
+      let b = this.itemBadges.get(x.id);
+      if (!b || b.getData('kind') !== x.item.kind) {
+        b?.destroy();
+        b = this.add.container(0, 0).setDepth(56).setData('kind', x.item.kind);
+        const im = this.add.image(0, 0, `item_badge_${x.item.kind}`);
+        im.setScale(40 / Math.max(im.width, im.height));
+        b.add(im);
+        const pips = this.add.graphics().setName('pips');
+        b.add(pips);
+        this.itemBadges.set(x.id, b);
+        b.setScale(0.2);
+        this.tweens.add({ targets: b, scale: 1, duration: 180, ease: 'Back.Out' });
+      }
+      b.setPosition(v.x - CELL / 2 + 22, v.y - CELL / 2 + 20).setVisible(v.visible);
+      const pg = b.getByName('pips') as Phaser.GameObjects.Graphics;
+      pg.clear();
+      if (x.item.kind === 'overcharge') for (let k = 0; k < x.item.charges; k++) pg.fillStyle(0x2b1d2e, 1).fillCircle(-8 + k * 16, 26, 7).fillStyle(0xffcf33, 1).fillCircle(-8 + k * 16, 26, 5);
+    }
+    for (const [id, b] of this.itemBadges)
+      if (!seen.has(id)) {
+        this.itemBadges.delete(id);
+        this.tweens.add({ targets: b, scale: 1.6, alpha: 0, duration: 160, onComplete: () => b.destroy() });
+      }
   }
 
   /** Transient message in the event lane. Remix warnings (drawRemix) override it while active. */
@@ -3943,6 +4097,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'bell', title: 'BELL', role: 'RELAY', text: 'Rings its whole row. Wakes every OTHER kind of machine in that row.', tryThis: 'Fill its row with Cannons and Coils.', unlock: 0 },
     { key: 'rocket', title: 'ROCKET', role: 'SHOOTER', text: 'Never shoots by itself. When a chain wakes it, it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.', unlock: 6 },
     { key: 'magnet', title: 'MAGNET', role: 'MOVER', text: 'When it fires, it pulls one machine along its line into the empty cell next to it.', tryThis: 'Use it to bring a pair together.', unlock: 12 },
+    { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Break the monster to half HP and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x1.5), SPARK (shooter: wakes its neighbours once), CORNER KIT (Bell: wakes its diagonals once).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
   ];
 
@@ -3960,9 +4115,18 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const open = single || this.guideUnlocked(pg.unlock);
     c.add(this.add.text(W / 2, top + 56, single ? 'NEW MACHINE!' : 'MACHINE GUIDE', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 108, open ? pg.title : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
-    const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a' }[pg.role] ?? '#8a6a4a';
+    const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a', SPECIAL: '#e0a020' }[pg.role] ?? '#8a6a4a';
     c.add(this.add.text(W / 2, top + 160, pg.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: roleCol, padding: { x: 14, y: 4 } }).setOrigin(0.5));
-    if (open) {
+    if (open && pg.key === 'items') {
+      (['overcharge', 'spark', 'corner'] as const).forEach((k, i) => {
+        const im = this.add.image(W / 2 + (i - 1) * 150, top + 330, `item_${k}`);
+        im.setScale(110 / Math.max(im.width, im.height));
+        c.add(im);
+        this.tweens.add({ targets: im, y: top + 318, duration: 600 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      });
+      c.add(this.add.text(W / 2, top + 440, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '25px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
+      c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    } else if (open) {
       this.machineDemo(c, W / 2, top + 392, pg.key);
       c.add(this.add.text(W / 2, top + 586, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '26px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
       c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));

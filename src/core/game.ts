@@ -4,7 +4,7 @@ import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossBlocked, bossPendingCells, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
-import { isShooter, type CascadeResult, type Family, type Gadget, type Grid, type PerkId } from './types';
+import { isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
 
@@ -25,6 +25,8 @@ export type GameEvent =
   | { type: 'end'; won: boolean }
   | { type: 'goal'; kind: 'rank' | 'chain'; n: number; idx: number }
   | { type: 'shield'; open: boolean; until: number }
+  | { type: 'itemGrant'; kind: ItemKind; teach: boolean }
+  | { type: 'itemApply'; kind: ItemKind; idx: number; id: number }
   | RemixEvent
   | BossEvent;
 
@@ -106,6 +108,12 @@ export interface GameState {
   goal?: { kind: 'rank' | 'chain'; n: number; best: number } | null;
   /** r23 chain shield: undefined = no shield; otherwise elapsed time until which it is open. */
   shieldUntil?: number;
+  /** r25 power-up item waiting in the tray (one slot), whether this level already granted one, and the prescribed teaching kind. */
+  itemTray?: ItemKind | null;
+  itemGranted?: boolean;
+  itemTeach?: ItemKind;
+  itemGrantAt?: number;
+  itemRng?: number;
   /** Untimed, unrewarded high-rank introduction (r17). */
   showcase?: boolean;
   /** Jumpstart applied this attempt. */
@@ -242,6 +250,10 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
       if (k < empties.length) s.grid[empties[k]] = makeGadget(s, f, def.starting_rank);
     });
   }
+  // r25 items (from L13): one per level; teaching levels prescribe the kind
+  s.itemTeach = def.item_teach as ItemKind | undefined;
+  s.itemGrantAt = def.item_grant_at;
+  s.itemRng = (def.seed ^ 0x17e3a5) >>> 0;
   // r23 behaviours + goals
   if (def.behaviour === 'shield') s.shieldUntil = -1;
   if (def.behaviour === 'suction' || def.behaviour === 'frost') {
@@ -254,6 +266,47 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   }
   s.supplyTimer = supplyPeriod(s);
   return s;
+}
+
+/** r25: grant the level's single item into the tray (prescribed teaching kind, else uniform among unlocked kinds with an eligible machine). */
+function grantItem(s: GameState, ev: GameEvent[]): boolean {
+  if (s.level === undefined || s.level < ITEM_INTRO.overcharge || s.itemGranted || s.phase !== 'playing') return false;
+  const fits = (k: ItemKind) => s.grid.some((g) => !!g && !g.item && itemFits(k, g.family));
+  let kind: ItemKind | undefined = s.itemTeach && fits(s.itemTeach) ? s.itemTeach : undefined;
+  if (!kind) {
+    const pool = (Object.keys(ITEM_INTRO) as ItemKind[]).filter((k) => ITEM_INTRO[k] <= s.level! && k !== s.itemTeach && fits(k));
+    if (s.itemTeach && !fits(s.itemTeach)) return false;
+    if (!pool.length) return false;
+    const rng = new Rng(s.itemRng ?? 1);
+    kind = pool[rng.int(pool.length)];
+    s.itemRng = rng.state;
+  }
+  s.itemTray = kind;
+  s.itemGranted = true;
+  ev.push({ type: 'itemGrant', kind, teach: s.itemTeach === kind });
+  return true;
+}
+
+/** r25: put the tray item on a compatible machine without an attachment. */
+export function applyItem(s: GameState, idx: number, id: number): CommandResult {
+  const ev: GameEvent[] = [];
+  const g = s.grid[idx];
+  const kind = s.itemTray;
+  if (s.phase !== 'playing' || !kind || !g || g.id !== id || g.item || !itemFits(kind, g.family)) return { ok: false, events: ev };
+  g.item = { kind, charges: kind === 'overcharge' ? 2 : 1 };
+  s.itemTray = null;
+  ev.push({ type: 'itemApply', kind, idx, id });
+  return { ok: true, events: ev };
+}
+
+/** r25: spend one charge on each attachment the cascade used. */
+function spendItems(s: GameState, r: CascadeResult) {
+  for (const id of r.itemUsed ?? []) {
+    const g = s.grid.find((x) => x?.id === id);
+    if (!g?.item) continue;
+    g.item.charges--;
+    if (g.item.charges <= 0) delete g.item;
+  }
 }
 
 /** Shield multiplier on all damage while closed (r23). */
@@ -450,6 +503,8 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   const b = s.grid[to]!;
   const g = makeGadget(s, a.family, Math.min(a.rank + 1, capOf(s, a.family)));
   if (a.primed || b.primed) g.primed = true; // primer transfers (OR), never stacks
+  const inherit = b.item ?? a.item; // r25: one attachment transfers; with two, the destination's survives
+  if (inherit) g.item = { ...inherit };
   s.grid[from] = null;
   s.grid[to] = g;
   s.stats.merges++;
@@ -470,8 +525,9 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss) });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), items: s.phase === 'playing' });
   applyMoves(s, result);
+  spendItems(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
   ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
@@ -556,7 +612,7 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
     const frac = Math.max(0, s.hp) / s.maxHp;
     const lvl = frac <= 0.25 ? 3 : frac <= 0.5 ? 2 : frac <= 0.75 ? 1 : 0;
     if (lvl > s.thresholds && s.hp > 0) {
-      for (let l = s.thresholds + 1; l <= lvl; l++) queueDrop(s, ev, true);
+      for (let l = s.thresholds + 1; l <= lvl; l++) if (!(l === 2 && grantItem(s, ev))) queueDrop(s, ev, true);
       s.thresholds = lvl;
       ev.push({ type: 'threshold', target: s.target, level: lvl });
     }
@@ -618,6 +674,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   const ev: GameEvent[] = [];
   s.mergeCd = Math.max(0, s.mergeCd - TICK);
   if (s.phase !== 'playing') return ev;
+  if (s.itemGrantAt !== undefined && !s.itemGranted && s.elapsed >= s.itemGrantAt) grantItem(s, ev); // r25 explicit teaching grant (goal levels have no HP thresholds)
   const dt = Math.min(TICK, s.timeLeft);
   s.elapsed += dt;
   s.timeLeft -= dt;
@@ -790,6 +847,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.stats.kickFuses++;
     const g = makeGadget(s, old.family, old.rank + 1);
     if (old.primed) g.primed = true;
+    if (old.item) g.item = { ...old.item };
     if (g.family === 'cannon') g.cd = cannonPeriod(s);
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);

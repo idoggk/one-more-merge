@@ -509,7 +509,8 @@
         21
       ],
       "shooter": "rocket",
-      "behaviour": "shield"
+      "behaviour": "shield",
+      "item_teach": "overcharge"
     },
     {
       "level": 14,
@@ -599,7 +600,9 @@
           5,
           0
         ]
-      ]
+      ],
+      "item_teach": "spark",
+      "item_grant_at": 8
     },
     {
       "level": 17,
@@ -715,7 +718,8 @@
       "star_times": [
         41,
         19
-      ]
+      ],
+      "item_teach": "corner"
     },
     {
       "level": 23,
