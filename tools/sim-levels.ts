@@ -15,8 +15,6 @@ const N = Number(args[args.indexOf('--n') + 1]) || 40;
 // chance a chain-goal bot picks the best previewed chain (else random): humans see some chains, not all
 const CHAIN_SKILL = Number(args[args.indexOf('--skill') + 1]) || 0.3;
 const EVERY = Number(args[args.indexOf('--every') + 1]) || 3;
-// chapter rhythm (ChatGPT r16): ramp inside each chapter, relief right after the Hard (p5) and Mega (p10)
-const RHYTHM = [0.95, 0.93, 0.91, 0.88, 0.72, 0.95, 0.91, 0.88, 0.85, 0.57];
 
 function novice(s: GameState, rng: Rng): [number, number] | null {
   const p = legalPairs(s);
