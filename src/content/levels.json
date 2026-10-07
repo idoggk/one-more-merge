@@ -353,8 +353,8 @@
     {
       "level": 8,
       "monster": "mad_fridge",
-      "hp": 5450,
-      "time_seconds": 55,
+      "hp": 6900,
+      "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
@@ -363,10 +363,10 @@
       "seed": 150008,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        44,
-        33
+        48,
+        36
       ],
-      "behaviour": "shield"
+      "mini_boss": "pressure_popper"
     },
     {
       "level": 9,
@@ -389,7 +389,7 @@
     {
       "level": 10,
       "monster": "tin_can",
-      "hp": 11600,
+      "hp": 11450,
       "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -405,7 +405,7 @@
     },
     {
       "level": 11,
-      "monster": "toaster_twins",
+      "monster": "mad_fridge",
       "hp": 6200,
       "time_seconds": 55,
       "modifier": "NONE",
@@ -416,52 +416,10 @@
       "seed": 150011,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        21,
-        16
+        35,
+        23
       ],
-      "shooter": "rocket",
-      "goal": {
-        "kind": "chain",
-        "n": 16
-      },
-      "start_extra": [
-        [
-          "coil",
-          1,
-          0,
-          2
-        ],
-        [
-          "coil",
-          1,
-          5,
-          2
-        ],
-        [
-          "bell",
-          1,
-          2,
-          4
-        ],
-        [
-          "bell",
-          1,
-          2,
-          0
-        ],
-        [
-          "cannon",
-          1,
-          5,
-          1
-        ],
-        [
-          "cannon",
-          1,
-          0,
-          3
-        ]
-      ]
+      "behaviour": "shield"
     },
     {
       "level": 12,
@@ -632,9 +590,9 @@
     {
       "level": 18,
       "monster": "toaster_twins",
-      "hp": 8850,
-      "time_seconds": 65,
-      "modifier": "GAPS",
+      "hp": 6700,
+      "time_seconds": 60,
+      "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
       "starting_board": "PAIR8",
@@ -642,14 +600,10 @@
       "seed": 150018,
       "ordinary_copy_rank_cap": 2,
       "star_times": [
-        29,
-        22
+        39,
+        21
       ],
-      "shooter": "rocket",
-      "goal": {
-        "kind": "chain",
-        "n": 16
-      }
+      "mini_boss": "carousel_crab"
     },
     {
       "level": 19,
@@ -672,7 +626,7 @@
     {
       "level": 20,
       "monster": "mad_fridge",
-      "hp": 14400,
+      "hp": 14000,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -683,7 +637,7 @@
       "ordinary_copy_rank_cap": 2,
       "star_times": [
         55,
-        37
+        32
       ]
     },
     {
@@ -855,8 +809,8 @@
     {
       "level": 28,
       "monster": "tin_can",
-      "hp": 15850,
-      "time_seconds": 65,
+      "hp": 15650,
+      "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
@@ -865,13 +819,10 @@
       "seed": 150028,
       "ordinary_copy_rank_cap": 4,
       "star_times": [
-        37,
-        34
+        39,
+        20
       ],
-      "goal": {
-        "kind": "rank",
-        "n": 6
-      }
+      "mini_boss": "vanity_moth"
     },
     {
       "level": 29,
@@ -898,7 +849,7 @@
     {
       "level": 30,
       "monster": "vacuum_viper",
-      "hp": 23950,
+      "hp": 24050,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1067,8 +1018,8 @@
     {
       "level": 38,
       "monster": "mad_fridge",
-      "hp": 15450,
-      "time_seconds": 70,
+      "hp": 12450,
+      "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
@@ -1077,15 +1028,10 @@
       "seed": 150038,
       "ordinary_copy_rank_cap": 5,
       "star_times": [
-        33,
-        25
+        39,
+        22
       ],
-      "goal": {
-        "kind": "chain",
-        "n": 18
-      },
-      "item_teach": "spark",
-      "item_grant_at": 8
+      "mini_boss": "brick_printer"
     },
     {
       "level": 39,
@@ -1116,7 +1062,7 @@
     {
       "level": 40,
       "monster": "toaster_twins",
-      "hp": 21700,
+      "hp": 21800,
       "time_seconds": 80,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1285,8 +1231,8 @@
     {
       "level": 48,
       "monster": "mad_fridge",
-      "hp": 30550,
-      "time_seconds": 75,
+      "hp": 33900,
+      "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
@@ -1295,15 +1241,10 @@
       "seed": 150048,
       "ordinary_copy_rank_cap": 6,
       "star_times": [
-        35,
-        26
+        37,
+        20
       ],
-      "goal": {
-        "kind": "chain",
-        "n": 20
-      },
-      "item_teach": "corner",
-      "item_grant_at": 8
+      "mini_boss": "scrap_kraken"
     },
     {
       "level": 49,
@@ -1334,7 +1275,7 @@
     {
       "level": 50,
       "monster": "grand_piano_saurus",
-      "hp": 45400,
+      "hp": 44550,
       "time_seconds": 85,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1515,8 +1456,8 @@
     {
       "level": 58,
       "monster": "toaster_twins",
-      "hp": 31200,
-      "time_seconds": 80,
+      "hp": 21100,
+      "time_seconds": 60,
       "modifier": "NONE",
       "difficulty": "NORMAL",
       "boss_node": false,
@@ -1525,13 +1466,10 @@
       "seed": 150058,
       "ordinary_copy_rank_cap": 7,
       "star_times": [
-        55,
-        41
+        44,
+        28
       ],
-      "goal": {
-        "kind": "chain",
-        "n": 21
-      }
+      "mini_boss": "spring_jack"
     },
     {
       "level": 59,
@@ -1562,7 +1500,7 @@
     {
       "level": 60,
       "monster": "junkzilla",
-      "hp": 52150,
+      "hp": 53150,
       "time_seconds": 90,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1573,7 +1511,7 @@
       "ordinary_copy_rank_cap": 7,
       "star_times": [
         53,
-        31
+        26
       ]
     }
   ]

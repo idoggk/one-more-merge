@@ -31,6 +31,8 @@ export interface LevelDef {
   start_extra?: [string, number, number, number][];
   /** r25: the item this level teaches (prescribed for its one grant) and, on goal levels, when it is granted. */
   item_teach?: string;
+  /** r27 mid-chapter mini-boss id (BOSSES entry with mini: true). */
+  mini_boss?: string;
   item_grant_at?: number;
   teach?: { start: [string, number, number, number][]; bag?: Record<string, number>; no_kickback?: boolean; no_overdrive?: boolean; lesson: string };
 }

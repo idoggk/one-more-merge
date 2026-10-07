@@ -2,7 +2,7 @@ import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
-import { bossBlocked, bossPendingCells, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
+import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 import { isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
@@ -136,7 +136,8 @@ export const idxOf = (r: number, c: number) => r * COLS + c;
 
 export const remixHp = () => Math.round(TUNING.targetHp.reduce((a, b) => a + b, 0));
 export const targetHp = (s: GameState, i: number) => (s.remix ? remixHp() : Math.round(TUNING.targetHp[i] * (s.hard ? TUNING.hardHpMult : 1)));
-export const locked = (s: GameState): ReadonlySet<number> => (s.masked?.length ? new Set([...lockedCells(s.remix), ...s.masked]) : lockedCells(s.remix));
+export const locked = (s: GameState): ReadonlySet<number> =>
+  s.masked?.length || s.boss?.blocks?.length ? new Set([...lockedCells(s.remix), ...(s.masked ?? []), ...bossBlockCells(s.boss)]) : lockedCells(s.remix);
 
 export function newGame(seed: number, tutorial = false, hard = false, toys: Family[] = [], remixTarget = -1, shooter: Family = 'cannon'): GameState {
   const s: GameState = {
@@ -234,12 +235,13 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     s.masked = corners;
     for (const c of corners) s.grid[c] = null;
   }
-  if (def.level % 10 === 0 && !def.teach) {
-    const bi = def.level / 10 - 1;
-    s.boss = { def: bi % BOSSES.length, next: 0, pending: null, active: null, phaseShown: 0 };
+  const miniIdx = def.mini_boss ? BOSSES.findIndex((x) => x.id === def.mini_boss) : -1;
+  if ((def.level % 10 === 0 && !def.teach) || miniIdx >= 0) {
+    const bi = miniIdx >= 0 ? miniIdx : def.level / 10 - 1;
+    s.boss = { def: bi, next: 0, pending: null, active: null, phaseShown: 0, ...(miniIdx >= 0 ? { mini: true } : {}) };
     s.remix = null;
     s.masked = [];
-    s.timeLeft = s.levelTime = BOSS_CLOCK;
+    s.timeLeft = s.levelTime = miniIdx >= 0 ? def.time_seconds : BOSS_CLOCK;
     // second PAIR8 set at seeded empty cells (same families and rank)
     const extra: Family[] = [];
     for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][]) for (let k = 0; k < cells.length; k++) extra.push(fam === 'shooter' ? shooterOf(s) : (fam as Family));
@@ -494,6 +496,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   s.grid[to] = a;
   s.grid[from] = b;
   ev.push({ type: 'move', from, to, swap: !!b });
+  ev.push(...bossAfterPlayer(s.boss, to, [])); // r27: parking a machine on the bomb defuses it
   return { ok: true, events: ev };
 }
 
@@ -541,6 +544,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
     ev.push({ type: 'shield', open: true, until: s.shieldUntil });
   }
   applyDamage(s, result.total, ev, 'player');
+  if (s.phase === 'playing') ev.push(...bossAfterPlayer(s.boss, -1, result.activations.map((x) => x.idx))); // r27 defuse / clear blocks
   checkGoal(s, ev, g.rank, result.count, to);
   return { ok: true, events: ev };
 }

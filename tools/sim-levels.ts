@@ -69,15 +69,15 @@ for (const def of LEVELS) {
   // levels 1-3 are onboarding: near-certain wins
   // r20 bosses: L10 80%, L20-60 72%
   // r23 (ChatGPT): chapter 1 near-sure, ramp after L10
-  const R23: Record<number, number> = { 10: 0.95, 11: 0.95, 16: 0.95, 14: 0.8, 19: 0.8, 20: 0.85 };
+  const R23: Record<number, number> = { 8: 0.95, 10: 0.95, 11: 0.95, 16: 0.95, 14: 0.8, 18: 0.92, 19: 0.8, 20: 0.85 };
   // r26 (ChatGPT): chapters 3-6 by chapter position (relief at 1 and 6, Hard at 4 and 9, teaching at 7 in ch.4/5)
   const R26 = [
-    [0.95, 0.94, 0.95, 0.8, 0.9, 0.95, 0.9, 0.9, 0.78, 0.85],
-    [0.94, 0.91, 0.89, 0.78, 0.89, 0.94, 0.95, 0.87, 0.76, 0.83],
+    [0.95, 0.94, 0.95, 0.8, 0.9, 0.95, 0.9, 0.9, 0.78, 0.85], // position 8 = mini-boss (r27: 90/88/86/85)
+    [0.94, 0.91, 0.89, 0.78, 0.89, 0.94, 0.95, 0.88, 0.76, 0.83],
     [0.93, 0.9, 0.88, 0.76, 0.88, 0.93, 0.95, 0.86, 0.74, 0.81],
     [0.92, 0.89, 0.87, 0.74, 0.87, 0.92, 0.88, 0.85, 0.72, 0.8],
   ];
-  const target = def.level <= 9 ? 0.97 : def.level <= 20 ? R23[def.level] ?? 0.9 : R26[Math.ceil(def.level / 10) - 3][(def.level - 1) % 10];
+  const target = def.level <= 9 && def.level !== 8 ? 0.97 : def.level <= 9 ? 0.95 : def.level <= 20 ? R23[def.level] ?? 0.9 : R26[Math.ceil(def.level / 10) - 3][(def.level - 1) % 10];
   if (def.goal) {
     // goal levels have no HP to fit: report the goal-aware win rate (tune n / clock by hand)
     console.log(`L${String(def.level).padStart(2)} GOAL ${def.goal.kind} ${def.goal.n}  win ${(winRate(def) * 100).toFixed(0)}% / held-out ${(winRate(def, 100000) * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)`);

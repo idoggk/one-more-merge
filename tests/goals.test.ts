@@ -59,7 +59,7 @@ describe('r23 goal levels', () => {
 
 describe('r23 behaviours and twists', () => {
   it('chain shield: closed = x0.75, a 4+ cascade opens it for 6 s', () => {
-    const s = newLevel(LEVELS[7]);
+    const s = newLevel(LEVELS[10]);
     expect(s.shieldUntil).toBe(-1);
     const evs = play(s, 2, random);
     expect(evs).toContain('shield');

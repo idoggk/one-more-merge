@@ -5,23 +5,48 @@
 import { COLS, ROWS } from '../content/tuning';
 import { isShooter, type Grid } from './types';
 
-export type BossAttack = 'clamp' | 'frost' | 'suction' | 'hot' | 'rest' | 'split';
+export type BossAttack = 'clamp' | 'frost' | 'suction' | 'hot' | 'rest' | 'split' | 'bomb' | 'conveyor' | 'mirror' | 'blocks' | 'pull' | 'bounce';
 export interface BossDef {
   id: string;
   name: string;
   attack: BossAttack;
   /** Lane / level-card copy (r20). */
   copy: string;
+  /** r27: chapter bosses add their chapter's mini-boss attack in the final phase (alternating, second first). */
+  second?: BossAttack;
+  /** r27 mini-boss (mid-chapter, 60 s, no mechanical phases). */
+  mini?: boolean;
 }
 /** Chapter 1..6 bosses (levels 10, 20, 30, 40, 50, 60). */
 export const BOSSES: BossDef[] = [
-  { id: 'tin_can_king', name: 'TIN CAN KING', attack: 'clamp', copy: 'Move or merge the marked machine before the clamp closes.' },
-  { id: 'fridge_overlord', name: 'FRIDGE OVERLORD', attack: 'frost', copy: 'The frozen row cannot receive parts. Build on another row.' },
-  { id: 'viper_queen', name: 'VIPER QUEEN', attack: 'suction', copy: 'Move or merge the marked machines before they vanish.' },
-  { id: 'twin_toasters', name: 'TWIN TOASTERS', attack: 'hot', copy: 'Shooters in the hot column hit weaker. Move them out.' },
-  { id: 'piano_saurus_rex', name: 'PIANO-SAURUS REX', attack: 'rest', copy: 'Relays in the resting row cannot wake neighbours.' },
-  { id: 'junkzilla', name: 'JUNKZILLA', attack: 'split', copy: 'The divider blocks relay links. Build a chain on one side.' },
+  { id: 'tin_can_king', name: 'TIN CAN KING', attack: 'clamp', second: 'bomb', copy: 'Move or merge the marked machine before the clamp closes.' },
+  { id: 'fridge_overlord', name: 'FRIDGE OVERLORD', attack: 'frost', second: 'conveyor', copy: 'The frozen row cannot receive parts. Build on another row.' },
+  { id: 'viper_queen', name: 'VIPER QUEEN', attack: 'suction', second: 'mirror', copy: 'Move or merge the marked machines before they vanish.' },
+  { id: 'twin_toasters', name: 'TWIN TOASTERS', attack: 'hot', second: 'blocks', copy: 'Shooters in the hot column hit weaker. Move them out.' },
+  { id: 'piano_saurus_rex', name: 'PIANO-SAURUS REX', attack: 'rest', second: 'pull', copy: 'Relays in the resting row cannot wake neighbours.' },
+  { id: 'junkzilla', name: 'JUNKZILLA', attack: 'split', second: 'bounce', copy: 'The divider blocks relay links. Build a chain on one side.' },
+  // r27 mini-bosses (ChatGPT MINIBOSS rules): L8 / 18 / 28 / 38 / 48 / 58
+  { id: 'pressure_popper', name: 'PRESSURE POPPER', attack: 'bomb', mini: true, copy: 'Cover the bomb with a machine before it pops.' },
+  { id: 'carousel_crab', name: 'CAROUSEL CRAB', attack: 'conveyor', mini: true, copy: 'This row slides right. Plan its new neighbours.' },
+  { id: 'vanity_moth', name: 'VANITY MOTH', attack: 'mirror', mini: true, copy: 'The marked cells swap their machines.' },
+  { id: 'brick_printer', name: 'BRICK PRINTER', attack: 'blocks', mini: true, copy: 'Fire beside junk blocks to clear them.' },
+  { id: 'scrap_kraken', name: 'SCRAP KRAKEN', attack: 'pull', mini: true, copy: 'It pulls a marked machine one cell upward.' },
+  { id: 'spring_jack', name: 'SPRING JACK', attack: 'bounce', mini: true, copy: 'The marked machine bounces to the empty circle.' },
 ];
+export const ATTACK_COPY: Record<BossAttack, { what: string; why: string }> = {
+  clamp: { what: 'CLAMP', why: 'marked machine gets stuck' },
+  frost: { what: 'FROST', why: 'no parts land here' },
+  suction: { what: 'SUCTION', why: 'marked machines vanish' },
+  hot: { what: 'HOT COLUMN', why: 'shots hit half as hard' },
+  rest: { what: 'REST ROW', why: 'relays wake nobody' },
+  split: { what: 'SPLIT', why: 'links cannot cross' },
+  bomb: { what: 'BOMB', why: 'cover it or fire beside it' },
+  conveyor: { what: 'ROW SLIDES', why: 'everything moves one right' },
+  mirror: { what: 'MIRROR', why: 'marked cells swap' },
+  blocks: { what: 'JUNK', why: 'fire beside blocks to clear' },
+  pull: { what: 'PULL UP', why: 'move it or block the arrow' },
+  bounce: { what: 'BOUNCE', why: 'it jumps to the circle' },
+};
 export const BOSS_CLOCK = 90;
 export const BOSS_FIRST = 8;
 export const BOSS_EVERY = 12;
@@ -29,6 +54,8 @@ export const BOSS_WARN = 2.5;
 const DURATION = [2, 3, 4];
 
 export interface BossTarget {
+  /** r27: which attack this cast is (chapter bosses alternate two in the final phase). */
+  attack?: BossAttack;
   cells?: number[];
   row?: number;
   col?: number;
@@ -44,11 +71,19 @@ export interface BossState {
   phaseShown: number;
   /** r23: an ordinary monster's light version (first at 10 s, every 15 s, one target, 2 s, no armor phases). */
   light?: boolean;
+  /** r27 mini-boss: no mechanical phases. */
+  mini?: boolean;
+  /** r27: final-phase alternation counter (even = second signature next). */
+  alt?: number;
+  /** r27 junk blocks on the board (inert; expire at `until`). */
+  blocks?: { cell: number; until: number }[];
 }
 
 export type BossEvent =
   | { type: 'bossWarn'; attack: BossAttack; target: BossTarget; deadline: number }
-  | { type: 'bossHit'; attack: BossAttack; target: BossTarget; removedIds?: number[]; outcome: 'hit' | 'whiff' }
+  | { type: 'bossHit'; attack: BossAttack; target: BossTarget; removedIds?: number[]; moves?: { from: number; to: number; id: number }[]; outcome: 'hit' | 'whiff' }
+  | { type: 'bossDefuse'; attack: BossAttack; cells: number[] }
+  | { type: 'bossFinal'; second: BossAttack }
   | { type: 'bossEnd'; attack: BossAttack }
   | { type: 'bossPhase'; phase: number };
 
@@ -56,12 +91,14 @@ export const bossPhase = (hp: number, maxHp: number) => (hp > 0.66 * maxHp ? 0 :
 const rowOf = (i: number) => Math.floor(i / COLS);
 const colOf = (i: number) => i % COLS;
 
+export const castAttack = (b: BossState, t: BossTarget | null | undefined): BossAttack => t?.attack ?? BOSSES[b.def].attack;
+
 /** Cells the player may not drop into right now (clamp / frost), and clamped cells the player may not drag FROM. */
 export function bossBlocked(b: BossState | null | undefined): { noDrop: Set<number>; noDrag: Set<number> } {
   const noDrop = new Set<number>(), noDrag = new Set<number>();
   const a = b?.active;
   if (!b || !a) return { noDrop, noDrag };
-  const atk = BOSSES[b.def].attack;
+  const atk = castAttack(b, a);
   if (atk === 'clamp') for (const c of a.cells ?? []) noDrop.add(c), noDrag.add(c);
   if (atk === 'frost' && a.row !== undefined) for (let c = 0; c < COLS; c++) noDrop.add(a.row * COLS + c);
   return { noDrop, noDrag };
@@ -69,22 +106,105 @@ export function bossBlocked(b: BossState | null | undefined): { noDrop: Set<numb
 
 /** Cells marked by a pending clamp/suction: deliveries must not refill a cell the player just emptied to dodge (r23). */
 export function bossPendingCells(b: BossState | null | undefined): number[] {
-  const atk = b?.pending ? BOSSES[b.def].attack : null;
-  return atk === 'clamp' || atk === 'suction' ? (b!.pending!.cells ?? []) : [];
+  const atk = b?.pending ? castAttack(b, b.pending) : null;
+  return atk === 'clamp' || atk === 'suction' || atk === 'bomb' || atk === 'blocks' ? (b!.pending!.cells ?? []) : [];
+}
+
+/** r27: cells covered by junk blocks (treated as locked by the game). */
+export const bossBlockCells = (b: BossState | null | undefined): number[] => (b?.blocks ?? []).map((x) => x.cell);
+
+/** r27: a player move into the bomb cell, or a player cascade activating its neighbour, defuses it; activations beside junk blocks clear them. */
+export function bossAfterPlayer(b: BossState | null | undefined, movedTo: number, activated: number[]): BossEvent[] {
+  const ev: BossEvent[] = [];
+  if (!b) return ev;
+  const p = b.pending;
+  if (p && castAttack(b, p) === 'bomb') {
+    const c = p.cells![0];
+    if (movedTo === c || activated.some((i) => orth(c).includes(i))) {
+      b.pending = null;
+      ev.push({ type: 'bossDefuse', attack: 'bomb', cells: [c] });
+    }
+  }
+  if (b.blocks?.length && activated.length) {
+    const hit = b.blocks.filter((x) => activated.some((i) => orth(x.cell).includes(i)));
+    if (hit.length) {
+      b.blocks = b.blocks.filter((x) => !hit.includes(x));
+      ev.push({ type: 'bossDefuse', attack: 'blocks', cells: hit.map((x) => x.cell) });
+    }
+  }
+  return ev;
 }
 
 /** Cascade modifiers while an effect is active (hot column / resting row / split boundary). */
 export function bossCascadeMods(b: BossState | null | undefined): { hotCol?: number; restRow?: number; splitB?: number } {
   const a = b?.active;
   if (!b || !a) return {};
-  const atk = BOSSES[b.def].attack;
+  const atk = castAttack(b, a);
   if (atk === 'hot') return { hotCol: a.col };
   if (atk === 'rest') return { restRow: a.row };
   if (atk === 'split') return { splitB: a.boundary };
   return {};
 }
 
-function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: number): BossTarget | null {
+const orth = (i: number) => {
+  const r = rowOf(i), c = colOf(i);
+  return [[r - 1, c], [r, c + 1], [r + 1, c], [r, c - 1]].filter(([y, x]) => y >= 0 && y < ROWS && x >= 0 && x < COLS).map(([y, x]) => y * COLS + x);
+};
+
+/** r27 mini-boss target choice (ChatGPT rules): deterministic, row-major ties, never masked / reserved / blocked cells. */
+function pickNew(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, b: BossState): BossTarget | null {
+  const ok = (i: number) => !blocked.has(i);
+  const empty = (i: number) => ok(i) && !grid[i];
+  const full = (i: number) => ok(i) && !!grid[i];
+  const all = grid.map((_, i) => i);
+  const nOcc = (i: number) => orth(i).filter((n) => !!grid[n]).length;
+  const best = (cands: number[], score: (i: number) => number) => cands.reduce((a, i) => (a < 0 || score(i) > score(a) ? i : a), -1);
+  if (atk === 'bomb') {
+    const c = best(all.filter((i) => empty(i) && nOcc(i) >= 1), nOcc);
+    return c < 0 ? null : { attack: atk, cells: [c] };
+  }
+  if (atk === 'conveyor') {
+    let row = -1, bn = 1;
+    for (let r = 0; r < ROWS; r++) {
+      const cells = [0, 1, 2, 3, 4].map((c) => r * COLS + c);
+      if (cells.some((i) => !ok(i))) continue;
+      const n = cells.filter((i) => grid[i]).length;
+      if (n > bn) [row, bn] = [r, n];
+    }
+    return row < 0 ? null : { attack: atk, row };
+  }
+  if (atk === 'mirror') {
+    const occ = all.filter(full);
+    if (occ.length < 2) return null;
+    const hi = occ.reduce((a, i) => (grid[i]!.rank > grid[a]!.rank ? i : a));
+    const A = grid[hi]!;
+    const lo = occ.filter((i) => i !== hi).filter((i) => { const g = grid[i]!; return g.family !== A.family || g.rank !== A.rank || !!g.item !== !!A.item || !!g.primed !== !!A.primed; });
+    if (!lo.length) return null;
+    const l = lo.reduce((a, i) => (grid[i]!.rank < grid[a]!.rank ? i : a));
+    return { attack: atk, cells: [hi, l] };
+  }
+  if (atk === 'blocks') {
+    const room = 2 - (b.blocks?.length ?? 0);
+    if (room <= 0) return null;
+    const cands = all.filter((i) => empty(i) && nOcc(i) >= 1).sort((x, y) => nOcc(y) - nOcc(x) || x - y).slice(0, room);
+    return cands.length ? { attack: atk, cells: cands } : null;
+  }
+  if (atk === 'pull') {
+    const src = all.filter((i) => rowOf(i) > 0 && full(i) && empty(i - COLS));
+    if (!src.length) return null;
+    const s0 = src.reduce((a, i) => (grid[i]!.rank > grid[a]!.rank ? i : a));
+    return { attack: atk, cells: [s0, s0 - COLS] };
+  }
+  // bounce: most-surrounded machine to the farthest empty cell
+  const src = best(all.filter(full), nOcc);
+  if (src < 0) return null;
+  const dist = (i: number) => Math.abs(rowOf(i) - rowOf(src)) + Math.abs(colOf(i) - colOf(src));
+  const dst = best(all.filter(empty), dist);
+  return dst < 0 ? null : { attack: atk, cells: [src, dst] };
+}
+
+function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: number, b?: BossState): BossTarget | null {
+  if (atk === 'bomb' || atk === 'conveyor' || atk === 'mirror' || atk === 'blocks' || atk === 'pull' || atk === 'bounce') return pickNew(atk, grid, blocked, b!);
   const occ = grid.map((g, i) => ({ g, i })).filter((x) => x.g && !blocked.has(x.i));
   if (atk === 'clamp') {
     if (!occ.length) return null;
@@ -150,21 +270,68 @@ function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: 
 /** Advance the boss for one tick (after player input + cascades). Mutates grid on Suction. */
 export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>): BossEvent[] {
   const ev: BossEvent[] = [];
-  const atk = BOSSES[b.def].attack;
+  const def = BOSSES[b.def];
   const ph = b.light ? 0 : bossPhase(hp, maxHp);
   if (ph > b.phaseShown) {
     b.phaseShown = ph;
     ev.push({ type: 'bossPhase', phase: ph });
+    if (ph === 2 && def.second && !b.mini) ev.push({ type: 'bossFinal', second: def.second });
   }
+  // r27 junk blocks expire after 8 s
+  if (b.blocks?.length) b.blocks = b.blocks.filter((x) => x.until > elapsed + 1e-9);
   if (b.active && elapsed >= b.active.until - 1e-9) {
+    const done = castAttack(b, b.active);
     b.active = null;
-    ev.push({ type: 'bossEnd', attack: atk });
+    ev.push({ type: 'bossEnd', attack: done });
   }
   if (b.pending && elapsed >= b.pending.deadline - 1e-9) {
     const p = b.pending;
     b.pending = null;
+    const atk = castAttack(b, p);
     const dur = DURATION[p.phase];
-    if (atk === 'suction') {
+    const bl = new Set([...blocked, ...bossBlockCells(b)]);
+    const move = (moves: { from: number; to: number; id: number }[]) => {
+      const snap = moves.map((m) => grid[m.from]);
+      for (const m of moves) grid[m.from] = null;
+      moves.forEach((m, k) => (grid[m.to] = snap[k]));
+    };
+    if (atk === 'bomb') {
+      const c = p.cells![0];
+      const victims = orth(c).filter((n) => grid[n] && !bl.has(n) && grid[n]!.rank <= 2).sort((x, y) => grid[x]!.rank - grid[y]!.rank || x - y);
+      const removed: number[] = [];
+      if (victims.length) {
+        removed.push(grid[victims[0]]!.id);
+        grid[victims[0]] = null;
+      }
+      ev.push({ type: 'bossHit', attack: atk, target: p, removedIds: removed, outcome: removed.length ? 'hit' : 'whiff' });
+    } else if (atk === 'conveyor') {
+      const cells = [0, 1, 2, 3, 4].map((k) => p.row! * COLS + k);
+      if (cells.some((i) => bl.has(i))) ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'whiff' });
+      else {
+        const moves = cells.filter((i) => grid[i]).map((i) => ({ from: i, to: p.row! * COLS + ((colOf(i) + 1) % COLS), id: grid[i]!.id }));
+        move(moves);
+        ev.push({ type: 'bossHit', attack: atk, target: p, moves, outcome: moves.length ? 'hit' : 'whiff' });
+      }
+    } else if (atk === 'mirror') {
+      const [x, y] = p.cells!;
+      if (bl.has(x) || bl.has(y) || (!grid[x] && !grid[y])) ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'whiff' });
+      else {
+        const moves = [...(grid[x] ? [{ from: x, to: y, id: grid[x]!.id }] : []), ...(grid[y] ? [{ from: y, to: x, id: grid[y]!.id }] : [])];
+        move(moves);
+        ev.push({ type: 'bossHit', attack: atk, target: p, moves, outcome: 'hit' });
+      }
+    } else if (atk === 'blocks') {
+      const placed = p.cells!.filter((c) => !grid[c] && !bl.has(c));
+      b.blocks = [...(b.blocks ?? []), ...placed.map((cell) => ({ cell, until: elapsed + 8 }))];
+      ev.push({ type: 'bossHit', attack: atk, target: { ...p, cells: placed }, outcome: placed.length ? 'hit' : 'whiff' });
+    } else if (atk === 'pull' || atk === 'bounce') {
+      const [from, to] = p.cells!;
+      if (grid[from] && !bl.has(from) && !grid[to] && !bl.has(to)) {
+        const moves = [{ from, to, id: grid[from]!.id }];
+        move(moves);
+        ev.push({ type: 'bossHit', attack: atk, target: p, moves, outcome: 'hit' });
+      } else ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'whiff' });
+    } else if (atk === 'suction') {
       const removed: number[] = [];
       for (const c of (p.cells ?? []).slice(0, 2)) {
         const g = grid[c];
@@ -183,9 +350,14 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
   if (elapsed >= due - 1e-9) {
     b.next++;
     if (!b.pending && !b.active) {
-      const t = pick(atk, grid, blocked, ph);
+      // r27 final phase: alternate the chapter's mini-boss attack (second first), never overlapping a persistent hazard
+      const useSecond = !!def.second && !b.mini && !b.light && ph === 2 && (b.alt ?? 0) % 2 === 0;
+      const atk = useSecond ? def.second! : def.attack;
+      const hazardLeft = useSecond && (b.blocks?.length ?? 0) > 0;
+      const t = hazardLeft ? null : pick(atk, grid, new Set([...blocked, ...bossBlockCells(b)]), b.mini ? 0 : ph, b);
       if (t) {
-        b.pending = { ...t, deadline: elapsed + BOSS_WARN, phase: ph };
+        if (def.second && ph === 2 && !b.mini && !b.light) b.alt = (b.alt ?? 0) + 1;
+        b.pending = { ...t, attack: atk, deadline: elapsed + BOSS_WARN, phase: b.mini ? 0 : ph };
         ev.push({ type: 'bossWarn', attack: atk, target: t, deadline: b.pending.deadline });
       }
     }

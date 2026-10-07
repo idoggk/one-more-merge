@@ -33,7 +33,7 @@ import { ensureTextures, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
-import { BOSSES, bossBlocked, bossPhase, BOSS_WARN } from '../core/boss';
+import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 
 export const W = 720;
@@ -159,6 +159,8 @@ function dailySeed(date: string) {
 
 /** Which stage backdrop the Workshop preview shows: the previewed stage item, else the equipped one. */
 const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
+/** Telegraph icon per attack (v17 boss icons + v19 mini-boss icons). */
+const ATTACK_ICON: Record<BossAttack, string> = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split', bomb: 'btg_bomb', conveyor: 'btg_conveyor', mirror: 'btg_mirror', blocks: 'btg_blocks', pull: 'btg_pull', bounce: 'btg_bounce' };
 const warnColor = (atk: string) => ({ clamp: 0x8e58c9, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 })[atk] ?? 0xff684a;
 const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
@@ -662,7 +664,9 @@ export class GameScene extends Phaser.Scene {
     const at = (cx: number, ry: number) => ({ x: x0 + cx * (cs + gap), y: y0 + ry * (cs + gap) });
     const coral = 0xff684a;
     const hit = (cx: number, ry: number) =>
-      atk === 'frost' || atk === 'rest' ? ry === 0 : atk === 'hot' ? cx === 2 : atk === 'clamp' || atk === 'suction' ? cx === 1 && ry === 0 : false;
+      atk === 'frost' || atk === 'rest' || atk === 'conveyor' ? ry === 0 : atk === 'hot' ? cx === 2 : atk === 'clamp' || atk === 'suction' ? cx === 1 && ry === 0
+      : atk === 'bomb' ? cx === 2 && ry === 1 : atk === 'mirror' ? (cx === 0 && ry === 0) || (cx === 4 && ry === 1) : atk === 'blocks' ? (cx === 2 || cx === 4) && ry === 1
+      : atk === 'pull' ? cx === 3 && ry <= 1 : atk === 'bounce' ? (cx === 1 && ry === 1) || (cx === 4 && ry === 0) : false;
     const dots: [number, number][] = [[0, 0], [1, 0], [3, 0], [2, 1], [4, 1], [0, 1]];
     for (let ry = 0; ry < 2; ry++)
       for (let cx = 0; cx < 5; cx++) {
@@ -1535,7 +1539,7 @@ Now beat the real level.`, this.coachY());
   explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]) {
     if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
     // r22 (ChatGPT): boss fights show only the boss-warning lesson; other lessons stay unseen until a normal level
-    if (this.realBoss && id !== 'x_boss') return;
+    if (this.realBoss && id !== 'x_boss' && !id.startsWith('xb_')) return;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
@@ -1632,7 +1636,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${this.realBoss ? 'BOSS' : SHORT_NAMES[s.target]}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : SHORT_NAMES[s.target]}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1948,13 +1952,66 @@ Now beat the real level.`, this.coachY());
           if (bd && this.s.boss!.light) {
             const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.', hot: 'Shooters in this column hit half as hard.\nMove them out.', rest: 'Bells and Coils in this row cannot\nwake neighbours. Move them out.' }[e.attack as 'suction' | 'frost' | 'hot' | 'rest'] ?? bd.copy;
             this.explain(`x_${e.attack}`, [{ text: `WATCH OUT!\n${what}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
+          } else if (bd && e.attack !== bd.attack && !this.meta.tips[`xb_${e.attack}`]) {
+            // r27: a chapter boss's new final-phase attack, explained once
+            const mini = BOSSES.find((x) => x.mini && x.attack === e.attack);
+            this.explain(`xb_${e.attack}`, [{ text: `FINAL PHASE: NEW ATTACK!\n${mini?.copy ?? ATTACK_COPY[e.attack].why}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
+          } else if (bd?.mini && !this.meta.tips[`xb_${e.attack}`]) {
+            this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
             // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card
           } else if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]); // r22: bubble in the bottom lane, clear of stage and board
           break;
         }
+        case 'bossDefuse': {
+          const cp = cellXY(e.cells[0]);
+          sfx.merge?.(3);
+          this.floatText(cp.x, cp.y - 30, e.attack === 'bomb' ? 'DEFUSED!' : 'CLEARED!', '#8ef08a', 42, 400);
+          for (const c of e.cells) {
+            const q = cellXY(c);
+            this.chunks.explode(8, q.x, q.y);
+          }
+          tlog.log('boss_defuse', { attack: e.attack });
+          break;
+        }
+        case 'bossFinal': {
+          this.showEvent('FINAL PHASE  \u00b7  NEW ATTACK', '#ffd24a', 1400);
+          this.shake(120, 0.004);
+          tlog.log('boss_final', { second: e.second });
+          break;
+        }
         case 'bossHit': {
           tlog.log('boss_hit', { attack: e.attack, removed: e.removedIds?.length ?? 0 });
+          if (e.moves?.length) {
+            // r27 movement attacks: the engine already moved the pieces; reconcile slides the sprites
+            if (this.dragIdx >= 0 && e.moves.some((m) => m.from === this.dragIdx)) this.cancelDrag();
+            const word = { conveyor: 'SLIDE!', mirror: 'SWAP!', pull: 'YANK!', bounce: 'BOING!' }[e.attack as 'conveyor'] ?? 'MOVED!';
+            const cp = cellXY(e.moves[0].to);
+            this.floatText(cp.x, cp.y - 30, word, '#d9c2ff', 38, 300);
+            needReconcile = true;
+            break;
+          }
+          if (e.attack === 'bomb' || e.attack === 'blocks') {
+            const c0 = e.target.cells?.[0];
+            if (c0 !== undefined) {
+              const cp = cellXY(c0);
+              if (e.attack === 'bomb') {
+                this.shake(140, 0.005);
+                this.ring(cp.x, cp.y, 0xff684a, 120, 16, 360);
+                this.chunks.explode(16, cp.x, cp.y);
+              }
+              this.floatText(cp.x, cp.y - 30, e.attack === 'bomb' ? (e.removedIds?.length ? 'BOOM!' : 'FIZZLE') : 'JUNK!', '#ffd2c8', 40, 300);
+            }
+            for (const rid of e.removedIds ?? []) {
+              const v = this.views.get(rid);
+              if (v) {
+                this.views.delete(rid);
+                this.tweens.add({ targets: v, scale: 0, angle: 200, duration: 260, onComplete: () => v.destroy() });
+              }
+            }
+            needReconcile = true;
+            break;
+          }
           if (e.attack === 'suction' && e.removedIds?.length) {
             for (const rid of e.removedIds) {
               const v = this.views.get(rid);
@@ -1974,7 +2031,7 @@ Now beat the real level.`, this.coachY());
               this.floatText(cp.x, cp.y - 30, 'DODGED!', '#8ef08a', 44, 500);
               tlog.log('boss_dodge', { attack: e.attack });
             } else {
-              const nm = { clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!' }[e.attack];
+              const nm = ({ clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!' } as Record<string, string>)[e.attack] ?? 'WHIFF';
               // the lane is busy with the attack line, so the hit word pops on the board where it happened
               const tc = e.target.cells?.[0] ?? (e.target.row !== undefined ? e.target.row * COLS + 2 : e.target.col !== undefined ? 2 * COLS + e.target.col : 2 * COLS + 2);
               const cp = cellXY(tc);
@@ -3396,10 +3453,10 @@ Now beat the real level.`, this.coachY());
           st.setScale(30 / Math.max(st.width, st.height)).setAlpha(k < stars[String(n)] ? 1 : 0.25);
           road.add(st);
         }
-      if ((def.difficulty !== 'NORMAL' || n % 10 === 0) && n >= cur) {
+      if ((def.difficulty !== 'NORMAL' || n % 10 === 0 || def.mini_boss) && n >= cur) {
         const side = x > W / 2 ? -1 : 1;
-        const isB = n % 10 === 0;
-        const tag = this.add.text(x + side * (size / 2 + 12), y, isB ? 'BOSS' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isB ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
+        const isB = n % 10 === 0 || !!def.mini_boss;
+        const tag = this.add.text(x + side * (size / 2 + 12), y, def.mini_boss ? 'MINI-BOSS' : isB ? 'BOSS' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isB ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
         road.add(tag);
       }
       if (n === cur) {
@@ -3550,27 +3607,28 @@ Now beat the real level.`, this.coachY());
     if (!def) return;
     const m = this.meta;
     const hasJump = n >= BOOSTER_UNLOCK.jumpstart_kit && ((m.kits ?? 0) > 0 || Object.keys(m.grants ?? {}).some((k) => k.startsWith('kit')) || !!m.hardUnlocked);
-    const isBoss = n % 10 === 0 && n > 0;
+    const miniDef = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : undefined;
+    const isBoss = (n % 10 === 0 && n > 0) || !!miniDef;
     const PH = (hasJump ? 860 : 760) + (isBoss ? 110 : 0); // boss cards carry the attack diagram
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
-    const diff = isBoss ? 'BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';
+    const diff = miniDef ? 'MINI-BOSS' : isBoss ? 'BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';
     c.add(this.add.text(W / 2, top + 64, `LEVEL ${n}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
     if (diff) c.add(this.add.text(W / 2, top + 112, diff, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: isBoss ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 12, y: 4 } }).setOrigin(0.5));
     const ti = MONSTER_INDEX[def.monster] ?? 0;
-    const bossDef = isBoss ? BOSSES[(n / 10 - 1) % BOSSES.length] : null;
+    const bossDef = miniDef ?? (isBoss ? BOSSES[(n / 10 - 1) % BOSSES.length] : null);
     const tk = bossDef && this.hasArt(`boss_${bossDef.id}_intact`) ? `boss_${bossDef.id}_intact` : `target_${ti}`;
     if (this.textures.exists(tk)) {
       const im = this.add.image(W / 2, top + 250, tk);
       im.setScale(180 / Math.max(im.width, im.height));
       c.add(im);
     }
-    c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : TARGET_NAMES[ti]}  ·  ${bossDef && !miniDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
     const firstOf: Record<string, number> = { rocket: 6, magnet: 12, battery: 17, fan: 23 };
     const newFam = n === 6 ? 'rocket' : (def.start_extra ?? []).map(([f]) => f).find((f) => firstOf[f] === n);
     const parts = bossDef
-      ? [bossDef.copy]
+      ? [bossDef.copy, bossDef.second ? `Final phase: also ${ATTACK_COPY[bossDef.second].what.toLowerCase()}!` : '']
       : [def.goal ? `GOAL: ${goalText(def.goal)}` : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
     const mt = parts.filter(Boolean).join('\n');
     if (mt) {
@@ -3583,7 +3641,7 @@ Now beat the real level.`, this.coachY());
       const dg = this.bossDiagram(bossDef.attack);
       dg.setPosition(W / 2 + 30, y + 44);
       c.add(dg);
-      const ik = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[bossDef.attack];
+      const ik = ATTACK_ICON[bossDef.attack];
       if (this.hasArt(ik)) {
         const ic = this.add.image(W / 2 - 150, y + 44, ik);
         ic.setScale(64 / Math.max(ic.width, ic.height));
@@ -4324,6 +4382,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   // ---------- remix telegraphs ----------
   remixG!: Phaser.GameObjects.Graphics;
+  blockImgs: Phaser.GameObjects.Image[] = [];
   remixUnder!: Phaser.GameObjects.Graphics;
   remixIcons: Phaser.GameObjects.Image[] = [];
   remixText!: Phaser.GameObjects.Text;
@@ -4341,9 +4400,21 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.remixText.setVisible(false);
     // BOSS telegraph + active effect (r20): one icon + the exact shape; countdown bubble; no full-board wash
     const bs = this.s.boss;
+    // r27 junk blocks: inert crates on the board with a shrinking 8 s ring
+    for (const im of this.blockImgs) im.setVisible(false);
+    (bs?.blocks ?? []).forEach((b, k) => {
+      const { x, y } = cellXY(b.cell);
+      let im = this.blockImgs[k];
+      if (!im) this.blockImgs.push((im = this.add.image(0, 0, this.hasArt('prop_junk_block') ? 'prop_junk_block' : 'dot').setDepth(12)));
+      im.setVisible(true).setPosition(x, y);
+      im.setScale((CELL - 18) / Math.max(im.width, im.height));
+      if (!this.hasArt('prop_junk_block')) g.fillStyle(0x7a6a5a, 1).fillRoundedRect(x - CELL / 2 + 10, y - CELL / 2 + 10, CELL - 20, CELL - 20, 10);
+      const frac = Math.max(0, (b.until - this.s.elapsed) / 8);
+      g.lineStyle(5, 0xffcf33, 0.9).beginPath().arc(x, y, CELL / 2 - 6, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2).strokePath();
+    });
     if (bs && (bs.pending || bs.active)) {
-      const atk = BOSSES[bs.def].attack;
-      const icon = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split' }[atk];
+      const atk = castAttack(bs, bs.active ?? bs.pending);
+      const icon = ATTACK_ICON[atk];
       const col = warnColor(atk);
       const tgt = bs.active ?? bs.pending!;
       const warn = !bs.active;
@@ -4365,6 +4436,33 @@ Merge them into a RANK ${rank}!`, this.coachY());
           gu.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
         }
         void col;
+      }
+      // r27 movement previews: where things will go
+      const arrow = (a: number, b: number, color = 0xffd2c8) => {
+        const f = cellXY(a), t = cellXY(b);
+        const ang = Math.atan2(t.y - f.y, t.x - f.x);
+        const ex = t.x - Math.cos(ang) * 26, ey = t.y - Math.sin(ang) * 26;
+        g.lineStyle(9, 0x2b1d2e, 0.8 * pulse).lineBetween(f.x, f.y, ex, ey).lineStyle(5, color, pulse).lineBetween(f.x, f.y, ex, ey);
+        g.fillStyle(color, pulse).fillTriangle(ex + Math.cos(ang) * 16, ey + Math.sin(ang) * 16, ex + Math.cos(ang + 2.4) * 14, ey + Math.sin(ang + 2.4) * 14, ex + Math.cos(ang - 2.4) * 14, ey + Math.sin(ang - 2.4) * 14);
+      };
+      if (warn && (atk === 'pull' || atk === 'bounce') && tgt.cells) {
+        arrow(tgt.cells[0], tgt.cells[1]);
+        const d = cellXY(tgt.cells[1]);
+        g.lineStyle(5, 0xffd2c8, pulse).strokeCircle(d.x, d.y, CELL / 2 - 14);
+      }
+      if (warn && atk === 'mirror' && tgt.cells) {
+        arrow(tgt.cells[0], tgt.cells[1], 0xd9c2ff);
+        arrow(tgt.cells[1], tgt.cells[0], 0xd9c2ff);
+      }
+      if (warn && atk === 'conveyor' && tgt.row !== undefined) for (let c = 0; c < COLS - 1; c++) arrow(tgt.row * COLS + c, tgt.row * COLS + c + 1);
+      if (warn && atk === 'bomb' && tgt.cells) {
+        const { x, y } = cellXY(tgt.cells[0]);
+        let bomb = this.remixIcons.find((x2) => x2.texture.key === 'prop_bomb');
+        if (!bomb && this.hasArt('prop_bomb')) this.remixIcons.push((bomb = this.add.image(0, 0, 'prop_bomb').setDepth(47)));
+        if (bomb) {
+          bomb.setVisible(true).setPosition(x, y + Math.sin(this.time.now / 90) * 3);
+          bomb.setScale(((CELL - 22) * (1 + 0.06 * Math.sin(this.time.now / 120))) / Math.max(bomb.width, bomb.height));
+        } else g.fillStyle(0x2b1d2e, 1).fillCircle(x, y, 30).fillStyle(0xff684a, 1).fillCircle(x, y - 30, 8);
       }
       if (tgt.boundary !== undefined) {
         const x = BX + (tgt.boundary + 1) * CELL;
@@ -4388,9 +4486,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
       const left = warn ? Math.max(0, (bs.pending!.deadline - this.s.elapsed)) : Math.max(0, bs.active!.until - this.s.elapsed);
       this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + CELL / 2 - 24, ac.y - CELL / 2 + 20).setFontSize(26).setVisible(true);
-      const what = { clamp: 'CLAMP', frost: 'FROST', suction: 'SUCTION', hot: 'HOT COLUMN', rest: 'REST ROW', split: 'SPLIT' }[atk];
+      const what = ATTACK_COPY[atk].what;
       const missed = !warn && atk === 'clamp' && cellsOf().every((c) => !this.s.grid[c]);
-      const why = { clamp: missed ? 'it missed! that cell is blocked' : 'marked machine gets stuck', frost: 'no parts land here', suction: 'marked machines vanish', hot: 'shots hit half as hard', rest: 'relays wake nobody', split: 'links cannot cross' }[atk];
+      const why = missed ? 'it missed! that cell is blocked' : ATTACK_COPY[atk].why;
       this.updateLane(warn ? `${what} IN ${left.toFixed(1)}s  \u00b7  ${why}` : `${what}  \u00b7  ${why}  \u00b7  ${left.toFixed(1)}s`, '#ffd2c8');
       void BOSS_WARN;
       return;
