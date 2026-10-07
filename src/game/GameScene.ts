@@ -2193,9 +2193,9 @@ Now beat the real level.`, this.coachY());
   itemBadges = new Map<number, Phaser.GameObjects.Container>();
 
   static ITEM_COPY: Record<ItemKind, { name: string; how: string; wrong: string }> = {
-    overcharge: { name: 'OVERCHARGE', how: 'Put this on a shooter.\nIts next two chain shots hit harder.', wrong: 'Use it on a Cannon or Rocket' },
-    spark: { name: 'SPARK', how: 'Put this on a shooter.\nNext time it fires in a chain,\nit wakes the machines next to it.', wrong: 'Use it on a Cannon or Rocket' },
-    corner: { name: 'CORNER KIT', how: 'Put this on a Bell.\nNext time it rings, it also wakes\nits diagonal neighbours.', wrong: 'Use it on a Bell' },
+    overcharge: { name: 'OVERCHARGE', how: 'Put this on a shooter.\nIts next two chain shots hit DOUBLE.', wrong: 'Use it on a Cannon or Rocket' },
+    spark: { name: 'SPARK', how: 'Put this on a shooter.\nThe next 2 times it fires in a chain,\nit wakes the machines next to it.', wrong: 'Use it on a Cannon or Rocket' },
+    corner: { name: 'CORNER KIT', how: 'Put this on a Bell.\nThe next 2 times it rings, it also wakes\nits diagonal neighbours.', wrong: 'Use it on a Bell' },
   };
 
   /** r25: attach the tray item to the machine in `idx` (if it fits), else explain why and keep the item. */
@@ -2520,7 +2520,7 @@ Now beat the real level.`, this.coachY());
       });
     }
     this.tweens.add({ targets: lg, alpha: 0, delay: windup + maxDepth * step + 200, duration: 250, onComplete: () => lg.destroy() });
-    // r25: a power-up that fires pops its icon over its machine (OVERCHARGE also shows x1.5)
+    // r25: a power-up that fires pops its icon over its machine (OVERCHARGE also shows x2)
     for (const id of r.itemUsed ?? []) {
       const kind = this.itemBadges.get(id)?.getData('kind') as string | undefined;
       const act = r.activations.find((x) => x.id === id);
@@ -2531,7 +2531,7 @@ Now beat the real level.`, this.coachY());
         im.setScale(40 / Math.max(im.width, im.height));
         this.tweens.add({ targets: im, y: y - 90, scale: im.scale * 1.8, alpha: 0, duration: 650, ease: 'Quad.Out', onComplete: () => im.destroy() });
         this.ring(x, y, 0xff9a3c, 70, 10, 320);
-        if (kind === 'overcharge') this.floatText(x + 40, y - 40, 'x1.5', '#ff9a3c', 34, 200);
+        if (kind === 'overcharge') this.floatText(x + 40, y - 40, 'x2', '#ff9a3c', 34, 200);
         sfx.merge?.(4);
       });
       tlog.log('item_used', { kind });
@@ -4300,7 +4300,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'rocket', title: 'ROCKET', role: 'SHOOTER', text: 'Never shoots by itself. When a chain wakes it, it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.', unlock: 6 },
     { key: 'magnet', title: 'MAGNET', role: 'MOVER', text: 'When it fires, it pulls one machine along its line into the empty cell next to it.', tryThis: 'Use it to bring a pair together.', unlock: 12 },
     { key: 'fan', title: 'FAN', role: 'MOVER', text: 'When it fires, it blows the first machine next to it one cell further away (if that cell is empty).', tryThis: 'Use it to push a machine into a relay\'s reach.', unlock: 23 },
-    { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Break the monster to half HP and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x1.5), SPARK (shooter: wakes its neighbours once), CORNER KIT (Bell: wakes its diagonals once).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
+    { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Break the monster to half HP and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
   ];
 

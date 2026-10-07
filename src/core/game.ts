@@ -295,7 +295,7 @@ export function applyItem(s: GameState, idx: number, id: number): CommandResult 
   const g = s.grid[idx];
   const kind = s.itemTray;
   if (s.phase !== 'playing' || !kind || !g || g.id !== id || g.item || !itemFits(kind, g.family)) return { ok: false, events: ev };
-  g.item = { kind, charges: kind === 'overcharge' ? 2 : 1 };
+  g.item = { kind, charges: 2 };
   s.itemTray = null;
   ev.push({ type: 'itemApply', kind, idx, id });
   return { ok: true, events: ev };

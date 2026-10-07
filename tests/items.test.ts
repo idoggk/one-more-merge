@@ -53,7 +53,7 @@ describe('r25 items', () => {
     s.grid[0] = gd(s, 'cannon', 1, { kind: 'overcharge', charges: 2 });
     s.grid[1] = gd(s, 'cannon', 1);
     drop(s, 0, 1, s.grid[0]!.id);
-    expect(s.grid[1]!.item).toEqual({ kind: 'overcharge', charges: 1 });
+    expect(s.grid[1]!.item).toEqual({ kind: 'overcharge', charges: 1 }); // 2 charges, one spent
   });
 
   it('with two attachments the destination survives', () => {
@@ -76,10 +76,10 @@ describe('r25 items', () => {
     };
     const plain = run(false), sparked = run(true);
     expect(sparked.count).toBeGreaterThan(plain.count);
-    expect(sparked.s.grid[3]!.item).toBeUndefined(); // spent
+    expect(sparked.s.grid[3]!.item).toBeUndefined(); // its single test charge is spent
   });
 
-  it('OVERCHARGE hits x1.5 on its chain shot', () => {
+  it('OVERCHARGE hits x2 on its chain shot', () => {
     const hit = (oc: boolean) => {
       const s = blank();
       s.grid[0] = gd(s, 'coil');
@@ -88,7 +88,7 @@ describe('r25 items', () => {
       const ev = drop(s, 0, 1, s.grid[0]!.id).events.find((e) => e.type === 'cascade') as { result: { activations: { family: string; contribution: number }[] } };
       return ev.result.activations.find((a) => a.family === 'cannon')!.contribution;
     };
-    expect(hit(true)).toBeCloseTo(hit(false) * 1.5);
+    expect(hit(true)).toBeCloseTo(hit(false) * 2);
   });
 
   it('L16 (goal level) grants SPARK at 8 s; nothing before L13', () => {

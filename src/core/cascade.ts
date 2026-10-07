@@ -303,7 +303,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const perk = isShooter(a.family) && opts.perks.includes('twin') ? 1.4 : 1;
     const prime = bonus.has(a.id) ? TUNING.batteryBonus : 1;
     const hot = isShooter(a.family) && opts.hotCol !== undefined && a.idx % COLS === opts.hotCol ? 0.5 : 1;
-    const oc = overcharged.has(a.id) ? 1.5 : 1;
+    const oc = overcharged.has(a.id) ? 2 : 1;
     a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc;
     sum += a.contribution;
   }
