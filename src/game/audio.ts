@@ -252,8 +252,19 @@ export function haptic(ms = 10) {
 }
 
 // ---------- music: tiny generative groove (kick / hat / bass arpeggio) ----------
-const music = { on: false, timer: 0 as unknown as ReturnType<typeof setInterval>, step: 0, next: 0, intense: false, bpm: 112 };
+const music = { on: false, timer: 0 as unknown as ReturnType<typeof setInterval>, step: 0, next: 0, intense: false, bpm: 112, mode: 'normal' as MusicMode };
 const BASS = [0, 0, 7, 0, 5, 5, 3, 5]; // semitones over A1
+/** r28 fight themes: bosses get a dark phrygian line, mini-bosses a bouncy one, the final phase pushes tempo + a stab. */
+export type MusicMode = 'normal' | 'mini' | 'boss' | 'final';
+const MODES: Record<MusicMode, { bass: number[]; bpm: number; stab: boolean }> = {
+  normal: { bass: BASS, bpm: 112, stab: false },
+  mini: { bass: [0, 3, 5, 3, 0, 7, 5, 3], bpm: 118, stab: false },
+  boss: { bass: [0, 0, 1, 0, 3, 3, 1, -2], bpm: 122, stab: true },
+  final: { bass: [0, 1, 0, 1, 3, 1, -2, -1], bpm: 132, stab: true },
+};
+export function setMusicMode(m: MusicMode) {
+  music.mode = m;
+}
 
 let bus: GainNode | null = null;
 /** Music runs through its own bus so big accents can duck it (ChatGPT r9: -3..4 dB in 25 ms, recover 180 ms). */
@@ -307,14 +318,16 @@ function mnoise(t: number, dur: number, vol: number) {
 
 function schedule() {
   if (!ctx || !music.on || !audioSettings.on || !audioSettings.music) return;
-  const spb = 60 / (music.bpm * (music.intense ? 1.25 : 1)) / 2; // eighth notes
+  const md = MODES[music.mode];
+  const spb = 60 / (md.bpm * (music.intense ? 1.25 : 1)) / 2; // eighth notes
   while (music.next < ctx.currentTime + 0.2) {
     const t = music.next;
     const s = music.step % 16;
     if (s % 4 === 0) mtone(120, t, 0.18, 'sine', 0.22, 40); // kick
     if (s % 2 === 1 || music.intense) mnoise(t, 0.04, music.intense ? 0.06 : 0.035); // hat
     if (s === 4 || s === 12) mnoise(t, 0.12, 0.05); // snare-ish
-    const n = BASS[Math.floor(s / 2) % BASS.length] + (music.step % 32 >= 16 ? -2 : 0);
+    const n = md.bass[Math.floor(s / 2) % md.bass.length] + (music.step % 32 >= 16 && music.mode === 'normal' ? -2 : 0);
+    if (md.stab && (s === 0 || s === 6 || s === 10)) mtone(110 * Math.pow(2, (n + 12) / 12), t, spb * 0.5, 'sawtooth', 0.02); // boss stab
     if (s % 2 === 0) mtone(55 * Math.pow(2, n / 12), t, spb * 1.6, 'triangle', 0.09);
     if (music.intense && s % 2 === 1) mtone(220 * Math.pow(2, (n + 12) / 12), t, spb * 0.8, 'square', 0.025);
     music.next += spb;
