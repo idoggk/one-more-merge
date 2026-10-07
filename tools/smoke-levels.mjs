@@ -4,6 +4,7 @@ import puppeteer from 'puppeteer-core';
 import { createServer } from 'vite';
 
 const from = Number(process.argv[2] ?? 1), to = Number(process.argv[3] ?? 60), secs = Number(process.argv[4] ?? 6);
+const only = process.env.ONLY ? process.env.ONLY.split(',').map(Number) : null;
 const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const server = await createServer({ server: { port: 5198, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
@@ -18,6 +19,7 @@ await page.goto(`${server.resolvedUrls.local[0]}?timer&reset`, { waitUntil: 'net
 await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let n = from; n <= to; n++) {
+  if (only && !only.includes(n)) continue;
   cur = n;
   await page.evaluate((lv) => {
     const sc = window.__omm.game.scene.getScene('game');
