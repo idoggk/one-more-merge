@@ -851,6 +851,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** ChatGPT r10: occupied height 76% of the slot, width capped at 84%, every gadget standing on one baseline. */
+  /** r38: scale + centre an image by its VISIBLE pixels (v22 sprites sit on a padded 256 canvas). */
+  fitVisible(img: Phaser.GameObjects.Image, size: number) {
+    const b = this.visBounds(img.texture.key);
+    img.setScale(size / Math.max(b.w, b.h));
+    img.setOrigin((b.x + b.w / 2) / img.width, (b.y + b.h / 2) / img.height);
+    return img;
+  }
+
   fitSprite(img: Phaser.GameObjects.Image) {
     const b = this.visBounds(img.texture.key);
     img.setScale(Math.min((CELL * 0.76) / b.h, (CELL * 0.84) / b.w));
@@ -4935,8 +4943,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     cc.add(this.add.text(0, -114, u.rarity.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
     const art = `${u.id}_${owned ? Math.min(6, 1 + Math.floor((st!.level - 1) / 2)) : 3}`;
     if (this.textures.exists(art)) {
-      const im = this.add.image(0, -16, art);
-      im.setScale(140 / Math.max(im.width, im.height));
+      const im = this.fitVisible(this.add.image(0, -16, art), 140);
       if (!owned) im.setTint(0x2b1d2e).setAlpha(0.6);
       cc.add(im);
     }
@@ -5109,8 +5116,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
         const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
         card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -110, 176, 220, 18).fillStyle(rc, 1).fillRoundedRect(-84, -106, 168, 212, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -80, 152, 130, 12));
         if (this.textures.exists(`${cd.unit}_3`)) {
-          const im = this.add.image(0, -16, `${cd.unit}_3`);
-          im.setScale(110 / Math.max(im.width, im.height));
+          const im = this.fitVisible(this.add.image(0, -16, `${cd.unit}_3`), 112);
           card.add(im);
         }
         card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`.replace('SIGNAL ', ''), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
