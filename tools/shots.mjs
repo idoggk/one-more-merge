@@ -43,6 +43,9 @@ const states = {
   mini38: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true, x_boss: true, tap_hint: true, xb_bomb: true, xb_conveyor: true, xb_mirror: true, xb_blocks: true, xb_pull: true, xb_bounce: true }; sc.startLevel(38); sc.finishIntro(true); }, 11600],
   mini58: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true, x_boss: true, tap_hint: true, xb_bomb: true, xb_conveyor: true, xb_mirror: true, xb_blocks: true, xb_pull: true, xb_bounce: true }; sc.startLevel(58); sc.finishIntro(true); }, 9800],
   card8m: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.lessons = { card: true, boosters: true, road: true }; sc.openTitle('road'); sc.openLevelSheet(28); }, 900],
+  book0: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 21 }, (_, i) => [i + 1, 2])) }); sc.openTitle('machine'); sc.openMonsterBook(0, 0); }, 900],
+  book2: [(sc) => { sc.openMonsterBook(2, 0); }, 700],
+  book1: [(sc) => { sc.openMonsterBook(1, 0); }, 700],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {

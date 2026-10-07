@@ -3226,6 +3226,15 @@ Now beat the real level.`, this.coachY());
     // trophy shelf (r17): earned chapter medals, collection only
     const medals = Object.keys(m.medals ?? {}).map(Number).sort((a, b) => a - b);
     medals.slice(0, 6).forEach((ch, i) => c.add(this.medalIcon(W / 2 + (i - (Math.min(medals.length, 6) - 1) / 2) * 76, headY + 110, 70, ch, true)));
+    // r28 MONSTER BOOK: every monster / mini-boss / boss you have met
+    if (this.currentLevel() > 1) {
+      const bk = this.add.container(W - 86, headY + 110);
+      bk.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-60, -34, 120, 68, 18).fillStyle(0x8e58c9, 1).fillRoundedRect(-56, -30, 112, 60, 15));
+      bk.add(this.add.text(0, 0, 'BOOK', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#ffffff' }).setOrigin(0.5));
+      bk.setSize(120, 68).setInteractive({ useHandCursor: true });
+      bk.on('pointerup', () => (sfx.click(), this.openMonsterBook(0, 0)));
+      c.add(bk);
+    }
     // the machine
     const helper = this.activeToys()[0] ?? null;
     // day 0: three rank-1 starter modules instead of an empty chassis (display baseline, not earned mastery)
@@ -3874,6 +3883,73 @@ Merge them into a RANK ${rank}!`, this.coachY());
     });
     c.add(wipe);
     this.button(c, W / 2, top + 760, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+  }
+
+  /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
+  bookEntries(): { id: string; tab: number; key: string; name: string; level: number; beaten: boolean }[] {
+    const stars = this.meta.levelStars ?? {};
+    const cleared = (n: number) => (stars[String(n)] ?? 0) > 0;
+    const out: { id: string; tab: number; key: string; name: string; level: number; beaten: boolean }[] = [];
+    const seen = new Set<string>();
+    for (const d of LEVELS) {
+      const n = d.level;
+      const mini = d.mini_boss ? BOSSES.find((x) => x.id === d.mini_boss) : undefined;
+      const boss = !mini && n % 10 === 0 ? BOSSES[n / 10 - 1] : undefined;
+      const b = mini ?? boss;
+      const key = b ? `boss_${b.id}` : `mon_${d.monster}`;
+      const beatenHere = cleared(n);
+      if (seen.has(key)) {
+        const prev = out.find((e) => e.id === key);
+        if (beatenHere && prev) prev.beaten = true;
+        continue;
+      }
+      seen.add(key);
+      const ti = MONSTER_INDEX[d.monster] ?? 0;
+      out.push({ id: key, tab: mini ? 1 : boss ? 2 : 0, key: b ? `boss_${b.id}_intact` : `target_${ti}`, name: b ? b.name : TARGET_NAMES[ti], level: n, beaten: beatenHere });
+    }
+    return out;
+  }
+
+  openMonsterBook(tab: number, page: number) {
+    this.closeModal();
+    const c = this.panel(1060);
+    const top = H / 2 - 530;
+    c.add(this.add.text(W / 2, top + 58, 'MONSTER BOOK', { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    const all = this.bookEntries();
+    const tabs = ['MONSTERS', 'MINI-BOSSES', 'BOSSES'];
+    tabs.forEach((t, i) => {
+      const n = all.filter((e) => e.tab === i);
+      const got = n.filter((e) => e.beaten).length;
+      const x = W / 2 + (i - 1) * 205;
+      const on = i === tab;
+      const b = this.add.text(x, top + 130, `${t}\n${got}/${n.length}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: on ? '#ffffff' : '#5a3a3a', backgroundColor: on ? '#8e58c9' : '#ead2b0', align: 'center', padding: { x: 14, y: 6 }, fixedWidth: 190 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      b.on('pointerup', () => (sfx.click(), this.openMonsterBook(i, 0)));
+      c.add(b);
+    });
+    const list = all.filter((e) => e.tab === tab);
+    const pages = Math.max(1, Math.ceil(list.length / 6));
+    page = Math.min(page, pages - 1);
+    list.slice(page * 6, page * 6 + 6).forEach((e, k) => {
+      const x = W / 2 + ((k % 3) - 1) * 200, y = top + 330 + Math.floor(k / 3) * 300;
+      const met = e.level <= this.currentLevel();
+      c.add(this.add.graphics().fillStyle(0xead2b0, 1).fillRoundedRect(x - 92, y - 120, 184, 270, 22));
+      if (this.hasArt(e.key)) {
+        const im = this.add.image(x, y - 10, e.key);
+        im.setScale(Math.min(160 / im.width, 170 / im.height));
+        if (!e.beaten) im.setTint(0x2b1d2e).setAlpha(met ? 0.85 : 0.55);
+        c.add(im);
+      }
+      if (!e.beaten) c.add(this.add.text(x, y - 10, '?', { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#fff0cf' }).setOrigin(0.5));
+      c.add(this.add.text(x, y + 116, e.beaten || met ? e.name : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: 176 }, lineSpacing: -4 }).setOrigin(0.5, 1));
+      c.add(this.add.text(x, y + 130, e.beaten ? `beaten  \u00b7  L${e.level}` : `level ${e.level}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: e.beaten ? '#2a8a3a' : '#7a5a4a' }).setOrigin(0.5));
+    });
+    if (pages > 1) {
+      c.add(this.add.text(W / 2, top + 935, `${page + 1} / ${pages}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#7a5a4a' }).setOrigin(0.5));
+      if (page > 0) this.button(c, W / 2 - 210, top + 935, 150, '\u2039', 0x8a6a4a, () => this.openMonsterBook(tab, page - 1), 0.7);
+      if (page < pages - 1) this.button(c, W / 2 + 210, top + 935, 150, '\u203a', 0x5fbf4a, () => this.openMonsterBook(tab, page + 1), 0.7);
+    }
+    this.button(c, W / 2, top + 1010, 300, 'CLOSE', 0x8a6a4a, () => this.openTitle('machine'), 0.8);
+    tlog.log('book', { tab });
   }
 
   teamShooter(): Family {
