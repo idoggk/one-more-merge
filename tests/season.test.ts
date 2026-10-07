@@ -34,4 +34,18 @@ describe('r41 workshop season', () => {
     expect(cards).toBeGreaterThanOrEqual(6);
     expect(seasonUnit(5)).toBe(seasonUnit(5));
   });
+  it('r43: a solve-a-puzzle task shows up and progresses on puzzle solves', () => {
+    const day = Array.from({ length: 60 }, (_, i) => 20000 + i).find((d) => dailyTasks(d).some((t) => t.ev === 'puzzleSolve'))!;
+    expect(day).toBeDefined();
+    const r = freshSeason(day);
+    const i = dailyTasks(day).findIndex((t) => t.ev === 'puzzleSolve');
+    expect(dailyTasks(day)[i].text).toBe('Solve a puzzle');
+    expect(seasonCount(r, 'puzzleSolve')).toBeGreaterThanOrEqual(15);
+    expect(r.daily[i]).toBe(1);
+    const week = Array.from({ length: 60 }, (_, k) => 2857 + k).find((w) => weeklyTasks(w).some((t) => t.ev === 'puzzleSolve'))!;
+    const rw = { ...freshSeason(week * 7), week };
+    const j = weeklyTasks(week).findIndex((t) => t.ev === 'puzzleSolve');
+    seasonCount(rw, 'puzzleSolve');
+    expect(rw.weekly[j]).toBe(1);
+  });
 });

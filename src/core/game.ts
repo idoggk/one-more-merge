@@ -797,6 +797,11 @@ export interface PuzzleDef {
   visual?: string;
 }
 
+/** r43 UNITS nav dot: some owned unit still has an unsolved drill. */
+export function drillsPending(owned: (unit: string) => boolean, drills: Record<string, PuzzleDef[]>, solved: string[]): boolean {
+  return Object.entries(drills).some(([unit, list]) => owned(unit) && list.some((p) => !solved.includes(p.id)));
+}
+
 export function newPuzzle(p: PuzzleDef): GameState {
   const s = newGame(0x9e3779b1 ^ p.moves, false, false, [], -1, 'cannon');
   s.grid.fill(null);

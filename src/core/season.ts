@@ -13,7 +13,7 @@ export const WEEKLY_XP = 100;
 export const BONUS_XP = { rushFull: 75, yardGrand: 75 };
 
 /** Counted events (the game reports these as they happen). */
-export type SeasonEvent = 'levelWin' | 'chain8' | 'threeStars' | 'crateOpen' | 'yardPlay' | 'bountyWin' | 'unitUp' | 'medal' | 'endlessFloor';
+export type SeasonEvent = 'levelWin' | 'chain8' | 'threeStars' | 'crateOpen' | 'yardPlay' | 'bountyWin' | 'unitUp' | 'medal' | 'endlessFloor' | 'puzzleSolve';
 
 export interface TaskDef {
   ev: SeasonEvent;
@@ -30,6 +30,7 @@ const DAILY_POOL: TaskDef[] = [
   { ev: 'bountyWin', n: 1, text: 'Win a Bounty' },
   { ev: 'unitUp', n: 1, text: 'Level up a unit' },
   { ev: 'medal', n: 1, text: 'Earn a Mastery medal' },
+  { ev: 'puzzleSolve', n: 1, text: 'Solve a puzzle' },
 ];
 const WEEKLY_POOL: TaskDef[] = [
   { ev: 'levelWin', n: 15, text: 'Win 15 levels' },
@@ -39,6 +40,7 @@ const WEEKLY_POOL: TaskDef[] = [
   { ev: 'crateOpen', n: 5, text: 'Open 5 crates' },
   { ev: 'unitUp', n: 3, text: 'Level up units 3 times' },
   { ev: 'threeStars', n: 5, text: 'Get 3 stars 5 times' },
+  { ev: 'puzzleSolve', n: 3, text: 'Solve 3 puzzles' },
 ];
 
 const mix = (n: number) => {

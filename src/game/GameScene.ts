@@ -44,7 +44,7 @@ import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/sc
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import puzzleData from '../content/puzzles.json';
-import { newPuzzle, type PuzzleDef } from '../core/game';
+import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
@@ -3989,7 +3989,9 @@ Now beat the real level.`, this.coachY());
       // r36: EVENTS gets a dot when a Screw Yard attempt is waiting and the week's track is not done
       const yardReady = t === 'events' && this.currentLevel() - 1 >= YARD_UNLOCK && (this.meta.screwdrivers ?? SCREWDRIVERS.start) > 0 && this.yardWeek().clears < YARD_TIERS[YARD_TIERS.length - 1].need;
       const collReady = t === 'units' && (() => { const gl = COLLECTION_GOALS[this.meta.collClaimed ?? 0]; if (!gl) return false; const p = this.collectionProgress(); return (gl.kind === 'own' ? p.own : p.levels) >= gl.n; })();
-      const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0 || collReady)) || yardReady;
+      // r43: UNITS also gets the dot while an owned unit has an unsolved drill
+      const drillReady = t === 'units' && drillsPending((u) => this.ownsUnit(u), GameScene.PUZZLES.drills, this.puzzleRec().drills);
+      const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0 || collReady || drillReady)) || yardReady;
       if (ready) c.add(this.add.circle(x + 62, y - 30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
       if (t === 'events' && !this.meta.hardUnlocked && this.currentLevel() < 3) lb.setAlpha(0.5);
       const z = this.add.zone(x, y, 166, 96).setInteractive({ useHandCursor: true });
@@ -4691,7 +4693,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const pz = this.puzzleRec();
     const def = this.puzzleDef!;
     const lines: string[] = [];
+    let firstSolve = false;
     if (won && this.puzzleKind === 'daily' && pz.lastSolved !== localDate()) {
+      firstSolve = true;
       const yesterday = new Date(Date.now() - 86400000);
       const y = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
       pz.streak = pz.lastSolved === y ? pz.streak + 1 : 1;
@@ -4700,12 +4704,15 @@ Merge them into a RANK ${rank}!`, this.coachY());
       m.gems = (m.gems ?? 0) + 3;
       lines.push('+40 BOLTS  +3 GEMS', `STREAK: ${pz.streak} day${pz.streak > 1 ? 's' : ''}`);
     } else if (won && this.puzzleKind === 'drill' && !pz.drills.includes(def.id)) {
+      firstSolve = true;
       pz.drills.push(def.id);
       m.bolts = (m.bolts ?? 0) + 25;
       if (def.unit) this.applyCards([{ unit: def.unit as Family, count: 2, isNew: false }]);
       lines.push(`+25 BOLTS  +2 ${FAMILY_INFO[def.unit as 'cannon'].name.toUpperCase()} CARDS`);
     } else if (won) lines.push('Solved again - nice!');
     store(META_KEY, JSON.stringify(m));
+    // r43: first solves (the rewarded ones) feed the Season, so replays can't farm it
+    if (firstSolve) this.seasonEv('puzzleSolve');
     tlog.log('puzzle_end', { id: def.id, won });
     const c = this.panel(640);
     const top = H / 2 - 320;
