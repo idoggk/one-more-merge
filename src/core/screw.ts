@@ -12,7 +12,9 @@ export const OPEN_BOXES = 2;
 /** Board area the plates live in (centre-origin design units). */
 export const YARD_W = 600;
 export const YARD_H = 640;
-const PLATE_T = 64;
+const PLATE_T = 74;
+/** r38 (ChatGPT review): plates cluster in the middle so the pile reads as one junk heap, not scattered sticks. */
+const CLUSTER = 0.78;
 const SCREW_R = 22;
 
 export interface Plate {
@@ -198,8 +200,8 @@ function tryGenerate(n: number, seed: number, easy: boolean, noMix = false): Yar
     // keep the whole plate inside the yard
     const ca = Math.abs(Math.cos(angle)), sa = Math.abs(Math.sin(angle));
     const hx = ca * (len / 2) + sa * (thick / 2), hy = sa * (len / 2) + ca * (thick / 2);
-    const x = (rng.next() * 2 - 1) * Math.max(0, YARD_W / 2 - hx);
-    const y = (rng.next() * 2 - 1) * Math.max(0, YARD_H / 2 - hy);
+    const x = (rng.next() * 2 - 1) * Math.max(0, (YARD_W / 2) * CLUSTER - hx * 0.6);
+    const y = (rng.next() * 2 - 1) * Math.max(0, (YARD_H / 2) * CLUSTER - hy * 0.6);
     const p: Plate = { id: i, x, y, len, thick, angle, z: i, screws: [] };
     const a = len / 2 - 28;
     const local: [number, number][] = square ? [[-a, -a], [a, -a], [a, a], [-a, a]] : (len >= 330 ? [-1, 0, 1] : [-1, 1]).map((o) => [o * (len / 2 - 30), 0]);

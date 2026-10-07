@@ -10,10 +10,13 @@ const STAGE_RAMP = 0.3;
 const CALM_UNTIL = 20;
 const CALM_CAP = 20;
 /** r35 reactive supply: a merge earns 2 parts below REACT_TWO parts on the board, 1 below REACT_CAP, else none. */
-const REACT_TWO = 14;
-const REACT_CAP = 22;
+const REACT_TWO = 12;
+const REACT_CAP = 18;
 const REACT_GAP = 0.35;
-const REACT_STUCK = 2;
+/** r38: the first earned part waits this long after the merge (the chain's payoff plays on a still board). */
+const REACT_DELAY = 0.6;
+const REACT_STUCK = 2.5;
+const REACT_STUCK_NEXT = 3;
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -81,6 +84,9 @@ export interface GameState {
    *  never on a timer, so the board holds still while the player thinks. `owed` = parts earned, not yet delivered. */
   reactive?: boolean;
   owed?: number;
+  /** r38: seconds the board has had no legal pair, and rescue parts given in this stuck spell. */
+  stuck?: number;
+  stuckN?: number;
   shipments: number;
   target: number; // 0..2 ; -1 demo
   hp: number;
@@ -432,6 +438,13 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   return pool[hash2(s.seed ^ 0x5bd1e995, ordinal) % pool.length];
 }
 
+/** r38: parts the NEXT merge would earn under reactive supply (shown in the NEXT capsule). */
+export function mergeEarns(s: GameState): number {
+  if (!s.reactive) return 0;
+  const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0);
+  return occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0;
+}
+
 /** Peek the next shipment (family + rank) without consuming RNG. */
 export function peekNext(s: GameState): { family: Family; rank: number } {
   if (s.pending.length) return { family: s.pending[0].family, rank: s.pending[0].rank };
@@ -595,6 +608,8 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   if (s.reactive && s.phase === 'playing') {
     const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
     s.owed = (s.owed ?? 0) + (occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0);
+    // r38 (ChatGPT review): earned parts land after the merge's payoff, not during it
+    s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
   }
   s.mergeCd = TUNING.mergeCooldown;
 
@@ -858,19 +873,28 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   admitPending(s, reserved, ev);
   const calm = s.calmCap !== undefined && s.grid.filter(Boolean).length >= s.calmCap;
   if (s.reactive) {
-    // r35: earned parts drop in one at a time (REACT_GAP apart); with no pair on the board a part trickles in every REACT_STUCK s
+    // r35/r38: earned parts drop in one at a time (REACT_GAP apart, REACT_DELAY after the merge); a board with no
+    // legal pair gets a rescue part after REACT_STUCK s, then every REACT_STUCK_NEXT s until a pair exists
     s.supplyTimer -= dt;
-    if (s.supplyTimer <= 0 && s.pending.length < TUNING.maxPending) {
-      if ((s.owed ?? 0) > 0) {
+    if ((s.owed ?? 0) > 0) {
+      s.stuck = 0;
+      if (s.supplyTimer <= 0 && s.pending.length < TUNING.maxPending) {
         s.owed!--;
         s.pending.push(generateShipment(s));
         s.supplyTimer = REACT_GAP;
         admitPending(s, reserved, ev);
-      } else if (!s.pending.length && !legalPairs(s).length) {
+      }
+    } else if (!s.pending.length && !legalPairs(s).length) {
+      s.stuck = (s.stuck ?? 0) + dt;
+      if (s.stuck >= (s.stuckN ? REACT_STUCK_NEXT : REACT_STUCK)) {
+        s.stuck = 0;
+        s.stuckN = (s.stuckN ?? 0) + 1;
         s.pending.push(generateShipment(s));
-        s.supplyTimer = REACT_STUCK;
         admitPending(s, reserved, ev);
-      } else s.supplyTimer = Math.max(s.supplyTimer, REACT_GAP);
+      }
+    } else {
+      s.stuck = 0;
+      s.stuckN = 0;
     }
   } else if (calm) {
     // r34: the clock on the next delivery waits until the player makes room

@@ -14,6 +14,7 @@ import { applyItem,
   useTimeCapsule,
   odNeeded,
   peekNext,
+  mergeEarns,
   previewMerge,
   scrap,
   serialize,
@@ -50,6 +51,8 @@ const DRAG_LIFT = 40;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
+/** r38: player-facing durations are m:ss (ChatGPT review: never raw seconds on cards). */
+const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
 /** r34: clock ring centre x (left of the HP bar); the machine counter mirrors it on the right. */
 const CLOCK_X = 62;
 /** r35 trophy figurines (ChatGPT spec): 3 mastery stars on one boss / mini-boss win its trophy; 4 stand by the machine. */
@@ -791,7 +794,7 @@ export class GameScene extends Phaser.Scene {
       badge.clear();
       const plate = this.add.image(26, 48, dice);
       plate.setScale(78 / plate.width);
-      t = this.add.text(26 - 39 + 18, 47, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a2233' }).setOrigin(0.5);
+      t = this.add.text(26 - 39 + 18, 46, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '35px', color: '#2a2233' }).setOrigin(0.5);
       parts = [img, plate, t];
     }
     t.setName('rank');
@@ -1881,7 +1884,10 @@ Now beat the real level.`, this.coachY());
     const ta = this.trayArc.clear();
     const prog = s.pending.length >= TUNING.maxPending ? 1 : 1 - s.supplyTimer / supplyPeriod(s);
     ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
-    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : '');
+    // r38: reactive levels say what the next merge earns (the board only changes when you merge)
+    const earn = mergeEarns(s);
+    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? `MERGE \u2192 +${earn}` : '');
+    this.pendingText.setColor(s.pending.length ? '#9e2416' : earn ? '#3b6a2a' : '#7a5a4a');
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(!tut && !(s.level !== undefined && s.level < 4));
     this.trayPlate?.setVisible(!tut);
@@ -2418,7 +2424,7 @@ Now beat the real level.`, this.coachY());
     if (sec !== this.lastSec && s.phase === 'playing' && !this.paused) {
       const prev = this.lastSec;
       this.lastSec = sec;
-      if (prev > 30 && sec <= 30 && total > 45) this.showEvent('30 SECONDS LEFT!', '#ffcf33', 1600);
+      if (prev > 30 && sec <= 30 && total > 45) this.showEvent('30 SECONDS LEFT!', '#ffcf33', 1100);
       if (sec <= 10 && sec > 0 && prev > sec) {
         this.timerText.setScale(1.45);
         this.tweens.add({ targets: this.timerText, scale: 1, duration: 320, ease: 'Back.Out' });
@@ -2899,6 +2905,39 @@ Now beat the real level.`, this.coachY());
       });
     });
   }
+  /** r38 (ChatGPT review): one focal point when a boss first wakes - dimmed board, clock stopped, a single card. */
+  bossWakeCard(bd: (typeof BOSSES)[number]) {
+    const key = `xb_wake_${bd.id}`;
+    if (this.meta.tips[key] || this.s.phase !== 'playing' || this.modal) return;
+    this.meta.tips[key] = true;
+    // NEW! when the player has never been warned about this attack before
+    const fresh = !this.meta.tips[`xb_${bd.attack}`] && !this.meta.tips[`x_${bd.attack}`];
+    this.meta.tips[`xb_${bd.attack}`] = true; // the card is this attack's lesson
+    store(META_KEY, JSON.stringify(this.meta));
+    tlog.log('boss_wake_card', { id: bd.id, fresh });
+    this.paused = true;
+    this.cancelDrag();
+    const o = this.add.container(0, 0).setDepth(96);
+    o.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.45).setInteractive());
+    const cw = 590, ch = 470, cy = BY + (CELL * ROWS) / 2;
+    o.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(W / 2 - cw / 2 - 6, cy - ch / 2 - 6, cw + 12, ch + 12, 30).fillStyle(0xfbe7c6, 1).fillRoundedRect(W / 2 - cw / 2, cy - ch / 2, cw, ch, 26));
+    let y = cy - ch / 2 + 50;
+    if (fresh) {
+      o.add(this.add.text(W / 2, y - 18, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: '#e8452c', padding: { x: 10, y: 1 } }).setOrigin(0.5));
+      y += 22;
+    }
+    o.add(this.add.text(W / 2, y + 8, `${bd.name} WAKES!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#e8452c' }).setOrigin(0.5));
+    o.add(this.add.text(W / 2, y + 62, bd.copy, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '26px', color: '#3b2533', align: 'center', wordWrap: { width: cw - 70 } }).setOrigin(0.5, 0));
+    const dg = this.bossDiagram(bd.attack);
+    o.add(this.add.container(W / 2, cy + 90, [dg]).setScale(1.35));
+    const done = () => {
+      sfx.click();
+      o.destroy();
+      this.paused = false;
+    };
+    this.button(o, W / 2, cy + ch / 2 - 52, 260, 'GOT IT', 0x5fbf4a, done, 0.8);
+  }
+
   /** Boss name plate over the stage (run intro, and r33 when a stage's boss wakes after its minions). */
   bossNameCard(bd = BOSSES[this.realBoss!.def]) {
     const card = this.add.container(W / 2, STAGE_TOP + STAGE_H - 60).setDepth(85);
@@ -2928,22 +2967,8 @@ Now beat the real level.`, this.coachY());
         const bd = BOSSES[this.realBoss.def];
         this.time.delayedCall(380, () => this.bossNameCard(bd));
         this.time.delayedCall(1500, () => this.s.phase === 'playing' && this.showEvent(bd.mini ? 'MINI-BOSS!' : 'BOSS!', '#ffcf33', 1200));
-        // r34 onboarding: the first time a boss wakes, stop the clock and show its attack on a board diagram
-        this.time.delayedCall(1700, () =>
-          this.explain(`xb_wake_${bd.id}`, [
-            {
-              text: `${bd.name} IS HERE!\n${bd.copy}`,
-              spots: [],
-              y: TRAY_Y - 40,
-              draw: () => {
-                const dg = this.bossDiagram(bd.attack);
-                const plate = this.add.graphics().fillStyle(0xfff0cf, 0.96).fillRoundedRect(-170, -70, 340, 140, 22).lineStyle(5, 0x2b1d2e, 1).strokeRoundedRect(-170, -70, 340, 140, 22);
-                const box = this.add.container(W / 2, BY + CELL * 2.2, [plate, dg]).setDepth(92).setScale(1.3);
-                return [box];
-              },
-            },
-          ]),
-        );
+        // r34/r38 onboarding: the first time a boss wakes, ONE paused card: name, rule, board diagram, GOT IT
+        this.time.delayedCall(1700, () => this.bossWakeCard(bd));
         tlog.log('stage_boss', { at: +this.s.elapsed.toFixed(1) });
       } else if (sc && this.s.goal) {
         const g = this.s.goal;
@@ -3275,9 +3300,30 @@ Now beat the real level.`, this.coachY());
     if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road')), 1.1);
     else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => this.openLevelSheet(n), 1.1);
     // r37: a crate to open or a unit ready to level up gets its own button here (units are the main progression)
-    const unitCta = this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP ↑' : '';
+    // r38 Upgrade Prescription (ChatGPT review): after a loss, name the squad upgrade that helps most and how close it is
+    const rx = !won ? this.upgradePrescription() : null;
+    if (rx) c.add(this.add.text(W / 2, top + 572, rx.text, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a5a', align: 'center', lineSpacing: 4 }).setOrigin(0.5));
+    const unitCta = this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP \u2191' : rx ? 'GET CARDS' : '';
     this.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
-    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => this.openTitle('units'), 0.78);
+    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => (unitCta === 'GET CARDS' ? this.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? this.openUnitDetail(rx.u) : this.openTitle('units')), 0.78);
+  }
+
+  /** r38: the squad unit (shooter, relays, helper) closest to its next level, with what that level gives. */
+  upgradePrescription(): { u: UnitDef; text: string } | null {
+    const m = this.meta;
+    const squad = [this.teamShooter(), ...this.teamRelays(), ...this.activeToys()] as string[];
+    let best: { u: UnitDef; ratio: number; lv: number; cards: number; need: number } | null = null;
+    for (const id of new Set(squad)) {
+      const u = unitDef(id);
+      const st = m.units?.[id];
+      if (!u || !st || st.level >= MAX_UNIT_LEVEL) continue;
+      const need = cardsFor(u, st.level);
+      const ratio = Math.min(1, st.cards / need) + (u.slot === 'shooter' ? 0.05 : 0);
+      if (!best || ratio > best.ratio) best = { u, ratio, lv: st.level, cards: st.cards, need };
+    }
+    if (!best) return null;
+    const name = FAMILY_INFO[best.u.id as 'cannon'].name.toUpperCase();
+    return { u: best.u, text: `${name}  LV ${best.lv} \u2192 ${best.lv + 1}:  ${levelPerkText(best.u, best.lv + 1)}\ncards ${Math.min(best.cards, best.need)}/${best.need}` };
   }
 
   /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
@@ -3704,9 +3750,9 @@ Now beat the real level.`, this.coachY());
     // r35 TROPHIES: drawer button (mirror of BOOK) + the figurines on display around the machine's feet
     if (this.currentLevel() > 1) {
       const tb = this.add.container(86, headY + 110);
-      tb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-66, -34, 132, 68, 18).fillStyle(0xe0a020, 1).fillRoundedRect(-62, -30, 124, 60, 15));
-      tb.add(this.add.text(0, 0, 'TROPHY', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-      tb.setSize(132, 68).setInteractive({ useHandCursor: true });
+      tb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-74, -34, 148, 68, 18).fillStyle(0xe0a020, 1).fillRoundedRect(-70, -30, 140, 60, 15));
+      tb.add(this.add.text(0, 0, 'TROPHIES', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
+      tb.setSize(148, 68).setInteractive({ useHandCursor: true });
       tb.on('pointerup', () => (sfx.click(), this.openTrophies()));
       c.add(tb);
     }
@@ -3734,10 +3780,18 @@ Now beat the real level.`, this.coachY());
     }
     m.homeSeen = { ...(m.mastery ?? {}) };
     store(META_KEY, JSON.stringify(m));
-    (m.trophies ?? []).slice(0, TROPHY_SHELF).forEach((id, i) => {
-      const im = this.trophyImage(id, [52, 136, W - 136, W - 52][i], feetY + 14, 88);
-      if (im) c.add(im);
-    });
+    // r38 (ChatGPT review): four fixed sockets on a shelf plank, never free-placed
+    if ((m.trophies ?? []).length) {
+      const sy = feetY + 20, xs = [70, 160, W - 160, W - 70];
+      const sh = this.add.graphics();
+      for (const [x0, x1] of [[22, 208], [W - 208, W - 22]]) sh.fillStyle(0x2b1d2e, 1).fillRoundedRect(x0, sy, x1 - x0, 16, 6).fillStyle(0x8a5a3a, 1).fillRoundedRect(x0 + 3, sy + 3, x1 - x0 - 6, 10, 4);
+      for (const x of xs) sh.fillStyle(0x2b1d2e, 0.35).fillEllipse(x, sy + 1, 64, 12);
+      c.add(sh);
+      (m.trophies ?? []).slice(0, TROPHY_SHELF).forEach((id, i) => {
+        const im = this.trophyImage(id, xs[i], sy + 2, 84);
+        if (im) c.add(im);
+      });
+    }
 
     // helper row
     const unlocked = Object.keys(m.toys) as Family[];
@@ -4115,7 +4169,7 @@ Now beat the real level.`, this.coachY());
     // r36 SCREW YARD weekly event (outside-core mini-game)
     const yd = this.yardWeek();
     const tierNow = YARD_TIERS.filter((t) => yd.clears >= t.need).length;
-    card(1100, 230, 'SCREW YARD', [`Unscrew the junk pile!  ·  ${this.weekLeft()} left`, `Tier ${tierNow}/${YARD_TIERS.length}  ·  grand prize: GOLD CRATE + EPIC  ·  \u{1FA9B} ${m.screwdrivers ?? SCREWDRIVERS.start}`], 0xe0a020, lv >= YARD_UNLOCK, YARD_UNLOCK, () => this.openYardEvent());
+    card(1100, 230, 'SCREW YARD', [`TIER ${tierNow}/${YARD_TIERS.length}  ·  \u{1FA9B} ${m.screwdrivers ?? SCREWDRIVERS.start}  ·  ends in ${this.weekLeft()}`, 'Grand prize: Gold Crate + Epic Unit'], 0xe0a020, lv >= YARD_UNLOCK, YARD_UNLOCK, () => this.openYardEvent());
     this.drawNav(c, 'events');
   }
 
@@ -4270,7 +4324,7 @@ Now beat the real level.`, this.coachY());
       im.setScale(180 / Math.max(im.width, im.height));
       c.add(im);
     }
-    c.add(this.add.text(W / 2, top + 362, `${bossDef ? (wv.length ? `${wv.length - 1} MINIONS + ${bossDef.name}` : bossDef.name) : wv.length ? `${wv.length} MACHINES` : castV ? CAST[castV].name : TARGET_NAMES[ti]}  ·  ${bossDef && !miniDef && !def.waves ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 362, `${bossDef ? (wv.length ? `${wv.length - 1} MINIONS \u2192 ${bossDef.name}` : bossDef.name) : wv.length ? `${wv.length} MACHINES` : castV ? CAST[castV].name : TARGET_NAMES[ti]}  ·  ${mmss(bossDef && !miniDef && !def.waves ? 90 : def.time_seconds)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
     const firstOf: Record<string, number> = { rocket: 6, magnet: 12, battery: 17, fan: 23 };
     const newFam = n === 6 ? 'rocket' : (def.start_extra ?? []).map(([f]) => f).find((f) => firstOf[f] === n);
@@ -4307,7 +4361,7 @@ Now beat the real level.`, this.coachY());
     const have = (m.levelStars ?? {})[String(n)] ?? 0;
     const sg = this.add.graphics();
     const [g2, g3] = starGoals(def);
-    const goals = ['Clear', `≤${g2}s`, `≤${g3}s`];
+    const goals = ['Clear', `≤${mmss(g2)}`, `≤${mmss(g3)}`];
     for (let k = 0; k < 3; k++) {
       const sx = W / 2 + (k - 1) * 110;
       this.starShape(sg, sx, y + 40, 30, k < have);
@@ -4354,8 +4408,14 @@ Now beat the real level.`, this.coachY());
       c.add(t);
     }
     // r17 lessons 2 + 3 (one at a time, never over a live clock)
-    if (n % 10 !== 0 && !(m.lessons ?? {}).card) this.lesson('card', c, 'Clear to earn a star.\nFaster wins earn two more.', { x: W / 2, y: top + 470, r: 130 }, top + PH - 250);
-    else if (!isBoss && n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
+    // r38 (ChatGPT review): the stars lesson is one compact line above PLAY on the first cards, never a box over the stars
+    if (n % 10 !== 0 && !(m.lessons ?? {}).card) {
+      if (!sc) c.add(this.add.text(W / 2, top + PH - 162, 'Clear = ★     Faster = ★★ / ★★★', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#b06a1a' }).setOrigin(0.5));
+      if (n >= 3) {
+        (m.lessons ??= {}).card = true;
+        store(META_KEY, JSON.stringify(m));
+      }
+    } else if (!isBoss && n >= BOOSTER_UNLOCK.time_capsule && hasJump) this.lesson('boosters', c, 'Kits improve your starting pair.\nHold a Capsule for +15s.\nBoth are optional.', { x: W / 2 + 220, y: top + PH - 250, r: 70 }, top + 200);
     const close = this.add.text(W - 70, top + 44, '✕', { fontFamily: 'Arial', fontSize: '40px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerup', () => this.openTitle());
     c.add(close);
@@ -4625,7 +4685,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const PH = 1120;
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
-    this.sheetTitle(c, top, 'TROPHIES', `Master a boss ${TROPHY_AT} times in Bounties to win it.\nTap a trophy to show it by your machine (${TROPHY_SHELF} max).`);
+    this.sheetTitle(c, top, `TROPHIES  \u00b7  ON SHELF ${(m.trophies ?? []).length}/${TROPHY_SHELF}`, `Master a boss ${TROPHY_AT} times in Bounties to win it.\nTap a trophy to put it on / take it off the shelf.`);
     const shelf = m.trophies ?? [];
     const cell = 150;
     BOSSES.forEach((b, i) => {
@@ -4638,7 +4698,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
       c.add(g);
       const im = this.trophyImage(b.id, x, y + 50, 112, !won);
       if (im) c.add(im);
-      c.add(this.add.text(x, y + 72, won ? (on ? 'ON SHELF' : b.mini ? 'MINI' : 'BOSS') : `${mst}/${TROPHY_AT}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: won ? '#3b2533' : '#8a6a5a' }).setOrigin(0.5));
+      // three-segment mastery strip (gold = earned), a check badge when on the shelf
+      const strip = this.add.graphics();
+      for (let k = 0; k < TROPHY_AT; k++) strip.fillStyle(k < mst ? 0xe0a020 : 0x2b1d2e, k < mst ? 1 : 0.25).fillRoundedRect(x - 54 + k * 37, y + 64, 33, 12, 5);
+      c.add(strip);
+      if (on) c.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillCircle(x + 50, y - 58, 17).fillStyle(0x5fbf4a, 1).fillCircle(x + 50, y - 58, 14).lineStyle(4, 0xffffff, 1).lineBetween(x + 43, y - 58, x + 48, y - 52).lineBetween(x + 48, y - 52, x + 58, y - 64));
       const z = this.add.zone(x, y, 136, 166).setInteractive({ useHandCursor: true });
       z.on('pointerup', () => {
         sfx.click();

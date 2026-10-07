@@ -26,6 +26,7 @@ export class ScrewScene extends Phaser.Scene {
   cy = 0;
   busy = 0;
   ended = false;
+  tipText: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('yard');
@@ -64,7 +65,7 @@ export class ScrewScene extends Phaser.Scene {
       const pc = this.add.container(p.x, p.y).setRotation(p.angle);
       const g = this.add.graphics();
       const tint = PLATE_TINTS[p.id % PLATE_TINTS.length];
-      g.fillStyle(INK, 0.35).fillRoundedRect(-p.len / 2 + 5, -p.thick / 2 + 8, p.len, p.thick, 22);
+      g.fillStyle(INK, 0.42).fillRoundedRect(-p.len / 2 + 7, -p.thick / 2 + 12, p.len, p.thick, 22);
       g.fillStyle(tint, 0.9).fillRoundedRect(-p.len / 2, -p.thick / 2, p.len, p.thick, 22);
       g.fillStyle(0xffffff, 0.22).fillRoundedRect(-p.len / 2 + 8, -p.thick / 2 + 6, p.len - 16, 12, 6);
       g.lineStyle(4, INK, 0.9).strokeRoundedRect(-p.len / 2, -p.thick / 2, p.len, p.thick, 22);
@@ -92,7 +93,11 @@ export class ScrewScene extends Phaser.Scene {
     this.drawUi();
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onTap(p.worldX, p.worldY));
     // first yard: one line of rules
-    if (this.data0.n === 1) this.flash('Tap a screw that nothing covers.\nMatch its colour to a toolbox!', '#fff0cf', 2600);
+    // first yard: a top toast that leaves after the first screw (never over the pile)
+    if (this.data0.n === 1) {
+      const tip = this.add.text(W / 2, 128, 'TAKE A SCREW NOTHING COVERS \u2192 MATCH ITS TOOLBOX', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffcf33', backgroundColor: '#2b1d2e', padding: { x: 14, y: 6 } }).setOrigin(0.5).setDepth(80);
+      this.tipText = tip;
+    }
   }
 
   screwSprite(color: number) {
@@ -180,6 +185,11 @@ export class ScrewScene extends Phaser.Scene {
     }
     sfx.click();
     this.busy++;
+    if (this.tipText) {
+      const t = this.tipText;
+      this.tipText = null;
+      this.tweens.add({ targets: t, alpha: 0, duration: 250, onComplete: () => t.destroy() });
+    }
     // unscrew in place, then fly to its toolbox slot or the tray
     const wx = W / 2 + sv.x * this.scale0, wy = this.cy + sv.y * this.scale0;
     this.yard.remove(sv);

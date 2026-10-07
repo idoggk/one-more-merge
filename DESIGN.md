@@ -307,3 +307,12 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - First stage of a player's life explains the HUD once (clock ring + machine counter), before anything moves.
 - Distinct procedural placeholders for the six r32 units until ChatGPT's sprites land.
 - Bug: the boss-wake banner / name plate read the live boss 0.4-1.5 s later; beating it in that window crashed the update loop. They now capture the boss when it wakes. Found by `FASTKILL=1 node tools/smoke-levels.mjs` (pushes every level through its machine, goal and boss transitions).
+
+### Round 38 — ChatGPT design review (fresh chat "Game Design Critique"), applied strictly
+- Reactive supply: a merge earns +2 at 0-11 parts, +1 at 12-17, +0 at 18+ (board ~15-17); earned parts wait 0.6 s after the merge (payoff on a still board); a pairless board gets a rescue part after 2.5 s, then every 3 s. NEXT capsule shows "MERGE → +N".
+- Machines per level / clocks: ch1 2 (L4-6) then 3, ch2 3, ch3-4 4, ch5-8 4 (goal levels 5); mini-bosses 3/3/4/5 and bosses 3/4/5/5 machines total. Clock by machines: 2 -> 1:10, 3 -> 1:35, 4 -> 2:05, 5 -> 2:45 (nothing over 3 min; "4:00 retries are retention poison"). Boss = 35% of a boss stage's HP (sim-levels scales minions + boss together). All 80 refit (3.5 s bot) + star times.
+- Boss wake = ONE paused card (dimmed board, NEW! when the attack is new, name, rule, diagram, GOT IT). Level cards show m:ss and "N MINIONS → BOSS". Stars lesson = one line above PLAY. 30 s ribbon 1.1 s. Rank numerals +25%.
+- Upgrade Prescription on loss: the squad unit closest to its next level, what that level gives, cards x/y, and LEVEL UP / GET CARDS.
+- Screw Yard: thicker plates clustered to 78% of the yard, stronger shadows, first-yard tip as a top toast that leaves after the first screw, event card "TIER x/8 · screwdrivers · ends in" + grand prize line.
+- Trophies: TROPHIES button, "ON SHELF x/4" header, check badge, 3-segment gold mastery strip, four fixed sockets on a shelf plank.
+- Declined: removing the "3★ · Ns left" chip (Ido liked it); a 2-part NEXT preview (the matchmaker reads the board, so part 2 cannot be promised exactly).

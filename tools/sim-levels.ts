@@ -95,21 +95,29 @@ for (const def of LEVELS) {
     console.log(`L${String(def.level).padStart(2)} GOAL ${def.goal.kind} ${def.goal.n}  win ${(winRate(def) * 100).toFixed(0)}% / held-out ${(winRate(def, 100000) * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)`);
     continue;
   }
+  // r38 boss stages (ChatGPT review): the boss is BOSS_SHARE of the stage's total HP; minions + boss scale together
+  const BOSS_SHARE = 0.35;
+  const base = def.minion_hp ? { hp: (def.hp + def.minion_hp) * BOSS_SHARE, minion_hp: (def.hp + def.minion_hp) * (1 - BOSS_SHARE) } : { hp: def.hp, minion_hp: undefined };
+  const scaled = (k: number) => ({ ...def, hp: Math.round(base.hp * k), ...(base.minion_hp ? { minion_hp: Math.round(base.minion_hp * k) } : {}) });
   const before = winRate(def);
   // HP scales damage-needed linearly; search a multiplier in [0.2, 8]
   let lo = 0.2, hi = 8, best = 1;
   for (let it = 0; it < 11; it++) {
     const mid = (lo + hi) / 2;
-    const r = winRate({ ...def, hp: Math.round(def.hp * mid) });
+    const r = winRate(scaled(mid));
     best = mid;
     if (r > target) lo = mid;
     else hi = mid;
   }
-  const hp = Math.max(100, Math.round((def.hp * best) / 50) * 50);
-  const after = winRate({ ...def, hp }, 100000); // held-out bot seeds
-  const idleWins = play({ ...def, hp }, 1, true);
-  console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}  novice ${(before * 100).toFixed(0)}% -> held-out ${(after * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)${idleWins ? '  IDLE WINS!' : ''}`);
+  const r50 = (x: number) => Math.max(100, Math.round(x / 50) * 50);
+  const hp = r50(base.hp * best);
+  const mhp = base.minion_hp ? r50(base.minion_hp * best) : undefined;
+  const fitted = { ...def, hp, ...(mhp ? { minion_hp: mhp } : {}) };
+  const after = winRate(fitted, 100000); // held-out bot seeds
+  const idleWins = play(fitted, 1, true);
+  console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}${mhp ? ` minions ${mhp}` : ''}  novice ${(before * 100).toFixed(0)}% -> held-out ${(after * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)${idleWins ? '  IDLE WINS!' : ''}`);
   out.levels[def.level - 1].hp = hp;
+  if (mhp) out.levels[def.level - 1].minion_hp = mhp;
 }
 out.balance_status = `CALIBRATED_RANDOM_BOT_${EVERY}S (tools/sim-levels.ts)`;
 if (!dry) writeFileSync('src/content/levels.json', JSON.stringify(out, null, 2) + '\n');

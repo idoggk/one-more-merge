@@ -107,14 +107,14 @@ describe('r33 stages', () => {
     expect(evs).toContain('goal');
   });
   it('an ordinary stage needs every machine; HP shares ramp up', () => {
-    const def = LEVELS.find((l) => l.waves === 5 && !l.goal)!;
+    const def = LEVELS.find((l) => (l.waves ?? 0) >= 4 && !l.goal && !l.minion_hp)!;
     const s = newLevel(def);
     const h = s.stage!.hps;
-    expect(h.length).toBe(5);
-    for (let i = 1; i < 5; i++) expect(h[i]).toBeGreaterThan(h[i - 1]);
+    expect(h.length).toBe(def.waves);
+    for (let i = 1; i < h.length; i++) expect(h[i]).toBeGreaterThan(h[i - 1]);
     const evs = play(s, 0.6, highest);
     const kills = evs.filter((e) => e === 'kill').length;
-    if (s.phase === 'won') expect(kills).toBe(5);
+    if (s.phase === 'won') expect(kills).toBe(def.waves);
     else expect(s.stage!.i).toBe(kills);
   });
   it('boss stage: minions first, the boss wakes as the last machine with its own attack clock', () => {
