@@ -4651,8 +4651,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const t = this.time.now;
     if (atk === 'slick' && tgt.cells) {
       img('prop_oil', tgt.cells[0], CELL - 10, 0);
+      // r30: a bold slide arrow from the oil to where a drop will end up
       const f = cellXY(tgt.cells[0]), to = cellXY(tgt.cells[1]);
-      g.lineStyle(6, 0x6fd3ff, 0.9).lineBetween(f.x, f.y, (f.x + to.x) / 2, (f.y + to.y) / 2);
+      const ang = Math.atan2(to.y - f.y, to.x - f.x);
+      const ex = to.x - Math.cos(ang) * 22, ey = to.y - Math.sin(ang) * 22;
+      g.lineStyle(14, 0x2b1d2e, 0.85).lineBetween(f.x, f.y, ex, ey).lineStyle(8, 0x6fd3ff, 1).lineBetween(f.x, f.y, ex, ey);
+      g.fillStyle(0x6fd3ff, 1).fillTriangle(ex + Math.cos(ang) * 22, ey + Math.sin(ang) * 22, ex + Math.cos(ang + 2.4) * 20, ey + Math.sin(ang + 2.4) * 20, ex + Math.cos(ang - 2.4) * 20, ey + Math.sin(ang - 2.4) * 20);
+      g.lineStyle(4, 0x6fd3ff, 0.5 + 0.5 * Math.abs(Math.sin(t / 220))).strokeRoundedRect(to.x - CELL / 2 + 8, to.y - CELL / 2 + 8, CELL - 16, CELL - 16, 14);
     } else if (atk === 'portals' && tgt.cells) {
       img('prop_portal_cyan', tgt.cells[0], CELL - 8, 0).setAngle(t / 6);
       img('prop_portal_violet', tgt.cells[1], CELL - 8, 1).setAngle(-t / 6);
@@ -4731,7 +4736,23 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (warn && (atk === 'tow' || atk === 'ransom') && byIds && byIds.length === 2) {
         const a1 = cellXY(byIds[0]), a2 = cellXY(byIds[1]);
         if (atk === 'tow') g.lineStyle(10, 0x2b1d2e, 0.7 * pulse).lineBetween(a1.x, a1.y, a2.x, a2.y).lineStyle(6, 0xffd2c8, pulse).lineBetween(a1.x, a1.y, a2.x, a2.y);
-        else for (const q of [a1, a2]) g.fillStyle(0xffcf33, pulse).fillCircle(q.x + CELL / 2 - 20, q.y - CELL / 2 + 20, 14).lineStyle(3, 0x2b1d2e, 1).strokeCircle(q.x + CELL / 2 - 20, q.y - CELL / 2 + 20, 14);
+        else {
+          // r30: ransom clocks on both machines + a dashed tether: "wake these two together"
+          const steps = 10;
+          for (let k = 0; k < steps; k += 2) {
+            const p0 = k / steps, p1 = (k + 1) / steps;
+            g.lineStyle(6, 0xffcf33, pulse).lineBetween(a1.x + (a2.x - a1.x) * p0, a1.y + (a2.y - a1.y) * p0, a1.x + (a2.x - a1.x) * p1, a1.y + (a2.y - a1.y) * p1);
+          }
+          [a1, a2].forEach((q, k) => {
+            const name = `ransom_${k}`;
+            let im = this.remixIcons.find((x) => x.name === name);
+            if (!im && this.hasArt('btg_ransom')) this.remixIcons.push((im = this.add.image(0, 0, 'btg_ransom').setName(name).setDepth(48)));
+            if (im) {
+              im.setVisible(true).setPosition(q.x + CELL / 2 - 22, q.y - CELL / 2 + 22);
+              im.setScale((46 + 6 * Math.sin(this.time.now / 150)) / Math.max(im.width, im.height));
+            } else g.fillStyle(0xffcf33, pulse).fillCircle(q.x + CELL / 2 - 20, q.y - CELL / 2 + 20, 16);
+          });
+        }
       }
       if (warn && (atk === 'pull' || atk === 'bounce') && tgt.cells) {
         arrow(tgt.cells[0], tgt.cells[1]);

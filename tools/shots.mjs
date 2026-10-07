@@ -59,6 +59,9 @@ const states = {
   c8ransom: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(80); sc.finishIntro(true); }, 9700],
   rushcard: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = {}; Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [i + 1, 2])) }); sc.openTitle('events'); }, 1000],
   rushend: [(sc) => { sc.startRush(); sc.rushRun.times = [31.2]; sc.s.elapsed = 28.4; sc.s.phase = 'won'; sc.openRushResult(true); }, 1200],
+  mode_daily: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startDaily(); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 400); }, 15000],
+  mode_challenge: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.retry(true, -1); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 400); }, 15000],
+  mode_remix: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.retry(false, 2); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing') return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 400); }, 15000],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {
