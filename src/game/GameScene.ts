@@ -2054,6 +2054,17 @@ Now beat the real level.`, this.coachY());
           sfx.invalid();
           this.hitTarget(false);
           tlog.log('boss_warn', { attack: e.attack });
+          // r37 (Ido: "make sure the user can see the bosses"): a beam from the boss to every cell it is about to hit
+          if (!REDUCED_MOTION)
+            for (const cell of e.target.cells ?? []) {
+              const p = cellXY(cell);
+              const beam = this.add.graphics().setDepth(45);
+              const sx = this.target.x, sy = this.target.y + 60;
+              beam.lineStyle(14, 0x2b1d2e, 0.5).lineBetween(sx, sy, p.x, p.y).lineStyle(8, 0xff684a, 0.95).lineBetween(sx, sy, p.x, p.y);
+              beam.fillStyle(0xff684a, 1).fillCircle(p.x, p.y, 16);
+              beam.setAlpha(0);
+              this.tweens.chain({ targets: beam, tweens: [{ alpha: 1, duration: 120 }, { alpha: 0, duration: 500, delay: 650 }], onComplete: () => beam.destroy() });
+            }
           // first-ever boss warning: stop the clock and show what to do (r20)
           const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
           if (bd && this.s.boss!.light) {
