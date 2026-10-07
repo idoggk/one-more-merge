@@ -1,6 +1,7 @@
 import '@fontsource/lilita-one';
 import Phaser from 'phaser';
 import { computeLayout, GameScene, layoutHeight, setRenderScale, W } from './game/GameScene';
+import { ScrewScene } from './game/ScrewScene';
 
 async function boot() {
   // make sure canvas text uses the real font from the first frame (never block more than 1.5 s)
@@ -41,7 +42,7 @@ async function boot() {
     input: { activePointers: 1 },
     // dev aid: ?timer keeps the loop running in hidden/background tabs (automated checks)
     fps: new URLSearchParams(location.search).has('timer') || (window as unknown as { __OMM_TIMER?: boolean }).__OMM_TIMER ? { forceSetTimeOut: true, target: 60 } : undefined,
-    scene: [GameScene],
+    scene: [GameScene, ScrewScene],
   });
   // expose for debugging / automated checks
   (window as unknown as { __omm: unknown }).__omm = { Phaser, game };
