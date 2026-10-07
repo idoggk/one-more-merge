@@ -262,7 +262,10 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     }
     s.jumpstart = true;
   }
-  for (const [fam, rank, r, c] of def.start_extra ?? []) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : (fam as Family), rank);
+  // r39 (ROUND_33_RULES): an authored helper extra becomes the player's selected helper (teaching levels keep theirs)
+  const HELPERS = ['magnet', 'battery', 'fan', 'amplifier', 'signal_beacon'];
+  const myHelper = !def.teach ? opts.toys?.find((t) => HELPERS.includes(t)) : undefined;
+  for (const [fam, rank, r, c] of def.start_extra ?? []) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
   const mod = def.modifier;
   if (mod === 'GAPS') {
     s.masked = [idxOf(2, 1), idxOf(2, 3)];
