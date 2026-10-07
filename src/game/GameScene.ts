@@ -2109,7 +2109,7 @@ Now beat the real level.`, this.coachY());
           // first-ever boss warning: stop the clock and show what to do (r20)
           const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
           if (bd && this.s.boss!.light) {
-            const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.', hot: 'Shooters in this column hit half as hard.\nMove them out.', rest: 'Bells and Coils in this row cannot\nwake neighbours. Move them out.' }[e.attack as 'suction' | 'frost' | 'hot' | 'rest'] ?? bd.copy;
+            const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.', hot: 'Shooters in this column hit half as hard.\nMove them out.', rest: 'Bells and Coils in this row cannot\nwake neighbours. Move them out.', split: 'A divider blocks links across it.\nBuild chains on one side.', tow: 'These two are linked and move together.\nMerge either to free them.', ransom: 'Wake both marked machines\nin one chain, or lose 2 s!' }[e.attack as 'suction' | 'frost' | 'hot' | 'rest' | 'split' | 'tow' | 'ransom'] ?? bd.copy;
             this.explain(`x_${e.attack}`, [{ text: `WATCH OUT!\n${what}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd && e.attack !== bd.attack && !this.meta.tips[`xb_${e.attack}`]) {
             // r27: a chapter boss's new final-phase attack, explained once

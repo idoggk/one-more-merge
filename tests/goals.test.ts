@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { LEVELS } from '../src/content/levels';
+import { BEHAVIOUR_TEXT, LEVELS, newConcepts } from '../src/content/levels';
+import { BOSSES, chapterBossIdx } from '../src/core/boss';
 import { drop, legalPairs, newLevel, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 
@@ -71,6 +72,37 @@ describe('r23 behaviours and twists', () => {
     const evs = play(s, 3, random);
     expect(evs.length).toBeGreaterThan(0);
     expect(s.boss!.phaseShown).toBe(0);
+  });
+  it('L57/L63/L73 preview the split/tow/ransom boss attacks as light bosses with a NEW! tag', () => {
+    for (const [lv, atk] of [[57, 'split'], [63, 'tow'], [73, 'ransom']] as const) {
+      const def = LEVELS[lv - 1];
+      expect(def.behaviour).toBe(atk);
+      expect(BEHAVIOUR_TEXT[atk]).toBeTruthy();
+      expect(newConcepts(lv)).toContain(`beh:${atk}`);
+      const s = newLevel(def);
+      expect(s.boss?.light).toBe(true);
+      expect(BOSSES[s.boss!.def].attack).toBe(atk);
+      const rng = new Rng(5);
+      const warned = new Set<string>();
+      for (let t = 0; t < 2400 && s.phase === 'playing'; t++) {
+        if (t % 60 === 0) {
+          const m = random(s, rng);
+          if (m) drop(s, m[0], m[1], s.grid[m[0]]!.id);
+        }
+        for (const e of tick(s)) if (e.type === 'bossWarn') warned.add(e.attack);
+      }
+      expect([...warned]).toEqual([atk]);
+      expect(s.boss?.phaseShown ?? 0).toBe(0);
+    }
+  });
+  it('boss audit: every chapter boss from L20 only remixes attacks seen on earlier levels', () => {
+    const seen = new Set<string>();
+    for (const d of LEVELS) {
+      const boss = d.level % 10 === 0 ? BOSSES[chapterBossIdx(d.level)] : d.mini_boss ? BOSSES.find((b) => b.id === d.mini_boss) : undefined;
+      if (boss && !boss.mini && d.level >= 20) for (const a of [boss.attack, boss.second].filter(Boolean)) expect(seen.has(a!), `L${d.level} ${a}`).toBe(true);
+      if (boss) [boss.attack, boss.second].forEach((a) => a && seen.add(a));
+      if (d.behaviour && d.behaviour !== 'shield') seen.add(d.behaviour);
+    }
   });
   it('GAPS masks (2,1) and (2,3) and nothing ever lands there', () => {
     const s = newLevel(LEVELS.find((l) => l.modifier === 'GAPS')!);

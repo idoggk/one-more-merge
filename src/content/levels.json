@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "balance_status": "CALIBRATED_RANDOM_BOT_3S (tools/sim-levels.ts --staged, r33)",
+  "balance_status": "CALIBRATED_RANDOM_BOT_3.5S (tools/sim-levels.ts)",
   "hp_is_absolute": true,
   "apply_legacy_hp_multiplier": false,
   "board_rows": 6,
@@ -1821,7 +1821,7 @@
     {
       "level": 57,
       "monster": "mad_fridge",
-      "hp": 43950,
+      "hp": 43600,
       "time_seconds": 125,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1830,7 +1830,7 @@
       "starting_rank": 3,
       "seed": 150057,
       "ordinary_copy_rank_cap": 7,
-      "behaviour": "shield",
+      "behaviour": "split",
       "start_extra": [
         [
           "magnet",
@@ -1995,7 +1995,7 @@
     {
       "level": 63,
       "monster": "mad_fridge",
-      "hp": 33150,
+      "hp": 33900,
       "time_seconds": 125,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2004,7 +2004,7 @@
       "starting_rank": 2,
       "seed": 150063,
       "ordinary_copy_rank_cap": 7,
-      "behaviour": "shield",
+      "behaviour": "tow",
       "waves": 4,
       "wave_visuals": [
         "grand_piano_saurus",
@@ -2293,7 +2293,7 @@
     {
       "level": 73,
       "monster": "vacuum_viper",
-      "hp": 24750,
+      "hp": 25850,
       "time_seconds": 125,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2302,7 +2302,7 @@
       "starting_rank": 2,
       "seed": 150073,
       "ordinary_copy_rank_cap": 7,
-      "behaviour": "suction",
+      "behaviour": "ransom",
       "waves": 4,
       "wave_visuals": [
         "tin_can",

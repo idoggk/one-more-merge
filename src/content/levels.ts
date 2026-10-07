@@ -8,7 +8,7 @@ export type LevelModifier = 'NONE' | 'SUCTION' | 'JAM' | 'ROW_GAPS' | 'CORNERS_2
 /** r23 goal levels: the goal replaces defeating the monster. */
 export type LevelGoal = { kind: 'rank' | 'chain'; n: number };
 /** r23 ordinary-monster behaviours (one per level). */
-export type Behaviour = 'shield' | 'suction' | 'frost' | 'hot' | 'rest';
+export type Behaviour = 'shield' | 'suction' | 'frost' | 'hot' | 'rest' | 'split' | 'tow' | 'ransom';
 export interface LevelDef {
   level: number;
   monster: string;
@@ -92,6 +92,10 @@ export const BEHAVIOUR_TEXT: Record<Behaviour, string> = {
   frost: 'Frozen rows cannot receive machines. Build elsewhere.',
   hot: 'Shooters in the hot column hit half as hard. Move them out.',
   rest: 'Bells and Coils in the resting row cannot wake neighbours. Move them out.',
+  // light previews of the L60/L70/L80 boss attacks (taught before the boss remixes them)
+  split: 'A divider blocks links across it. Build chains on one side.',
+  tow: 'Linked machines move together. Merge either to free them.',
+  ransom: 'Wake both marked machines in one chain or lose 2 s.',
 };
 
 export const goalText = (g: LevelGoal) => (g.kind === 'rank' ? `MAKE A RANK ${g.n} MACHINE` : `FIRE A CHAIN OF ${g.n}`);
