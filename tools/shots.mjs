@@ -15,7 +15,7 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
 const page = await browser.newPage();
 await page.setViewport({ width: 390, height: 763, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
-await page.goto(URL, { waitUntil: 'networkidle0' });
+await page.goto(URL, { waitUntil: 'networkidle0', timeout: 120000 });
 await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -87,6 +87,12 @@ const states = {
   fs_l3_late: [(sc) => {}, 14000],
   fs_l4_card: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { levelStars: { 1: 2, 2: 2, 3: 2 } }); sc.openTitle('road'); sc.openLevelSheet(4); }, 900],
   fs_l4_play: [(sc) => { sc.closeModal(); sc.startLevel(4); setTimeout(() => { window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing' || sc.modal || sc.explaining) return; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) { sc.commitDrop(i, j, a.id); return; } } }, 2500); }, 2500); }, 16000],
+  r35_a: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(11); sc.finishIntro(true); window.__bot = setInterval(() => { const s = sc.s; if (s.phase !== 'playing' || sc.modal || sc.explaining) return; const ps = []; for (let i = 0; i < 30; i++) for (let j = i + 1; j < 30; j++) { const a = s.grid[i], b = s.grid[j]; if (a && b && a.family === b.family && a.rank === b.rank) ps.push([i, j]); } if (ps.length) { const [i, j] = ps[Math.floor(Math.random() * ps.length)]; sc.commitDrop(i, j, s.grid[i].id); } }, 3000); }, 10000],
+  r35_b: [(sc) => {}, 10000],
+  r35_c: [(sc) => {}, 10000],
+  r35_d: [(sc) => {}, 15000],
+  trophy_machine: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), levelStars: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [i + 1, 2])), bossMastery: { tin_can_king: 3, pressure_popper: 4, fridge_overlord: 3, carousel_crab: 2, viper_queen: 1 }, trophies: ['tin_can_king', 'pressure_popper', 'fridge_overlord'] }); sc.openTitle('machine'); }, 1200],
+  trophy_drawer: [(sc) => { sc.openTrophies(); }, 900],
   qa_tools: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openQaTools(); }, 900],
   units_tab: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { bolts: 500, gems: 120, levelStars: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [i + 1, 2])), units: { cannon: { level: 2, cards: 9 }, coil: { level: 1, cards: 1 }, bell: { level: 1, cards: 0 }, rocket: { level: 1, cards: 0 } }, crates: { iron: 1, gold: 1 } }); sc.openTitle('units'); }, 1000],
   units_crate: [(sc) => { sc.openNextCrate(); }, 4500],

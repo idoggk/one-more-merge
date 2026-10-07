@@ -50,6 +50,9 @@ const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
 /** r34: clock ring centre x (left of the HP bar); the machine counter mirrors it on the right. */
 const CLOCK_X = 62;
+/** r35 trophy figurines (ChatGPT spec): 3 mastery stars on one boss / mini-boss win its trophy; 4 stand by the machine. */
+const TROPHY_AT = 3;
+const TROPHY_SHELF = 4;
 /** r25 item tray slot, between NEXT (+ Time Capsule) and SCRAP. */
 const ITEM_X = W - 208;
 // Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
@@ -128,6 +131,8 @@ interface Meta {
   /** r30 Monster Bounties: per-date record (won / mastered slots), mastery stars per opponent, milestones paid. */
   bounty?: Record<string, { won: number[]; mastered: number[] }>;
   bossMastery?: Record<string, number>;
+  /** r35 trophies on display beside the machine (max 4 boss ids; a trophy is won at TROPHY_AT mastery stars). */
+  trophies?: string[];
   masteryPaid?: number;
   /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
   rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[] };
@@ -1689,9 +1694,15 @@ Now beat the real level.`, this.coachY());
     }
     this.tutorialText.setText('');
     if (!this.meta.hints || this.s.phase !== 'playing') return;
-    if (this.idleTime > 4 && !this.hintPair && this.dragIdx < 0 && this.selectedIdx < 0) {
-      const pairs = legalPairs(this.s);
-      if (pairs.length) this.hintPair = pairs[0];
+    // r35: the board holds still now, so thinking is allowed: hint after 8 s, and point at the pair with the biggest chain
+    if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0 && this.selectedIdx < 0) {
+      let best: [number, number] | null = null, bc = -1;
+      for (const [a, b] of legalPairs(this.s))
+        for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
+          const c = previewMerge(this.s, f, t)?.count ?? 0;
+          if (c > bc) [bc, best] = [c, [f, t]];
+        }
+      this.hintPair = best;
     }
     if (this.hintPair) {
       const [a, b] = this.hintPair;
@@ -3447,6 +3458,12 @@ Now beat the real level.`, this.coachY());
       rec.mastered.push(bt.slot);
       m.bossMastery = { ...(m.bossMastery ?? {}), [bt.id]: (m.bossMastery?.[bt.id] ?? 0) + 1 };
       newStar = true;
+      // r35: the third star wins the trophy; it goes straight onto the shelf when there is room
+      if (m.bossMastery[bt.id] === TROPHY_AT) {
+        if ((m.trophies ?? []).length < TROPHY_SHELF) m.trophies = [...(m.trophies ?? []), bt.id];
+        this.time.delayedCall(900, () => this.showToast(`TROPHY WON: ${BOSSES.find((x) => x.id === bt.id)?.name ?? ''}!`));
+        tlog.log('trophy', { id: bt.id });
+      }
     }
     const total = Object.values(m.bossMastery ?? {}).reduce((a, b) => a + b, 0);
     let milestone = 0;
@@ -3652,6 +3669,15 @@ Now beat the real level.`, this.coachY());
       bk.on('pointerup', () => (sfx.click(), this.openMonsterBook(0, 0)));
       c.add(bk);
     }
+    // r35 TROPHIES: drawer button (mirror of BOOK) + the figurines on display around the machine's feet
+    if (this.currentLevel() > 1) {
+      const tb = this.add.container(86, headY + 110);
+      tb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-66, -34, 132, 68, 18).fillStyle(0xe0a020, 1).fillRoundedRect(-62, -30, 124, 60, 15));
+      tb.add(this.add.text(0, 0, 'TROPHY', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
+      tb.setSize(132, 68).setInteractive({ useHandCursor: true });
+      tb.on('pointerup', () => (sfx.click(), this.openTrophies()));
+      c.add(tb);
+    }
     // the machine
     const helper = this.activeToys()[0] ?? null;
     // day 0: three rank-1 starter modules instead of an empty chassis (display baseline, not earned mastery)
@@ -3676,6 +3702,10 @@ Now beat the real level.`, this.coachY());
     }
     m.homeSeen = { ...(m.mastery ?? {}) };
     store(META_KEY, JSON.stringify(m));
+    (m.trophies ?? []).slice(0, TROPHY_SHELF).forEach((id, i) => {
+      const im = this.trophyImage(id, [52, 136, W - 136, W - 52][i], feetY + 14, 88);
+      if (im) c.add(im);
+    });
 
     // helper row
     const unlocked = Object.keys(m.toys) as Family[];
@@ -4441,6 +4471,52 @@ Merge them into a RANK ${rank}!`, this.coachY());
       out.push({ id: key, tab: mini ? 1 : boss ? 2 : 0, key: b ? `boss_${b.id}_intact` : cv ? `mon_${cv}` : `target_${ti}`, name: b ? b.name : cv ? CAST[cv].name : TARGET_NAMES[ti], level: n, beaten: beatenHere });
     }
     return out;
+  }
+
+  /** r35: a trophy figurine (ChatGPT art `trophy_<id>` when present, else the boss art), feet at y. */
+  trophyImage(id: string, x: number, y: number, size: number, locked = false) {
+    const key = this.hasArt(`trophy_${id}`) ? `trophy_${id}` : `boss_${id}_intact`;
+    if (!this.textures.exists(key)) return null;
+    const im = this.add.image(x, y, key).setOrigin(0.5, 1);
+    im.setScale(size / Math.max(im.width, im.height));
+    if (locked) im.setTintFill(0x2b1d2e).setAlpha(0.45);
+    return im;
+  }
+
+  /** r35 trophy drawer: all 16 bosses and mini-bosses; won ones toggle on / off the shelf (max 4). Collection only. */
+  openTrophies() {
+    this.closeModal();
+    const m = this.meta;
+    const PH = 1120;
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    this.sheetTitle(c, top, 'TROPHIES', `Master a boss ${TROPHY_AT} times in Bounties to win it.\nTap a trophy to show it by your machine (${TROPHY_SHELF} max).`);
+    const shelf = m.trophies ?? [];
+    const cell = 150;
+    BOSSES.forEach((b, i) => {
+      const x = W / 2 + ((i % 4) - 1.5) * cell, y = top + 300 + Math.floor(i / 4) * 186;
+      const mst = m.bossMastery?.[b.id] ?? 0;
+      const won = mst >= TROPHY_AT;
+      const on = shelf.includes(b.id);
+      const g = this.add.graphics().fillStyle(on ? 0x5fbf4a : 0x2b1d2e, on ? 0.35 : 0.1).fillRoundedRect(x - 68, y - 76, 136, 166, 18);
+      if (on) g.lineStyle(5, 0x3a9a2a, 1).strokeRoundedRect(x - 68, y - 76, 136, 166, 18);
+      c.add(g);
+      const im = this.trophyImage(b.id, x, y + 50, 112, !won);
+      if (im) c.add(im);
+      c.add(this.add.text(x, y + 72, won ? (on ? 'ON SHELF' : b.mini ? 'MINI' : 'BOSS') : `${mst}/${TROPHY_AT}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: won ? '#3b2533' : '#8a6a5a' }).setOrigin(0.5));
+      const z = this.add.zone(x, y, 136, 166).setInteractive({ useHandCursor: true });
+      z.on('pointerup', () => {
+        sfx.click();
+        if (!won) return this.showToast(`${b.name}: MASTERY ${mst}/${TROPHY_AT} (BOUNTIES)`);
+        if (on) m.trophies = shelf.filter((t) => t !== b.id);
+        else if (shelf.length >= TROPHY_SHELF) return this.showToast('SHELF FULL: TAP ONE TO TAKE IT DOWN');
+        else m.trophies = [...shelf, b.id];
+        store(META_KEY, JSON.stringify(m));
+        this.openTrophies();
+      });
+      c.add(z);
+    });
+    this.button(c, W / 2, top + PH - 80, 280, 'CLOSE', 0x8a6a4a, () => this.openTitle('machine'), 0.8);
   }
 
   openMonsterBook(tab: number, page: number) {

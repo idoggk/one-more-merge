@@ -1,5 +1,5 @@
 // Crate + pack opening (round 32). Pure + seeded so contents are reproducible from (seed, counter).
-import { CRATES, EPIC_PITY, NEW_UNIT_PITY, RARITY_ODDS, SHOP, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
+import { CRATES, EPIC_PITY, NEW_UNIT_PITY, RARITY_ODDS, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
 import { Rng } from './rng';
 import type { Family } from './types';
 
@@ -84,5 +84,8 @@ export function featuredUnit(date: string, owned: ReadonlySet<Family>): Family {
   let h = 2166136261;
   for (let i = 0; i < date.length; i++) h = Math.imul(h ^ date.charCodeAt(i), 16777619) >>> 0;
   const ownedUnits = UNITS.filter((u) => owned.has(u.id)).map((u) => u.id);
-  return ownedUnits[h % ownedUnits.length] ?? 'cannon';
+  // r35: feature an owned non-starter when there is one (a starter is a weak headline)
+  const special = ownedUnits.filter((u) => !STARTER_UNITS.includes(u));
+  const pool = special.length ? special : ownedUnits;
+  return pool[h % pool.length] ?? 'cannon';
 }

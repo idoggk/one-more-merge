@@ -290,3 +290,8 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Bosses: the first time a boss wakes (stage end), the clock stops on a card with its name, rule and board diagram.
 - Calm board, chapters 1-2: deliveries (and the NEXT tray) wait at 20 of 30 parts. A casual player (random merge / 3 s) sat at 24-25 of 30 the whole level; now 20. HP refit L1-L20, star times redone.
 - Fixed: the old run-mode "Next monster!" tip fired at the start of any Fridge level.
+
+### Round 35 — REACTIVE SUPPLY (Ido: "the screen gets extremely chaotic real fast… keep a lot of merges but let the player think")
+- Saga levels no longer deliver parts on a timer. Each player merge EARNS parts: 2 while the board holds < 14 parts, 1 below 22, none above (`REACT_TWO/REACT_CAP` in game.ts). Earned parts drop in 0.35 s apart. With no pair on the board, one part trickles in every 2 s (no soft-lock). Kickback and break drops are unchanged.
+- Result: the board holds still while you look at it, settles around 18-20 parts, and every merge still brings new material (lots of merges).
+- The calm cap (chapters 1-2, tray holds at 20) stays. All 80 levels refit for a 3.5 s random bot (was 3 s) so a thinking player has room; star times redone.

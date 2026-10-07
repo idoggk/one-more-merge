@@ -9,6 +9,11 @@ const STAGE_RAMP = 0.3;
 /** r34 onboarding: chapters 1-2 keep the board calmer (deliveries wait at 20 of 30 cells). */
 const CALM_UNTIL = 20;
 const CALM_CAP = 20;
+/** r35 reactive supply: a merge earns 2 parts below REACT_TWO parts on the board, 1 below REACT_CAP, else none. */
+const REACT_TWO = 14;
+const REACT_CAP = 22;
+const REACT_GAP = 0.35;
+const REACT_STUCK = 2;
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -72,6 +77,10 @@ export interface GameState {
   supplyTimer: number;
   /** r34 onboarding (chapters 1-2): deliveries wait while the board holds this many parts (a casual player sat at 80% full). */
   calmCap?: number;
+  /** r35 reactive supply (Ido: "chaotic real fast... no thinking is being done"): parts arrive because YOU merged,
+   *  never on a timer, so the board holds still while the player thinks. `owed` = parts earned, not yet delivered. */
+  reactive?: boolean;
+  owed?: number;
   shipments: number;
   target: number; // 0..2 ; -1 demo
   hp: number;
@@ -279,6 +288,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     });
   }
   if (def.level <= CALM_UNTIL) s.calmCap = CALM_CAP;
+  s.reactive = true;
   // r25 items (from L13): one per level; teaching levels prescribe the kind
   s.itemTeach = def.item_teach as ItemKind | undefined;
   s.itemGrantAt = def.item_grant_at;
@@ -582,6 +592,10 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   s.grid[to] = g;
   s.stats.merges++;
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
+  if (s.reactive && s.phase === 'playing') {
+    const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
+    s.owed = (s.owed ?? 0) + (occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0);
+  }
   s.mergeCd = TUNING.mergeCooldown;
 
   let odStart = false;
@@ -843,7 +857,22 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   // Supply
   admitPending(s, reserved, ev);
   const calm = s.calmCap !== undefined && s.grid.filter(Boolean).length >= s.calmCap;
-  if (calm) {
+  if (s.reactive) {
+    // r35: earned parts drop in one at a time (REACT_GAP apart); with no pair on the board a part trickles in every REACT_STUCK s
+    s.supplyTimer -= dt;
+    if (s.supplyTimer <= 0 && s.pending.length < TUNING.maxPending) {
+      if ((s.owed ?? 0) > 0) {
+        s.owed!--;
+        s.pending.push(generateShipment(s));
+        s.supplyTimer = REACT_GAP;
+        admitPending(s, reserved, ev);
+      } else if (!s.pending.length && !legalPairs(s).length) {
+        s.pending.push(generateShipment(s));
+        s.supplyTimer = REACT_STUCK;
+        admitPending(s, reserved, ev);
+      } else s.supplyTimer = Math.max(s.supplyTimer, REACT_GAP);
+    }
+  } else if (calm) {
     // r34: the clock on the next delivery waits until the player makes room
   } else if (s.pending.length < TUNING.maxPending) {
     s.supplyTimer -= dt;

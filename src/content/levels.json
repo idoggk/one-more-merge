@@ -61,7 +61,7 @@
     {
       "level": 1,
       "monster": "tin_can",
-      "hp": 800,
+      "hp": 1100,
       "time_seconds": 45,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -136,7 +136,7 @@
     {
       "level": 2,
       "monster": "tin_can",
-      "hp": 1200,
+      "hp": 1050,
       "time_seconds": 45,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -208,7 +208,7 @@
     {
       "level": 3,
       "monster": "tin_can",
-      "hp": 6900,
+      "hp": 4250,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -277,7 +277,7 @@
     {
       "level": 4,
       "monster": "tin_can",
-      "hp": 12050,
+      "hp": 7700,
       "time_seconds": 105,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -305,7 +305,7 @@
     {
       "level": 5,
       "monster": "mad_fridge",
-      "hp": 8450,
+      "hp": 5600,
       "time_seconds": 85,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -327,7 +327,7 @@
     {
       "level": 6,
       "monster": "toaster_twins",
-      "hp": 13600,
+      "hp": 10000,
       "time_seconds": 95,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -352,7 +352,7 @@
     {
       "level": 7,
       "monster": "tin_can",
-      "hp": 15000,
+      "hp": 8200,
       "time_seconds": 105,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -374,13 +374,13 @@
       ],
       "star_times": [
         84,
-        63
+        60
       ]
     },
     {
       "level": 8,
       "monster": "mad_fridge",
-      "hp": 12050,
+      "hp": 5300,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -404,7 +404,7 @@
     {
       "level": 9,
       "monster": "vacuum_viper",
-      "hp": 16650,
+      "hp": 12650,
       "time_seconds": 115,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -428,7 +428,7 @@
     {
       "level": 10,
       "monster": "tin_can",
-      "hp": 22000,
+      "hp": 13350,
       "time_seconds": 170,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -451,7 +451,7 @@
     {
       "level": 11,
       "monster": "mad_fridge",
-      "hp": 24200,
+      "hp": 16550,
       "time_seconds": 130,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -469,14 +469,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        75,
-        52
+        61,
+        28
       ]
     },
     {
       "level": 12,
       "monster": "tin_can",
-      "hp": 26000,
+      "hp": 18350,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -506,14 +506,14 @@
         "sock_cyclops"
       ],
       "star_times": [
-        93,
-        47
+        75,
+        40
       ]
     },
     {
       "level": 13,
       "monster": "mad_fridge",
-      "hp": 24250,
+      "hp": 18800,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -531,14 +531,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        81,
-        47
+        75,
+        38
       ]
     },
     {
       "level": 14,
       "monster": "vacuum_viper",
-      "hp": 25750,
+      "hp": 19000,
       "time_seconds": 150,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -560,14 +560,14 @@
         "sock_cyclops"
       ],
       "star_times": [
-        85,
-        64
+        73,
+        55
       ]
     },
     {
       "level": 15,
       "monster": "grand_piano_saurus",
-      "hp": 28450,
+      "hp": 23550,
       "time_seconds": 150,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -588,14 +588,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        91,
-        53
+        81,
+        47
       ]
     },
     {
       "level": 16,
       "monster": "tin_can",
-      "hp": 34900,
+      "hp": 28400,
       "time_seconds": 160,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -644,14 +644,14 @@
         "iron_duchess"
       ],
       "star_times": [
-        111,
-        40
+        103,
+        43
       ]
     },
     {
       "level": 17,
       "monster": "mad_fridge",
-      "hp": 33300,
+      "hp": 25050,
       "time_seconds": 155,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -677,14 +677,14 @@
         "sock_cyclops"
       ],
       "star_times": [
-        105,
-        49
+        91,
+        46
       ]
     },
     {
       "level": 18,
       "monster": "toaster_twins",
-      "hp": 21250,
+      "hp": 9050,
       "time_seconds": 170,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -702,14 +702,14 @@
         "kettle_grump"
       ],
       "star_times": [
-        117,
-        49
+        99,
+        40
       ]
     },
     {
       "level": 19,
       "monster": "mad_fridge",
-      "hp": 40800,
+      "hp": 29450,
       "time_seconds": 165,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -728,14 +728,14 @@
         "iron_duchess"
       ],
       "star_times": [
-        111,
+        99,
         47
       ]
     },
     {
       "level": 20,
       "monster": "mad_fridge",
-      "hp": 52550,
+      "hp": 30300,
       "time_seconds": 240,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -753,14 +753,14 @@
         "tin_can"
       ],
       "star_times": [
-        171,
-        68
+        144,
+        61
       ]
     },
     {
       "level": 21,
       "monster": "tin_can",
-      "hp": 80450,
+      "hp": 70300,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -783,14 +783,14 @@
         "toolbox_terrier"
       ],
       "star_times": [
-        105,
-        61
+        95,
+        64
       ]
     },
     {
       "level": 22,
       "monster": "mad_fridge",
-      "hp": 65850,
+      "hp": 55050,
       "time_seconds": 180,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -810,14 +810,14 @@
         "traffic_cone_goblin"
       ],
       "star_times": [
-        101,
-        44
+        95,
+        56
       ]
     },
     {
       "level": 23,
       "monster": "toaster_twins",
-      "hp": 61500,
+      "hp": 42050,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -847,14 +847,14 @@
         "toaster_twins"
       ],
       "star_times": [
-        101,
-        76
+        95,
+        71
       ]
     },
     {
       "level": 24,
       "monster": "vacuum_viper",
-      "hp": 84100,
+      "hp": 63250,
       "time_seconds": 180,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -878,14 +878,14 @@
         "toolbox_terrier"
       ],
       "star_times": [
-        99,
-        55
+        103,
+        58
       ]
     },
     {
       "level": 25,
       "monster": "mad_fridge",
-      "hp": 67100,
+      "hp": 58150,
       "time_seconds": 180,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -912,14 +912,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        107,
-        61
+        93,
+        47
       ]
     },
     {
       "level": 26,
       "monster": "grand_piano_saurus",
-      "hp": 63850,
+      "hp": 50000,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -942,15 +942,15 @@
         "traffic_cone_goblin"
       ],
       "star_times": [
-        109,
-        61
+        95,
+        56
       ],
       "item_teach": "spark"
     },
     {
       "level": 27,
       "monster": "toaster_twins",
-      "hp": 59550,
+      "hp": 37100,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -981,14 +981,14 @@
         "toolbox_terrier"
       ],
       "star_times": [
-        97,
-        73
+        103,
+        77
       ]
     },
     {
       "level": 28,
       "monster": "tin_can",
-      "hp": 78650,
+      "hp": 40000,
       "time_seconds": 170,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1006,14 +1006,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        103,
-        55
+        94,
+        47
       ]
     },
     {
       "level": 29,
       "monster": "vacuum_viper",
-      "hp": 62550,
+      "hp": 12750,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1037,14 +1037,14 @@
         "traffic_cone_goblin"
       ],
       "star_times": [
-        95,
-        71
+        152,
+        114
       ]
     },
     {
       "level": 30,
       "monster": "vacuum_viper",
-      "hp": 117000,
+      "hp": 92450,
       "time_seconds": 225,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1062,14 +1062,14 @@
         "traffic_cone_goblin"
       ],
       "star_times": [
-        151,
-        73
+        147,
+        52
       ]
     },
     {
       "level": 31,
       "monster": "toaster_twins",
-      "hp": 97900,
+      "hp": 103450,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1088,14 +1088,14 @@
         "pixel_pug"
       ],
       "star_times": [
-        103,
-        61
+        91,
+        47
       ]
     },
     {
       "level": 32,
       "monster": "tin_can",
-      "hp": 89200,
+      "hp": 76600,
       "time_seconds": 205,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1126,14 +1126,14 @@
         "joystick_jester"
       ],
       "star_times": [
-        101,
-        76
+        99,
+        74
       ]
     },
     {
       "level": 33,
       "monster": "mad_fridge",
-      "hp": 98650,
+      "hp": 92250,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1152,14 +1152,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        109,
-        58
+        101,
+        49
       ]
     },
     {
       "level": 34,
       "monster": "grand_piano_saurus",
-      "hp": 84500,
+      "hp": 93150,
       "time_seconds": 205,
       "modifier": "GAPS",
       "difficulty": "HARD",
@@ -1183,13 +1183,13 @@
       ],
       "star_times": [
         109,
-        58
+        61
       ]
     },
     {
       "level": 35,
       "monster": "vacuum_viper",
-      "hp": 87400,
+      "hp": 89050,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1216,14 +1216,14 @@
         "vacuum_viper"
       ],
       "star_times": [
-        99,
-        70
+        121,
+        49
       ]
     },
     {
       "level": 36,
       "monster": "tin_can",
-      "hp": 94850,
+      "hp": 87950,
       "time_seconds": 205,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1246,14 +1246,14 @@
         "joystick_jester"
       ],
       "star_times": [
-        105,
-        52
+        101,
+        56
       ]
     },
     {
       "level": 37,
       "monster": "toaster_twins",
-      "hp": 62700,
+      "hp": 58650,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1273,14 +1273,14 @@
         "pixel_pug"
       ],
       "star_times": [
-        99,
-        55
+        97,
+        50
       ]
     },
     {
       "level": 38,
       "monster": "mad_fridge",
-      "hp": 77650,
+      "hp": 54850,
       "time_seconds": 180,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1299,13 +1299,13 @@
       ],
       "star_times": [
         101,
-        49
+        41
       ]
     },
     {
       "level": 39,
       "monster": "toaster_twins",
-      "hp": 113900,
+      "hp": 97850,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1334,13 +1334,13 @@
       ],
       "star_times": [
         115,
-        74
+        62
       ]
     },
     {
       "level": 40,
       "monster": "toaster_twins",
-      "hp": 117550,
+      "hp": 79450,
       "time_seconds": 240,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1358,14 +1358,14 @@
         "pixel_pug"
       ],
       "star_times": [
-        133,
-        56
+        138,
+        70
       ]
     },
     {
       "level": 41,
       "monster": "grand_piano_saurus",
-      "hp": 110000,
+      "hp": 126300,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1388,14 +1388,14 @@
         "gramophone_goose"
       ],
       "star_times": [
-        99,
-        74
+        101,
+        76
       ]
     },
     {
       "level": 42,
       "monster": "tin_can",
-      "hp": 106050,
+      "hp": 62000,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1420,14 +1420,14 @@
         "accordion_imp"
       ],
       "star_times": [
-        85,
-        64
+        83,
+        62
       ]
     },
     {
       "level": 43,
       "monster": "mad_fridge",
-      "hp": 132500,
+      "hp": 115800,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1450,14 +1450,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        121,
-        82
+        103,
+        58
       ]
     },
     {
       "level": 44,
       "monster": "vacuum_viper",
-      "hp": 131350,
+      "hp": 86800,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1468,7 +1468,7 @@
       "ordinary_copy_rank_cap": 6,
       "goal": {
         "kind": "chain",
-        "n": 20
+        "n": 16
       },
       "behaviour": "suction",
       "visual": "gramophone_goose",
@@ -1481,14 +1481,14 @@
         "gramophone_goose"
       ],
       "star_times": [
-        111,
-        83
+        113,
+        85
       ]
     },
     {
       "level": 45,
       "monster": "toaster_twins",
-      "hp": 136800,
+      "hp": 125850,
       "time_seconds": 210,
       "modifier": "GAPS",
       "difficulty": "NORMAL",
@@ -1514,14 +1514,14 @@
         "toaster_twins"
       ],
       "star_times": [
-        89,
-        58
+        99,
+        52
       ]
     },
     {
       "level": 46,
       "monster": "tin_can",
-      "hp": 145950,
+      "hp": 189850,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1544,14 +1544,14 @@
         "accordion_imp"
       ],
       "star_times": [
-        135,
-        53
+        101,
+        77
       ]
     },
     {
       "level": 47,
       "monster": "grand_piano_saurus",
-      "hp": 153850,
+      "hp": 152050,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1572,13 +1572,13 @@
       ],
       "star_times": [
         99,
-        49
+        31
       ]
     },
     {
       "level": 48,
       "monster": "mad_fridge",
-      "hp": 162600,
+      "hp": 140900,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1596,14 +1596,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        115,
-        49
+        121,
+        40
       ]
     },
     {
       "level": 49,
       "monster": "grand_piano_saurus",
-      "hp": 192700,
+      "hp": 177250,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1631,14 +1631,14 @@
         "accordion_imp"
       ],
       "star_times": [
-        122,
-        67
+        107,
+        58
       ]
     },
     {
       "level": 50,
       "monster": "grand_piano_saurus",
-      "hp": 209650,
+      "hp": 152900,
       "time_seconds": 250,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1656,14 +1656,14 @@
         "toaster_twins"
       ],
       "star_times": [
-        159,
-        67
+        149,
+        74
       ]
     },
     {
       "level": 51,
       "monster": "junkzilla",
-      "hp": 145250,
+      "hp": 29600,
       "time_seconds": 235,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1686,14 +1686,14 @@
         "wheelie_warthog"
       ],
       "star_times": [
-        123,
-        92
+        83,
+        62
       ]
     },
     {
       "level": 52,
       "monster": "toaster_twins",
-      "hp": 131250,
+      "hp": 126750,
       "time_seconds": 225,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1721,14 +1721,14 @@
         "satellite_scuttler"
       ],
       "star_times": [
-        115,
-        85
+        111,
+        58
       ]
     },
     {
       "level": 53,
       "monster": "mad_fridge",
-      "hp": 203100,
+      "hp": 223950,
       "time_seconds": 235,
       "modifier": "CORNERS_4",
       "difficulty": "NORMAL",
@@ -1750,14 +1750,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        119,
-        79
+        109,
+        59
       ]
     },
     {
       "level": 54,
       "monster": "vacuum_viper",
-      "hp": 144500,
+      "hp": 33850,
       "time_seconds": 235,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1768,7 +1768,7 @@
       "ordinary_copy_rank_cap": 7,
       "goal": {
         "kind": "chain",
-        "n": 20
+        "n": 16
       },
       "behaviour": "suction",
       "start_extra": [
@@ -1789,14 +1789,14 @@
         "wheelie_warthog"
       ],
       "star_times": [
-        125,
-        94
+        153,
+        115
       ]
     },
     {
       "level": 55,
       "monster": "grand_piano_saurus",
-      "hp": 193800,
+      "hp": 145800,
       "time_seconds": 225,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1816,14 +1816,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        127,
-        91
+        111,
+        71
       ]
     },
     {
       "level": 56,
       "monster": "tin_can",
-      "hp": 143650,
+      "hp": 122300,
       "time_seconds": 235,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1846,14 +1846,14 @@
         "satellite_scuttler"
       ],
       "star_times": [
-        129,
-        95
+        115,
+        61
       ]
     },
     {
       "level": 57,
       "monster": "mad_fridge",
-      "hp": 205500,
+      "hp": 195300,
       "time_seconds": 225,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1881,14 +1881,14 @@
         "wheelie_warthog"
       ],
       "star_times": [
-        125,
-        61
+        111,
+        68
       ]
     },
     {
       "level": 58,
       "monster": "toaster_twins",
-      "hp": 104600,
+      "hp": 77900,
       "time_seconds": 195,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1906,14 +1906,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        111,
-        40
+        125,
+        61
       ]
     },
     {
       "level": 59,
       "monster": "grand_piano_saurus",
-      "hp": 211350,
+      "hp": 181550,
       "time_seconds": 225,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1941,14 +1941,14 @@
         "satellite_scuttler"
       ],
       "star_times": [
-        133,
-        88
+        121,
+        59
       ]
     },
     {
       "level": 60,
       "monster": "junkzilla",
-      "hp": 278450,
+      "hp": 207350,
       "time_seconds": 260,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -1966,14 +1966,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        151,
-        68
+        138,
+        79
       ]
     },
     {
       "level": 61,
       "monster": "tin_can",
-      "hp": 76550,
+      "hp": 76850,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -1992,14 +1992,14 @@
         "parcel_pup"
       ],
       "star_times": [
-        109,
-        58
+        99,
+        56
       ]
     },
     {
       "level": 62,
       "monster": "tin_can",
-      "hp": 112150,
+      "hp": 121100,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2022,14 +2022,14 @@
         "pallet_pal"
       ],
       "star_times": [
-        117,
-        50
+        105,
+        58
       ]
     },
     {
       "level": 63,
       "monster": "mad_fridge",
-      "hp": 109450,
+      "hp": 125700,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2048,14 +2048,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        111,
-        52
+        101,
+        44
       ]
     },
     {
       "level": 64,
       "monster": "tin_can",
-      "hp": 82250,
+      "hp": 99450,
       "time_seconds": 210,
       "modifier": "GAPS",
       "difficulty": "NORMAL",
@@ -2074,14 +2074,14 @@
         "parcel_pup"
       ],
       "star_times": [
-        105,
-        59
+        103,
+        49
       ]
     },
     {
       "level": 65,
       "monster": "tin_can",
-      "hp": 13700,
+      "hp": 106000,
       "time_seconds": 230,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -2093,7 +2093,7 @@
       "visual": "pallet_pal",
       "goal": {
         "kind": "chain",
-        "n": 22
+        "n": 17
       },
       "start_extra": [
         [
@@ -2112,14 +2112,14 @@
         "pallet_pal"
       ],
       "star_times": [
-        63,
-        47
+        105,
+        79
       ]
     },
     {
       "level": 66,
       "monster": "tin_can",
-      "hp": 87600,
+      "hp": 86600,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2138,14 +2138,14 @@
         "parcel_pup"
       ],
       "star_times": [
-        113,
+        93,
         50
       ]
     },
     {
       "level": 67,
       "monster": "tin_can",
-      "hp": 106800,
+      "hp": 136450,
       "time_seconds": 220,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2176,14 +2176,14 @@
         "pallet_pal"
       ],
       "star_times": [
-        117,
-        49
+        101,
+        55
       ]
     },
     {
       "level": 68,
       "monster": "toaster_twins",
-      "hp": 83450,
+      "hp": 63400,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2201,14 +2201,14 @@
         "vacuum_viper"
       ],
       "star_times": [
-        115,
-        50
+        111,
+        56
       ]
     },
     {
       "level": 69,
       "monster": "tin_can",
-      "hp": 94700,
+      "hp": 78450,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2235,14 +2235,14 @@
         "parcel_pup"
       ],
       "star_times": [
-        111,
-        67
+        103,
+        61
       ]
     },
     {
       "level": 70,
       "monster": "junkzilla",
-      "hp": 166550,
+      "hp": 122750,
       "time_seconds": 250,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -2260,14 +2260,14 @@
         "vacuum_viper"
       ],
       "star_times": [
-        177,
-        76
+        171,
+        79
       ]
     },
     {
       "level": 71,
       "monster": "toaster_twins",
-      "hp": 104400,
+      "hp": 114300,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2286,14 +2286,14 @@
         "telescope_toad"
       ],
       "star_times": [
-        99,
-        58
+        91,
+        59
       ]
     },
     {
       "level": 72,
       "monster": "toaster_twins",
-      "hp": 133450,
+      "hp": 41450,
       "time_seconds": 230,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2324,14 +2324,14 @@
         "radar_rascal"
       ],
       "star_times": [
-        125,
-        94
+        95,
+        71
       ]
     },
     {
       "level": 73,
       "monster": "vacuum_viper",
-      "hp": 119450,
+      "hp": 112600,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2350,14 +2350,14 @@
         "vacuum_viper"
       ],
       "star_times": [
-        99,
-        67
+        119,
+        53
       ]
     },
     {
       "level": 74,
       "monster": "toaster_twins",
-      "hp": 60150,
+      "hp": 63100,
       "time_seconds": 230,
       "modifier": "CORNERS_2",
       "difficulty": "NORMAL",
@@ -2380,14 +2380,14 @@
         "telescope_toad"
       ],
       "star_times": [
-        131,
-        104
+        109,
+        38
       ]
     },
     {
       "level": 75,
       "monster": "toaster_twins",
-      "hp": 82300,
+      "hp": 115200,
       "time_seconds": 230,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -2399,7 +2399,7 @@
       "visual": "radar_rascal",
       "goal": {
         "kind": "chain",
-        "n": 21
+        "n": 17
       },
       "waves": 4,
       "wave_visuals": [
@@ -2410,14 +2410,14 @@
         "radar_rascal"
       ],
       "star_times": [
-        127,
-        95
+        107,
+        80
       ]
     },
     {
       "level": 76,
       "monster": "toaster_twins",
-      "hp": 122900,
+      "hp": 133650,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2436,14 +2436,14 @@
         "telescope_toad"
       ],
       "star_times": [
-        93,
-        35
+        95,
+        43
       ]
     },
     {
       "level": 77,
       "monster": "mad_fridge",
-      "hp": 109900,
+      "hp": 106100,
       "time_seconds": 210,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2463,14 +2463,14 @@
         "radar_rascal"
       ],
       "star_times": [
-        117,
-        76
+        105,
+        34
       ]
     },
     {
       "level": 78,
       "monster": "toaster_twins",
-      "hp": 89650,
+      "hp": 100200,
       "time_seconds": 190,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2488,14 +2488,14 @@
         "toaster_twins"
       ],
       "star_times": [
-        113,
-        46
+        135,
+        50
       ]
     },
     {
       "level": 79,
       "monster": "toaster_twins",
-      "hp": 108100,
+      "hp": 112600,
       "time_seconds": 230,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -2518,14 +2518,14 @@
         "telescope_toad"
       ],
       "star_times": [
-        113,
-        71
+        103,
+        73
       ]
     },
     {
       "level": 80,
       "monster": "junkzilla",
-      "hp": 192250,
+      "hp": 197350,
       "time_seconds": 250,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -2543,8 +2543,8 @@
         "mad_fridge"
       ],
       "star_times": [
-        175,
-        83
+        165,
+        59
       ]
     }
   ]
