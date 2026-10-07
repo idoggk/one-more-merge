@@ -5071,17 +5071,27 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, top + 60, title ?? CRATES[kind].name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
     const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
     const box = this.add.container(W / 2, top + 260);
-    const ck = `crate_${kind}`;
-    if (this.hasArt(ck)) {
+    // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
+    // No closed gold crate yet: the iron crate tinted gold stands in.
+    const ck = this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
+    let crateIm: Phaser.GameObjects.Image | null = null;
+    if (ck) {
       const im = this.add.image(0, 0, ck);
       im.setScale(220 / Math.max(im.width, im.height));
+      if (ck === 'crate_iron' && kind === 'gold') im.setTint(0xffd36a);
       box.add(im);
+      crateIm = im;
     } else box.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-110, -90, 220, 180, 20).fillStyle(col, 1).fillRoundedRect(-102, -82, 204, 164, 16).lineStyle(8, 0x2b1d2e, 1).lineBetween(-102, -20, 102, -20));
     c.add(box);
     sfx.chestShake?.();
     this.tweens.add({ targets: box, angle: { from: -6, to: 6 }, duration: 90, yoyo: true, repeat: 5, onComplete: () => {
       sfx.chestOpen?.();
-      this.tweens.add({ targets: box, scale: 0, alpha: 0, duration: 220 });
+      const openKey = `crate_${kind}_open`;
+      if (crateIm && this.hasArt(openKey)) {
+        crateIm.clearTint().setTexture(openKey);
+        crateIm.setScale(240 / Math.max(crateIm.width, crateIm.height));
+      }
+      this.tweens.add({ targets: box, scale: 0, alpha: 0, duration: 220, delay: crateIm ? 260 : 0 });
       this.ring(W / 2, top + 260, 0xffcf33, 160, 18, 420);
       cards.forEach((cd, k) => {
         // up to 6 kinds in 3 columns; more (big crates/packs) in 4 smaller columns so nothing hides under the buttons

@@ -111,6 +111,7 @@ const states = {
   trial_card: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), lessons: { card: true, boosters: true }, levelStars: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 2])), trial: undefined }); sc.openTitle('road'); sc.openLevelSheet(13); }, 900],
   trial_on: [(sc) => { sc.meta.trial.on = true; sc.openLevelSheet(13); }, 700],
   trial_play: [(sc) => { sc.closeModal(); sc.startLevel(13); sc.finishIntro(true); }, 2500],
+  crate_shake: [(sc) => { sc.openTitle('units'); sc.openNextCrate(); }, 450],
   qa_tools: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openQaTools(); }, 900],
   units_tab: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { bolts: 500, gems: 120, levelStars: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [i + 1, 2])), units: { cannon: { level: 2, cards: 9 }, coil: { level: 1, cards: 1 }, bell: { level: 1, cards: 0 }, rocket: { level: 1, cards: 0 } }, crates: { iron: 1, gold: 1 } }); sc.openTitle('units'); }, 1000],
   units_crate: [(sc) => { sc.openNextCrate(); }, 4500],
