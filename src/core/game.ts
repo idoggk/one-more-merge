@@ -6,6 +6,9 @@ import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRan
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 /** r33: each later machine of a stage has +30% of the first one's share of the HP. */
 const STAGE_RAMP = 0.3;
+/** r34 onboarding: chapters 1-2 keep the board calmer (deliveries wait at 20 of 30 cells). */
+const CALM_UNTIL = 20;
+const CALM_CAP = 20;
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -67,6 +70,8 @@ export interface GameState {
   bag: Family[];
   pending: Gadget[];
   supplyTimer: number;
+  /** r34 onboarding (chapters 1-2): deliveries wait while the board holds this many parts (a casual player sat at 80% full). */
+  calmCap?: number;
   shipments: number;
   target: number; // 0..2 ; -1 demo
   hp: number;
@@ -273,6 +278,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
       if (k < empties.length) s.grid[empties[k]] = makeGadget(s, f, def.starting_rank);
     });
   }
+  if (def.level <= CALM_UNTIL) s.calmCap = CALM_CAP;
   // r25 items (from L13): one per level; teaching levels prescribe the kind
   s.itemTeach = def.item_teach as ItemKind | undefined;
   s.itemGrantAt = def.item_grant_at;
@@ -836,7 +842,10 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 
   // Supply
   admitPending(s, reserved, ev);
-  if (s.pending.length < TUNING.maxPending) {
+  const calm = s.calmCap !== undefined && s.grid.filter(Boolean).length >= s.calmCap;
+  if (calm) {
+    // r34: the clock on the next delivery waits until the player makes room
+  } else if (s.pending.length < TUNING.maxPending) {
     s.supplyTimer -= dt;
     if (s.supplyTimer <= 0) {
       s.supplyTimer += supplyPeriod(s);
@@ -860,8 +869,10 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 
 function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) {
   const occ = s.grid.reduce((n, g) => n + (g ? 1 : 0), 0);
-  if (occ >= TUNING.holdAt) s.trayHold = true;
-  else if (occ <= TUNING.releaseAt) s.trayHold = false;
+  // r34: calm boards (chapters 1-2) hold the tray at the calm cap too
+  const holdAt = Math.min(TUNING.holdAt, s.calmCap ?? 99);
+  if (occ >= holdAt) s.trayHold = true;
+  else if (occ <= Math.min(TUNING.releaseAt, holdAt - 1)) s.trayHold = false;
   if (!s.pending.length || s.trayHold) return;
   const promised = new Set([...dropReserved(s), ...locked(s), ...bossBlocked(s.boss).noDrop, ...bossPendingCells(s.boss)]);
   const slot = s.grid.findIndex((g, i) => !g && !reserved.has(i) && !promised.has(i));

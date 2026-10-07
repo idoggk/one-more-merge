@@ -4067,7 +4067,8 @@ Now beat the real level.`, this.coachY());
     const hasJump = n >= BOOSTER_UNLOCK.jumpstart_kit && ((m.kits ?? 0) > 0 || Object.keys(m.grants ?? {}).some((k) => k.startsWith('kit')) || !!m.hardUnlocked);
     const miniDef = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : undefined;
     const isBoss = (n % 10 === 0 && n > 0) || !!miniDef;
-    const PH = (hasJump ? 860 : 760) + (isBoss ? 110 : 0); // boss cards carry the attack diagram
+    // boss cards carry the attack diagram; r34 first-time ideas carry a NEW! tag and bigger text
+    const PH = (hasJump ? 860 : 760) + (isBoss ? 110 : 0) + (newConcepts(n).length || n === 6 || (def.start_extra ?? []).some(([f]) => f === 'magnet' || f === 'battery' || f === 'fan') ? 100 : 0);
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
     const diff = miniDef ? 'MINI-BOSS' : isBoss ? 'BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD';

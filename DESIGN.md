@@ -282,3 +282,11 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Level card shows the strip of machines (GOAL / BOSS tags); HUD header `2/5 NAME`; banner per new machine; the loss card says which machine you reached.
 - Clocks: +45% of the old time per extra machine (the board snowballs), ~1.7 min in chapter 1 up to ~4 min late. HP refit with `tools/sim-levels.ts --staged` (random 3 s bot, same win-rate tables); star times recomputed.
 - QA TOOLS panel (Settings > QA TOOLS): start over, jump to any level (earlier levels count as 2-star clears), all units at LV 5, currency, crates.
+
+### Round 34 — ONBOARDING (Ido: "L13 was overwhelming for a player who is not a merge specialist; make sure the user sees the clock and the bosses")
+- Debut audit: L4-L19 introduced a new idea almost every level. New schedule, by removing extras (never adding): ch1 = stages L3, rank goal L4, Rocket L6, mini-boss L8, boss L10 (L5/L7/L9 practice). ch2 = shield L11, Magnet L12, first power-up L13 (no shield, no Rocket swap), chain goal L14 (n 12, NORMAL), L15/L16 practice, Battery L17, suction L19, boss L20. Corners / gaps / frost (L25) / spark (L26) move to chapter 3. No forced shooter swap after L6 (the squad's shooter is the player's choice).
+- The level card marks a first-time idea with NEW! and big dark text (`newConcepts()` in levels.ts).
+- Clock: moved from the header corner to a draining ring left of the HP bar (where the eyes are); machine counter on the right; "30 SECONDS LEFT!" in the board lane; last 10 seconds count down in big digits over the board.
+- Bosses: the first time a boss wakes (stage end), the clock stops on a card with its name, rule and board diagram.
+- Calm board, chapters 1-2: deliveries (and the NEXT tray) wait at 20 of 30 parts. A casual player (random merge / 3 s) sat at 24-25 of 30 the whole level; now 20. HP refit L1-L20, star times redone.
+- Fixed: the old run-mode "Next monster!" tip fired at the start of any Fridge level.

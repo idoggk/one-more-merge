@@ -208,7 +208,7 @@
     {
       "level": 3,
       "monster": "tin_can",
-      "hp": 7650,
+      "hp": 6900,
       "time_seconds": 75,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -277,7 +277,7 @@
     {
       "level": 4,
       "monster": "tin_can",
-      "hp": 12700,
+      "hp": 12050,
       "time_seconds": 105,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -305,7 +305,7 @@
     {
       "level": 5,
       "monster": "mad_fridge",
-      "hp": 9200,
+      "hp": 8450,
       "time_seconds": 85,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -327,7 +327,7 @@
     {
       "level": 6,
       "monster": "toaster_twins",
-      "hp": 16250,
+      "hp": 13600,
       "time_seconds": 95,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -352,7 +352,7 @@
     {
       "level": 7,
       "monster": "tin_can",
-      "hp": 14700,
+      "hp": 15000,
       "time_seconds": 105,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -380,7 +380,7 @@
     {
       "level": 8,
       "monster": "mad_fridge",
-      "hp": 14800,
+      "hp": 12050,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -404,7 +404,7 @@
     {
       "level": 9,
       "monster": "vacuum_viper",
-      "hp": 18700,
+      "hp": 16650,
       "time_seconds": 115,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -428,7 +428,7 @@
     {
       "level": 10,
       "monster": "tin_can",
-      "hp": 28400,
+      "hp": 22000,
       "time_seconds": 170,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -451,7 +451,7 @@
     {
       "level": 11,
       "monster": "mad_fridge",
-      "hp": 27450,
+      "hp": 24200,
       "time_seconds": 130,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -469,14 +469,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        67,
-        46
+        75,
+        52
       ]
     },
     {
       "level": 12,
       "monster": "tin_can",
-      "hp": 25700,
+      "hp": 26000,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -506,14 +506,14 @@
         "sock_cyclops"
       ],
       "star_times": [
-        79,
-        56
+        93,
+        47
       ]
     },
     {
       "level": 13,
       "monster": "mad_fridge",
-      "hp": 25300,
+      "hp": 24250,
       "time_seconds": 140,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -531,14 +531,14 @@
         "mad_fridge"
       ],
       "star_times": [
-        79,
-        44
+        81,
+        47
       ]
     },
     {
       "level": 14,
       "monster": "vacuum_viper",
-      "hp": 29700,
+      "hp": 25750,
       "time_seconds": 150,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -560,14 +560,14 @@
         "sock_cyclops"
       ],
       "star_times": [
-        75,
-        56
+        85,
+        64
       ]
     },
     {
       "level": 15,
       "monster": "grand_piano_saurus",
-      "hp": 34000,
+      "hp": 28450,
       "time_seconds": 150,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -588,14 +588,14 @@
         "grand_piano_saurus"
       ],
       "star_times": [
-        85,
-        56
+        91,
+        53
       ]
     },
     {
       "level": 16,
       "monster": "tin_can",
-      "hp": 41750,
+      "hp": 34900,
       "time_seconds": 160,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -644,14 +644,14 @@
         "iron_duchess"
       ],
       "star_times": [
-        97,
+        111,
         40
       ]
     },
     {
       "level": 17,
       "monster": "mad_fridge",
-      "hp": 37150,
+      "hp": 33300,
       "time_seconds": 155,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -677,14 +677,14 @@
         "sock_cyclops"
       ],
       "star_times": [
-        91,
-        53
+        105,
+        49
       ]
     },
     {
       "level": 18,
       "monster": "toaster_twins",
-      "hp": 22350,
+      "hp": 21250,
       "time_seconds": 170,
       "modifier": "NONE",
       "difficulty": "NORMAL",
@@ -702,14 +702,14 @@
         "kettle_grump"
       ],
       "star_times": [
-        99,
-        50
+        117,
+        49
       ]
     },
     {
       "level": 19,
       "monster": "mad_fridge",
-      "hp": 44000,
+      "hp": 40800,
       "time_seconds": 165,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -728,14 +728,14 @@
         "iron_duchess"
       ],
       "star_times": [
-        103,
-        49
+        111,
+        47
       ]
     },
     {
       "level": 20,
       "monster": "mad_fridge",
-      "hp": 61200,
+      "hp": 52550,
       "time_seconds": 240,
       "modifier": "NONE",
       "difficulty": "MEGA_HARD",
@@ -753,8 +753,8 @@
         "tin_can"
       ],
       "star_times": [
-        147,
-        79
+        171,
+        68
       ]
     },
     {
