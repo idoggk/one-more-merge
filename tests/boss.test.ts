@@ -5,6 +5,10 @@ import { resolveCascade } from '../src/core/cascade';
 import { drop, idxOf, legalPairs, newLevel, tick } from '../src/core/game';
 import type { Family, Gadget, Grid } from '../src/core/types';
 
+/** r33: boss mechanics are tested on the boss alone (stages put minions first). */
+const solo = (d: (typeof LEVELS)[number]) => ({ ...d, waves: undefined, wave_visuals: undefined, minion_hp: undefined });
+
+
 let id = 9900;
 const g = (family: Family, rank = 1): Gadget => ({ id: id++, family, rank, cd: 99 });
 const empty = (): Grid => new Array(30).fill(null);
@@ -13,7 +17,7 @@ const opts = { perks: [], overdrive: false };
 describe('chapter bosses (ChatGPT r20)', () => {
   it('levels 10..60 are boss fights: 16 starters, 90 s, the chapter boss, no modifier', () => {
     for (const L of [10, 20, 30, 40, 50, 60]) {
-      const s = newLevel(LEVELS[L - 1]);
+      const s = newLevel(solo(LEVELS[L - 1]));
       expect(s.boss).toBeTruthy();
       expect(BOSSES[s.boss!.def].id).toBe(['tin_can_king', 'fridge_overlord', 'viper_queen', 'twin_toasters', 'piano_saurus_rex', 'junkzilla'][L / 10 - 1]);
       expect(s.grid.filter(Boolean).length).toBe(16);
@@ -24,7 +28,7 @@ describe('chapter bosses (ChatGPT r20)', () => {
   });
 
   it('Tin Can King clamps the highest-rank cell after the warning: no drag out, no drop in', () => {
-    const s = newLevel(LEVELS[9]);
+    const s = newLevel(solo(LEVELS[9]));
     s.grid[idxOf(0, 0)] = g('coil', 5);
     while (!s.boss!.active && s.elapsed < 15) tick(s);
     expect(s.boss!.active!.cells).toEqual([idxOf(0, 0)]);
@@ -63,7 +67,7 @@ describe('chapter bosses (ChatGPT r20)', () => {
 
   it('every boss fight runs to the end with a simple player without breaking invariants', () => {
     for (const L of [10, 20, 30, 40, 50, 60]) {
-      const s = newLevel(LEVELS[L - 1]);
+      const s = newLevel(solo(LEVELS[L - 1]));
       let next = 2;
       while (s.phase === 'playing') {
         if (s.elapsed >= next) {

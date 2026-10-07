@@ -5,10 +5,14 @@ import { drop, legalPairs, newLevel, tick, type GameState } from '../src/core/ga
 import { Rng } from '../src/core/rng';
 import type { Gadget } from '../src/core/types';
 
+/** r33: boss mechanics are tested on the boss alone (stages put minions first). */
+const solo = (d: (typeof LEVELS)[number]) => ({ ...d, waves: undefined, wave_visuals: undefined, minion_hp: undefined });
+
+
 let id = 5000;
 const g = (family: Gadget['family'], rank = 1): Gadget => ({ id: id++, family, rank, cd: 99 });
 const blank = (bossId: string): GameState => {
-  const s = newLevel(LEVELS[67]);
+  const s = newLevel(solo(LEVELS[67]));
   s.grid.fill(null);
   s.pending = [];
   s.boss = { def: BOSSES.findIndex((b) => b.id === bossId), next: 99, pending: null, active: null, phaseShown: 0, mini: true } as BossState;
@@ -50,7 +54,7 @@ describe('r29 chapter 7-8 attacks', () => {
   });
 
   it('TIME RANSOM: unsaved takes 2 s; one player chain waking both saves it', () => {
-    const s = newLevel(LEVELS[79]);
+    const s = newLevel(solo(LEVELS[79]));
     expect(BOSSES[s.boss!.def].id).toBe('chrono_chimera');
     while (!s.boss!.pending && s.phase === 'playing') tick(s);
     const left = s.timeLeft;
@@ -70,7 +74,7 @@ describe('r29 chapter 7-8 attacks', () => {
     expect(LEVELS.length).toBe(80);
     expect(BOSSES[chapterBossIdx(70)].id).toBe('rivet_rhino');
     for (const lv of [61, 65, 68, 70, 74, 78, 80]) {
-      const s = newLevel(LEVELS[lv - 1]);
+      const s = newLevel(solo(LEVELS[lv - 1]));
       const rng = new Rng(lv);
       let next = 2;
       while (s.phase === 'playing') {

@@ -24,6 +24,12 @@ export interface LevelDef {
   /** Seconds for 2 and 3 stars (tools/star-times.ts: ordinary human pace / skilled chain-seeker medians). */
   star_times?: [number, number];
   goal?: LevelGoal;
+  /** r33 stage: HP machines to beat in a row (hp = their total); on goal levels the goal is one more, last machine. */
+  waves?: number;
+  /** r33 boss stages: total HP of the minions before the boss (`hp` stays the boss's). */
+  minion_hp?: number;
+  /** r33 cast id per machine (presentation only). */
+  wave_visuals?: string[];
   behaviour?: Behaviour;
   /** Shooter family override for this level (r23: Rocket joins at L6). */
   shooter?: string;

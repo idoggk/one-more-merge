@@ -5,6 +5,10 @@ import { drop, legalPairs, newLevel, tick } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import type { Gadget, Grid } from '../src/core/types';
 
+/** r33: boss mechanics are tested on the boss alone (stages put minions first). */
+const solo = (d: (typeof LEVELS)[number]) => ({ ...d, waves: undefined, wave_visuals: undefined, minion_hp: undefined });
+
+
 let id = 1;
 const g = (family: Gadget['family'], rank = 1): Gadget => ({ id: id++, family, rank, cd: 99 });
 const state = (bossId: string): BossState => ({ def: BOSSES.findIndex((b) => b.id === bossId), next: 0, pending: null, active: null, phaseShown: 0, mini: true });
@@ -79,7 +83,7 @@ describe('r27 mini-boss attacks', () => {
     for (const lv of [8, 18, 28, 38, 48, 58]) {
       const def = LEVELS[lv - 1];
       expect(def.mini_boss).toBeTruthy();
-      const s = newLevel(def);
+      const s = newLevel(solo(def));
       expect(s.boss?.mini).toBe(true);
       const rng = new Rng(lv);
       let next = 3;
@@ -97,7 +101,7 @@ describe('r27 mini-boss attacks', () => {
         for (const bl of s.boss?.blocks ?? []) expect(s.grid[bl.cell]).toBeNull();
       }
     }
-    const s = newLevel(LEVELS[7]);
+    const s = newLevel(solo(LEVELS[7]));
     while (!s.boss!.pending) tick(s);
     const cell = s.boss!.pending!.cells![0];
     const from = s.grid.findIndex((x, i) => !!x && i !== cell);

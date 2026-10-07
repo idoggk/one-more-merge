@@ -73,6 +73,7 @@ const out = JSON.parse(readFileSync('src/content/levels.json', 'utf8'));
 for (const def of LEVELS) {
   if (def.level < from || def.level > to) continue;
   if (args.includes('--bosses') && def.level % 10 !== 0) continue;
+  if (args.includes('--staged') && !def.waves) continue;
   // levels 1-3 are onboarding: near-certain wins
   // r20 bosses: L10 80%, L20-60 72%
   // r23 (ChatGPT): chapter 1 near-sure, ramp after L10
@@ -88,7 +89,8 @@ for (const def of LEVELS) {
     [0.95, 0.92, 0.9, 0.88, 0.78, 0.95, 0.88, 0.85, 0.94, 0.75],
   ];
   const target = def.level <= 9 && def.level !== 8 ? 0.97 : def.level <= 9 ? 0.95 : def.level <= 20 ? R23[def.level] ?? 0.9 : R26[Math.ceil(def.level / 10) - 3][(def.level - 1) % 10];
-  if (def.goal) {
+  // r33 staged goal levels fit the HP of their machines (the goal machine's n stays as authored)
+  if (def.goal && !def.waves) {
     // goal levels have no HP to fit: report the goal-aware win rate (tune n / clock by hand)
     console.log(`L${String(def.level).padStart(2)} GOAL ${def.goal.kind} ${def.goal.n}  win ${(winRate(def) * 100).toFixed(0)}% / held-out ${(winRate(def, 100000) * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)`);
     continue;

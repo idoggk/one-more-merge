@@ -43,7 +43,7 @@ export function rushDef(id: string, slot: number, hp?: number): LevelDef {
   const lv = bossLevel(id);
   const base = LEVELS[lv - 1];
   const mini = !!BOSSES.find((b) => b.id === id)?.mini;
-  return { ...base, hp: hp ?? rushHpFor(id, slot), time_seconds: mini ? RUSH_CLOCK.mini : RUSH_CLOCK.boss, starting_rank: 2, ordinary_copy_rank_cap: 4, star_times: undefined, item_teach: undefined, seed: (base.seed * 31 + slot * 7919) >>> 0 };
+  return { ...base, hp: hp ?? rushHpFor(id, slot), time_seconds: mini ? RUSH_CLOCK.mini : RUSH_CLOCK.boss, starting_rank: 2, ordinary_copy_rank_cap: 4, star_times: undefined, item_teach: undefined, waves: undefined, wave_visuals: undefined, minion_hp: undefined, seed: (base.seed * 31 + slot * 7919) >>> 0 };
 }
 
 /** A fresh Rush fight: the boss's own attacks, event board rules, its own clock. */

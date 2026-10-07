@@ -88,6 +88,8 @@ export interface BossState {
   light?: boolean;
   /** r27 mini-boss: no mechanical phases. */
   mini?: boolean;
+  /** r33: elapsed time the boss woke (boss stages: after its minions). Attack times count from here. */
+  t0?: number;
   /** r27: final-phase alternation counter (even = second signature next). */
   alt?: number;
   /** r27 junk blocks on the board (inert; expire at `until`). */
@@ -435,7 +437,7 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
       ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'hit' });
     }
   }
-  const due = b.light ? 10 + b.next * 15 : BOSS_FIRST + b.next * BOSS_EVERY;
+  const due = (b.t0 ?? 0) + (b.light ? 10 + b.next * 15 : BOSS_FIRST + b.next * BOSS_EVERY);
   if (elapsed >= due - 1e-9) {
     b.next++;
     if (!b.pending && !b.active) {

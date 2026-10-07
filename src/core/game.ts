@@ -4,6 +4,8 @@ import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
+/** r33: each later machine of a stage has +30% of the first one's share of the HP. */
+const STAGE_RAMP = 0.3;
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -20,7 +22,7 @@ export type GameEvent =
   | { type: 'scrap'; idx: number; gadget: Gadget }
   | { type: 'threshold'; target: number; level: number }
   | { type: 'kill'; target: number; final: boolean; demo: boolean }
-  | { type: 'newTarget'; target: number }
+  | { type: 'newTarget'; target: number; wave?: number }
   | { type: 'overdriveEnd' }
   | { type: 'end'; won: boolean }
   | { type: 'goal'; kind: 'rank' | 'chain'; n: number; idx: number }
@@ -117,6 +119,9 @@ export interface GameState {
   rush?: { id: string; slot: number; week: number };
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
   goal?: { kind: 'rank' | 'chain'; n: number; best: number } | null;
+  /** r33 stage (Ido: "a number of machines to defeat, like JunkIlla"): HP machines in a row on one board + one clock.
+   *  `goal` = the last machine is the level's goal (only breaks to that rank / chain). `done` = HP of machines already beaten. */
+  stage?: { i: number; hps: number[]; done: number; total: number; visuals: string[]; goal?: { kind: 'rank' | 'chain'; n: number }; boss?: BossState };
   /** r23 chain shield: undefined = no shield; otherwise elapsed time until which it is open. */
   shieldUntil?: number;
   /** r25 power-up item waiting in the tray (one slot), whether this level already granted one, and the prescribed teaching kind. */
@@ -257,7 +262,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     s.boss = { def: bi, next: 0, pending: null, active: null, phaseShown: 0, ...(miniIdx >= 0 ? { mini: true } : {}) };
     s.remix = null;
     s.masked = [];
-    s.timeLeft = s.levelTime = miniIdx >= 0 ? def.time_seconds : BOSS_CLOCK;
+    s.timeLeft = s.levelTime = miniIdx >= 0 || def.waves ? def.time_seconds : BOSS_CLOCK;
     // second PAIR8 set at seeded empty cells (same families and rank)
     const extra: Family[] = [];
     for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][]) for (let k = 0; k < cells.length; k++) extra.push(squadFam(s, fam));
@@ -278,7 +283,22 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     const bi = BOSSES.findIndex((b) => b.attack === def.behaviour);
     s.boss = { def: bi, next: 0, pending: null, active: null, phaseShown: 0, light: true };
   }
-  if (def.goal) {
+  const waves = def.waves ?? 1;
+  const bossStage = !!def.waves && !!s.boss && !s.boss.light;
+  if (waves > 1 || (def.waves && (def.goal || bossStage))) {
+    // boss stages: `minion_hp` is shared by the minions, `hp` is the boss (the last machine)
+    const pool = bossStage ? def.minion_hp ?? def.hp : def.hp;
+    const w = Array.from({ length: waves }, (_, i) => 1 + STAGE_RAMP * i);
+    const sum = w.reduce((a, b) => a + b, 0);
+    const hps = w.map((x) => Math.round((pool * x) / sum));
+    if (bossStage) hps.push(def.hp);
+    s.stage = { i: 0, hps, done: 0, total: hps.reduce((a, b) => a + b, 0), visuals: def.wave_visuals ?? [], ...(def.goal ? { goal: { ...def.goal } } : {}) };
+    s.hp = s.maxHp = hps[0];
+    if (bossStage) {
+      s.stage.boss = s.boss!;
+      s.boss = null;
+    }
+  } else if (def.goal) {
     s.goal = { ...def.goal, best: 0 };
     s.hp = s.maxHp = 1e9; // no finite defeat HP: the goal is the win
   }
@@ -665,7 +685,7 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
   const before = s.hp;
   s.hp -= dmg;
   if (s.target >= 0 && !s.goal) {
-    const frac = Math.max(0, s.hp) / s.maxHp;
+    const frac = s.stage ? (s.stage.total - s.stage.done - (s.maxHp - Math.max(0, s.hp))) / s.stage.total : Math.max(0, s.hp) / s.maxHp;
     const lvl = frac <= 0.25 ? 3 : frac <= 0.5 ? 2 : frac <= 0.75 ? 1 : 0;
     if (lvl > s.thresholds && s.hp > 0) {
       for (let l = s.thresholds + 1; l <= lvl; l++) if (!(l === 2 && grantItem(s, ev))) queueDrop(s, ev, true);
@@ -682,6 +702,16 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
     s.hp = s.maxHp = TUNING.demoHp;
     return;
   }
+  const st = s.stage;
+  if (st && s.goal) {
+    s.hp = 1; // the goal machine never breaks to damage
+    return;
+  }
+  if (st && st.i < st.hps.length - (st.goal ? 0 : 1)) {
+    ev.push({ type: 'kill', target: s.target, final: false, demo: false });
+    nextWave(s, over, ev);
+    return;
+  }
   const final = !!s.remix || s.level !== undefined || s.target === TUNING.targetHp.length - 1;
   s.thresholds = 3;
   ev.push({ type: 'kill', target: s.target, final, demo: false });
@@ -695,6 +725,25 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
   s.pendingDamage = over;
   s.phase = 'choice';
   s.offer = makeOffer(s);
+}
+
+/** r33: next machine of the stage (overkill carries over, capped like any hit). The goal machine has no finite HP. */
+function nextWave(s: GameState, over: number, ev: GameEvent[]) {
+  const st = s.stage!;
+  st.done += s.maxHp;
+  st.i++;
+  if (st.i >= st.hps.length) {
+    s.goal = { ...st.goal!, best: 0 };
+    s.hp = s.maxHp = 1e9;
+  } else {
+    s.hp = s.maxHp = st.hps[st.i];
+  }
+  if (st.boss && st.i === st.hps.length - 1) {
+    s.boss = { ...st.boss, t0: s.elapsed };
+    delete st.boss;
+  }
+  ev.push({ type: 'newTarget', target: s.target, wave: st.i });
+  if (over > 0 && !s.goal) applyDamage(s, Math.min(over, Math.ceil(s.maxHp * TUNING.cascadeCap)), ev, 'carry');
 }
 
 function makeOffer(s: GameState): PerkId[] {

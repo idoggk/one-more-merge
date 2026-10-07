@@ -53,7 +53,7 @@ const only = args.includes('--only') ? args[args.indexOf('--only') + 1].split(',
 for (const def of LEVELS) {
   const L = def.level;
   if (only && !only.includes(L)) continue;
-  const T = L % 10 === 0 ? 90 : def.time_seconds;
+  const T = L % 10 === 0 && !def.waves ? 90 : def.time_seconds;
   const steady = clears(L, 2, false), fast = clears(L, 1.5, true);
   // never stricter than the bots managed; never looser than the old fractions
   const s2 = Math.min(Math.floor(T * 0.8), Math.ceil(steady.t || T * 0.8));

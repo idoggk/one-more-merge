@@ -34,7 +34,9 @@ describe('r25 items', () => {
     }
     expect(grants).toBe(1);
     expect(s.itemTray).toBe('overcharge');
-    expect(s.hp / s.maxHp).toBeLessThanOrEqual(0.5);
+    // r33: the break counts over the whole stage
+    const st = s.stage!;
+    expect((st.total - st.done - (s.maxHp - s.hp)) / st.total).toBeLessThanOrEqual(0.5);
   });
 
   it('applies only to a compatible machine without an attachment', () => {

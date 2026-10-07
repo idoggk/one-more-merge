@@ -611,21 +611,11 @@ export class GameScene extends Phaser.Scene {
     at(760, () => {
       sfx.panelBreak(0);
       if (this.realBoss) {
-        const bd = BOSSES[this.realBoss.def];
-        const card = this.add.container(W / 2, STAGE_TOP + STAGE_H - 60).setDepth(85);
-        if (this.hasArt('boss_card')) {
-          const pl = this.add.image(0, 0, 'boss_card');
-          pl.setScale(560 / pl.width);
-          card.add(pl);
-        }
-        card.add(this.add.text(0, -6, bd.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 8 }).setOrigin(0.5));
-        card.setScale(0.6).setAlpha(0);
-        this.introObjs.push(card);
-        this.tweens.chain({ targets: card, tweens: [{ scale: 1, alpha: 1, duration: 260, ease: 'Back.Out' }, { alpha: 0, duration: 250, delay: 900 }], onComplete: () => card.destroy() });
+        this.introObjs.push(this.bossNameCard());
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.level !== undefined ? `LEVEL ${this.s.level}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -677,9 +667,12 @@ export class GameScene extends Phaser.Scene {
 
   targetY = 0;
   setTargetTexture() {
-    let key = this.s.target < 0 ? 'demo_can' : `target_${this.s.target}${this.s.thresholds >= 2 && this.hasArt(`target_${this.s.target}_dmg`) ? '_dmg' : ''}`;
+    const ti = this.stageClassic() ?? this.s.target;
+    // r33 stages: damaged art follows the current machine's own HP
+    const hurt = this.s.stage ? !this.s.goal && this.s.hp <= this.s.maxHp / 2 : this.s.thresholds >= 2;
+    let key = this.s.target < 0 ? 'demo_can' : `target_${ti}${hurt && this.hasArt(`target_${ti}_dmg`) ? '_dmg' : ''}`;
     const cast = this.castOf(this.s.level);
-    if (cast && !this.realBoss) key = this.s.thresholds >= 2 && this.hasArt(`mon_${cast}_dmg`) ? `mon_${cast}_dmg` : `mon_${cast}`;
+    if (cast && !this.realBoss) key = hurt && this.hasArt(`mon_${cast}_dmg`) ? `mon_${cast}_dmg` : `mon_${cast}`;
     const b = this.realBoss;
     if (b) {
       const bk = `boss_${BOSSES[b.def].id}_${['intact', 'cracked', 'critical'][bossPhase(this.s.hp, this.s.maxHp)]}`;
@@ -919,13 +912,30 @@ export class GameScene extends Phaser.Scene {
   }
   /** r28: the cast character drawn for a level (only when its art exists). */
   castOf(level?: number) {
-    const v = level !== undefined ? LEVELS[level - 1]?.visual : undefined;
-    return v && this.hasArt(`mon_${v}`) ? v : undefined;
+    const sv = level !== undefined && level === this.s?.level ? this.stageVis() : undefined;
+    const v = sv ?? (level !== undefined ? LEVELS[level - 1]?.visual : undefined);
+    return v && CAST[v] && this.hasArt(`mon_${v}`) ? v : undefined;
+  }
+  /** r33: the current machine's visual id in a stage (cast id or classic monster name). */
+  stageVis() {
+    const st = this.s?.stage;
+    return st ? st.visuals[Math.min(st.i, st.visuals.length - 1)] : undefined;
+  }
+  /** r33: classic-monster index for the current stage machine, when it is one. */
+  stageClassic() {
+    const v = this.stageVis();
+    return v && !CAST[v] && MONSTER_INDEX[v] !== undefined ? MONSTER_INDEX[v] : undefined;
+  }
+  /** r33: machines in this stage (HP machines + the goal machine) and which one is up (1-based). */
+  stageCount() {
+    const st = this.s.stage;
+    return st ? { n: st.hps.length + (st.goal ? 1 : 0), at: st.i + 1, goal: st.i >= st.hps.length } : undefined;
   }
   monName(short = false) {
     const v = this.castOf(this.s.level);
     if (v) return short ? CAST[v].short : CAST[v].name;
-    return (short ? SHORT_NAMES : TARGET_NAMES)[Math.max(0, this.s.target)];
+    const ci = this.stageClassic();
+    return (short ? SHORT_NAMES : TARGET_NAMES)[ci ?? Math.max(0, this.s.target)];
   }
 
   /** The chapter boss (not an ordinary monster's light hazard, r23). */
@@ -1693,7 +1703,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.stageCount() ? `${this.stageCount()!.at}/${this.stageCount()!.n} ${this.s.goal ? 'GOAL' : this.monName(true)}` : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1963,7 +1973,7 @@ Now beat the real level.`, this.coachY());
           sfx.panelBreak(e.target);
           this.chunks.explode(18, this.target.x, this.target.y - 40);
           this.hitTarget(true, 1);
-          if (e.level >= 2) this.setTargetTexture();
+          if (e.level >= 2 || this.s.stage) this.setTargetTexture();
           break;
         case 'kill':
           if (!e.demo) tlog.log('kill', { target: e.target, at: +this.s.elapsed.toFixed(1) });
@@ -2815,10 +2825,43 @@ Now beat the real level.`, this.coachY());
       });
     });
   }
+  /** Boss name plate over the stage (run intro, and r33 when a stage's boss wakes after its minions). */
+  bossNameCard() {
+    const bd = BOSSES[this.realBoss!.def];
+    const card = this.add.container(W / 2, STAGE_TOP + STAGE_H - 60).setDepth(85);
+    if (this.hasArt('boss_card')) {
+      const pl = this.add.image(0, 0, 'boss_card');
+      pl.setScale(560 / pl.width);
+      card.add(pl);
+    }
+    card.add(this.add.text(0, -6, bd.name, { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 8 }).setOrigin(0.5));
+    card.setScale(0.6).setAlpha(0);
+    this.tweens.chain({ targets: card, tweens: [{ scale: 1, alpha: 1, duration: 260, ease: 'Back.Out' }, { alpha: 0, duration: 250, delay: 900 }], onComplete: () => card.destroy() });
+    return card;
+  }
+
   introTarget() {
-    this.time.delayedCall(80, () => {
+    // r33 stages: the next machine walks in after the kill animation (~0.9 s on the same sprite)
+    this.time.delayedCall(this.s.stage ? 1000 : 80, () => {
+      this.tweens.killTweensOf(this.target);
       this.setTargetTexture();
-      if (this.s.target >= 0) {
+      if (this.s.stage) this.target.clearTint().setAlpha(1).setAngle(0).setX(W / 2).setScale(this.targetBaseScale);
+      const sc = this.stageCount();
+      if (sc && this.realBoss) {
+        // r33: the boss wakes after its minions
+        sfx.panelBreak(0);
+        this.softFlash(0x2b1d2e, 0.35, 260);
+        this.time.delayedCall(380, () => this.bossNameCard());
+        this.time.delayedCall(1500, () => this.showEvent(BOSSES[this.realBoss!.def].mini ? 'MINI-BOSS!' : 'BOSS!', '#ffcf33', 1200));
+        tlog.log('stage_boss', { at: +this.s.elapsed.toFixed(1) });
+      } else if (sc && this.s.goal) {
+        const g = this.s.goal;
+        this.time.delayedCall(380, () => this.floatText(W / 2, STAGE_TOP + 60, `LAST ONE!  ${g.kind === 'rank' ? `BUILD A RANK ${g.n}` : `FIRE A CHAIN x${g.n}`}`, '#8ef08a', 40, 1100, 'banner_chain'));
+        tlog.log('stage_goal', { at: +this.s.elapsed.toFixed(1) });
+      } else if (sc) {
+        this.time.delayedCall(700, () => this.floatText(W / 2, STAGE_TOP + 60, `${sc.at}/${sc.n}  ·  ${this.monName()}`, '#ffffff', 40, 700, 'banner_chain'));
+        tlog.log('stage_next', { at: +this.s.elapsed.toFixed(1), machine: sc.at });
+      } else if (this.s.target >= 0) {
         const label = this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND ${this.s.target + 1}  ·  ${TARGET_NAMES[this.s.target]}`;
         this.time.delayedCall(380, () => this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 700, 'banner_chain'));
       }
@@ -3113,7 +3156,7 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? `${this.monName()} down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${this.stageCount()!.at} of ${this.stageCount()!.n}  ·  ${this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
     for (let k = 0; k < 3; k++) {
       const st = this.add.image(W / 2 + (k - 1) * 130, top + 270 + (k === 1 ? -14 : 0), 'star');
       const sc = (k === 1 ? 120 : 100) / Math.max(st.width, st.height);
@@ -3977,18 +4020,34 @@ Now beat the real level.`, this.coachY());
     const bossDef = miniDef ?? (isBoss ? BOSSES[chapterBossIdx(n)] : null);
     const castV = !bossDef ? this.castOf(n) : undefined;
     const tk = bossDef && this.hasArt(`boss_${bossDef.id}_intact`) ? `boss_${bossDef.id}_intact` : castV ? `mon_${castV}` : `target_${ti}`;
-    if (this.textures.exists(tk)) {
+    const wv = def.waves ? [...(def.wave_visuals ?? []), ...(bossDef ? [`@boss`] : [])] : [];
+    if (wv.length) {
+      // r33 stage strip: every machine of the level in order, the goal machine flagged
+      const step = Math.min(150, (W - 200) / wv.length);
+      wv.forEach((v, i) => {
+        const x = W / 2 + (i - (wv.length - 1) / 2) * step;
+        const key = v === '@boss' ? tk : CAST[v] && this.hasArt(`mon_${v}`) ? `mon_${v}` : `target_${MONSTER_INDEX[v] ?? 0}`;
+        if (this.textures.exists(key)) {
+          const im = this.add.image(x, top + 250, key);
+          im.setScale((step - 14) / Math.max(im.width, im.height));
+          c.add(im);
+        }
+        const isGoal = !!def.goal && i === wv.length - 1;
+        const isBoss = v === '@boss';
+        c.add(this.add.text(x, top + 250 + step / 2 + 4, isBoss ? (miniDef ? 'MINI' : 'BOSS') : isGoal ? 'GOAL' : `${i + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isBoss ? '#e8452c' : isGoal ? '#5fbf4a' : '#3b2533', padding: { x: 8, y: 1 } }).setOrigin(0.5));
+      });
+    } else if (this.textures.exists(tk)) {
       const im = this.add.image(W / 2, top + 250, tk);
       im.setScale(180 / Math.max(im.width, im.height));
       c.add(im);
     }
-    c.add(this.add.text(W / 2, top + 362, `${bossDef ? bossDef.name : castV ? CAST[castV].name : TARGET_NAMES[ti]}  ·  ${bossDef && !miniDef ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 362, `${bossDef ? (wv.length ? `${wv.length - 1} MINIONS + ${bossDef.name}` : bossDef.name) : wv.length ? `${wv.length} MACHINES` : castV ? CAST[castV].name : TARGET_NAMES[ti]}  ·  ${bossDef && !miniDef && !def.waves ? 90 : def.time_seconds}s`, { fontFamily: 'Lilita One, Arial Black', fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
     let y = top + 400;
     const firstOf: Record<string, number> = { rocket: 6, magnet: 12, battery: 17, fan: 23 };
     const newFam = n === 6 ? 'rocket' : (def.start_extra ?? []).map(([f]) => f).find((f) => firstOf[f] === n);
     const parts = bossDef
       ? [bossDef.copy, bossDef.second ? `Final phase: also ${ATTACK_COPY[bossDef.second].what.toLowerCase()}!` : '']
-      : [def.goal ? `GOAL: ${goalText(def.goal)}` : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
+      : [def.goal ? (def.waves ? `LAST MACHINE only breaks when you ${goalText(def.goal).toLowerCase()}` : `GOAL: ${goalText(def.goal)}`) : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
     const mt = parts.filter(Boolean).join('\n');
     if (mt) {
       const t = this.add.text(W / 2, y, mt, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: bossDef ? '26px' : '22px', color: bossDef ? '#4a2a5a' : '#8e58c9', align: 'center', wordWrap: { width: W - 180 } }).setOrigin(0.5, 0);
@@ -4215,24 +4274,76 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const rt = this.add.text(W / 2, top + 640, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     rt.on('pointerup', () => this.startTutorial());
     c.add(rt);
-    // r24 QA: wipe everything and start as a brand-new player (second tap within 3 s confirms)
+    // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
+    this.button(c, W / 2, top + 700, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
+    this.button(c, W / 2, top + 760, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+  }
+
+  /** r33 QA panel: start over, jump to any level, give units / currency. */
+  openQaTools(jump = this.currentLevel()) {
+    this.closeModal();
+    const c = this.sheet(1060);
+    const top = H / 2 - 530;
+    this.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
+    const m = this.meta;
+    const save = () => store(META_KEY, JSON.stringify(m));
+    // 1) start over (second tap within 3 s confirms)
     let armed = 0;
-    const wipe = this.add.text(W / 2, top + 690, 'Start over (wipe progress)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#d8261a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    wipe.on('pointerup', () => {
+    const wipe = this.button(c, W / 2, top + 200, 520, 'START OVER (WIPE ALL)', 0xd8261a, () => {
       if (this.time.now - armed > 3000) {
         armed = this.time.now;
         sfx.invalid();
-        wipe.setText('Tap again to wipe EVERYTHING');
-        this.time.delayedCall(3000, () => wipe.active && this.time.now - armed >= 2900 && wipe.setText('Start over (wipe progress)'));
+        (wipe.list[1] as Phaser.GameObjects.Text).setText('TAP AGAIN TO WIPE');
+        this.time.delayedCall(3000, () => wipe.active && this.time.now - armed >= 2900 && (wipe.list[1] as Phaser.GameObjects.Text).setText('START OVER (WIPE ALL)'));
         return;
       }
       tlog.log('start_over');
       store(SAVE_KEY, null);
       store(META_KEY, null);
       location.reload();
-    });
-    c.add(wipe);
-    this.button(c, W / 2, top + 760, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    }, 0.85);
+    // 2) jump to level: every earlier level counts as cleared (2 stars), then the level card opens
+    c.add(this.add.text(W / 2, top + 320, 'JUMP TO LEVEL', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0.5));
+    const lvT = this.add.text(W / 2, top + 400, `${jump}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#e8452c' }).setOrigin(0.5);
+    c.add(lvT);
+    const set = (d: number) => {
+      jump = Math.max(1, Math.min(LEVELS.length, jump + d));
+      lvT.setText(`${jump}`);
+    };
+    ([[-10, 110], [-1, 240], [1, W - 240], [10, W - 110]] as const).forEach(([d, x]) => this.button(c, x, top + 400, 110, d > 0 ? `+${d}` : `${d}`, 0x8a6a4a, () => set(d), 0.7));
+    this.button(c, W / 2, top + 500, 420, 'GO', 0x5fbf4a, () => {
+      const st: Record<string, number> = {};
+      for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
+      m.levelStars = st;
+      m.tutorialDone = true;
+      m.onboarded = true;
+      save();
+      tlog.log('qa_jump', { level: jump });
+      this.openTitle('road');
+      this.openLevelSheet(jump);
+    }, 0.85);
+    // 3) give stuff
+    this.button(c, W / 2, top + 640, 520, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
+      m.units = m.units ?? {};
+      for (const u of UNITS) {
+        m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
+        if (u.slot === 'helper') m.toys[u.id] = m.toys[u.id] ?? false;
+      }
+      save();
+      this.showToast('ALL 13 UNITS AT LEVEL 5');
+    }, 0.8);
+    this.button(c, W / 2, top + 760, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
+      m.bolts = (m.bolts ?? 0) + 2000;
+      m.gems = (m.gems ?? 0) + 500;
+      save();
+      this.showToast('+2000 BOLTS  +500 GEMS');
+    }, 0.8);
+    this.button(c, W / 2, top + 870, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
+      for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) this.giveCrate(k);
+      save();
+      this.showToast('3 CRATES ADDED  ·  UNITS TAB');
+    }, 0.8);
+    this.button(c, W / 2, top + 980, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
