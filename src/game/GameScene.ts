@@ -32,6 +32,8 @@ import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MO
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
+import { applyBundle, exportCode, importCode, META_KEY, readBundle, SAVE_KEY, type SaveBundle } from '../platform/backup';
+import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
@@ -108,8 +110,6 @@ export function computeLayout(viewW: number, viewH: number) {
   return H;
 }
 
-const SAVE_KEY = 'omm.save.v1';
-const META_KEY = 'omm.meta.v1';
 
 interface Meta {
   tutorialDone: boolean;
@@ -128,6 +128,8 @@ interface Meta {
   workshopSeenBolts?: number;
   /** Chapter medals earned (chapter number -> true), r17. */
   medals?: Record<string, boolean>;
+  /** r43 "Back up your progress?" nudge already shown after this chapter clear. */
+  backupNudged?: Record<string, boolean>;
   /** One-time road / card / booster lessons (r17 onboarding). */
   lessons?: Record<string, boolean>;
   /** SAGA progress: best stars per level number, dynamic resources, one-time grants. */
@@ -3496,7 +3498,92 @@ Now beat the real level.`, this.coachY());
     o.list[0].on('pointerup', () => {
       tlog.log('chapter_reward_presented', { chapter });
       o.destroy();
+      this.backupNudge(chapter);
     });
+  }
+
+  /** r43: after a chapter clear, offer a save backup once per chapter (dismissible; never blocks the level-end panel). */
+  backupNudge(chapter: number) {
+    const m = this.meta;
+    if ((m.backupNudged ??= {})[String(chapter)]) return;
+    m.backupNudged[String(chapter)] = true;
+    store(META_KEY, JSON.stringify(m));
+    tlog.log('backup_nudge', { chapter });
+    const o = this.add.container(0, 0).setDepth(140);
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.6).setInteractive();
+    const PH = 440;
+    const top = H / 2 - PH / 2;
+    o.add([dim, this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(40, top - 6, W - 80, PH + 12, 36).fillStyle(0xfbe7c6, 1).fillRoundedRect(46, top, W - 92, PH, 32)]);
+    o.add(this.add.text(W / 2, top + 70, 'BACK UP YOUR PROGRESS?', { fontFamily: 'Lilita One, Arial Black', fontSize: '42px', color: '#3b2533' }).setOrigin(0.5));
+    o.add(this.add.text(W / 2, top + 120, `Chapter ${chapter} done! Your progress lives only on this phone.\nKeep a save code in Notes to get it back anytime.`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    const close = () => o.destroy();
+    dim.on('pointerup', close);
+    this.button(o, W / 2, top + 280, 460, 'COPY SAVE CODE', 0x5fbf4a, () => {
+      close();
+      this.copySaveCode();
+    }, 0.9);
+    this.button(o, W / 2, top + 380, 260, 'NOT NOW', 0x8a6a4a, close, 0.75);
+  }
+
+  /** r43 save backup: the whole save as a code on the clipboard; a select-all text box when the clipboard is refused. */
+  copySaveCode() {
+    if ((this.s.phase === 'playing' || this.s.phase === 'choice') && !this.s.showcase) this.save();
+    store(META_KEY, JSON.stringify(this.meta));
+    const code = exportCode(readBundle(localStorage));
+    void copyText(code).then((ok) => {
+      tlog.log('backup_copy', { clipboard: ok });
+      if (ok) return this.showToast('SAVE CODE COPIED!\nPaste it in Notes to keep it safe');
+      return code.then(
+        (value) => void openCodeBox({ title: 'YOUR SAVE CODE', hint: 'Tap and hold the code, then tap Copy.\nKeep it in Notes or send it to yourself.', value, actions: [{ label: 'DONE', color: '#27a4c0', run: () => undefined }] }),
+        () => this.showToast("COULDN'T MAKE THE CODE"),
+      );
+    });
+  }
+
+  /** r43: paste box -> checked code -> confirm -> the save is replaced and the game reloads. Bad codes never touch the save. */
+  openPasteCode() {
+    openCodeBox({
+      title: 'PASTE SAVE CODE',
+      hint: 'Tap and hold the box, then tap Paste.',
+      placeholder: 'OMM1z.…',
+      actions: [
+        { label: 'CANCEL', color: '#8a6a4a', run: () => undefined },
+        {
+          label: 'LOAD',
+          color: '#5fbf4a',
+          run: async (text) => {
+            const r = await importCode(text);
+            tlog.log('backup_paste', { ok: r.ok, reason: r.ok ? undefined : r.reason });
+            if (!r.ok) return r.message;
+            this.confirmImport(r.bundle);
+          },
+        },
+      ],
+    });
+  }
+
+  confirmImport(b: SaveBundle) {
+    closeCodeBox();
+    const c = this.sheet(620);
+    const top = H / 2 - 310;
+    this.sheetTitle(c, top, 'LOAD THIS SAVE?', 'This replaces your current progress.\nIt cannot be undone.');
+    const sum = (meta: Record<string, unknown>) => {
+      const stars = Object.values((meta.levelStars ?? {}) as Record<string, number>);
+      return `${stars.length} levels  ·  ${stars.reduce((a, x) => a + (Number(x) || 0), 0)} stars  ·  ${Number(meta.bolts) || 0} Bolts`;
+    };
+    const when = b.at ? new Date(b.at).toLocaleDateString() : '';
+    c.add(this.add.text(W / 2, top + 210, `SAVE CODE${when ? ` (${when})` : ''}\n${sum(b.meta)}\n\nNOW ON THIS PHONE\n${sum(this.meta as unknown as Record<string, unknown>)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0));
+    this.button(c, W / 2 - 140, top + 540, 260, 'CANCEL', 0x8a6a4a, () => this.openSettings(), 0.8);
+    this.button(c, W / 2 + 140, top + 540, 260, 'REPLACE', 0xe8452c, () => {
+      tlog.log('backup_restore');
+      tlog.flush();
+      try {
+        applyBundle(localStorage, b);
+      } catch {
+        return this.showToast("COULDN'T SAVE ON THIS PHONE");
+      }
+      location.reload();
+    }, 0.8);
   }
 
   /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
@@ -5171,8 +5258,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   openSettings() {
     sfx.click();
-    const c = this.sheet(800);
-    const top = H / 2 - 400;
+    const c = this.sheet(960);
+    const top = H / 2 - 480;
     this.sheetTitle(c, top, 'SETTINGS');
     const m = this.meta;
     const toggles: [string, () => boolean, () => void][] = [
@@ -5188,15 +5275,19 @@ Merge them into a RANK ${rank}!`, this.coachY());
         (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
       });
     });
-    const pd = this.add.text(W / 2, top + 580, 'Playtest stats', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    // r43 save backup code
+    c.add(this.add.text(W / 2, top + 580, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    this.button(c, W / 2 - 150, top + 640, 360, 'COPY SAVE CODE', 0x5fbf4a, () => this.copySaveCode(), 0.78);
+    this.button(c, W / 2 + 150, top + 640, 360, 'PASTE SAVE CODE', 0x27a4c0, () => this.openPasteCode(), 0.78);
+    const pd = this.add.text(W / 2, top + 710, 'Playtest stats', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     pd.on('pointerup', () => this.openPlaytestStats());
     c.add(pd);
-    const rt = this.add.text(W / 2, top + 640, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const rt = this.add.text(W / 2, top + 762, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     rt.on('pointerup', () => this.startTutorial());
     c.add(rt);
     // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
-    this.button(c, W / 2, top + 700, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
-    this.button(c, W / 2, top + 760, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    this.button(c, W / 2, top + 828, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
+    this.button(c, W / 2, top + 905, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
   }
 
   /** r33 QA panel: start over, jump to any level, give units / currency. */
