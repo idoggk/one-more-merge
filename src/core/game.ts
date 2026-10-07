@@ -137,6 +137,9 @@ export interface GameState {
   bounty?: { id: string; twist: string; date: string; slot: number };
   /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
   rush?: { id: string; slot: number; week: number };
+  /** r42 WORKSHOP PUZZLE (Ido: "like a chess puzzle - win in X moves"): merges allowed, used so far. No clock, no
+   *  supply, no passive fire, no kickback: the board is fully known and only merges act. */
+  puzzle?: { moves: number; used: number; id: string; only?: Family[] };
   /** r40 Endless Road floor this state plays (presentation + rewards only). */
   endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
@@ -558,6 +561,17 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   const bb = bossBlocked(s.boss);
   if (bb.noDrag.has(from) || bb.noDrop.has(to)) return { ok: false, events: ev };
   const b = s.grid[to];
+  if (s.puzzle) {
+    // puzzles: only merges; each one spends a move; out of moves with the machine standing = lost
+    if (!canMerge(a, b, s) || s.puzzle.used >= s.puzzle.moves || (s.puzzle.only && !s.puzzle.only.includes(a.family))) return { ok: false, events: ev };
+    const r = merge(s, from, to);
+    s.puzzle.used++;
+    if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
+      s.phase = 'lost';
+      r.events.push({ type: 'end', won: false });
+    }
+    return r;
+  }
   if (canMerge(a, b, s)) {
     if (s.mergeCd > 0) return { ok: false, events: ev };
     return merge(s, from, to);
@@ -752,7 +766,7 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
     nextWave(s, over, ev);
     return;
   }
-  const final = !!s.remix || s.level !== undefined || s.target === TUNING.targetHp.length - 1;
+  const final = !!s.puzzle || !!s.remix || s.level !== undefined || s.target === TUNING.targetHp.length - 1;
   s.thresholds = 3;
   ev.push({ type: 'kill', target: s.target, final, demo: false });
   if (final) {
@@ -765,6 +779,38 @@ function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource)
   s.pendingDamage = over;
   s.phase = 'choice';
   s.offer = makeOffer(s);
+}
+
+/** r42 Workshop Puzzle definition: a fixed board, the merges allowed and the machine's HP. */
+export interface PuzzleDef {
+  id: string;
+  moves: number;
+  hp: number;
+  /** [family, rank, row, col] */
+  board: [string, number, number, number][];
+  /** Ido: practice rules like "merge only the blue units": the only families you may merge. */
+  only?: string[];
+  /** Unit drill: the unit this puzzle trains (unlocks when owned). */
+  unit?: string;
+  /** One winning line (cell pairs from -> to), used for the hint. */
+  solution: [number, number][];
+  visual?: string;
+}
+
+export function newPuzzle(p: PuzzleDef): GameState {
+  const s = newGame(0x9e3779b1 ^ p.moves, false, false, [], -1, 'cannon');
+  s.grid.fill(null);
+  s.nextId = 1;
+  for (const [fam, rank, r, c] of p.board) s.grid[idxOf(r, c)] = makeGadget(s, fam as Family, rank);
+  s.phase = 'playing';
+  s.target = 0;
+  s.hp = s.maxHp = p.hp;
+  s.timeLeft = 9999;
+  s.noKickback = true;
+  s.noOverdrive = true;
+  s.bag = [];
+  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}) };
+  return s;
 }
 
 /** r33: next machine of the stage (overkill carries over, capped like any hit). The goal machine has no finite HP. */
@@ -817,6 +863,7 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
 /** Advance one fixed 50 ms step. `reserved` = cells deliveries must avoid (drag in progress). */
 export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): GameEvent[] {
   const ev: GameEvent[] = [];
+  if (s.puzzle) return ev; // r42: puzzles have no time
   s.mergeCd = Math.max(0, s.mergeCd - TICK);
   if (s.phase !== 'playing') return ev;
   if (s.itemGrantAt !== undefined && !s.itemGranted && s.elapsed >= s.itemGrantAt) grantItem(s, ev); // r25 explicit teaching grant (goal levels have no HP thresholds)

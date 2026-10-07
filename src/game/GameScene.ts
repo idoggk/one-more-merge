@@ -43,6 +43,8 @@ import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type 
 import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
+import puzzleData from '../content/puzzles.json';
+import { newPuzzle, type PuzzleDef } from '../core/game';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
@@ -151,6 +153,8 @@ interface Meta {
   screwdrivers?: number;
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
+  /** r42 Workshop Puzzles: daily streak + solved drills. */
+  puzzles?: { date?: string; streak: number; lastSolved?: string; drills: string[] };
   /** r41 Workshop Season record. */
   season?: SeasonRec;
   /** r40 Saga Mastery medals: level -> contract indexes completed. */
@@ -655,7 +659,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.puzzle ? `WIN IN ${this.s.puzzle.moves} MERGES` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -1762,7 +1766,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : s.endless ? `FLOOR ${s.endless}` : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.s.goal ? 'GOAL' : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.puzzle ? `${this.puzzleKind === 'drill' ? 'DRILL' : 'PUZZLE'}  \u00b7  WIN IN ${s.puzzle.moves}` : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : s.endless ? `FLOOR ${s.endless}` : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.s.goal ? 'GOAL' : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1825,6 +1829,11 @@ Now beat the real level.`, this.coachY());
       const txt = goal ? `${goal}★ · ${left}s left` : '';
       if (txt !== this.starChase.text) this.starChase.setText(txt).setColor(left <= 5 ? '#ff8a5c' : '#ffcf33');
       this.starChase.setVisible(!!goal);
+    } else if (s.puzzle && s.phase === 'playing') {
+      // r42: the puzzle's rule lives where the star chase usually is
+      const rule = s.puzzle.only ? `ONLY: ${s.puzzle.only.map((f) => FAMILY_INFO[f as 'cannon'].name.toUpperCase().replace('SIGNAL ', '')).join(' + ')}` : 'ANY MERGE';
+      if (this.starChase.text !== rule) this.starChase.setText(rule).setColor('#d9c2ff');
+      this.starChase.setVisible(true);
     } else this.starChase.setVisible(false);
 
     // smooth HP (goal levels: the bar fills with goal progress instead, r23)
@@ -1914,9 +1923,10 @@ Now beat the real level.`, this.coachY());
     this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? `MERGE \u2192 +${earn}` : '');
     this.pendingText.setColor(s.pending.length ? '#9e2416' : '#3b2533').setBackgroundColor(this.pendingText.text && !s.pending.length ? '#fbe7c6' : '').setPadding(this.pendingText.text && !s.pending.length ? 10 : 0, 4);
     const tut = s.phase === 'tutorial';
-    this.scrapZone.setVisible(!tut && !(s.level !== undefined && s.level < 4));
-    this.trayPlate?.setVisible(!tut);
-    for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut);
+    this.scrapZone.setVisible(!tut && !s.puzzle && !(s.level !== undefined && s.level < 4));
+    this.trayPlate?.setVisible(!tut && !s.puzzle);
+    for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut && !s.puzzle);
+    this.hintBtn?.setVisible(!!s.puzzle && s.phase === 'playing');
     const sr = this.scrapRing.clear();
     if (this.dragIdx >= 0 && this.overScrapFlag) {
       const g = s.grid[this.dragIdx];
@@ -2438,6 +2448,15 @@ Now beat the real level.`, this.coachY());
     if (sc) {
       r.fillStyle(0x2b1d2e, 1).fillRoundedRect(W - CLOCK_X - 46, HP_Y - 26, 92, 52, 16);
     }
+    if (s.puzzle) {
+      // r42 puzzles: no time; the ring shows merges left
+      this.timerText.setText('');
+      const left = s.puzzle.moves - s.puzzle.used;
+      r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50).fillStyle(0x8e58c9, 1).fillCircle(CLOCK_X, HP_Y, 40);
+      this.stagePips.setText(`${left}`).setVisible(true).setPosition(CLOCK_X, HP_Y).setFontSize(44);
+      return;
+    }
+    this.stagePips.setPosition(W - CLOCK_X, HP_Y).setFontSize(30);
     if (hidden || s.phase === 'tutorial') return;
     const total = s.levelTime ?? TUNING.runTime;
     const frac = Phaser.Math.Clamp(s.timeLeft / Math.max(1, total), 0, 1);
@@ -3119,6 +3138,7 @@ Now beat the real level.`, this.coachY());
     if (this.s.rush) return this.openRushResult(won);
     if (this.s.bounty) return this.openBountyResult(won);
     if (this.s.endless) return this.openEndlessResult(won);
+    if (this.s.puzzle) return this.openPuzzleResult(won);
     if (this.s.level !== undefined) return this.openLevelResult(won);
     const s = this.s;
     const m = this.meta;
@@ -3513,6 +3533,7 @@ Now beat the real level.`, this.coachY());
     if (hardArg === undefined && this.s.rush) return this.startRush();
     if (hardArg === undefined && this.s.bounty) return this.startBounty(this.s.bounty.slot);
     if (hardArg === undefined && this.s.endless) return this.startEndless();
+    if (hardArg === undefined && this.s.puzzle && this.puzzleDef) return this.startPuzzle(this.puzzleDef, this.puzzleKind);
     if (hardArg === undefined && this.s.level !== undefined) return this.startLevel(this.s.level);
     const hard = hardArg ?? this.s.hard;
     const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
@@ -4251,7 +4272,15 @@ Now beat the real level.`, this.coachY());
     const hrs = 23 - now.getHours();
     const mins = 59 - now.getMinutes();
     const dailyOpen = m.playtestMode ? lv >= 10 : lv >= 3 || m.hardUnlocked;
-    card(330, 220, today ? 'DAILY BENCH ✓' : 'DAILY BENCH', [paid ? 'Bonus collected for today' : "Today's bonus: +8 Bolts +1 Kit", `New bench in ${hrs}h ${mins}m${today ? `  ·  best ${today.targets === 3 ? `${today.time}s` : `${today.targets}/3`}` : ''}`], 0x5fbf4a, dailyOpen, m.playtestMode ? 10 : 3, () => this.startDaily(), ['Classic modes ›', () => (lv >= 5 || m.hardUnlocked ? this.retry(true, -1) : this.showToast('CLASSIC MODES UNLOCK AT LEVEL 5'))]);
+    // r42 DAILY PUZZLE leads the Events tab (Daily Bench + classic modes moved behind "Other modes")
+    const pz = this.puzzleRec();
+    const solvedToday = pz.lastSolved === localDate();
+    const dp = this.dailyPuzzle();
+    card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : 3, () => this.startPuzzle(dp, 'daily'), ['Other modes \u203a', () => this.openOtherModes(lv)]);
+    void today;
+    void paid;
+    void hrs;
+    void mins;
     if (m.playtestMode) {
       this.drawNav(c, 'events');
       return;
@@ -4606,6 +4635,117 @@ Merge them into a RANK ${rank}!`, this.coachY());
       tlog.log('trial_battle', { unit: td.id, left: m.trial.left });
       this.time.delayedCall(900, () => this.showEvent(`TRIAL: ${FAMILY_INFO[td.id as 'cannon'].name.toUpperCase()} LV ${TRIAL_LEVEL}`, '#d9c2ff', 1600));
     }
+  }
+
+  /** r42 WORKSHOP PUZZLES */
+  puzzleDef: PuzzleDef | null = null;
+  puzzleKind: 'daily' | 'drill' = 'daily';
+  hintBtn: Phaser.GameObjects.Container | null = null;
+  static PUZZLES = puzzleData as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+
+  puzzleRec() {
+    return (this.meta.puzzles ??= { streak: 0, drills: [] });
+  }
+
+  dailyPuzzle(): PuzzleDef {
+    const list = GameScene.PUZZLES.daily;
+    return list[Math.floor(Date.now() / 86400000) % list.length];
+  }
+
+  startPuzzle(def: PuzzleDef, kind: 'daily' | 'drill') {
+    this.puzzleDef = def;
+    this.puzzleKind = kind;
+    tlog.log('puzzle_start', { id: def.id, kind });
+    this.startState(newPuzzle(def));
+    // puzzles are exact: unit levels never change them
+    this.s.unitMult = {};
+    this.s.unitLevel = {};
+    if (!this.hintBtn) {
+      const hb = this.add.container(SCRAP_X - 10, TRAY_Y).setDepth(30);
+      hb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-80, -36, 160, 72, 20).fillStyle(0x8e58c9, 1).fillRoundedRect(-76, -32, 152, 64, 17));
+      hb.add(this.add.text(0, 0, 'HINT', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffffff' }).setOrigin(0.5));
+      hb.add(this.add.zone(0, 0, 160, 72).setInteractive({ useHandCursor: true }).on('pointerup', () => this.puzzleHint()));
+      this.hintBtn = hb;
+    }
+    const rule = def.only ? `Merge ONLY ${def.only.map((f) => FAMILY_INFO[f as 'cannon'].name).join(' + ')}.` : 'Any merge counts.';
+    this.time.delayedCall(300, () =>
+      this.explain(`puzzle_${def.id}`, [{ text: `WIN IN ${def.moves} MERGES\nDeal ${fmt(def.hp)} damage. ${rule}\nNo clock - plan your chain!`, spots: [], y: TRAY_Y - 40 }]),
+    );
+  }
+
+  /** Restart and point at the first move of the stored solution. */
+  puzzleHint() {
+    if (!this.puzzleDef) return;
+    sfx.click();
+    tlog.log('puzzle_hint', { id: this.puzzleDef.id });
+    const def = this.puzzleDef;
+    this.startState(newPuzzle(def));
+    this.s.unitMult = {};
+    this.s.unitLevel = {};
+    this.hintPair = def.solution[0];
+    this.showEvent('HINT: merge the glowing pair first', '#d9c2ff', 2200);
+  }
+
+  openPuzzleResult(won: boolean) {
+    const m = this.meta;
+    const pz = this.puzzleRec();
+    const def = this.puzzleDef!;
+    const lines: string[] = [];
+    if (won && this.puzzleKind === 'daily' && pz.lastSolved !== localDate()) {
+      const yesterday = new Date(Date.now() - 86400000);
+      const y = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+      pz.streak = pz.lastSolved === y ? pz.streak + 1 : 1;
+      pz.lastSolved = localDate();
+      m.bolts = (m.bolts ?? 0) + 40;
+      m.gems = (m.gems ?? 0) + 3;
+      lines.push('+40 BOLTS  +3 GEMS', `STREAK: ${pz.streak} day${pz.streak > 1 ? 's' : ''}`);
+    } else if (won && this.puzzleKind === 'drill' && !pz.drills.includes(def.id)) {
+      pz.drills.push(def.id);
+      m.bolts = (m.bolts ?? 0) + 25;
+      if (def.unit) this.applyCards([{ unit: def.unit as Family, count: 2, isNew: false }]);
+      lines.push(`+25 BOLTS  +2 ${FAMILY_INFO[def.unit as 'cannon'].name.toUpperCase()} CARDS`);
+    } else if (won) lines.push('Solved again - nice!');
+    store(META_KEY, JSON.stringify(m));
+    tlog.log('puzzle_end', { id: def.id, won });
+    const c = this.panel(640);
+    const top = H / 2 - 320;
+    c.add(this.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    const nextDrill = won && this.puzzleKind === 'drill' && def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
+    if (nextDrill) this.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => this.startPuzzle(nextDrill, 'drill'), 0.95);
+    else if (!won) {
+      this.button(c, W / 2 - 130, top + 440, 240, 'TRY AGAIN', 0xe8452c, () => this.startPuzzle(def, this.puzzleKind), 0.85);
+      this.button(c, W / 2 + 130, top + 440, 240, 'HINT', 0x8e58c9, () => (this.closeModal(), this.puzzleHint()), 0.85);
+    }
+    this.button(c, W / 2, top + 550, 260, this.puzzleKind === 'drill' ? 'UNITS' : 'EVENTS', 0x27a4c0, () => this.openTitle(this.puzzleKind === 'drill' ? 'units' : 'events'), 0.78);
+  }
+
+  /** r42 Unit Drills list for a unit (unlocked when owned). */
+  openDrills(u: UnitDef) {
+    this.closeModal();
+    const pz = this.puzzleRec();
+    const list = GameScene.PUZZLES.drills[u.id] ?? [];
+    const PH = 300 + list.length * 130;
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    this.sheetTitle(c, top, `${FAMILY_INFO[u.id as 'cannon'].name.toUpperCase()} DRILLS`, 'Puzzles that train this unit. +2 of its cards each.');
+    list.forEach((p, i) => {
+      const done = pz.drills.includes(p.id);
+      const rule = p.only ? `only ${p.only.map((f) => FAMILY_INFO[f as 'cannon'].name).join(' + ')}` : 'any merge';
+      this.button(c, W / 2, top + 200 + i * 130, 520, `${done ? '\u2713 ' : ''}DRILL ${i + 1}  \u00b7  WIN IN ${p.moves}  \u00b7  ${rule}`, done ? 0x5fbf4a : 0x8e58c9, () => this.startPuzzle(p, 'drill'), 0.7);
+    });
+    this.button(c, W / 2, top + PH - 80, 240, 'BACK', 0x8a6a4a, () => this.openUnitDetail(u), 0.75);
+  }
+
+  openOtherModes(lv: number) {
+    this.closeModal();
+    const m = this.meta;
+    const c = this.sheet(560);
+    const top = H / 2 - 280;
+    this.sheetTitle(c, top, 'OTHER MODES', 'Daily Bench and the classic modes.');
+    this.button(c, W / 2, top + 210, 440, 'DAILY BENCH', 0x5fbf4a, () => this.startDaily(), 0.85);
+    this.button(c, W / 2, top + 320, 440, 'CHALLENGE', 0xe8452c, () => (lv >= 5 || m.hardUnlocked ? this.retry(true, -1) : this.showToast('UNLOCKS AT LEVEL 5')), 0.85);
+    this.button(c, W / 2, top + 430, 440, 'REMIX', 0x27a4c0, () => (lv >= 10 || m.hardUnlocked ? this.openRemixPicker() : this.showToast('UNLOCKS AT LEVEL 10')), 0.85);
   }
 
   /** r41 Workshop Season: today's record (rolled to the current day / week / season). */
@@ -5260,7 +5400,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
         this.button(c, W / 2, top + 960, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
       }
     }
-    this.button(c, W / 2, top + 1100, 280, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
+    // r42 Unit Drills (Ido: "challenges connected to a unit when we unlock it")
+    const drills = GameScene.PUZZLES.drills[u.id] ?? [];
+    if (this.ownsUnit(u.id) && drills.length) {
+      const done = drills.filter((p) => this.puzzleRec().drills.includes(p.id)).length;
+      this.button(c, W / 2 - 150, top + 1100, 260, `DRILLS ${done}/${drills.length}`, 0x8e58c9, () => this.openDrills(u), 0.8);
+      this.button(c, W / 2 + 150, top + 1100, 240, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
+    } else this.button(c, W / 2, top + 1100, 280, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
     tlog.log('unit_detail', { unit: u.id, owned });
   }
 
@@ -5316,6 +5462,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
   applyCards(cards: CrateCard[]) {
     const m = this.meta;
     m.units = m.units ?? {};
+    // r42: a newly unlocked unit opens its drills
+    const fresh = cards.filter((cd) => cd.isNew && (GameScene.PUZZLES.drills[cd.unit] ?? []).length && !this.ownsUnit(cd.unit));
+    if (fresh.length) this.time.delayedCall(2600, () => this.showToast(`NEW DRILLS: ${fresh.map((cd) => FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()).join(', ')} (UNIT PAGE)`));
     for (const cd of cards) {
       const st = (m.units[cd.unit] = m.units[cd.unit] ?? { level: 0, cards: 0 });
       if (st.level === 0) {
