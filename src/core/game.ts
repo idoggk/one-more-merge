@@ -2,7 +2,7 @@ import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
-import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
+import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 import { isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
@@ -104,6 +104,8 @@ export interface GameState {
   noOverdrive?: boolean;
   /** Chapter boss fight (r20): levels 10/20/30/40/50/60. */
   boss?: BossState | null;
+  /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
+  rush?: { id: string; slot: number; week: number };
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
   goal?: { kind: 'rank' | 'chain'; n: number; best: number } | null;
   /** r23 chain shield: undefined = no shield; otherwise elapsed time until which it is open. */
@@ -237,7 +239,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   }
   const miniIdx = def.mini_boss ? BOSSES.findIndex((x) => x.id === def.mini_boss) : -1;
   if ((def.level % 10 === 0 && !def.teach) || miniIdx >= 0) {
-    const bi = miniIdx >= 0 ? miniIdx : def.level / 10 - 1;
+    const bi = miniIdx >= 0 ? miniIdx : chapterBossIdx(def.level);
     s.boss = { def: bi, next: 0, pending: null, active: null, phaseShown: 0, ...(miniIdx >= 0 ? { mini: true } : {}) };
     s.remix = null;
     s.masked = [];
@@ -492,11 +494,34 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     if (s.mergeCd > 0) return { ok: false, events: ev };
     return merge(s, from, to);
   }
+  // r29 terrain + links (Oil Otter / Portal Possum / Rivet Rhino): resolve where a manual move really lands
+  const act = s.boss?.active;
+  const atk = s.boss && act ? castAttack(s.boss, act) : null;
+  if (atk === 'tow' && act?.ids?.includes(a.id)) {
+    const partnerId = act.ids.find((i) => i !== a.id)!;
+    const pf = s.grid.findIndex((g) => g?.id === partnerId);
+    const dr = Math.floor(to / COLS) - Math.floor(from / COLS), dc = (to % COLS) - (from % COLS);
+    const pr = Math.floor(pf / COLS) + dr, pc = (pf % COLS) + dc;
+    const pt = pr * COLS + pc;
+    const okCell = (c: number, r: number, cc: number) => r >= 0 && r < ROWS && cc >= 0 && cc < COLS && !lk.has(c) && !bb.noDrop.has(c) && (!s.grid[c] || s.grid[c]!.id === a.id || s.grid[c]!.id === partnerId);
+    if (b || pf < 0 || !okCell(pt, pr, pc)) return { ok: false, events: ev }; // all-or-nothing; occupied drops bounce
+    const pg = s.grid[pf]!;
+    s.grid[from] = null;
+    s.grid[pf] = null;
+    s.grid[to] = a;
+    s.grid[pt] = pg;
+    ev.push({ type: 'move', from, to, swap: false }, { type: 'move', from: pf, to: pt, swap: false });
+    return { ok: true, events: ev };
+  }
+  let land = to;
+  if (!b && act?.cells && (atk === 'slick' || atk === 'portals') && act.cells[0] === to) land = act.cells[1];
+  else if (!b && act?.cells && atk === 'portals' && act.cells[1] === to) land = act.cells[0];
+  if (land !== to && (s.grid[land] || lk.has(land) || bb.noDrop.has(land))) land = to;
   // move / swap never fire anything
-  s.grid[to] = a;
+  s.grid[land] = a;
   s.grid[from] = b;
-  ev.push({ type: 'move', from, to, swap: !!b });
-  ev.push(...bossAfterPlayer(s.boss, to, [])); // r27: parking a machine on the bomb defuses it
+  ev.push({ type: 'move', from, to: land, swap: !!b });
+  ev.push(...bossAfterPlayer(s.boss, land, [])); // r27: parking a machine on the bomb defuses it
   return { ok: true, events: ev };
 }
 
@@ -508,6 +533,10 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   if (a.primed || b.primed) g.primed = true; // primer transfers (OR), never stacks
   const inherit = b.item ?? a.item; // r25: one attachment transfers; with two, the destination's survives
   if (inherit) g.item = { ...inherit };
+  // r29: merging a towed machine releases the tow bar; ransom markers move onto the result
+  const ta = s.boss?.active;
+  if (s.boss && ta && castAttack(s.boss, ta) === 'tow' && ta.ids?.some((i) => i === a.id || i === b.id)) s.boss.active = null;
+  bossRelabel(s.boss, [a.id, b.id], g.id);
   s.grid[from] = null;
   s.grid[to] = g;
   s.stats.merges++;
@@ -545,6 +574,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   }
   applyDamage(s, result.total, ev, 'player');
   if (s.phase === 'playing') ev.push(...bossAfterPlayer(s.boss, -1, result.activations.map((x) => x.idx))); // r27 defuse / clear blocks
+  if (s.phase === 'playing') ev.push(...bossRansomCheck(s.boss, result.activations.map((x) => x.id))); // r29 time ransom
   checkGoal(s, ev, g.rank, result.count, to);
   return { ok: true, events: ev };
 }
@@ -721,7 +751,17 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 
   // Remix attacks (resolve before deliveries; warnings wait for falling Kickback parts)
   if (s.remix) ev.push(...remixTick(s.remix, s.grid, s.elapsed, s.drops.length === 0, new Set([...reserved, ...dropReserved(s)])));
-  if (s.boss) ev.push(...bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)])));
+  if (s.boss) {
+    const be = bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)]));
+    // r29 TIME RANSOM: an unsaved ransom takes 2 s from the clock and counts as 2 s more for stars
+    for (const e of be)
+      if (e.type === 'bossRansom' && !e.saved) {
+        const cost = Math.min(RANSOM_COST, s.timeLeft);
+        s.timeLeft -= cost;
+        s.elapsed += cost;
+      }
+    ev.push(...be);
+  }
 
   // Supply
   admitPending(s, reserved, ev);

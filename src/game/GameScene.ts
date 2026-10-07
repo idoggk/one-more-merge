@@ -33,8 +33,9 @@ import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
-import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, type BossAttack } from '../core/boss';
+import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
+import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 
 export const W = 720;
 const CELL = 124;
@@ -109,6 +110,8 @@ interface Meta {
   shooter?: Family;
   /** Simplified configuration for the stranger playtest (ChatGPT r21). */
   playtestMode?: boolean;
+  /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
+  rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[] };
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
   swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
@@ -160,7 +163,7 @@ function dailySeed(date: string) {
 /** Which stage backdrop the Workshop preview shows: the previewed stage item, else the equipped one. */
 const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
 /** Telegraph icon per attack (v17 boss icons + v19 mini-boss icons). */
-const ATTACK_ICON: Record<BossAttack, string> = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split', bomb: 'btg_bomb', conveyor: 'btg_conveyor', mirror: 'btg_mirror', blocks: 'btg_blocks', pull: 'btg_pull', bounce: 'btg_bounce' };
+const ATTACK_ICON: Record<BossAttack, string> = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split', bomb: 'btg_bomb', conveyor: 'btg_conveyor', mirror: 'btg_mirror', blocks: 'btg_blocks', pull: 'btg_pull', bounce: 'btg_bounce', slick: 'btg_slick', portals: 'btg_portals', tow: 'btg_tow', ransom: 'btg_ransom' };
 const warnColor = (atk: string) => ({ clamp: 0x8e58c9, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 })[atk] ?? 0xff684a;
 const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
@@ -676,7 +679,8 @@ export class GameScene extends Phaser.Scene {
     const hit = (cx: number, ry: number) =>
       atk === 'frost' || atk === 'rest' || atk === 'conveyor' ? ry === 0 : atk === 'hot' ? cx === 2 : atk === 'clamp' || atk === 'suction' ? cx === 1 && ry === 0
       : atk === 'bomb' ? cx === 2 && ry === 1 : atk === 'mirror' ? (cx === 0 && ry === 0) || (cx === 4 && ry === 1) : atk === 'blocks' ? (cx === 2 || cx === 4) && ry === 1
-      : atk === 'pull' ? cx === 3 && ry <= 1 : atk === 'bounce' ? (cx === 1 && ry === 1) || (cx === 4 && ry === 0) : false;
+      : atk === 'pull' ? cx === 3 && ry <= 1 : atk === 'bounce' ? (cx === 1 && ry === 1) || (cx === 4 && ry === 0)
+      : atk === 'slick' ? cx === 2 && ry === 1 : atk === 'portals' ? (cx === 0 && ry === 0) || (cx === 4 && ry === 1) : atk === 'tow' ? (cx === 1 || cx === 2) && ry === 0 : atk === 'ransom' ? (cx === 0 && ry === 0) || (cx === 3 && ry === 1) : false;
     const dots: [number, number][] = [[0, 0], [1, 0], [3, 0], [2, 1], [4, 1], [0, 1]];
     for (let ry = 0; ry < 2; ry++)
       for (let cx = 0; cx < 5; cx++) {
@@ -1657,7 +1661,7 @@ Now beat the real level.`, this.coachY());
       this.headerText.setFontSize(fs);
       while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
     }
-    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `L${s.level} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+    this.headerText.setText(demo ? 'WARM-UP' : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
     // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
     const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
     if (capOk && !this.capsuleBtn) {
@@ -1710,7 +1714,7 @@ Now beat the real level.`, this.coachY());
     this.timerText.setColor(s.timeLeft < 15 && !demo ? '#d8261a' : '#3b2533');
     this.practiceText.setVisible(s.practice && !demo);
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
-    const ldef = s.level !== undefined && !s.showcase ? LEVELS[s.level - 1] : undefined;
+    const ldef = s.level !== undefined && !s.showcase && !s.rush ? LEVELS[s.level - 1] : undefined;
     if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
     if (ldef && s.phase === 'playing' && !demo) {
       const [g2, g3] = starGoals(ldef);
@@ -1983,6 +1987,8 @@ Now beat the real level.`, this.coachY());
             this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
             // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card
+          } else if (bd && this.meta.tips.x_boss && !this.meta.tips[`xb_${e.attack}`]) {
+            this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
           } else if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]); // r22: bubble in the bottom lane, clear of stage and board
           break;
         }
@@ -1995,6 +2001,21 @@ Now beat the real level.`, this.coachY());
             this.chunks.explode(8, q.x, q.y);
           }
           tlog.log('boss_defuse', { attack: e.attack });
+          break;
+        }
+        case 'bossRansom': {
+          const rb = this.s.boss;
+          const tc = cellXY(rb?.pending?.cells?.[0] ?? 12);
+          if (e.saved) {
+            sfx.merge?.(4);
+            this.floatText(tc.x, tc.y - 40, 'TIME SAVED!', '#8ef08a', 44, 500);
+          } else {
+            sfx.invalid();
+            this.shake(140, 0.004);
+            this.floatText(this.timerText.x - 60, this.timerText.y + 60, `-${e.cost}s`, '#ff684a', 48, 400);
+            this.showEvent('TIME TAKEN!', '#ffd2c8', 1200);
+          }
+          tlog.log('boss_ransom', { saved: e.saved });
           break;
         }
         case 'bossFinal': {
@@ -2054,7 +2075,7 @@ Now beat the real level.`, this.coachY());
               this.floatText(cp.x, cp.y - 30, 'DODGED!', '#8ef08a', 44, 500);
               tlog.log('boss_dodge', { attack: e.attack });
             } else {
-              const nm = ({ clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!' } as Record<string, string>)[e.attack] ?? 'WHIFF';
+              const nm = ({ clamp: 'CLAMPED!', frost: 'FROZEN!', hot: 'HOT!', rest: 'RESTING!', split: 'SPLIT!', suction: 'MISSED!', slick: e.outcome === 'hit' ? 'OIL!' : 'WHIFF', portals: e.outcome === 'hit' ? 'PORTALS!' : 'WHIFF', tow: e.outcome === 'hit' ? 'LINKED!' : 'WHIFF', ransom: '' } as Record<string, string>)[e.attack] ?? 'WHIFF';
               // the lane is busy with the attack line, so the hit word pops on the board where it happened
               const tc = e.target.cells?.[0] ?? (e.target.row !== undefined ? e.target.row * COLS + 2 : e.target.col !== undefined ? 2 * COLS + e.target.col : 2 * COLS + 2);
               const cp = cellXY(tc);
@@ -2857,6 +2878,7 @@ Now beat the real level.`, this.coachY());
 
   openResult(won: boolean) {
     if (this.modal) this.closeModal();
+    if (this.s.rush) return this.openRushResult(won);
     if (this.s.level !== undefined) return this.openLevelResult(won);
     const s = this.s;
     const m = this.meta;
@@ -3170,6 +3192,7 @@ Now beat the real level.`, this.coachY());
   retry(hardArg?: boolean, remixArg?: number) {
     // "again" (ONE MORE / RESTART, no args) repeats the same mode; a Daily repeats today's bench
     if (hardArg === undefined && this.s.daily) return this.startDaily();
+    if (hardArg === undefined && this.s.rush) return this.startRush();
     if (hardArg === undefined && this.s.level !== undefined) return this.startLevel(this.s.level);
     const hard = hardArg ?? this.s.hard;
     const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
@@ -3178,6 +3201,99 @@ Now beat the real level.`, this.coachY());
     this.meta.tutorialDone = true;
     store(META_KEY, JSON.stringify(this.meta));
     this.startState(newGame(Date.now() >>> 0, false, hard, this.activeToys(), remixTarget, this.teamShooter()));
+  }
+
+  /** r29 Boss Rush pools: beaten mini-bosses and chapter bosses (null until L20 + 1 mini + 2 bosses are beaten). */
+  rushEligible(): { minis: string[]; bosses: string[] } | null {
+    const stars = this.meta.levelStars ?? {};
+    const beat = (n: number) => (stars[String(n)] ?? 0) > 0;
+    if (!beat(20)) return null;
+    const minis = LEVELS.filter((d) => d.mini_boss && beat(d.level)).map((d) => d.mini_boss!);
+    const bosses = LEVELS.filter((d) => d.level % 10 === 0 && beat(d.level)).map((d) => BOSSES[chapterBossIdx(d.level)].id);
+    return minis.length >= 1 && bosses.length >= 2 ? { minis, bosses } : null;
+  }
+
+  rushRun: { i: number; times: number[] } | null = null;
+  startRush() {
+    const el = this.rushEligible();
+    if (!el) return this.showToast('BEAT LEVEL 20, A MINI-BOSS AND TWO BOSSES');
+    const wk = weekId();
+    const m = this.meta;
+    if (!m.rush || m.rush.week !== wk) m.rush = { ...(m.rush ?? {}), week: wk, course: rushCourse(wk, el.minis, el.bosses)!, granted: 0, best: undefined };
+    store(META_KEY, JSON.stringify(m));
+    this.rushRun = { i: 0, times: [] };
+    tlog.log('rush_enter', { week: wk, course: m.rush.course });
+    this.startRushFight(0);
+  }
+
+  startRushFight(i: number) {
+    this.closeModal();
+    const r = this.meta.rush!;
+    const s = newRushFight(r.course[i], i, r.week);
+    tlog.log('rush_fight_start', { index: i, opponent: r.course[i] });
+    this.startState(s);
+    this.showEvent(`BOSS RUSH  \u00b7  FIGHT ${i + 1} OF 3`, '#d9c2ff', 2000);
+  }
+
+  openRushResult(won: boolean) {
+    const m = this.meta;
+    const r = m.rush!;
+    const run = this.rushRun ?? { i: this.s.rush!.slot, times: [] };
+    const id = this.s.rush!.id;
+    if (won) {
+      run.times.push(this.s.elapsed);
+      r.stamps = { ...(r.stamps ?? {}), [id]: true };
+      tlog.log('rush_fight_finish', { index: run.i, opponent: id, clear_time: +this.s.elapsed.toFixed(1) });
+    }
+    const cleared = run.times.length;
+    const done = !won || cleared >= 3;
+    // weekly cumulative Bolts: only the positive difference is paid
+    const due = cleared ? RUSH_REWARDS[cleared - 1] : 0;
+    const delta = Math.max(0, due - (r.granted ?? 0));
+    if (delta) {
+      m.bolts = (m.bolts ?? 0) + delta;
+      r.granted = due;
+    }
+    const firstMedal = cleared >= 3 && !r.medal;
+    if (cleared >= 3) {
+      r.medal = true;
+      r.weeks = [...new Set([...(r.weeks ?? []), r.week])];
+    }
+    const total = run.times.reduce((a, b) => a + b, 0);
+    if (done && cleared && (!r.best || cleared > r.best.fights || (cleared === r.best.fights && total < r.best.time))) r.best = { fights: cleared, time: total };
+    store(META_KEY, JSON.stringify(m));
+    const c = this.panel(760);
+    const top = H / 2 - 380;
+    c.add(this.add.text(W / 2, top + 64, done ? (cleared >= 3 ? 'RUSH COMPLETE!' : 'RUSH OVER') : `FIGHT ${cleared} CLEARED!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: cleared >= 3 ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    r.course.forEach((bid, k) => {
+      const x = W / 2 + (k - 1) * 190, y = top + 230;
+      const key = `boss_${bid}_intact`;
+      if (this.hasArt(key)) {
+        const im = this.add.image(x, y, key);
+        im.setScale(140 / Math.max(im.width, im.height));
+        if (k >= cleared) im.setTint(k === cleared && !done ? 0xffffff : 0x2b1d2e).setAlpha(k === cleared && !done ? 1 : 0.6);
+        c.add(im);
+      }
+      if (k < cleared) c.add(this.add.text(x + 50, y + 50, '✓', { fontFamily: 'Arial Black', fontSize: '44px', color: '#2a8a3a', stroke: '#fff0cf', strokeThickness: 6 }).setOrigin(0.5));
+      c.add(this.add.text(x, y + 96, BOSSES.find((b) => b.id === bid)?.name ?? '', { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#3b2533', align: 'center', wordWrap: { width: 180 } }).setOrigin(0.5, 0));
+    });
+    const lines = [`${cleared} of 3 fights  \u00b7  ${total.toFixed(1)}s`, delta ? `+${delta} BOLTS` : `This week: ${r.granted}/${RUSH_REWARDS[2]} Bolts`];
+    if (firstMedal) lines.push('BOSS RUSH MEDAL EARNED!');
+    c.add(this.add.text(W / 2, top + 400, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    if (!done) {
+      const nextId = r.course[cleared];
+      this.button(c, W / 2, top + 600, 440, 'NEXT FIGHT', 0x5fbf4a, () => {
+        run.i = cleared;
+        this.rushRun = run;
+        this.startRushFight(cleared);
+      });
+      c.add(this.add.text(W / 2, top + 545, `Next: ${BOSSES.find((b) => b.id === nextId)?.name ?? ''}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    } else {
+      this.button(c, W / 2 - 120, top + 640, 220, 'AGAIN', 0x5fbf4a, () => this.startRush(), 0.85);
+      this.button(c, W / 2 + 120, top + 640, 220, 'HOME', 0x27a4c0, () => this.quitHome(), 0.85);
+      tlog.log('rush_attempt_end', { completed: cleared, total: +total.toFixed(1) });
+      if (delta) tlog.log('rush_settle', { delta, week: r.week });
+    }
   }
 
   /** Daily Bench (ChatGPT r11): today's validated seed, normal rules, no helper toy, unlimited retries. */
@@ -3498,7 +3614,7 @@ Now beat the real level.`, this.coachY());
         const tag = this.add.text(x + side * (size / 2 + 12), y, def.mini_boss ? 'MINI-BOSS' : isB ? 'BOSS' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isB ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
         road.add(tag);
         // r28: the boss waiting there (a silhouette until it is beaten)
-        const bd = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : isB ? BOSSES[n / 10 - 1] : undefined;
+        const bd = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : isB ? BOSSES[chapterBossIdx(n)] : undefined;
         const pk = bd ? `boss_${bd.id}_intact` : '';
         if (pk && this.hasArt(pk)) {
           const pi = this.add.image(tag.x + side * (tag.width + 46), y - 6, pk);
@@ -3574,7 +3690,9 @@ Now beat the real level.`, this.coachY());
       { name: 'ARCADE', fill: 0xb9a7d8, accent: 0x795aa8 },
       { name: 'MUSIC ATTIC', fill: 0xdec29a, accent: 0xb08042 },
       { name: 'SCRAPYARD', fill: 0xbac5cd, accent: 0x66818e },
-    ][(chapter - 1) % 6];
+      { name: 'PACKING DEPOT', fill: 0xd9c08f, accent: 0x9a7240 },
+      { name: 'OBSERVATORY', fill: 0xaab4d8, accent: 0x52608f },
+    ][(chapter - 1) % 8];
     strip.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-(W - 60) / 2 - 3, -33, W - 54, 66, 22).fillStyle(CH.fill, 1).fillRoundedRect(-(W - 60) / 2, -30, W - 60, 60, 20).fillStyle(CH.accent, 1).fillRoundedRect(-(W - 60) / 2, -30, 14, 60, { tl: 20, bl: 20, tr: 0, br: 0 }));
     strip.add(this.add.text(-(W - 60) / 2 + 30, 0, `CH ${chapter} \u00b7 ${CH.name}  \u00b7  ${doneInCh}/10`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#302b35' }).setOrigin(0, 0.5));
     if (this.hasArt('chest_closed')) {
@@ -3640,6 +3758,10 @@ Now beat the real level.`, this.coachY());
       this.drawNav(c, 'events');
       return;
     }
+    // r29 BOSS RUSH card (before the older modes)
+    const rushOpen = this.rushEligible();
+    const rw = m.rush?.week === weekId() ? m.rush.granted : 0;
+    card(1160, 240, 'BOSS RUSH', ['3 fights in a row  \u00b7  fresh boards', `This week: ${rw}/${RUSH_REWARDS[2]} Bolts${m.rush?.medal ? '  \u00b7  medal ✓' : ''}`], 0x8e58c9, !!rushOpen, 20, () => this.startRush());
     card(640, 240, 'CHALLENGE', ['3 monsters, one 135s clock, tougher.', 'No boosters. Pure skill.'], 0xe8452c, lv >= 5 || m.hardUnlocked, 5, () => this.retry(true, -1), ['Classic run ›', () => this.retry(false, -1)]);
     card(900, 240, 'REMIX', ['One big junk monster with a', 'board-attacking trick.'], 0x27a4c0, lv >= 10 || m.hardUnlocked, 10, () => this.openRemixPicker());
     this.drawNav(c, 'events');
@@ -3673,7 +3795,7 @@ Now beat the real level.`, this.coachY());
     c.add(this.add.text(W / 2, top + 64, `LEVEL ${n}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
     if (diff) c.add(this.add.text(W / 2, top + 112, diff, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: isBoss ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 12, y: 4 } }).setOrigin(0.5));
     const ti = MONSTER_INDEX[def.monster] ?? 0;
-    const bossDef = miniDef ?? (isBoss ? BOSSES[(n / 10 - 1) % BOSSES.length] : null);
+    const bossDef = miniDef ?? (isBoss ? BOSSES[chapterBossIdx(n)] : null);
     const castV = !bossDef ? this.castOf(n) : undefined;
     const tk = bossDef && this.hasArt(`boss_${bossDef.id}_intact`) ? `boss_${bossDef.id}_intact` : castV ? `mon_${castV}` : `target_${ti}`;
     if (this.textures.exists(tk)) {
@@ -3943,7 +4065,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     for (const d of LEVELS) {
       const n = d.level;
       const mini = d.mini_boss ? BOSSES.find((x) => x.id === d.mini_boss) : undefined;
-      const boss = !mini && n % 10 === 0 ? BOSSES[n / 10 - 1] : undefined;
+      const boss = !mini && n % 10 === 0 ? BOSSES[chapterBossIdx(n)] : undefined;
       const b = mini ?? boss;
       const cv = !b ? this.castOf(n) : undefined;
       const key = b ? `boss_${b.id}` : cv ? `cast_${cv}` : `mon_${d.monster}`;
@@ -3991,6 +4113,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
       if (!e.beaten) c.add(this.add.text(x, y - 10, '?', { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#fff0cf' }).setOrigin(0.5));
       c.add(this.add.text(x, y + 116, e.beaten || met ? e.name : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: 176 }, lineSpacing: -4 }).setOrigin(0.5, 1));
+      if (this.meta.rush?.stamps?.[e.id.replace(/^boss_/, '')]) c.add(this.add.text(x + 62, y - 100, 'RUSH', { fontFamily: 'Lilita One, Arial Black', fontSize: '18px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 6, y: 2 } }).setOrigin(0.5).setAngle(12));
       c.add(this.add.text(x, y + 130, e.beaten ? `beaten  \u00b7  L${e.level}` : `level ${e.level}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: e.beaten ? '#2a8a3a' : '#7a5a4a' }).setOrigin(0.5));
     });
     if (pages > 1) {
@@ -4513,6 +4636,33 @@ Merge them into a RANK ${rank}!`, this.coachY());
   remixIcons: Phaser.GameObjects.Image[] = [];
   remixText!: Phaser.GameObjects.Text;
 
+  /** r29 active terrain: oil puddle + arrow, two portal discs, a tow bar that follows the linked machines. */
+  drawTerrain(atk: BossAttack, tgt: { cells?: number[] }, idsCells: number[], g: Phaser.GameObjects.Graphics) {
+    const img = (key: string, c: number, size: number, k: number) => {
+      const name = `terrain_${k}`;
+      let im = this.remixIcons.find((x) => x.name === name);
+      if (!im) this.remixIcons.push((im = this.add.image(0, 0, 'dot').setName(name).setDepth(9)));
+      if (!this.hasArt(key)) return im.setVisible(false);
+      const { x, y } = cellXY(c);
+      im.setTexture(key).setVisible(true).setPosition(x, y + 8).setAlpha(0.9);
+      im.setScale(size / Math.max(im.width, im.height));
+      return im;
+    };
+    const t = this.time.now;
+    if (atk === 'slick' && tgt.cells) {
+      img('prop_oil', tgt.cells[0], CELL - 10, 0);
+      const f = cellXY(tgt.cells[0]), to = cellXY(tgt.cells[1]);
+      g.lineStyle(6, 0x6fd3ff, 0.9).lineBetween(f.x, f.y, (f.x + to.x) / 2, (f.y + to.y) / 2);
+    } else if (atk === 'portals' && tgt.cells) {
+      img('prop_portal_cyan', tgt.cells[0], CELL - 8, 0).setAngle(t / 6);
+      img('prop_portal_violet', tgt.cells[1], CELL - 8, 1).setAngle(-t / 6);
+    } else if (atk === 'tow' && idsCells.length === 2) {
+      const a = cellXY(idsCells[0]), b = cellXY(idsCells[1]);
+      g.lineStyle(14, 0x2b1d2e, 1).lineBetween(a.x, a.y, b.x, b.y).lineStyle(8, 0xc0a070, 1).lineBetween(a.x, a.y, b.x, b.y);
+      for (const q of [a, b]) g.fillStyle(0x2b1d2e, 1).fillCircle(q.x, q.y, 10).fillStyle(0xffd24a, 1).fillCircle(q.x, q.y, 6);
+    }
+  }
+
   drawRemix() {
     const r = this.s.remix;
     if (!this.remixG) {
@@ -4545,9 +4695,12 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const tgt = bs.active ?? bs.pending!;
       const warn = !bs.active;
       const pulse = warn ? 0.55 + 0.45 * Math.abs(Math.sin(this.time.now / 250)) : 0.9;
-      const cellsOf = (): number[] => (tgt.cells ? tgt.cells : tgt.row !== undefined ? [0, 1, 2, 3, 4].map((c) => tgt.row! * COLS + c) : tgt.col !== undefined ? [0, 1, 2, 3, 4, 5].map((r) => r * COLS + tgt.col!) : []);
+      const byIds = tgt.ids ? tgt.ids.map((id) => this.s.grid.findIndex((g) => g?.id === id)).filter((i) => i >= 0) : null;
+      const cellsOf = (): number[] => (byIds ? byIds : tgt.cells ? tgt.cells : tgt.row !== undefined ? [0, 1, 2, 3, 4].map((c) => tgt.row! * COLS + c) : tgt.col !== undefined ? [0, 1, 2, 3, 4, 5].map((r) => r * COLS + tgt.col!) : []);
       const coral = 0xff684a, plum = 0x6a3a8a;
-      for (const c of cellsOf()) {
+      const terrain = !warn && (atk === 'slick' || atk === 'portals' || atk === 'tow');
+      if (terrain) this.drawTerrain(atk, tgt, byIds ?? [], g);
+      for (const c of terrain ? [] : cellsOf()) {
         const { x, y } = cellXY(c);
         const x0 = x - CELL / 2 + 6, y0 = y - CELL / 2 + 6, sz = CELL - 12;
         if (warn) {
@@ -4571,6 +4724,15 @@ Merge them into a RANK ${rank}!`, this.coachY());
         g.lineStyle(9, 0x2b1d2e, 0.8 * pulse).lineBetween(f.x, f.y, ex, ey).lineStyle(5, color, pulse).lineBetween(f.x, f.y, ex, ey);
         g.fillStyle(color, pulse).fillTriangle(ex + Math.cos(ang) * 16, ey + Math.sin(ang) * 16, ex + Math.cos(ang + 2.4) * 14, ey + Math.sin(ang + 2.4) * 14, ex + Math.cos(ang - 2.4) * 14, ey + Math.sin(ang - 2.4) * 14);
       };
+      if (warn && (atk === 'slick' || atk === 'portals') && tgt.cells) {
+        if (atk === 'slick') arrow(tgt.cells[0], tgt.cells[1], 0x6fd3ff);
+        else for (const c of tgt.cells) { const q = cellXY(c); g.lineStyle(5, 0x6fd3ff, pulse).strokeCircle(q.x, q.y, CELL / 2 - 14); }
+      }
+      if (warn && (atk === 'tow' || atk === 'ransom') && byIds && byIds.length === 2) {
+        const a1 = cellXY(byIds[0]), a2 = cellXY(byIds[1]);
+        if (atk === 'tow') g.lineStyle(10, 0x2b1d2e, 0.7 * pulse).lineBetween(a1.x, a1.y, a2.x, a2.y).lineStyle(6, 0xffd2c8, pulse).lineBetween(a1.x, a1.y, a2.x, a2.y);
+        else for (const q of [a1, a2]) g.fillStyle(0xffcf33, pulse).fillCircle(q.x + CELL / 2 - 20, q.y - CELL / 2 + 20, 14).lineStyle(3, 0x2b1d2e, 1).strokeCircle(q.x + CELL / 2 - 20, q.y - CELL / 2 + 20, 14);
+      }
       if (warn && (atk === 'pull' || atk === 'bounce') && tgt.cells) {
         arrow(tgt.cells[0], tgt.cells[1]);
         const d = cellXY(tgt.cells[1]);

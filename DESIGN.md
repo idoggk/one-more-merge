@@ -256,3 +256,9 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - One backdrop per chapter (stage_ch1..6: kitchen, laundry, garage, arcade, music attic, scrapyard dusk).
 - MONSTER BOOK on the MACHINE tab: monsters / mini-bosses / bosses, silhouettes until beaten, "met at" level.
 - Fight music modes: mini-boss (bouncy), boss (phrygian + stab), final phase (faster).
+
+### Round 29 — chapters 7-8, Boss Rush, QA smoke, stronger items, faster load
+- **Chapters 7-8 (L61-80)**: Packing Depot + Observatory Salvage backdrops, cast Parcel Pup / Pallet Pal / Telescope Toad / Radar Rascal (art v21). New attacks (docs/ROUND29_CHAPTER_7_8_RULES.md): Oil Otter SLICK (manual drops on the oil slide one cell along the arrow, 4 s), Rivet Rhino TOW BAR (two linked machines move together, all-or-nothing; merging either releases), Portal Possum PORTALS (a drop on an empty portal exits at the other), Chrono Chimera TIME RANSOM (wake both marked machines in one player chain or lose 2 s, which also counts for stars). Ch.7-8 minis also escalate in their last third (Otter+CONVEYOR, Possum+MIRROR); bosses Rhino+SLICK, Chimera+PORTALS. Chapter boss by `CHAPTER_BOSS`/`chapterBossIdx`.
+- **Boss Rush** (EVENTS; L20 + 1 mini + 2 bosses beaten): weekly seeded course (beaten mini, then two beaten bosses), fresh boards with event rules (rank cap 6, copy cap 4, no helpers/Rocket/boosters), HP fitted per boss/slot to 85/80/75% (`tools/rush-fit.ts` → rush.json), cumulative weekly Bolts 8/18/40 (only the delta is paid), permanent medal on first full course, gold RUSH stamps in the Monster Book.
+- `tools/smoke-levels.mjs` plays every level in the real scene and reports page errors (found + fixed a hit-face crash). `tools/item-check.ts` showed items worth +1% for random play → OVERCHARGE x2, SPARK/CORNER 2 uses.
+- Boss / cast / chapter-stage art loads after the first frame.

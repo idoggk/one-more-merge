@@ -5,7 +5,7 @@
 import { COLS, ROWS } from '../content/tuning';
 import { isShooter, type Grid } from './types';
 
-export type BossAttack = 'clamp' | 'frost' | 'suction' | 'hot' | 'rest' | 'split' | 'bomb' | 'conveyor' | 'mirror' | 'blocks' | 'pull' | 'bounce';
+export type BossAttack = 'clamp' | 'frost' | 'suction' | 'hot' | 'rest' | 'split' | 'bomb' | 'conveyor' | 'mirror' | 'blocks' | 'pull' | 'bounce' | 'slick' | 'portals' | 'tow' | 'ransom';
 export interface BossDef {
   id: string;
   name: string;
@@ -32,7 +32,15 @@ export const BOSSES: BossDef[] = [
   { id: 'brick_printer', name: 'BRICK PRINTER', attack: 'blocks', mini: true, copy: 'Fire beside junk blocks to clear them.' },
   { id: 'scrap_kraken', name: 'SCRAP KRAKEN', attack: 'pull', mini: true, copy: 'It pulls a marked machine one cell upward.' },
   { id: 'spring_jack', name: 'SPRING JACK', attack: 'bounce', mini: true, copy: 'The marked machine bounces to the empty circle.' },
+  // r29 chapters 7-8 (ChatGPT CHAPTER_7_8_RULES): minis now also escalate in their last third
+  { id: 'oil_otter', name: 'OIL OTTER', attack: 'slick', second: 'conveyor', mini: true, copy: 'Drops on oil slide one cell along the arrow.' },
+  { id: 'rivet_rhino', name: 'RIVET RHINO', attack: 'tow', second: 'slick', copy: 'Linked machines move together. Merge either to release them.' },
+  { id: 'portal_possum', name: 'PORTAL POSSUM', attack: 'portals', second: 'mirror', mini: true, copy: 'Empty portals let you move a machine across the board.' },
+  { id: 'chrono_chimera', name: 'CHRONO CHIMERA', attack: 'ransom', second: 'portals', copy: 'Wake both marked machines in one chain to protect the clock.' },
 ];
+/** Chapter bosses by chapter (level 10 * k). */
+export const CHAPTER_BOSS = ['tin_can_king', 'fridge_overlord', 'viper_queen', 'twin_toasters', 'piano_saurus_rex', 'junkzilla', 'rivet_rhino', 'chrono_chimera'];
+export const chapterBossIdx = (level: number) => BOSSES.findIndex((b) => b.id === CHAPTER_BOSS[(level / 10 - 1) % CHAPTER_BOSS.length]);
 export const ATTACK_COPY: Record<BossAttack, { what: string; why: string }> = {
   clamp: { what: 'CLAMP', why: 'marked machine gets stuck' },
   frost: { what: 'FROST', why: 'no parts land here' },
@@ -46,7 +54,12 @@ export const ATTACK_COPY: Record<BossAttack, { what: string; why: string }> = {
   blocks: { what: 'JUNK', why: 'fire beside blocks to clear' },
   pull: { what: 'PULL UP', why: 'move it or block the arrow' },
   bounce: { what: 'BOUNCE', why: 'it jumps to the circle' },
+  slick: { what: 'OIL', why: 'drops slide along the arrow' },
+  portals: { what: 'PORTALS', why: 'a shortcut across your board' },
+  tow: { what: 'TOW BAR', why: 'two machines move together' },
+  ransom: { what: 'TIME RANSOM', why: 'wake both in one chain' },
 };
+export const RANSOM_COST = 2;
 export const BOSS_CLOCK = 90;
 export const BOSS_FIRST = 8;
 export const BOSS_EVERY = 12;
@@ -56,6 +69,8 @@ const DURATION = [2, 3, 4];
 export interface BossTarget {
   /** r27: which attack this cast is (chapter bosses alternate two in the final phase). */
   attack?: BossAttack;
+  /** r29 tow / ransom: the marked machines' ids (fixed at warning time). */
+  ids?: number[];
   cells?: number[];
   row?: number;
   col?: number;
@@ -84,6 +99,7 @@ export type BossEvent =
   | { type: 'bossHit'; attack: BossAttack; target: BossTarget; removedIds?: number[]; moves?: { from: number; to: number; id: number }[]; outcome: 'hit' | 'whiff' }
   | { type: 'bossDefuse'; attack: BossAttack; cells: number[] }
   | { type: 'bossFinal'; second: BossAttack }
+  | { type: 'bossRansom'; saved: boolean; cost: number }
   | { type: 'bossEnd'; attack: BossAttack }
   | { type: 'bossPhase'; phase: number };
 
@@ -112,6 +128,22 @@ export function bossPendingCells(b: BossState | null | undefined): number[] {
 
 /** r27: cells covered by junk blocks (treated as locked by the game). */
 export const bossBlockCells = (b: BossState | null | undefined): number[] => (b?.blocks ?? []).map((x) => x.cell);
+
+/** r29 TIME RANSOM: a player cascade that activates both marked ids disarms it. */
+export function bossRansomCheck(b: BossState | null | undefined, activatedIds: number[]): BossEvent[] {
+  const p = b?.pending;
+  if (!b || !p || castAttack(b, p) !== 'ransom' || !p.ids) return [];
+  const [x, y] = p.ids;
+  if (x === y || (activatedIds.includes(x) && activatedIds.includes(y))) {
+    b.pending = null;
+    return [{ type: 'bossRansom', saved: true, cost: 0 }];
+  }
+  return [];
+}
+/** r29: a manual merge moves ransom / tow markers onto the result id. */
+export function bossRelabel(b: BossState | null | undefined, oldIds: number[], newId: number) {
+  for (const t of [b?.pending, b?.active]) if (t?.ids) t.ids = t.ids.map((i) => (oldIds.includes(i) ? newId : i));
+}
 
 /** r27: a player move into the bomb cell, or a player cascade activating its neighbour, defuses it; activations beside junk blocks clear them. */
 export function bossAfterPlayer(b: BossState | null | undefined, movedTo: number, activated: number[]): BossEvent[] {
@@ -195,6 +227,46 @@ function pickNew(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, b: B
     const s0 = src.reduce((a, i) => (grid[i]!.rank > grid[a]!.rank ? i : a));
     return { attack: atk, cells: [s0, s0 - COLS] };
   }
+  if (atk === 'slick') {
+    // empty cell with the most occupied neighbours that has an empty eligible neighbour; arrow = first of U, R, D, L
+    for (const c of all.filter((i) => empty(i) && nOcc(i) >= 1).sort((x, y) => nOcc(y) - nOcc(x) || x - y)) {
+      const d = orth(c).find((n) => empty(n) && [c - COLS, c + 1, c + COLS, c - 1].includes(n));
+      const dir = [c - COLS, c + 1, c + COLS, c - 1].find((n) => orth(c).includes(n) && empty(n));
+      if (d !== undefined && dir !== undefined) return { attack: atk, cells: [c, dir] };
+    }
+    return null;
+  }
+  if (atk === 'portals') {
+    const em = all.filter(empty);
+    let best: [number, number] | null = null, bd = 3;
+    for (let x = 0; x < em.length; x++)
+      for (let y = x + 1; y < em.length; y++) {
+        const d = Math.abs(rowOf(em[x]) - rowOf(em[y])) + Math.abs(colOf(em[x]) - colOf(em[y]));
+        if (d > bd) [best, bd] = [[em[x], em[y]], d];
+      }
+    return best ? { attack: atk, cells: best } : null;
+  }
+  if (atk === 'tow') {
+    let best: [number, number] | null = null, bs = -1;
+    for (const i of all.filter(full))
+      for (const n of [i + 1, i + COLS]) {
+        if (n >= grid.length || (n === i + 1 && colOf(n) === 0) || !full(n)) continue;
+        const sum = grid[i]!.rank + grid[n]!.rank;
+        if (sum > bs) [best, bs] = [[i, n], sum];
+      }
+    return best ? { attack: atk, cells: best, ids: best.map((i) => grid[i]!.id) } : null;
+  }
+  if (atk === 'ransom') {
+    const occ = all.filter(full);
+    let best: [number, number] | null = null, bs = -1;
+    for (let x = 0; x < occ.length; x++)
+      for (let y = x + 1; y < occ.length; y++) {
+        const A = grid[occ[x]]!, B = grid[occ[y]]!;
+        if (A.family === B.family) continue;
+        if (A.rank + B.rank > bs) [best, bs] = [[occ[x], occ[y]], A.rank + B.rank];
+      }
+    return best ? { attack: atk, cells: best, ids: best.map((i) => grid[i]!.id) } : null;
+  }
   // bounce: most-surrounded machine to the farthest empty cell
   const src = best(all.filter(full), nOcc);
   if (src < 0) return null;
@@ -204,7 +276,7 @@ function pickNew(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, b: B
 }
 
 function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: number, b?: BossState): BossTarget | null {
-  if (atk === 'bomb' || atk === 'conveyor' || atk === 'mirror' || atk === 'blocks' || atk === 'pull' || atk === 'bounce') return pickNew(atk, grid, blocked, b!);
+  if (['bomb', 'conveyor', 'mirror', 'blocks', 'pull', 'bounce', 'slick', 'portals', 'tow', 'ransom'].includes(atk)) return pickNew(atk, grid, blocked, b!);
   const occ = grid.map((g, i) => ({ g, i })).filter((x) => x.g && !blocked.has(x.i));
   if (atk === 'clamp') {
     if (!occ.length) return null;
@@ -271,11 +343,11 @@ function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: 
 export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>): BossEvent[] {
   const ev: BossEvent[] = [];
   const def = BOSSES[b.def];
-  const ph = b.light ? 0 : bossPhase(hp, maxHp);
+  const ph = b.light || (b.mini && !def.second) ? 0 : bossPhase(hp, maxHp);
   if (ph > b.phaseShown) {
     b.phaseShown = ph;
     ev.push({ type: 'bossPhase', phase: ph });
-    if (ph === 2 && def.second && !b.mini) ev.push({ type: 'bossFinal', second: def.second });
+    if (ph === 2 && def.second) ev.push({ type: 'bossFinal', second: def.second });
   }
   // r27 junk blocks expire after 8 s
   if (b.blocks?.length) b.blocks = b.blocks.filter((x) => x.until > elapsed + 1e-9);
@@ -324,6 +396,20 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
       const placed = p.cells!.filter((c) => !grid[c] && !bl.has(c));
       b.blocks = [...(b.blocks ?? []), ...placed.map((cell) => ({ cell, until: elapsed + 8 }))];
       ev.push({ type: 'bossHit', attack: atk, target: { ...p, cells: placed }, outcome: placed.length ? 'hit' : 'whiff' });
+    } else if (atk === 'slick' || atk === 'portals') {
+      // terrain for 4 s; both cells must still be empty or the cast whiffs (slick only needs its source empty)
+      const [x, y] = p.cells!;
+      const ok = !grid[x] && !bl.has(x) && (atk === 'slick' || (!grid[y] && !bl.has(y)));
+      if (ok) b.active = { ...p, until: elapsed + 4 };
+      ev.push({ type: 'bossHit', attack: atk, target: p, outcome: ok ? 'hit' : 'whiff' });
+    } else if (atk === 'tow') {
+      const [x, y] = p.cells!;
+      const ok = grid[x]?.id === p.ids![0] && grid[y]?.id === p.ids![1] && !bl.has(x) && !bl.has(y);
+      if (ok) b.active = { ...p, until: elapsed + 4 };
+      ev.push({ type: 'bossHit', attack: atk, target: p, outcome: ok ? 'hit' : 'whiff' });
+    } else if (atk === 'ransom') {
+      ev.push({ type: 'bossRansom', saved: false, cost: RANSOM_COST }); // the game takes the time
+      ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'hit' });
     } else if (atk === 'pull' || atk === 'bounce') {
       const [from, to] = p.cells!;
       if (grid[from] && !bl.has(from) && !grid[to] && !bl.has(to)) {
@@ -351,12 +437,12 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
     b.next++;
     if (!b.pending && !b.active) {
       // r27 final phase: alternate the chapter's mini-boss attack (second first), never overlapping a persistent hazard
-      const useSecond = !!def.second && !b.mini && !b.light && ph === 2 && (b.alt ?? 0) % 2 === 0;
+      const useSecond = !!def.second && !b.light && ph === 2 && (b.alt ?? 0) % 2 === 0;
       const atk = useSecond ? def.second! : def.attack;
       const hazardLeft = useSecond && (b.blocks?.length ?? 0) > 0;
       const t = hazardLeft ? null : pick(atk, grid, new Set([...blocked, ...bossBlockCells(b)]), b.mini ? 0 : ph, b);
       if (t) {
-        if (def.second && ph === 2 && !b.mini && !b.light) b.alt = (b.alt ?? 0) + 1;
+        if (def.second && ph === 2 && !b.light) b.alt = (b.alt ?? 0) + 1;
         b.pending = { ...t, attack: atk, deadline: elapsed + BOSS_WARN, phase: b.mini ? 0 : ph };
         ev.push({ type: 'bossWarn', attack: atk, target: t, deadline: b.pending.deadline });
       }

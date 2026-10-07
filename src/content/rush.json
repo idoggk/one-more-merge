@@ -1,0 +1,82 @@
+{
+  "tin_can_king": [
+    0,
+    19450,
+    19600
+  ],
+  "fridge_overlord": [
+    0,
+    19700,
+    19800
+  ],
+  "viper_queen": [
+    0,
+    23300,
+    19450
+  ],
+  "twin_toasters": [
+    0,
+    18950,
+    19950
+  ],
+  "piano_saurus_rex": [
+    0,
+    19150,
+    19150
+  ],
+  "junkzilla": [
+    0,
+    17300,
+    17750
+  ],
+  "pressure_popper": [
+    13000,
+    0,
+    0
+  ],
+  "carousel_crab": [
+    13350,
+    0,
+    0
+  ],
+  "vanity_moth": [
+    12300,
+    0,
+    0
+  ],
+  "brick_printer": [
+    12800,
+    0,
+    0
+  ],
+  "scrap_kraken": [
+    12400,
+    0,
+    0
+  ],
+  "spring_jack": [
+    11200,
+    0,
+    0
+  ],
+  "oil_otter": [
+    13900,
+    0,
+    0
+  ],
+  "rivet_rhino": [
+    0,
+    19650,
+    19900
+  ],
+  "portal_possum": [
+    12350,
+    0,
+    0
+  ],
+  "chrono_chimera": [
+    0,
+    20900,
+    20400
+  ]
+}

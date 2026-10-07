@@ -1546,6 +1546,426 @@
         53,
         26
       ]
+    },
+    {
+      "level": 61,
+      "monster": "tin_can",
+      "hp": 13450,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150061,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "parcel_pup",
+      "star_times": [
+        45,
+        31
+      ]
+    },
+    {
+      "level": 62,
+      "monster": "tin_can",
+      "hp": 30000,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150062,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "pallet_pal",
+      "goal": {
+        "kind": "rank",
+        "n": 6
+      },
+      "star_times": [
+        21,
+        8
+      ]
+    },
+    {
+      "level": 63,
+      "monster": "mad_fridge",
+      "hp": 14800,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150063,
+      "ordinary_copy_rank_cap": 7,
+      "behaviour": "shield",
+      "star_times": [
+        47,
+        26
+      ]
+    },
+    {
+      "level": 64,
+      "monster": "tin_can",
+      "hp": 11600,
+      "time_seconds": 75,
+      "modifier": "GAPS",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150064,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "parcel_pup",
+      "star_times": [
+        45,
+        26
+      ]
+    },
+    {
+      "level": 65,
+      "monster": "tin_can",
+      "hp": 30000,
+      "time_seconds": 90,
+      "modifier": "NONE",
+      "difficulty": "HARD",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150065,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "pallet_pal",
+      "goal": {
+        "kind": "chain",
+        "n": 22
+      },
+      "start_extra": [
+        [
+          "fan",
+          1,
+          2,
+          1
+        ]
+      ],
+      "star_times": [
+        59,
+        44
+      ]
+    },
+    {
+      "level": 66,
+      "monster": "tin_can",
+      "hp": 13450,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150066,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "parcel_pup",
+      "star_times": [
+        41,
+        23
+      ]
+    },
+    {
+      "level": 67,
+      "monster": "tin_can",
+      "hp": 30000,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150067,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "pallet_pal",
+      "goal": {
+        "kind": "rank",
+        "n": 7
+      },
+      "start_extra": [
+        [
+          "magnet",
+          1,
+          2,
+          2
+        ]
+      ],
+      "star_times": [
+        31,
+        29
+      ]
+    },
+    {
+      "level": 68,
+      "monster": "toaster_twins",
+      "hp": 13550,
+      "time_seconds": 60,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150068,
+      "ordinary_copy_rank_cap": 7,
+      "mini_boss": "oil_otter",
+      "star_times": [
+        43,
+        20
+      ]
+    },
+    {
+      "level": 69,
+      "monster": "tin_can",
+      "hp": 12750,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150069,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "parcel_pup",
+      "start_extra": [
+        [
+          "battery",
+          1,
+          4,
+          3
+        ]
+      ],
+      "star_times": [
+        44,
+        28
+      ]
+    },
+    {
+      "level": 70,
+      "monster": "junkzilla",
+      "hp": 31750,
+      "time_seconds": 90,
+      "modifier": "NONE",
+      "difficulty": "MEGA_HARD",
+      "boss_node": true,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150070,
+      "ordinary_copy_rank_cap": 7,
+      "star_times": [
+        62,
+        34
+      ]
+    },
+    {
+      "level": 71,
+      "monster": "toaster_twins",
+      "hp": 13450,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150071,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "telescope_toad",
+      "star_times": [
+        37,
+        22
+      ]
+    },
+    {
+      "level": 72,
+      "monster": "toaster_twins",
+      "hp": 30000,
+      "time_seconds": 90,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150072,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "radar_rascal",
+      "goal": {
+        "kind": "chain",
+        "n": 18
+      },
+      "start_extra": [
+        [
+          "battery",
+          1,
+          4,
+          3
+        ]
+      ],
+      "star_times": [
+        47,
+        35
+      ]
+    },
+    {
+      "level": 73,
+      "monster": "vacuum_viper",
+      "hp": 15700,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150073,
+      "ordinary_copy_rank_cap": 7,
+      "behaviour": "suction",
+      "star_times": [
+        43,
+        34
+      ]
+    },
+    {
+      "level": 74,
+      "monster": "toaster_twins",
+      "hp": 30000,
+      "time_seconds": 90,
+      "modifier": "CORNERS_2",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150074,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "telescope_toad",
+      "goal": {
+        "kind": "rank",
+        "n": 8
+      },
+      "star_times": [
+        59,
+        10
+      ]
+    },
+    {
+      "level": 75,
+      "monster": "toaster_twins",
+      "hp": 30000,
+      "time_seconds": 90,
+      "modifier": "NONE",
+      "difficulty": "HARD",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150075,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "radar_rascal",
+      "goal": {
+        "kind": "chain",
+        "n": 21
+      },
+      "star_times": [
+        51,
+        38
+      ]
+    },
+    {
+      "level": 76,
+      "monster": "toaster_twins",
+      "hp": 16400,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150076,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "telescope_toad",
+      "shooter": "rocket",
+      "star_times": [
+        31,
+        12
+      ]
+    },
+    {
+      "level": 77,
+      "monster": "mad_fridge",
+      "hp": 15500,
+      "time_seconds": 75,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150077,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "radar_rascal",
+      "behaviour": "frost",
+      "star_times": [
+        47,
+        29
+      ]
+    },
+    {
+      "level": 78,
+      "monster": "toaster_twins",
+      "hp": 15000,
+      "time_seconds": 60,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150078,
+      "ordinary_copy_rank_cap": 7,
+      "mini_boss": "portal_possum",
+      "star_times": [
+        48,
+        20
+      ]
+    },
+    {
+      "level": 79,
+      "monster": "toaster_twins",
+      "hp": 30000,
+      "time_seconds": 90,
+      "modifier": "NONE",
+      "difficulty": "NORMAL",
+      "boss_node": false,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150079,
+      "ordinary_copy_rank_cap": 7,
+      "visual": "telescope_toad",
+      "goal": {
+        "kind": "rank",
+        "n": 7
+      },
+      "star_times": [
+        27,
+        20
+      ]
+    },
+    {
+      "level": 80,
+      "monster": "junkzilla",
+      "hp": 33000,
+      "time_seconds": 90,
+      "modifier": "NONE",
+      "difficulty": "MEGA_HARD",
+      "boss_node": true,
+      "starting_board": "PAIR8",
+      "starting_rank": 2,
+      "seed": 150080,
+      "ordinary_copy_rank_cap": 7,
+      "star_times": [
+        72,
+        29
+      ]
     }
   ]
 }

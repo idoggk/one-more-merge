@@ -53,6 +53,12 @@ const states = {
   cast41: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(41); sc.finishIntro(true); }, 1500],
   cast52: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(52); sc.finishIntro(true); }, 1500],
   road24: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 37 }, (_, i) => [i + 1, 2])), lessons: { road: true, card: true, boosters: true } }); sc.openTitle('road'); }, 1200],
+  c7slick: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(68); sc.finishIntro(true); }, 11500],
+  c7tow: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(70); sc.finishIntro(true); }, 11500],
+  c8portal: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(78); sc.finishIntro(true); }, 11500],
+  c8ransom: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(80); sc.finishIntro(true); }, 9700],
+  rushcard: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = {}; Object.assign(sc.meta, { levelStars: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [i + 1, 2])) }); sc.openTitle('events'); }, 1000],
+  rushend: [(sc) => { sc.startRush(); sc.rushRun.times = [31.2]; sc.s.elapsed = 28.4; sc.s.phase = 'won'; sc.openRushResult(true); }, 1200],
   s3_level1_entry: [(sc) => { sc.startLevel(1); }, 900],
   s4_level1_result: [
     (sc) => {

@@ -58,6 +58,10 @@ export const CAST: Record<string, { name: string; short: string }> = {
   accordion_imp: { name: 'ACCORDION IMP', short: 'IMP' },
   wheelie_warthog: { name: 'WHEELIE WARTHOG', short: 'WARTHOG' },
   satellite_scuttler: { name: 'SATELLITE SCUTTLER', short: 'SCUTTLER' },
+  parcel_pup: { name: 'PARCEL PUP', short: 'PUP' },
+  pallet_pal: { name: 'PALLET PAL', short: 'PALLET' },
+  telescope_toad: { name: 'TELESCOPE TOAD', short: 'TOAD' },
+  radar_rascal: { name: 'RADAR RASCAL', short: 'RASCAL' },
 };
 
 /** Monster name -> target index (art + names in TARGET_NAMES). */
