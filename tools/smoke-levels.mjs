@@ -50,10 +50,12 @@ for (let n = from; n <= to; n++) {
     }, 300);
   }, n);
   await wait(secs * 1000);
-  const st = await page.evaluate(() => {
+  const st = await page.evaluate((process_env_debug) => {
     const s = window.__omm.game.scene.getScene('game').s;
-    return `${s.phase} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.stage ? ` machine ${s.stage.i + 1}/${s.stage.hps.length + (s.stage.goal ? 1 : 0)}` : ''}${s.boss && !s.boss.light ? ' BOSS' : ''}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}`;
-  });
+    const sc = window.__omm.game.scene.getScene('game');
+    const flags = process_env_debug ? ` [paused=${sc.paused} modal=${!!sc.modal} expl=${sc.explaining} intro=${sc.introActive} guided=${!!sc.guided} item=${!!sc.itemLesson} wait=${sc.tutorialWaiting} coach=${sc.coach?.waitingTap}]` : '';
+    return `${s.phase}${flags} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.stage ? ` machine ${s.stage.i + 1}/${s.stage.hps.length + (s.stage.goal ? 1 : 0)}` : ''}${s.boss && !s.boss.light ? ' BOSS' : ''}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}`;
+  }, !!process.env.DEBUGFLAGS);
   console.log(`L${n} ${st}`);
 }
 console.log(errors.length ? errors.join('\n') : 'NO ERRORS');

@@ -301,3 +301,9 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Generator: random plates -> a covering-respecting removal order -> coloured in triples (= toolbox queue) -> nearby colour swaps so the tray matters -> kept only if a sensible greedy player clears it (tests: yards 1-24 all solvable). Probe (`tools/yard-probe.ts`): a random tapper wins 100% of yard 1-3, 67% of yard 8, 12% of yard 20.
 - Weekly event (week = Rush week): yard n = this week's clears + 1, seed = week*1000+n (a retry is the same pile). 8 tiers at 1/3/5/8/11/14/17/20 clears: 60 Bolts, 10 Gems, Wood crate, 200 Bolts, Iron crate, 30 Gems, Iron crate, GRAND PRIZE Gold crate + an epic unit card (a missing one first). Every clear also pays 15+3n Bolts.
 - Screwdrivers (1 per attempt; 3 to start): +1 level win, +1 Bounty win, +2 Rush fight, +1 Daily bonus. EVENTS card replaces Classic modes (now a link on the Daily card); opens after level 4.
+
+### Round 37 — polish + safety
+- Screw Yard: square corner-screw panels (25% of plates), toolbox handles, rivets, "1 SLOT LEFT!" tray warning; EVENTS tab dot while an attempt waits; level 4 announces the event; results show the screwdriver.
+- First stage of a player's life explains the HUD once (clock ring + machine counter), before anything moves.
+- Distinct procedural placeholders for the six r32 units until ChatGPT's sprites land.
+- Bug: the boss-wake banner / name plate read the live boss 0.4-1.5 s later; beating it in that window crashed the update loop. They now capture the boss when it wakes. Found by `FASTKILL=1 node tools/smoke-levels.mjs` (pushes every level through its machine, goal and boss transitions).

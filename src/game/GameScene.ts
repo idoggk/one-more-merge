@@ -2889,8 +2889,7 @@ Now beat the real level.`, this.coachY());
     });
   }
   /** Boss name plate over the stage (run intro, and r33 when a stage's boss wakes after its minions). */
-  bossNameCard() {
-    const bd = BOSSES[this.realBoss!.def];
+  bossNameCard(bd = BOSSES[this.realBoss!.def]) {
     const card = this.add.container(W / 2, STAGE_TOP + STAGE_H - 60).setDepth(85);
     if (this.hasArt('boss_card')) {
       const pl = this.add.image(0, 0, 'boss_card');
@@ -2914,10 +2913,11 @@ Now beat the real level.`, this.coachY());
         // r33: the boss wakes after its minions
         sfx.panelBreak(0);
         this.softFlash(0x2b1d2e, 0.35, 260);
-        this.time.delayedCall(380, () => this.bossNameCard());
-        this.time.delayedCall(1500, () => this.showEvent(BOSSES[this.realBoss!.def].mini ? 'MINI-BOSS!' : 'BOSS!', '#ffcf33', 1200));
-        // r34 onboarding: the first time a boss wakes, stop the clock and show its attack on a board diagram
+        // r37: capture the boss now (it can already be beaten when the delayed calls fire)
         const bd = BOSSES[this.realBoss.def];
+        this.time.delayedCall(380, () => this.bossNameCard(bd));
+        this.time.delayedCall(1500, () => this.s.phase === 'playing' && this.showEvent(bd.mini ? 'MINI-BOSS!' : 'BOSS!', '#ffcf33', 1200));
+        // r34 onboarding: the first time a boss wakes, stop the clock and show its attack on a board diagram
         this.time.delayedCall(1700, () =>
           this.explain(`xb_wake_${bd.id}`, [
             {
@@ -3165,6 +3165,7 @@ Now beat the real level.`, this.coachY());
         parts.push(`${firstClear ? 'First clear' : 'Level'} +${lvB}`);
         m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin; // r36 Screw Yard ticket
         if (firstClear && n === YARD_UNLOCK) lines.push('NEW EVENT: SCREW YARD!  (EVENTS tab)');
+        else if (n > YARD_UNLOCK) lines.push(`+${SCREWDRIVERS.levelWin} screwdriver for the Screw Yard`);
         if (stB) parts.push(`Stars +${stB}`);
         if (firstClear && rw.free_jumpstart && !grants[`kit${n}`]) {
           grants[`kit${n}`] = true;
