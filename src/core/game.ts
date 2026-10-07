@@ -4,7 +4,7 @@ import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
-import { isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
+import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
 
@@ -106,6 +106,9 @@ export interface GameState {
   boss?: BossState | null;
   /** r32 unit levels as damage multipliers per family (set by the scene from the collection). */
   unitMult?: Partial<Record<Family, number>>;
+  unitLevel?: Partial<Record<Family, number>>;
+  /** r32 squad relays: Relay A takes the Coil cells / bag share, Relay B the Bell ones. */
+  relays?: [Family, Family];
   /** r30 Monster Bounty fight (daily; results go to the bounty flow). */
   bounty?: { id: string; twist: string; date: string; slot: number };
   /** r29 Boss Rush fight (event rules; results go to the Rush flow, not the saga). */
@@ -196,10 +199,15 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
 
 /** The run's shooter family (Cannon unless the team picked Rocket). */
 export const shooterOf = (s: GameState): Family => s.shooter ?? 'cannon';
+/** r32: the squad's relay in slot 0 (Coil's place) or 1 (Bell's place). */
+export const relayOf = (s: GameState, k: 0 | 1): Family => s.relays?.[k] ?? (k === 0 ? 'coil' : 'bell');
+/** Map a template family (cannon / coil / bell) onto the squad. */
+const squadFam = (s: GameState, f: string): Family => (f === 'shooter' || f === 'cannon' ? shooterOf(s) : f === 'coil' ? relayOf(s, 0) : f === 'bell' ? relayOf(s, 1) : (f as Family));
 
 /** A SAGA level (ChatGPT r15): one monster, one clock, PAIR8 starting board at the level's starting rank. */
-export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Family; jumpstart?: boolean } = {}): GameState {
+export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Family; jumpstart?: boolean; relays?: [Family, Family] } = {}): GameState {
   const s = newGame(def.seed, false, false, opts.toys ?? [], -1, (def.shooter as Family | undefined) ?? opts.shooter ?? 'cannon');
+  if (opts.relays && !def.teach) s.relays = opts.relays;
   s.level = def.level;
   s.levelTime = def.time_seconds;
   s.timeLeft = def.time_seconds;
@@ -217,7 +225,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     s.bag = [];
   } else
     for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
-      for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'shooter' ? shooterOf(s) : (fam as Family), def.starting_rank);
+      for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, squadFam(s, fam), def.starting_rank);
   // (r17: the L21/L41 high-rank showcase moved to an optional practice intro; ordinary levels use chapter starters)
   // Jumpstart Kit: the designated starter shooter pair (4,1),(4,2) arrives one rank higher. No shot, no merge.
   if (opts.jumpstart) {
@@ -250,7 +258,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     s.timeLeft = s.levelTime = miniIdx >= 0 ? def.time_seconds : BOSS_CLOCK;
     // second PAIR8 set at seeded empty cells (same families and rank)
     const extra: Family[] = [];
-    for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][]) for (let k = 0; k < cells.length; k++) extra.push(fam === 'shooter' ? shooterOf(s) : (fam as Family));
+    for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][]) for (let k = 0; k < cells.length; k++) extra.push(squadFam(s, fam));
     const rng = new Rng(def.seed ^ 0xb055);
     const empties = s.grid.map((g, i) => (g ? -1 : i)).filter((i) => i >= 0);
     rng.shuffle(empties);
@@ -367,7 +375,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!TUNING.matchShare) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= capOf(s, g.family) || !(isShooter(g.family) || g.family === 'coil' || g.family === 'bell')) continue;
+    if (!g || g.rank >= capOf(s, g.family) || !(isShooter(g.family) || isRelay(g.family))) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -405,7 +413,7 @@ function refillBag(s: GameState) {
   const rng = new Rng(s.supplyRng);
   const bag: Family[] = [];
   const src = s.bagOverride ?? TUNING.bag;
-  for (const f of Object.keys(src) as Family[]) for (let i = 0; i < src[f]; i++) bag.push(f === 'cannon' ? shooterOf(s) : f);
+  for (const f of Object.keys(src) as Family[]) for (let i = 0; i < src[f]; i++) bag.push(squadFam(s, f));
   for (const f of s.toys ?? []) for (let i = 0; i < (TUNING.toyBag[f] ?? 0); i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
@@ -439,7 +447,7 @@ function generateShipment(s: GameState, copy = true): Gadget {
   const fam = s.bag.shift()!;
   s.shipments++;
   // two-piece rescue (ChatGPT r15/r16): no legal pair and nothing lonely to copy -> a matching core PAIR arrives
-  const core = isShooter(fam) || fam === 'coil' || fam === 'bell';
+  const core = isShooter(fam) || isRelay(fam);
   if (core && s.pending.length === 0 && legalPairs(s).length === 0) {
     s.pending.push(makeGadget(s, fam, 1));
     s.stats.rescues = (s.stats.rescues ?? 0) + 1;
@@ -471,7 +479,7 @@ export type CommandResult = { ok: boolean; events: GameEvent[] };
  *  helpers, events and the classic run stay at 6. */
 export function capOf(s: GameState | undefined, family: Family): number {
   if (!s || s.level === undefined) return MAX_RANK;
-  const core = isShooter(family) || family === 'coil' || family === 'bell';
+  const core = isShooter(family) || isRelay(family);
   return core ? (s.rankCap ?? MAX_RANK) : MAX_RANK;
 }
 
@@ -535,6 +543,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   const b = s.grid[to]!;
   const g = makeGadget(s, a.family, Math.min(a.rank + 1, capOf(s, a.family)));
   if (a.primed || b.primed) g.primed = true; // primer transfers (OR), never stacks
+  if (a.amp || b.amp) g.amp = Math.max(a.amp ?? 0, b.amp ?? 0); // r32 marks transfer, the larger survives
   const inherit = b.item ?? a.item; // r25: one attachment transfers; with two, the destination's survives
   if (inherit) g.item = { ...inherit };
   // r29: merging a towed machine releases the tow bar; ransom markers move onto the result
@@ -561,7 +570,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, items: s.phase === 'playing' });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, items: s.phase === 'playing' });
   applyMoves(s, result);
   spendItems(s, result);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
@@ -624,6 +633,12 @@ function applyMoves(s: GameState, r: CascadeResult) {
   // new primes first, then discharges (a cannon primed earlier in this cascade may already have used it)
   for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
   for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
+  // r32 Amplifier / Beacon: spend marks that fired, then place new ones (a stronger mark wins)
+  for (const g of s.grid) if (g?.amp && r.ampsUsed?.includes(g.id)) delete g.amp;
+  for (const m of r.amps ?? []) {
+    const g = s.grid.find((x) => x?.id === m.id);
+    if (g) g.amp = Math.max(g.amp ?? 0, m.mult);
+  }
 }
 
 function enterOverdrive(s: GameState, dur: number) {
@@ -820,7 +835,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult });
+  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel });
 }
 
 export function serialize(s: GameState): string {
@@ -900,7 +915,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel });
     applyMoves(s, result);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
@@ -908,7 +923,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     return;
   }
   const rng = new Rng(s.kickRng);  // nothing lonely with room: drop a plain part
-  const fam = ([shooterOf(s), 'coil', 'bell'] as Family[])[rng.int(3)];
+  const fam = ([shooterOf(s), relayOf(s, 0), relayOf(s, 1)] as Family[])[rng.int(3)];
   s.kickRng = rng.state;
   const g = makeGadget(s, fam, 1);
   const lk = locked(s); // never drop a part into a blocked corner / locked row (bug found by the r19 fast-bot sweep)

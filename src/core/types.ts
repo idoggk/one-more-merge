@@ -1,7 +1,9 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket';
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket'];
-/** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5). */
-export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket';
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon';
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon'];
+/** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5); r32 adds Mortar + Arc Welder. */
+export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder';
+/** RELAY role: wakes OTHER families. r32 adds Horn (column) + Fuse Box (diagonals). */
+export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box';
 
 export type PerkId = 'twin' | 'leads' | 'encore' | 'juice' | 'quality';
 
@@ -13,6 +15,8 @@ export interface Gadget {
   cd: number;
   /** Cannon primed by a Battery: next chain shot +50% (one-shot). */
   primed?: boolean;
+  /** r32 Amplifier / Signal Beacon mark: next activation's hit multiplier (persists until it fires; merges keep the larger). */
+  amp?: number;
   /** r25 attachment (ChatGPT ITEM_RULES): spent on activations in player-rooted cascades. */
   item?: { kind: ItemKind; charges: number };
 }
@@ -39,9 +43,12 @@ export interface CascadeResult {
   rootIdx: number;
   activations: Activation[];
   /** Every route emitted (including to already-visited gadgets), for drawing links. */
-  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' }[];
+  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' }[];
   /** Cannons primed by batteries during this cascade (ids). Caller applies. */
   primes: number[];
+  /** r32: Amplifier / Beacon marks placed this cascade, and marks spent. Caller applies. */
+  amps?: { id: number; mult: number }[];
+  ampsUsed?: number[];
   /** r25: ids whose attachment spent one charge in this cascade. Caller decrements. */
   itemUsed?: number[];
   /** Primed cannons that fired in this cascade (ids). Caller clears their prime. */

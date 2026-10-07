@@ -45,6 +45,12 @@ const COLORS: Record<Family, [number, number, number]> = {
   battery: [0x7ccf2e, 0xc6f58a, 0x3f7a12],
   fan: [0x7fc8f0, 0xe4f6ff, 0x3d7fa8],
   rocket: [0xff8a3c, 0xffc08a, 0xa8481a],
+  mortar: [0x6a7a3a, 0xb0c070, 0x3a4a1a],
+  arc_welder: [0x3a6aff, 0x9ab8ff, 0x1a3a9a],
+  horn: [0xd09030, 0xffd080, 0x7a4a10],
+  fuse_box: [0xe04a8a, 0xff9ac0, 0x8a1a4a],
+  amplifier: [0x30b0a0, 0x90f0e0, 0x10605a],
+  signal_beacon: [0xf05030, 0xffb090, 0x902010],
 };
 
 /** Draw a chunky procedural gadget into a 128x128 texture. */

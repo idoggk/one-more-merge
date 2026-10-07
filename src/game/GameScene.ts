@@ -36,8 +36,8 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { boltsFor, cardsFor, CRATES, levelMult, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, UNITS, type CrateKind, type UnitDef } from '../content/units';
-import { rollCrate, type CrateCard } from '../core/crates';
+import { boltsFor, cardsFor, CRATES, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { featuredUnit, rollCrate, rollPack, type CrateCard, type PityState } from '../core/crates';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
 export const W = 720;
@@ -118,6 +118,9 @@ interface Meta {
   gems?: number;
   crates?: Partial<Record<CrateKind, number>>;
   crateSeq?: number;
+  pity?: PityState;
+  /** r32 squad relays (slot A unlocks in chapter 2, slot B in chapter 3). */
+  relays?: [string, string];
   /** r30 Monster Bounties: per-date record (won / mastered slots), mastery stars per opponent, milestones paid. */
   bounty?: Record<string, { won: number[]; mastered: number[] }>;
   bossMastery?: Record<string, number>;
@@ -308,6 +311,7 @@ export class GameScene extends Phaser.Scene {
         if (lvDone > 1) m.crates = { ...(m.crates ?? {}), iron: (m.crates?.iron ?? 0) + 1 }; // welcome gift for existing players
         m.gems = m.gems ?? 0;
       }
+      for (const f of STARTER_UNITS) if (!m.units[f]) m.units[f] = { level: 1, cards: 0 }; // r32: Fan joined the starters
     }
     // r21 external-playtest configuration: ?playtest=1 hides Challenge/Remix, helpers and the cosmetics catalog
     if (qp0.has('playtest')) this.meta.playtestMode = qp0.get('playtest') !== '0';
@@ -481,7 +485,8 @@ export class GameScene extends Phaser.Scene {
 
   startState(s: GameState) {
     this.runBest = {};
-    s.unitMult = Object.fromEntries(Object.entries(this.meta.units ?? {}).map(([k, v]) => [k, levelMult(v.level)]));
+    s.unitMult = Object.fromEntries(Object.entries(this.meta.units ?? {}).map(([k, v]) => [k, levelMult(unitDef(k), v.level)]));
+    s.unitLevel = Object.fromEntries(Object.entries(this.meta.units ?? {}).map(([k, v]) => [k, v.level]));
     if (this.homeC?.active) this.homeC.destroy();
     this.homeC = null;
     this.closeModal();
@@ -3060,6 +3065,10 @@ Now beat the real level.`, this.coachY());
       // r32 crates from play: mini-boss -> iron, chapter boss -> gold, every 3rd ordinary first clear -> wood
       if (fresh && firstClear) {
         const kind: CrateKind | null = def.mini_boss ? 'iron' : n % 10 === 0 ? 'gold' : n % 3 === 0 ? 'wood' : null;
+        if (n % 10 === 0) {
+          m.gems = (m.gems ?? 0) + GEM_REWARDS.chapterBoss;
+          lines.push(`+${GEM_REWARDS.chapterBoss} GEMS`);
+        }
         if (kind) {
           this.giveCrate(kind);
           lines.push(`+1 ${CRATES[kind].name}`);
@@ -3191,6 +3200,7 @@ Now beat the real level.`, this.coachY());
     if (pay.daily && date) {
       (m.dailyPaid ??= {})[date] = true;
       m.kits = (m.kits ?? 0) + 1; // r15: the Daily bonus also grants one Jumpstart Kit
+      m.gems = (m.gems ?? 0) + GEM_REWARDS.dailyBench; // r32 free Gems
     }
     if (pay.onboarding) m.onboarded = true;
     m.bolts = (m.bolts ?? 0) + pay.total;
@@ -3328,6 +3338,7 @@ Now beat the real level.`, this.coachY());
       bolts += BOUNTY_BOLTS;
       this.giveCrate('wood'); // r32
       crate = true;
+      if (rec.won.length === 3) m.gems = (m.gems ?? 0) + GEM_REWARDS.allBounties; // all three bounties today
     }
     let newStar = false;
     if (masteredNow && !rec.mastered.includes(bt.slot)) {
@@ -3404,7 +3415,10 @@ Now beat the real level.`, this.coachY());
     if (delta) {
       // r32: crossing fight 2 / fight 3 for the first time this week also drops a crate
       if ((r.granted ?? 0) < RUSH_REWARDS[1] && due >= RUSH_REWARDS[1]) this.giveCrate('iron');
-      if ((r.granted ?? 0) < RUSH_REWARDS[2] && due >= RUSH_REWARDS[2]) this.giveCrate('gold');
+      if ((r.granted ?? 0) < RUSH_REWARDS[2] && due >= RUSH_REWARDS[2]) {
+        this.giveCrate('gold');
+        m.gems = (m.gems ?? 0) + GEM_REWARDS.rushFull;
+      }
       m.bolts = (m.bolts ?? 0) + delta;
       r.granted = due;
     }
@@ -4095,7 +4109,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     m.tutorialDone = true;
     store(META_KEY, JSON.stringify(m));
     tlog.log('level_start', { level: n, jumpstart });
-    this.startState(newLevel(def, { toys: this.activeToys(), shooter: this.teamShooter(), jumpstart }));
+    this.startState(newLevel(def, { toys: this.activeToys(), shooter: this.teamShooter(), jumpstart, relays: this.teamRelays() }));
   }
 
   homeC: Phaser.GameObjects.Container | null = null;
@@ -4299,7 +4313,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
   canUpgrade(u: UnitDef) {
     const st = this.meta.units?.[u.id];
-    return !!st && st.level < MAX_UNIT_LEVEL && st.cards >= cardsFor(u, st.level) && (this.meta.bolts ?? 0) >= boltsFor(st.level);
+    return !!st && st.level < MAX_UNIT_LEVEL && st.cards >= cardsFor(u, st.level) && (this.meta.bolts ?? 0) >= boltsFor(u, st.level);
   }
   unitsReady() {
     return UNITS.some((u) => this.canUpgrade(u));
@@ -4327,9 +4341,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.button(c, W / 2 - 150, 240, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x8a6a4a, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
     this.button(c, W / 2 + 150, 240, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
     // 3-column card grid
+    // 13 units: 4 columns of slightly smaller cards
     UNITS.forEach((u, k) => {
-      const x = W / 2 + ((k % 3) - 1) * 222, y = 420 + Math.floor(k / 3) * 300;
-      c.add(this.unitCard(u, x, y));
+      const x = W / 2 + ((k % 4) - 1.5) * 172, y = 410 + Math.floor(k / 4) * 238;
+      c.add(this.unitCard(u, x, y).setScale(0.8));
     });
     this.drawNav(c, 'units');
   }
@@ -4384,10 +4399,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     } else c.add(this.add.text(W / 2, top + 330, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
     if (owned) {
       const lv = st!.level;
-      const now = Math.round((levelMult(lv) - 1) * 100), next = Math.round((levelMult(lv + 1) - 1) * 100);
-      c.add(this.add.text(W / 2, top + 690, lv >= MAX_UNIT_LEVEL ? `Damage +${now}%  \u00b7  MAX LEVEL` : `Damage +${now}%  \u2192  +${next}% at level ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2, top + 690, lv >= MAX_UNIT_LEVEL ? `${levelPerkText(u, lv)}  \u00b7  MAX LEVEL` : `${levelPerkText(u, lv)}  \u2192  ${levelPerkText(u, lv + 1)} at LV ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
       if (lv < MAX_UNIT_LEVEL) {
-        const needC = cardsFor(u, lv), needB = boltsFor(lv);
+        const needC = cardsFor(u, lv), needB = boltsFor(u, lv);
         const ok = this.canUpgrade(u);
         c.add(this.add.text(W / 2, top + 750, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
         this.button(c, W / 2, top + 850, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
@@ -4400,7 +4414,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   upgradeUnit(u: UnitDef) {
     const m = this.meta;
     const st = m.units![u.id];
-    const needC = cardsFor(u, st.level), needB = boltsFor(st.level);
+    const needC = cardsFor(u, st.level), needB = boltsFor(u, st.level);
     if (st.cards < needC || (m.bolts ?? 0) < needB) return;
     st.cards -= needC;
     m.bolts = (m.bolts ?? 0) - needB;
@@ -4425,26 +4439,54 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const m = this.meta;
     m.crateSeq = (m.crateSeq ?? 0) + 1;
     const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
-    const cards = rollCrate(kind, owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0);
+    m.pity = m.pity ?? { epic: 0, dry: 0 };
+    // r32 early guarantees (ChatGPT): a Gold crate brings an Epic while the player owns none
+    if (kind === 'gold' && !UNITS.some((u) => u.rarity === 'epic' && owned.has(u.id))) m.pity.epic = Math.max(m.pity.epic, 6);
+    let cards = rollCrate(kind, owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, m.pity);
+    // ...and the first Wood crate always shows that crates unlock playable units: Horn
+    if (kind === 'wood' && !owned.has('horn')) {
+      const first = cards[cards.length - 1];
+      if (first.count > 1) first.count--;
+      else cards = cards.slice(0, -1);
+      cards = [{ unit: 'horn', count: 1, isNew: true }, ...cards];
+    }
+    this.applyCards(cards);
+    tlog.log('crate_open', { kind, cards: cards.map((x) => `${x.unit}x${x.count}${x.isNew ? '*' : ''}`), pity: { ...m.pity } });
+    this.presentCrate(kind, cards);
+  }
+
+  applyCards(cards: CrateCard[]) {
+    const m = this.meta;
     m.units = m.units ?? {};
     for (const cd of cards) {
       const st = (m.units[cd.unit] = m.units[cd.unit] ?? { level: 0, cards: 0 });
       if (st.level === 0) {
         st.level = 1;
         st.cards += cd.count - 1;
-        if (cd.unit === 'magnet' || cd.unit === 'battery' || cd.unit === 'fan') m.toys[cd.unit] = m.toys[cd.unit] ?? false;
+        if (unitDef(cd.unit)?.slot === 'helper') m.toys[cd.unit] = m.toys[cd.unit] ?? false;
       } else st.cards += cd.count;
     }
     store(META_KEY, JSON.stringify(m));
-    tlog.log('crate_open', { kind, cards: cards.map((x) => `${x.unit}x${x.count}${x.isNew ? '*' : ''}`) });
-    this.presentCrate(kind, cards);
   }
 
-  presentCrate(kind: CrateKind, cards: CrateCard[]) {
+  openPack(packId: string, role?: UnitDef['slot']) {
+    const m = this.meta;
+    const spec = SHOP.boltPacks.find((p) => p.id === packId)!;
+    if ((m.bolts ?? 0) < spec.bolts) return this.showToast('NOT ENOUGH BOLTS');
+    m.bolts = (m.bolts ?? 0) - spec.bolts;
+    m.crateSeq = (m.crateSeq ?? 0) + 1;
+    const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
+    const cards = rollPack(packId, owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, { role, featured: featuredUnit(localDate(), owned) });
+    this.applyCards(cards);
+    tlog.log('pack_open', { packId, role, cards: cards.map((x) => `${x.unit}x${x.count}`) });
+    this.presentCrate('wood', cards, spec.name);
+  }
+
+  presentCrate(kind: CrateKind, cards: CrateCard[], title?: string) {
     this.closeModal();
     const c = this.panel(1000);
     const top = H / 2 - 500;
-    c.add(this.add.text(W / 2, top + 60, CRATES[kind].name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 60, title ?? CRATES[kind].name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
     const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
     const box = this.add.container(W / 2, top + 260);
     const ck = `crate_${kind}`;
@@ -4460,8 +4502,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.tweens.add({ targets: box, scale: 0, alpha: 0, duration: 220 });
       this.ring(W / 2, top + 260, 0xffcf33, 160, 18, 420);
       cards.forEach((cd, k) => {
-        const x = W / 2 + ((k % 3) - 1) * 200, y = top + 250 + Math.floor(k / 3) * 250;
-        const card = this.add.container(x, y).setScale(0, 1);
+        // up to 6 kinds in 3 columns; more (big crates/packs) in 4 smaller columns so nothing hides under the buttons
+        const cols = cards.length > 6 ? 4 : 3, sc = cards.length > 6 ? 0.78 : 1;
+        const x = W / 2 + ((k % cols) - (cols - 1) / 2) * (cols === 4 ? 152 : 200), y = top + (cols === 4 ? 220 : 250) + Math.floor(k / cols) * (cols === 4 ? 190 : 250);
+        const card = this.add.container(x, y).setScale(0, sc);
         const u = UNITS.find((v) => v.id === cd.unit)!;
         const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
         card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -110, 176, 220, 18).fillStyle(rc, 1).fillRoundedRect(-84, -106, 168, 212, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -80, 152, 130, 12));
@@ -4470,10 +4514,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
           im.setScale(110 / Math.max(im.width, im.height));
           card.add(im);
         }
-        card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
+        card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`.replace('SIGNAL ', ''), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
         if (cd.isNew) card.add(this.add.text(0, -104, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 10, y: 2 } }).setOrigin(0.5).setAngle(-6));
         c.add(card);
-        this.tweens.add({ targets: card, scaleX: 1, duration: 220, delay: 300 + k * 260, ease: 'Back.Out', onStart: () => sfx.star?.(Math.min(2, k)) });
+        this.tweens.add({ targets: card, scaleX: sc, duration: 220, delay: 300 + k * 260, ease: 'Back.Out', onStart: () => sfx.star?.(Math.min(2, k)) });
       });
     } });
     const more = this.totalCrates();
@@ -4503,26 +4547,49 @@ Merge them into a RANK ${rank}!`, this.coachY());
       tlog.log('crate_buy', { kind, cur, price });
       this.openCrate(kind);
     };
-    const sb = SHOP.boltCrate;
-    row(top + 230, CRATES[sb.kind].name, `${CRATES[sb.kind].cards} cards`, `${sb.bolts} BOLTS`, 0xe0a020, () => buyCrate(sb.kind, 'bolts', sb.bolts));
-    SHOP.gemCrates.forEach((g, i) => row(top + 370 + i * 140, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
-    c.add(this.add.text(W / 2, top + 660, 'GEMS  (test store, no real payment)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    SHOP.gemCrates.forEach((g, i) => row(top + 220 + i * 128, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
+    const ownedNow = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
+    const feat = featuredUnit(localDate(), ownedNow);
+    SHOP.boltPacks.forEach((p, i) =>
+      row(top + 476 + i * 128, p.name, p.id === 'role' ? `${p.cards} cards of a role you pick` : `${p.cards} cards  \u00b7  ${p.featuredMin}+ ${FAMILY_INFO[feat as 'cannon'].name}`, `${p.bolts} BOLTS`, 0xe0a020, () => (p.id === 'role' ? this.openRolePick() : this.openPack(p.id))),
+    );
+    c.add(this.add.text(W / 2, top + 850, 'GEMS  (test store, no real payment)', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0.5));
     SHOP.gemPacks.forEach((p, i) => {
       const x = W / 2 + (i - 1) * 200;
-      this.button(c, x, top + 750, 180, `${p.gems}`, 0x27a4c0, () => {
+      this.button(c, x, top + 905, 180, `${p.gems}`, 0x27a4c0, () => {
         m.gems = (m.gems ?? 0) + p.gems;
         store(META_KEY, JSON.stringify(m));
         tlog.log('gems_mock_buy', { gems: p.gems, price: p.price });
         this.showToast(`+${p.gems} GEMS (TEST)`);
         this.openUnitShop();
       }, 0.65);
-      c.add(this.add.text(x, top + 810, p.price, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+      c.add(this.add.text(x, top + 950, p.price, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
     });
-    this.button(c, W / 2, top + 980, 280, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
+    this.button(c, W / 2, top + 1010, 260, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.75);
+  }
+
+  openRolePick() {
+    this.closeModal();
+    const c = this.panel(520);
+    const top = H / 2 - 260;
+    c.add(this.add.text(W / 2, top + 64, 'ROLE PACK', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 116, 'Pick the role you want cards for', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    (['shooter', 'relay', 'helper'] as const).forEach((r, i) => this.button(c, W / 2, top + 210 + i * 100, 380, r.toUpperCase(), 0x5fbf4a, () => this.openPack('role', r), 0.8));
+    this.button(c, W / 2, top + 480, 240, 'BACK', 0x8a6a4a, () => this.openUnitShop(), 0.7);
   }
 
   teamShooter(): Family {
-    return this.meta.shooter === 'rocket' && this.ownsUnit('rocket') ? 'rocket' : 'cannon';
+    const sh = this.meta.shooter as Family | undefined;
+    return sh && unitDef(sh)?.slot === 'shooter' && this.ownsUnit(sh) ? sh : 'cannon';
+  }
+
+  /** r32: relay A from chapter 2, relay B from chapter 3; Coil + Bell until then. */
+  teamRelays(): [Family, Family] {
+    const r = (this.meta.relays ?? ['coil', 'bell']) as [Family, Family];
+    const lv = this.currentLevel();
+    const a = lv > 10 && this.ownsUnit(r[0]) ? r[0] : 'coil';
+    const b = lv > 20 && this.ownsUnit(r[1]) && r[1] !== a ? r[1] : a === 'bell' ? 'coil' : 'bell';
+    return [a, b];
   }
 
   /** BUILD YOUR TEAM (ChatGPT r14): Shooter (Cannon/Rocket) + Coil + Bell (fixed relays) + optional Helper. */
@@ -4534,18 +4601,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const top = H / 2 - PH / 2;
     this.sheetTitle(c, top, 'BUILD YOUR TEAM', 'Changes apply to your next run');
     const helper = this.activeToys()[0] ?? null;
+    const [ra, rb] = this.teamRelays();
+    const lv = this.currentLevel();
     const slots: { label: string; fam: Family | null; role: string; note: string; tap: () => void }[] = [
-      { label: 'SHOOTER', fam: this.teamShooter(), role: 'shooter', note: m.hardUnlocked ? 'tap to switch' : 'Rocket: win a run', tap: () => {
-        if (!m.hardUnlocked) return this.showToast('ROCKET UNLOCKS AFTER YOUR FIRST WIN');
-        m.shooter = this.teamShooter() === 'rocket' ? 'cannon' : 'rocket';
-        store(META_KEY, JSON.stringify(m));
-        tlog.log('team', { shooter: m.shooter });
-        this.openTeamSheet();
-      } },
-      { label: 'RELAY', fam: 'coil', role: 'relay', note: 'always in', tap: () => this.showToast('COIL: WAKES OTHERS IN A 2-CELL CROSS') },
-      { label: 'RELAY', fam: 'bell', role: 'relay', note: 'always in', tap: () => this.showToast('BELL: WAKES OTHERS IN ITS ROW') },
-      ...(m.playtestMode ? [] : []),
-      { label: 'HELPER', fam: m.playtestMode ? null : helper, role: helper ? FAMILY_INFO[helper].role.toLowerCase() : 'support', note: Object.keys(m.toys).length ? 'tap to change' : 'unlock by playing', tap: () => (m.playtestMode ? this.showToast('HELPERS ARE OFF IN THIS PLAYTEST') : Object.keys(m.toys).length ? this.openHelperSheet() : this.showToast('HELPERS UNLOCK THROUGH CHALLENGES')) },
+      { label: 'SHOOTER', fam: this.teamShooter(), role: 'shooter', note: 'tap to change', tap: () => this.openSlotPicker('shooter', 0) },
+      { label: 'RELAY A', fam: ra, role: 'relay', note: lv > 10 ? 'tap to change' : 'opens in chapter 2', tap: () => (lv > 10 ? this.openSlotPicker('relay', 0) : this.showToast('RELAY A OPENS IN CHAPTER 2')) },
+      { label: 'RELAY B', fam: rb, role: 'relay', note: lv > 20 ? 'tap to change' : 'opens in chapter 3', tap: () => (lv > 20 ? this.openSlotPicker('relay', 1) : this.showToast('RELAY B OPENS IN CHAPTER 3')) },
+      { label: 'HELPER', fam: m.playtestMode ? null : helper, role: helper ? FAMILY_INFO[helper as 'cannon'].role.toLowerCase() : 'support', note: 'tap to change', tap: () => (m.playtestMode ? this.showToast('HELPERS ARE OFF IN THIS PLAYTEST') : this.openSlotPicker('helper', 0)) },
     ];
     slots.forEach((sl, i) => {
       const x = W / 2 + (i % 2 ? 150 : -150);
@@ -4573,6 +4635,46 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const sh = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO];
     c.add(this.add.text(W / 2, top + 650, `${sh.name}: ${sh.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5));
     this.button(c, W / 2, top + 790, 380, 'USE TEAM', 0x5fbf4a, () => this.openTitle(), 0.9);
+  }
+
+  /** r32 squad picker: every OWNED unit of that role with its level; locked ones say where to find them. */
+  openSlotPicker(slot: 'shooter' | 'relay' | 'helper', k: 0 | 1) {
+    const m = this.meta;
+    const list = UNITS.filter((u) => u.slot === slot);
+    const PH = 260 + list.length * 104 + (slot === 'helper' ? 104 : 0);
+    const c = this.sheet(PH);
+    const top = H / 2 - PH / 2;
+    this.sheetTitle(c, top, slot === 'relay' ? `RELAY ${k ? 'B' : 'A'}` : slot.toUpperCase(), 'Units you own. Find more in crates.');
+    const [ra, rb] = this.teamRelays();
+    const cur = slot === 'shooter' ? this.teamShooter() : slot === 'relay' ? (k ? rb : ra) : this.activeToys()[0] ?? null;
+    const other = slot === 'relay' ? (k ? ra : rb) : null;
+    const choose = (f: Family | null) => {
+      if (slot === 'shooter') m.shooter = f!;
+      else if (slot === 'relay') {
+        const r = [...(m.relays ?? [ra, rb])] as [string, string];
+        r[k] = f!;
+        m.relays = r;
+      } else {
+        for (const key of Object.keys(m.toys) as Family[]) m.toys[key] = false;
+        if (f) m.toys[f] = true;
+      }
+      store(META_KEY, JSON.stringify(m));
+      tlog.log('squad', { slot, k, unit: f });
+      this.openTeamSheet();
+    };
+    let y = top + 190;
+    if (slot === 'helper') {
+      this.button(c, W / 2, y, 440, cur ? 'NO HELPER' : 'NO HELPER  \u2713', 0x8a6a4a, () => choose(null), 0.8);
+      y += 104;
+    }
+    for (const u of list) {
+      const own = this.ownsUnit(u.id);
+      const name = FAMILY_INFO[u.id as 'cannon'].name.toUpperCase();
+      if (!own) c.add(this.add.text(W / 2, y, `${name}: find it in crates`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#9a8a7a' }).setOrigin(0.5));
+      else if (u.id === other) c.add(this.add.text(W / 2, y, `${name}: in the other relay slot`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#9a8a7a' }).setOrigin(0.5));
+      else this.button(c, W / 2, y, 440, `${name}  LV ${m.units?.[u.id]?.level ?? 1}${cur === u.id ? '  \u2713' : ''}`, cur === u.id ? 0x5fbf4a : 0x27a4c0, () => choose(u.id), 0.8);
+      y += 104;
+    }
   }
 
   /** Local playtest dashboard (ChatGPT r17 D): the numbers that decide rhythm, booster use and rank payoff. */
@@ -4819,6 +4921,12 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'rocket', title: 'ROCKET', role: 'SHOOTER', text: 'Never shoots by itself. When a chain wakes it, it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.', unlock: 6 },
     { key: 'magnet', title: 'MAGNET', role: 'MOVER', text: 'When it fires, it pulls one machine along its line into the empty cell next to it.', tryThis: 'Use it to bring a pair together.', unlock: 12 },
     { key: 'fan', title: 'FAN', role: 'MOVER', text: 'When it fires, it blows the first machine next to it one cell further away (if that cell is empty).', tryThis: 'Use it to push a machine into a relay\'s reach.', unlock: 23 },
+    { key: 'mortar', title: 'MORTAR', role: 'SHOOTER', text: 'Never shoots by itself. Woken DEEP in a chain it hits harder: x0.9 at the first link, up to x1.65 six links in.', tryThis: 'Put it at the far end of your longest chain.', unlock: 999 },
+    { key: 'arc_welder', title: 'ARC WELDER', role: 'SHOOTER', text: 'Woken by a chain it fires a lighter shot (x0.75) and arcs into the strongest machine touching it, waking it too.', tryThis: 'Surround it with machines it can wake.', unlock: 999 },
+    { key: 'horn', title: 'HORN', role: 'RELAY', text: 'Blasts its whole column: wakes every OTHER kind of machine above and below it.', tryThis: 'Stack shooters above and below it.', unlock: 999 },
+    { key: 'fuse_box', title: 'FUSE BOX', role: 'RELAY', text: 'Sparks its four diagonal corners: wakes the OTHER kinds of machines there.', tryThis: 'Build a checkerboard around it.', unlock: 999 },
+    { key: 'amplifier', title: 'AMPLIFIER', role: 'SUPPORT', text: 'When it fires it marks the strongest shooter or relay touching it. That machine\'s next hit is x1.3 (the mark waits until it fires).', tryThis: 'Park it beside your biggest machine.', unlock: 999 },
+    { key: 'signal_beacon', title: 'SIGNAL BEACON', role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere on the board: their next hits are x1.15.', tryThis: 'Fire it early in a chain.', unlock: 999 },
     { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Break the monster to half HP and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
   ];
@@ -4834,7 +4942,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const pg = pages[page];
     const c = this.panel(940);
     const top = H / 2 - 470;
-    const open = single || this.guideUnlocked(pg.unlock);
+    const open = single || (unitDef(pg.key) && pg.unlock === 999 ? this.ownsUnit(pg.key) : this.guideUnlocked(pg.unlock));
     c.add(this.add.text(W / 2, top + 56, single ? 'NEW MACHINE!' : 'MACHINE GUIDE', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 108, open ? pg.title : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
     const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a', SPECIAL: '#e0a020' }[pg.role] ?? '#8a6a4a';
@@ -4853,7 +4961,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       c.add(this.add.text(W / 2, top + 586, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '26px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
       c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
     } else {
-      c.add(this.add.text(W / 2, top + 400, `You meet this machine\nat level ${pg.unlock}.`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2, top + 400, pg.unlock === 999 ? 'Find this machine\nin crates.' : `You meet this machine\nat level ${pg.unlock}.`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
     }
     const done = () => {
       this.closeModal();
@@ -4890,6 +4998,12 @@ Merge them into a RANK ${rank}!`, this.coachY());
       magnet: { pieces: [['magnet', 1, 1], ['cannon', 1, 4], ['cannon', 0, 0]], links: [], slide: [1, 1, 2, 1] },
       battery: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['battery', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, big: [1] },
       fan: { pieces: [['fan', 1, 1], ['cannon', 1, 2], ['coil', 0, 4]], links: [], slide: [1, 1, 3, 1] },
+      horn: { pieces: [['horn', 1, 2], ['cannon', 0, 2], ['cannon', 2, 2], ['cannon', 1, 0]], links: [[0, 1, 1], [0, 2, 1]] },
+      fuse_box: { pieces: [['fuse_box', 1, 2], ['cannon', 0, 1], ['cannon', 2, 3], ['cannon', 1, 3]], links: [[0, 1, 1], [0, 2, 1]] },
+      mortar: { pieces: [['coil', 1, 0], ['bell', 1, 2], ['mortar', 1, 4]], links: [[0, 1, 1], [1, 2, 2]], big: [2] },
+      arc_welder: { pieces: [['coil', 1, 1], ['arc_welder', 1, 3], ['cannon', 0, 4]], links: [[0, 1, 1], [1, 2, 2]] },
+      amplifier: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['amplifier', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, big: [1] },
+      signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, big: [1] },
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();
@@ -4919,7 +5033,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const p = imgs[d.charged];
       fx.lineStyle(5, 0x7ccf2e, 1).strokeCircle(p.x, p.y, cs / 2 - 4);
     }
-    const isShooter = (f: string) => f === 'cannon' || f === 'rocket';
+    const isShooter = (f: string) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder';
     const base = d.pieces.map(([, r, k]) => at(r, k));
     const timers: Phaser.Time.TimerEvent[] = [];
     const STEP = 420;

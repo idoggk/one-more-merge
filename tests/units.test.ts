@@ -22,7 +22,8 @@ describe('r32 unit collection', () => {
   it('rarer units need fewer duplicates; levels raise damage', () => {
     const cannon = UNITS.find((u) => u.id === 'cannon')!, rocket = UNITS.find((u) => u.id === 'rocket')!;
     expect(cardsFor(rocket, 3)).toBeLessThan(cardsFor(cannon, 3));
-    expect(levelMult(1)).toBe(1);
-    expect(levelMult(10)).toBeGreaterThan(levelMult(5));
+    expect(levelMult(cannon, 1)).toBe(1);
+    expect(levelMult(cannon, 10)).toBeCloseTo(1.36);
+    expect(levelMult(UNITS.find((u) => u.id === 'coil')!, 10)).toBeCloseTo(1.18);
   });
 });

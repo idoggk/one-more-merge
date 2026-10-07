@@ -10,7 +10,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -33,7 +33,7 @@ export const TUNING = {
   matchShare: 0.6,
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   /** Unlocked toys add these tokens to the 12-token bag. */
-  toyBag: { magnet: 1, battery: 1, fan: 1 } as Record<string, number>,
+  toyBag: { magnet: 1, battery: 1, fan: 1, amplifier: 1, signal_beacon: 1 } as Record<string, number>,
   runTime: 135,
   // tuned for hybrid kickback + payload cannons + family filter + slowing supply (see DESIGN.md sim table)
   // merge fest (playtest 3): faster supply + matchmaker, HP x1.2 keeps the novice bot ~85% (DESIGN.md)

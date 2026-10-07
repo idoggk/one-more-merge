@@ -1,6 +1,6 @@
 // UNIT COLLECTION (round 32, Ido: "getting new units and leveling them up should be one of the biggest
-// monetization values"). Cards come from crates; the first card of a unit unlocks it; duplicates + Bolts level it.
-// Every number here is a tuning knob — change balance here first.
+// monetization values"). Cards come from crates (earned or bought with Gems) and Bolt packs; the first card of a
+// unit unlocks it; duplicates + Bolts level it. Numbers: ChatGPT round 32 spec (reviewed). Tune here first.
 import type { Family } from '../core/types';
 
 export type Rarity = 'common' | 'rare' | 'epic';
@@ -16,39 +16,63 @@ export const UNITS: UnitDef[] = [
   { id: 'cannon', role: 'SHOOTER', rarity: 'common', slot: 'shooter' },
   { id: 'coil', role: 'RELAY', rarity: 'common', slot: 'relay' },
   { id: 'bell', role: 'RELAY', rarity: 'common', slot: 'relay' },
+  { id: 'horn', role: 'RELAY', rarity: 'common', slot: 'relay' },
+  { id: 'fan', role: 'MOVER', rarity: 'common', slot: 'helper' },
   { id: 'rocket', role: 'SHOOTER', rarity: 'rare', slot: 'shooter' },
+  { id: 'mortar', role: 'SHOOTER', rarity: 'rare', slot: 'shooter' },
+  { id: 'fuse_box', role: 'RELAY', rarity: 'rare', slot: 'relay' },
   { id: 'magnet', role: 'MOVER', rarity: 'rare', slot: 'helper' },
   { id: 'battery', role: 'SUPPORT', rarity: 'rare', slot: 'helper' },
-  { id: 'fan', role: 'MOVER', rarity: 'rare', slot: 'helper' },
+  { id: 'amplifier', role: 'SUPPORT', rarity: 'rare', slot: 'helper' },
+  { id: 'arc_welder', role: 'SHOOTER', rarity: 'epic', slot: 'shooter' },
+  { id: 'signal_beacon', role: 'SUPPORT', rarity: 'epic', slot: 'helper' },
 ];
-export const STARTER_UNITS: Family[] = ['cannon', 'coil', 'bell'];
+export const unitDef = (id: string) => UNITS.find((u) => u.id === id);
+export const STARTER_UNITS: Family[] = ['cannon', 'coil', 'bell', 'fan'];
 export const MAX_UNIT_LEVEL = 10;
 
-/** Duplicates and Bolts to go from level L to L+1 (index L-1). */
-export const LEVEL_CARDS = [2, 4, 8, 15, 25, 40, 60, 90, 130];
-export const LEVEL_BOLTS = [20, 40, 80, 150, 250, 400, 600, 900, 1300];
-/** Rarer units need fewer duplicates per level. */
-export const RARITY_CARD_MULT: Record<Rarity, number> = { common: 1, rare: 0.5, epic: 0.25 };
-
-export const cardsFor = (u: UnitDef, level: number) => Math.max(1, Math.ceil((LEVEL_CARDS[level - 1] ?? 999) * RARITY_CARD_MULT[u.rarity]));
-export const boltsFor = (level: number) => LEVEL_BOLTS[level - 1] ?? 99999;
-/** Damage multiplier a unit's level gives its machines (level 1 = x1). */
-export const levelMult = (level: number) => 1 + 0.06 * (Math.max(1, level) - 1);
+/** Duplicates and Bolts to go from level L to L+1 (index L-1), per rarity. */
+export const LEVEL_CARDS: Record<Rarity, number[]> = {
+  common: [2, 4, 6, 10, 16, 24, 36, 52, 75],
+  rare: [1, 2, 3, 5, 8, 12, 18, 26, 38],
+  epic: [1, 1, 2, 3, 4, 6, 9, 13, 19],
+};
+export const LEVEL_BOLTS: Record<Rarity, number[]> = {
+  common: [20, 35, 55, 90, 140, 220, 340, 500, 750],
+  rare: [25, 40, 65, 105, 165, 250, 380, 560, 820],
+  epic: [30, 50, 80, 125, 190, 290, 430, 630, 900],
+};
+export const cardsFor = (u: UnitDef, level: number) => LEVEL_CARDS[u.rarity][level - 1] ?? 9999;
+export const boltsFor = (u: UnitDef, level: number) => LEVEL_BOLTS[u.rarity][level - 1] ?? 99999;
+/** Damage multiplier a unit's level gives (shooters +4%/level, relays +2%/level, helpers level their utility instead). */
+export const levelMult = (u: UnitDef | undefined, level: number) => (!u ? 1 : u.slot === 'shooter' ? 1 + 0.04 * (level - 1) : u.slot === 'relay' ? 1 + 0.02 * (level - 1) : 1);
+/** What a level gives, in words (unit detail page). */
+export const levelPerkText = (u: UnitDef, level: number) =>
+  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${(1.3 + 0.03 * (level - 1)).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${(1.15 + 0.02 * (level - 1)).toFixed(2)}` : u.id === 'battery' ? `Prime x${(1.5 + 0.03 * (level - 1)).toFixed(2)}` : `Level ${level}`;
 
 // ---- crates ----
 export type CrateKind = 'wood' | 'iron' | 'gold';
-export const CRATES: Record<CrateKind, { name: string; cards: number; rareMin: number; epicChance: number }> = {
-  wood: { name: 'WOOD CRATE', cards: 3, rareMin: 0, epicChance: 0 },
-  iron: { name: 'IRON CRATE', cards: 8, rareMin: 1, epicChance: 0.03 },
-  gold: { name: 'GOLD CRATE', cards: 20, rareMin: 3, epicChance: 0.12 },
+export const CRATES: Record<CrateKind, { name: string; cards: number; rareMin: number }> = {
+  wood: { name: 'WOOD CRATE', cards: 3, rareMin: 0 },
+  iron: { name: 'IRON CRATE', cards: 8, rareMin: 1 },
+  gold: { name: 'GOLD CRATE', cards: 20, rareMin: 4 },
 };
-/** Base odds per card before guarantees. */
-export const RARITY_ODDS: Record<Rarity, number> = { common: 0.78, rare: 0.2, epic: 0.02 };
+export const RARITY_ODDS: Record<Rarity, number> = { common: 0.72, rare: 0.24, epic: 0.04 };
+/** Shared epic pity: dry Iron +1, dry Gold +3; at 6 the next Iron/Gold forces an Epic (a missing one first). */
+export const EPIC_PITY = { iron: 1, gold: 3, wood: 0, at: 6 };
+/** New-unit pity: after this many crates in a row with no new unit, the best guaranteed slot is a missing unit. */
+export const NEW_UNIT_PITY = 3;
+
 export const SHOP = {
-  boltCrate: { kind: 'wood' as CrateKind, bolts: 120 },
   gemCrates: [
     { kind: 'iron' as CrateKind, gems: 60 },
     { kind: 'gold' as CrateKind, gems: 200 },
+  ],
+  /** Bolt packs: cards for the role you choose / the featured unit of the day. */
+  boltPacks: [
+    { id: 'role', name: 'ROLE PACK', bolts: 150, cards: 5, featuredMin: 0 },
+    { id: 'featured', name: 'FEATURED PACK', bolts: 450, cards: 14, featuredMin: 8 },
+    { id: 'big', name: 'BIG FEATURED', bolts: 900, cards: 30, featuredMin: 18 },
   ],
   /** Mock store: no real payments yet. */
   gemPacks: [
@@ -57,3 +81,5 @@ export const SHOP = {
     { gems: 1200, price: '$9.99' },
   ],
 };
+/** Free Gems (ChatGPT r32, ~7/day for an active player). */
+export const GEM_REWARDS = { dailyBench: 2, allBounties: 2, rushFull: 20, chapterBoss: 5 };
