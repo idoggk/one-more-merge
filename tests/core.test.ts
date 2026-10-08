@@ -324,6 +324,23 @@ describe('game', () => {
     expect(k && k.type === 'kickback' && k.into).not.toBe(held);
   });
 
+  it('a kickback fuse keeps the amp mark, and the fused part spends it', () => {
+    const s = newGame(24);
+    s.grid.fill(null);
+    const at = idxOf(2, 2);
+    s.grid[at] = { ...g('cannon', 1), amp: 1.3 };
+    s.drops.push({ t: 0, fuse: true, plan: { idx: at, land: idxOf(2, 3), id: s.grid[at]!.id } });
+    const evs = tick(s);
+    const k = evs.find((e) => e.type === 'kickback');
+    expect(k && k.type === 'kickback' && k.into).toBe(at);
+    const fused = k && k.type === 'kickback' ? k.gadget : null;
+    expect(fused?.rank).toBe(2);
+    const c = evs.find((e) => e.type === 'cascade');
+    // carried over like a merge, so the fused part fires with the boost
+    expect(c && c.type === 'cascade' && c.result.ampsUsed).toContain(fused!.id);
+    expect(s.grid[at]!.amp).toBeUndefined(); // spent, as on a merge
+  });
+
   it('big-cascade drops land beside a match without fusing', () => {
     const s = newGame(22);
     s.drops.push({ t: 0, fuse: false });
