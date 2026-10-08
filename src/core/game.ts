@@ -703,10 +703,11 @@ function applyMoves(s: GameState, r: CascadeResult) {
   // new primes first, then discharges (a cannon primed earlier in this cascade may already have used it)
   for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
   for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
-  // r32 Amplifier / Beacon: spend marks that fired, then place new ones (a stronger mark wins)
+  // r32 Amplifier / Beacon: spend marks that fired, then place new ones still unused (a stronger mark wins)
   for (const [f, n] of Object.entries(r.fires ?? {})) (s.fireCount ??= {})[f] = (s.fireCount[f] ?? 0) + n;
   for (const g of s.grid) if (g?.amp && r.ampsUsed?.includes(g.id)) delete g.amp;
   for (const m of r.amps ?? []) {
+    if (m.spent) continue;
     const g = s.grid.find((x) => x?.id === m.id);
     if (g) g.amp = Math.max(g.amp ?? 0, m.mult);
   }

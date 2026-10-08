@@ -1513,13 +1513,13 @@ Now beat the real level.`, this.coachY());
       this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x + 38, y - 38, 15).fillStyle(0x9be05a, 1).fillCircle(x + 38, y - 38, 12);
       this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x + 40, y - 48, x + 32, y - 36, x + 39, y - 36).fillTriangle(x + 37, y - 40, x + 44, y - 40, x + 36, y - 28);
     });
-    // Amplifier / Signal Beacon mark: teal ring + up-arrow badge (top-left) until the marked machine fires (g.amp is cleared on use)
+    // Amplifier / Signal Beacon mark: violet ring + up-arrow badge (top-left) until the marked machine fires (g.amp is cleared on use)
     this.s.grid.forEach((g, idx) => {
       if (!g?.amp) return;
       const { x, y } = cellXY(idx);
       const a = 0.6 + 0.4 * Math.sin(t * 6 + 1.5);
-      this.primeG.lineStyle(5, 0x5ff0e0, a).strokeRoundedRect(x - 49, y - 49, 98, 98, 20);
-      this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x - 38, y - 38, 15).fillStyle(0x5ff0e0, 1).fillCircle(x - 38, y - 38, 12);
+      this.primeG.lineStyle(5, 0xd2b4ff, a).strokeRoundedRect(x - 49, y - 49, 98, 98, 20);
+      this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x - 38, y - 38, 15).fillStyle(0xd2b4ff, 1).fillCircle(x - 38, y - 38, 12);
       this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x - 38, y - 47, x - 46, y - 37, x - 30, y - 37).fillRect(x - 41, y - 38, 6, 9);
     });
     // idle life (ChatGPT r10 #8): only two gadgets act at once, each for ~420ms, on a 1800-2600ms cosmetic beat
@@ -2764,7 +2764,7 @@ Now beat the real level.`, this.coachY());
     for (const e of r.edges) {
       const a = cellXY(e.from);
       const b = cellXY(e.to);
-      const col = e.kind === 'item' ? 0xff9a3c : e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : e.kind === 'horn' ? 0xe8b060 : e.kind === 'fuse_box' ? 0xff7ab0 : e.kind === 'arc' ? 0x7a9aff : e.kind === 'amp' ? 0x5ff0e0 : 0xffffff;
+      const col = e.kind === 'item' ? 0xff9a3c : e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : e.kind === 'horn' ? 0xe8b060 : e.kind === 'fuse_box' ? 0xff7ab0 : e.kind === 'arc' ? 0x7a9aff : e.kind === 'amp' ? 0xd2b4ff : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
         if (e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime') this.signatureFx(e.kind, a, b);

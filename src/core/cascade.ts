@@ -195,7 +195,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   // r32 Amplifier / Beacon marks: live during the cascade (board marks + new marks), spent on activation
   const ampNow = new Map<number, number>(input.filter((g) => g?.amp).map((g) => [g!.id, g!.amp!]));
   const ampOn = new Map<number, number>(); // id -> multiplier applied to this activation
-  const amps: { id: number; mult: number }[] = [];
+  const amps: { id: number; mult: number; spent?: boolean }[] = [];
   const ampsUsed: number[] = [];
   const lvl = (f: Family) => opts.unitLevel?.[f] ?? 1;
   // r32 milestone perks: per-family fire counter (base from earlier cascades) -> 'every Nth fire' bonuses
@@ -289,6 +289,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       ampOn.set(a.id, ampNow.get(a.id)!);
       ampNow.delete(a.id);
       ampsUsed.push(a.id);
+      for (const m of amps) if (m.id === a.id) m.spent = true; // placed this cascade and already used: not written back
     }
     const it = itemOf.get(a.id);
     if (it) {

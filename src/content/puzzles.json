@@ -764,12 +764,12 @@
    ],
    "solution": [
     [
-     14,
-     0
-    ],
-    [
      13,
      10
+    ],
+    [
+     14,
+     0
     ]
    ],
    "score": 29
@@ -1646,7 +1646,7 @@
     "coil",
     "fuse_box"
    ],
-   "score": 52
+   "score": 53
   },
   {
    "id": "d19",
@@ -2923,7 +2923,7 @@
   {
    "id": "d31",
    "moves": 3,
-   "hp": 300,
+   "hp": 290,
    "board": [
     [
      "horn",
@@ -3024,7 +3024,7 @@
      8
     ]
    ],
-   "score": 65
+   "score": 64
   },
   {
    "id": "d32",
@@ -7198,7 +7198,7 @@
    {
     "id": "amplifier_2",
     "moves": 2,
-    "hp": 380,
+    "hp": 360,
     "board": [
      [
       "amplifier",
@@ -7288,12 +7288,12 @@
      "horn"
     ],
     "unit": "amplifier",
-    "score": 30
+    "score": 29
    },
    {
     "id": "amplifier_3",
     "moves": 3,
-    "hp": 600,
+    "hp": 590,
     "board": [
      [
       "amplifier",
@@ -7382,12 +7382,12 @@
     ],
     "solution": [
      [
-      5,
-      18
+      21,
+      14
      ],
      [
-      16,
-      17
+      5,
+      18
      ],
      [
       12,
@@ -7395,7 +7395,7 @@
      ]
     ],
     "unit": "amplifier",
-    "score": 51
+    "score": 49
    }
   ],
   "signal_beacon": [

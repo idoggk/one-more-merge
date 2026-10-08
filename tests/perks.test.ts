@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { resolveCascade } from '../src/core/cascade';
+import { drop, newLevel } from '../src/core/game';
 import type { Gadget, Grid } from '../src/core/types';
+import { LEVELS } from '../src/content/levels';
 
 let id = 20000;
 const g = (family: Gadget['family'], rank = 1): Gadget => ({ id: id++, family, rank, cd: 99 });
@@ -56,6 +58,24 @@ describe('r32 milestone perks', () => {
     expect(ids(b9.r)).toContain(b9.c.id);
     expect(b8.r.amps?.map((x) => x.id)).toContain(b8.c.id);
     expect(ids(b8.r)).not.toContain(b8.c.id);
+  });
+  it('a mark placed and used in the same cascade is not written back to the board', () => {
+    const play = (root: Gadget['family'], rank: number, lv: Record<string, number>, target: number) => {
+      const s = newLevel(LEVELS[0]);
+      s.phase = 'playing';
+      s.unitLevel = lv;
+      s.grid = Array(s.grid.length).fill(null);
+      const a = g(root, rank), b = g(root, rank), c = g('cannon');
+      s.grid[11] = a;
+      s.grid[12] = b;
+      s.grid[target] = c;
+      expect(drop(s, 11, 12, a.id).ok).toBe(true);
+      return s.grid.find((x) => x?.id === c.id)!;
+    };
+    // Beacon GO!: the rank 6 beacon marks AND wakes the far cannon, which spends the mark at once
+    expect(play('signal_beacon', 5, { signal_beacon: 9 }, 0).amp).toBeUndefined();
+    // Amplifier marks a touching cannon that the merge spark has already queued
+    expect(play('amplifier', 1, {}, 7).amp).toBeUndefined();
   });
   it('Battery primes any shooter; L9 Universal Socket primes 2 touching shooters', () => {
     const run = (lv: number) => {

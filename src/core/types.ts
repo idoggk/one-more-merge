@@ -48,8 +48,8 @@ export interface CascadeResult {
   primes: number[];
   /** r32 perks: chain fires per family in this cascade (feeds the 'every Nth fire' milestone counters). */
   fires?: Record<string, number>;
-  /** r32: Amplifier / Beacon marks placed this cascade, and marks spent. Caller applies. */
-  amps?: { id: number; mult: number }[];
+  /** r32: Amplifier / Beacon marks placed this cascade (spent: already used later in this same cascade), and marks spent. Caller applies. */
+  amps?: { id: number; mult: number; spent?: boolean }[];
   ampsUsed?: number[];
   /** r25: ids whose attachment spent one charge in this cascade. Caller decrements. */
   itemUsed?: number[];
