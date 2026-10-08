@@ -181,7 +181,7 @@ interface Meta {
   yard?: YardWeekRec;
   masteryPaid?: number;
   /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
-  rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[] };
+  rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[]; run?: { i: number; times: number[] } };
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
   swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
@@ -383,6 +383,8 @@ export class GameScene extends Phaser.Scene {
   idleTime = 0;
   hintPair: [number, number] | null = null;
   lastSave = 0;
+  /** Home is showing: the state behind it is a leftover, not a run to save. */
+  homeIdle = false;
   tutorialStep = 0;
   coach!: Coach;
   lastCascade: CascadeResult | null = null;
@@ -441,9 +443,12 @@ export class GameScene extends Phaser.Scene {
       }
     })();
     const loaded = saved ? deserialize(saved) : null;
-    if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial')) {
+    const pz = loaded?.puzzle ? this.findPuzzle(loaded.puzzle.id) : null;
+    if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial') && (!loaded.puzzle || pz)) {
       this.tutorialShort = !this.meta.tutorialDone; // a reloaded first-launch warm-up stays the one-merge warm-up
-      this.startState(loaded);
+      // a reloaded puzzle starts its board fresh: the merges played (HINT / NEXT MOVE need them) are not in the save
+      if (pz) this.startPuzzle(pz.def, pz.kind);
+      else this.startState(loaded);
     } else {
       this.tutorialShort = !this.meta.tutorialDone;
       this.startState(newGame(Date.now() >>> 0, !this.meta.tutorialDone));
@@ -609,6 +614,7 @@ export class GameScene extends Phaser.Scene {
 
   startState(s: GameState) {
     this.runBest = {};
+    this.homeIdle = false;
     s.unitMult = Object.fromEntries(Object.entries(this.meta.units ?? {}).map(([k, v]) => [k, levelMult(unitDef(k), v.level)]));
     s.unitLevel = Object.fromEntries(Object.entries(this.meta.units ?? {}).map(([k, v]) => [k, v.level]));
     if (this.homeC?.active) this.homeC.destroy();
@@ -4078,6 +4084,7 @@ Now beat the real level.`, this.coachY());
     if (hardArg === undefined && this.s.endless) return this.startEndless();
     if (hardArg === undefined && this.s.puzzle && this.puzzleDef) return this.startPuzzle(this.puzzleDef, this.puzzleKind);
     if (hardArg === undefined && this.s.level !== undefined) return this.startLevel(this.s.level);
+    if (hardArg === undefined && this.s.phase === 'tutorial') return this.startState(newGame(Date.now() >>> 0, true)); // RESTART replays the tutorial
     const hard = hardArg ?? this.s.hard;
     const remixTarget = remixArg ?? (this.s.remix ? this.s.target : -1);
     tlog.log('retry', { hard });
@@ -4223,6 +4230,9 @@ Now beat the real level.`, this.coachY());
   startRushFight(i: number) {
     this.closeModal();
     const r = this.meta.rush!;
+    // the run so far lives in the meta too, so a reload between (or during) fights keeps the earlier times
+    r.run = { i, times: [...(this.rushRun?.times ?? [])] };
+    store(META_KEY, JSON.stringify(this.meta));
     const s = newRushFight(r.course[i], i, r.week);
     tlog.log('rush_fight_start', { index: i, opponent: r.course[i] });
     this.startState(s);
@@ -4231,9 +4241,17 @@ Now beat the real level.`, this.coachY());
 
   openRushResult(won: boolean) {
     const m = this.meta;
-    const r = m.rush!;
-    const run = this.rushRun ?? { i: this.s.rush!.slot, times: [] };
-    const id = this.s.rush!.id;
+    const { id, slot, week } = this.s.rush!;
+    const r = m.rush;
+    if (!r || r.week !== week) {
+      // this week's rush record is gone (a reset or a loaded save): nothing to credit the fight against
+      tlog.log('rush_record_missing', { opponent: id, index: slot });
+      this.rushRun = null;
+      this.openTitle('events');
+      this.showToast('BOSS RUSH RESET\nStart it again from EVENTS');
+      return;
+    }
+    const run = this.rushRun?.i === slot ? this.rushRun : r.run?.i === slot ? { i: slot, times: [...r.run.times] } : { i: slot, times: [] };
     if (won) {
       run.times.push(this.s.elapsed);
       r.stamps = { ...(r.stamps ?? {}), [id]: true };
@@ -4330,6 +4348,11 @@ Now beat the real level.`, this.coachY());
   /** HOME (ChatGPT r15): ROAD (the level saga) / MACHINE (team, workshop, mastery) / EVENTS (daily, challenge, remix). */
   openTitle(tab: 'road' | 'machine' | 'events' | 'units' = this.homeTab) {
     this.homeTab = tab;
+    // home means the run behind it is over (cold start, HOME, showcase done): never saved, never resumed
+    if (!this.homeIdle) {
+      this.homeIdle = true;
+      store(SAVE_KEY, null);
+    }
     if (tab === 'units') return this.openUnitsTab();
     if (!hasMachineArt(this) || !this.hasArt('hero_bg')) return this.openLegacyTitle();
     if (tab === 'road' && this.hasArt('node_normal')) return this.openRoadTab();
@@ -5263,6 +5286,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
     return list[i];
   }
 
+  findPuzzle(id: string): { def: PuzzleDef; kind: 'daily' | 'drill' } | null {
+    const daily = GameScene.PUZZLES.daily.find((p) => p.id === id);
+    if (daily) return { def: daily, kind: 'daily' };
+    const drill = Object.values(GameScene.PUZZLES.drills).flat().find((p) => p.id === id);
+    return drill ? { def: drill, kind: 'drill' } : null;
+  }
+
   puzzleHelpNow() {
     return puzzleHelp(this.puzzleDef ? (this.puzzleRec().fails?.[this.puzzleDef.id] ?? 0) : 0, this.puzzleKind);
   }
@@ -5349,7 +5379,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
   openPuzzleResult(won: boolean) {
     const m = this.meta;
     const pz = this.puzzleRec();
-    const def = this.puzzleDef!;
+    const def = this.puzzleDef;
+    if (!def || def.id !== this.s.puzzle?.id) return this.openTitle('events'); // never reached via startPuzzle; a guard, not a flow
     const kind = this.puzzleKind;
     const lines: string[] = [];
     let firstSolve = false;
@@ -7352,13 +7383,19 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.openHowTo(0, () => this.openPause());
     });
     c.add(how);
-    if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 630, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.retry());
+    if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 630, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.skipTutorial());
+  }
+
+  /** SKIP TUTORIAL lands where finishing it does: Level 1 on the road (never a classic run). */
+  skipTutorial() {
+    tlog.log('tutorial_skip');
+    this.startLevel(1);
   }
 
   save() {
     this.lastSave = this.time.now;
     tlog.flush();
-    if (this.s.phase === 'won' || this.s.phase === 'lost') return;
+    if (this.homeIdle || this.s.phase === 'won' || this.s.phase === 'lost') return;
     if (this.s.phase !== 'tutorial' && !this.meta.tutorialDone) {
       this.meta.tutorialDone = true;
       store(META_KEY, JSON.stringify(this.meta));
