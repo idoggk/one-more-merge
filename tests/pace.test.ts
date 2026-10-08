@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { levelDef } from '../src/content/levels';
-import { legalPairs, newLevel, type GameState } from '../src/core/game';
+import { legalPairs, newLevel, tick, type GameState } from '../src/core/game';
 import { buildCurve, decodeCurve, ghostProgress, levelProgress, PACE_SAMPLES, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../src/core/pace';
 import { newRunLog, recordCommand, recordTick, type RunLog } from '../src/core/replay';
 import { Rng } from '../src/core/rng';
@@ -52,6 +52,30 @@ describe('ghost pace (r46)', () => {
     s.stage!.done = s.stage!.total - s.maxHp;
     s.hp = 0;
     expect(levelProgress(s)).toBe(1);
+  });
+
+  it('no pace outside the saga fight: Rush, Bounty, Endless and showcase reuse saga levels with other HP', () => {
+    const mk = () => newLevel(levelDef(10)!);
+    expect(levelProgress(mk())).toBe(0);
+    expect(levelProgress({ ...mk(), rush: { id: 'r', slot: 0, week: 1 } })).toBeNull();
+    expect(levelProgress({ ...mk(), bounty: { id: 'b', twist: 't', date: 'd', slot: 0 } })).toBeNull();
+    expect(levelProgress({ ...mk(), endless: 3 })).toBeNull();
+    expect(levelProgress({ ...mk(), showcase: true })).toBeNull();
+    // and a Rush/Endless run's log never becomes a ghost
+    const s = newLevel(levelDef(3)!);
+    s.endless = 1;
+    const log = play(s, 11, 0.3);
+    expect(s.phase).toBe('won');
+    expect(paceFromLog(log)).toBeNull();
+  });
+
+  it('a run resumed mid-way (log starts after 0 s) gives no curve', () => {
+    const s = newLevel(levelDef(3)!);
+    for (let i = 0; i < 100; i++) tick(s, new Set());
+    expect(s.elapsed).toBeGreaterThan(0);
+    const log = play(s, 11, 0.3);
+    expect(s.phase).toBe('won');
+    expect(paceFromLog(log)).toBeNull();
   });
 
   it('a lost run gives no curve', () => {

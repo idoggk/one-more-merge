@@ -1,4 +1,4 @@
-import type { GameState } from './game';
+import { deserialize, type GameState } from './game';
 import { replayRun, type RunLog } from './replay';
 
 /** Ghost pace (r46): the best winning run of a saga level as a compact progress-over-time curve, so a replay can show
@@ -13,9 +13,10 @@ export interface PaceCurve {
 export const PACE_SAMPLES = 32;
 const SCALE = 36 * 36 - 1;
 
-/** Share of the level's total machine HP dealt so far (0..1); null when the level has no HP race (goal levels, not a level). */
+/** Share of the level's total machine HP dealt so far (0..1); null when the level has no HP race (goal levels, not a level)
+ *  or isn't the saga fight itself (Rush / Bounty / Endless / showcase reuse a saga level's def with other HP and clock). */
 export function levelProgress(s: GameState): number | null {
-  if (s.level === undefined || s.goal || s.puzzle) return null;
+  if (s.level === undefined || s.goal || s.puzzle || s.rush || s.bounty || s.endless !== undefined || s.showcase) return null;
   const st = s.stage;
   if (st?.goal) return null;
   const left = Math.max(0, s.hp);
@@ -49,8 +50,11 @@ export function decodeCurve(c: PaceCurve): number[] | null {
   return out;
 }
 
-/** Replay a winning level's log and sample its progress on every tick. */
+/** Replay a winning level's log and sample its progress on every tick. Null unless the log starts at the run's
+ *  beginning (a run resumed after a reload logs from mid-run, which would make a ghost that is stuck at 0 then jumps). */
 export function paceFromLog(log: RunLog): PaceCurve | null {
+  const start = log.start ? deserialize(log.start) : null;
+  if (!start || start.elapsed !== 0) return null;
   const points: [number, number][] = [];
   const end = replayRun(log, log.actions.length, (s) => {
     const p = levelProgress(s);

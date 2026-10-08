@@ -43,7 +43,7 @@ import puzzleData from '../content/puzzles.json';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
 import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
-import { ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
+import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
@@ -551,7 +551,8 @@ export class GameScene extends Phaser.Scene {
     this.views.clear();
     this.s = s;
     this.runLog = newRunLog();
-    this.paceGhost = s.level !== undefined && levelProgress(s) !== null && (this.meta.levelStars?.[String(s.level)] ?? 0) > 0 ? (this.meta.levelPace?.[String(s.level)] ?? null) : null;
+    const ghost = s.level !== undefined && levelProgress(s) !== null && (this.meta.levelStars?.[String(s.level)] ?? 0) > 0 ? this.meta.levelPace?.[String(s.level)] : undefined;
+    this.paceGhost = ghost && decodeCurve(ghost) ? ghost : null; // a broken saved curve = no ghost (not a frozen "on pace")
     this.paceShownAt = -1;
     this.pulledIds.clear();
     this.acc = 0;
@@ -3397,7 +3398,7 @@ Now beat the real level.`, this.coachY());
     const p = this.paceGhost && s.phase === 'playing' && !this.modal ? levelProgress(s) : null;
     if (!this.paceText) {
       this.paceText = this.add.text(W / 2 + bw / 2, HP_Y - 30, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(1, 0.5).setDepth(4).setAlpha(0.85);
-      this.paceG = this.add.graphics().setDepth(1);
+      this.paceG = this.add.graphics().setDepth(3.5); // above the HP number and the kickback quarter ticks
     }
     this.paceG!.clear();
     if (p === null || !this.paceGhost || s.elapsed < 1) {
@@ -3409,7 +3410,8 @@ Now beat the real level.`, this.coachY());
     const g = ghostProgress(this.paceGhost, s.elapsed);
     const inMachine = st ? (g * st.total - st.done) / s.maxHp : g;
     const gx = W / 2 - bw / 2 + bw * (1 - Math.min(1, Math.max(0, inMachine)));
-    this.paceG!.fillStyle(0xfff0cf, 0.9).fillRect(gx - 1.5, HP_Y - 15, 3, 30);
+    this.paceG!.fillStyle(0x2b1d2e, 0.9).fillRect(gx - 2.5, HP_Y - 16, 5, 32); // dark outline: readable on the pale fill
+    this.paceG!.fillStyle(0xfff0cf, 0.95).fillRect(gx - 1.5, HP_Y - 15, 3, 30);
     if (this.paceShownAt < 0 || s.elapsed - this.paceShownAt >= 0.25 || s.elapsed < this.paceShownAt) {
       this.paceShownAt = s.elapsed;
       const d = paceDelta(this.paceGhost, s.elapsed, p);
