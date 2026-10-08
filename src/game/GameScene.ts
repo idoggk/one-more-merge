@@ -3338,7 +3338,11 @@ Now beat the real level.`, this.coachY());
       c.destroy();
       done();
     };
-    dim.on('pointerup', finish);
+    // Skip only on a press that STARTS on the dim: the tap that skipped the win show opens this replay mid-press,
+    // and its release must not close it instantly.
+    let pressed = false;
+    dim.on('pointerdown', () => (pressed = true));
+    dim.on('pointerup', () => pressed && finish());
     const later = (ms: number, fn: () => void) => timers.push(this.time.delayedCall(ms, () => !finished && fn()));
 
     // 1) the merge slides in slowly (0.45 s), 2) each activation lights up in order (~2 s), 3) hold on the count
