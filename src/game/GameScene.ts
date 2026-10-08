@@ -594,7 +594,7 @@ export class GameScene extends Phaser.Scene {
     // reach diagram: 5x5 mini board centred on this gadget
     const mc = 30, ox = cw / 2 - 30 - mc * 5, oy = -ch / 2 + 86;
     const dg = this.add.graphics();
-    const reach = new Set(g.family === 'coil' || g.family === 'bell' ? routeCells(idx, g.family, g.rank, this.s.perks) : []);
+    const reach = new Set(g.family === 'coil' || g.family === 'bell' || g.family === 'horn' || g.family === 'fuse_box' ? routeCells(idx, g.family, g.rank, this.s.perks) : []);
     const r0 = Math.floor(idx / COLS), c0 = idx % COLS;
     for (let dr = -2; dr <= 2; dr++)
       for (let dc = -2; dc <= 2; dc++) {
@@ -1371,7 +1371,7 @@ Now beat the real level.`, this.coachY());
     if (src >= 0 && this.s.grid[src]) {
       const a = this.s.grid[src]!;
       const { x: sx, y: sy } = cellXY(src);
-      if (this.moved && (a.family === 'coil' || a.family === 'bell')) {
+      if (this.moved && (a.family === 'coil' || a.family === 'bell' || a.family === 'horn' || a.family === 'fuse_box')) {
         const at = this.hoverIdx >= 0 ? this.hoverIdx : src;
         const col = FAMILY_INFO[a.family].color;
         for (const cell of routeCells(at, a.family, a.rank, this.s.perks)) {
@@ -1512,6 +1512,15 @@ Now beat the real level.`, this.coachY());
       // little lightning bolt badge, top-right
       this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x + 38, y - 38, 15).fillStyle(0x9be05a, 1).fillCircle(x + 38, y - 38, 12);
       this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x + 40, y - 48, x + 32, y - 36, x + 39, y - 36).fillTriangle(x + 37, y - 40, x + 44, y - 40, x + 36, y - 28);
+    });
+    // Amplifier / Signal Beacon mark: teal ring + up-arrow badge (top-left) until the marked machine fires (g.amp is cleared on use)
+    this.s.grid.forEach((g, idx) => {
+      if (!g?.amp) return;
+      const { x, y } = cellXY(idx);
+      const a = 0.6 + 0.4 * Math.sin(t * 6 + 1.5);
+      this.primeG.lineStyle(5, 0x5ff0e0, a).strokeRoundedRect(x - 49, y - 49, 98, 98, 20);
+      this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x - 38, y - 38, 15).fillStyle(0x5ff0e0, 1).fillCircle(x - 38, y - 38, 12);
+      this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x - 38, y - 47, x - 46, y - 37, x - 30, y - 37).fillRect(x - 41, y - 38, 6, 9);
     });
     // idle life (ChatGPT r10 #8): only two gadgets act at once, each for ~420ms, on a 1800-2600ms cosmetic beat
     const now = this.time.now;
@@ -2723,9 +2732,11 @@ Now beat the real level.`, this.coachY());
     this.passiveAcc += dmg;
     this.shoot(x, y - 40, 0xff9a72, 0, false, () => {
       this.hitTarget(false);
-      // r19: passive hits = particles only; numbers are reserved for chain payloads
+      // r19: passive hits = particles; a small, pale number so auto-shots read as damage without competing with chain payloads
+      const hx = this.target.x + Phaser.Math.Between(-60, 60), hy = this.target.y + Phaser.Math.Between(-40, 30);
       this.sparks.setParticleTint(0xffc0a0);
-      this.sparks.explode(4, this.target.x + Phaser.Math.Between(-60, 60), this.target.y + Phaser.Math.Between(-40, 30));
+      this.sparks.explode(4, hx, hy);
+      if (dmg >= 1) this.floatText(hx, hy - 30, `${Math.round(dmg)}`, '#ffd0b8', 22).setAlpha(0.85);
       this.passiveAcc = 0;
     });
   }
@@ -2753,7 +2764,7 @@ Now beat the real level.`, this.coachY());
     for (const e of r.edges) {
       const a = cellXY(e.from);
       const b = cellXY(e.to);
-      const col = e.kind === 'item' ? 0xff9a3c : e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : 0xffffff;
+      const col = e.kind === 'item' ? 0xff9a3c : e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? 0x9be05a : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : e.kind === 'horn' ? 0xe8b060 : e.kind === 'fuse_box' ? 0xff7ab0 : e.kind === 'arc' ? 0x7a9aff : e.kind === 'amp' ? 0x5ff0e0 : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
       this.time.delayedCall(d, () => {
         if (e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime') this.signatureFx(e.kind, a, b);
@@ -6160,7 +6171,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'amplifier', title: 'AMPLIFIER', role: 'SUPPORT', text: 'When it fires it marks the strongest shooter or relay touching it. That machine\'s next hit is x1.3 (the mark waits until it fires).', tryThis: 'Park it beside your biggest machine.', unlock: 999 },
     { key: 'signal_beacon', title: 'SIGNAL BEACON', role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere on the board: their next hits are x1.15.', tryThis: 'Fire it early in a chain.', unlock: 999 },
     { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Get halfway through a level and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
-    { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges the Cannon next to it: that Cannon\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.', unlock: 17 },
+    { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges a shooter next to it (Cannon, Rocket, Mortar, Arc Welder): that shooter\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest shooter.', unlock: 17 },
   ];
 
   guideUnlocked(unlock: number) {

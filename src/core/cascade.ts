@@ -159,8 +159,8 @@ export function fanPush(grid: Grid, idx: number, busy: ReadonlySet<number>, rese
 }
 
 /**
- * Battery (TOY_RULES): prime the first adjacent Cannon (up/right/down/left) that has not activated in this cascade,
- * is not already primed and is not reserved. A queued-but-not-yet-fired Cannon IS eligible (it uses the charge on its turn).
+ * Battery (TOY_RULES): prime the first adjacent shooter (up/right/down/left) that has not activated in this cascade,
+ * is not already primed and is not reserved. A queued-but-not-yet-fired shooter IS eligible (it uses the charge on its turn).
  */
 export function batteryPrime(grid: Grid, idx: number, primed: ReadonlySet<number>, fired: ReadonlySet<number>, reserved: ReadonlySet<number>): number | null {
   const [r, c] = rc(idx);
@@ -339,7 +339,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       continue;
     }
     if (a.family === 'fan') {
-      // L3 Strong Gust (rank 4+ pushes 2 cells), L6 Double Gust (every 4th), L9 Launch (rank 7-8 wakes what it pushed)
+      // L3 Strong Gust (rank 4+ pushes 2 cells), L6 Double Gust (every 4th), L9 Launch (rank 6 = helper max: wakes what it pushed)
       const pushes = nthEvery('fan', 6, 4, a) ? 2 : 1;
       const busy = new Set(visited.keys());
       for (let k = 0; k < pushes; k++) {
@@ -350,13 +350,13 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         grid[p.to] = grid[p.from];
         grid[p.from] = null;
         busy.add(p.to);
-        if (hasPerk('fan', 9, 7, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
+        if (hasPerk('fan', 9, MAX_RANK, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
       }
       continue;
     }
     if (a.family === 'battery') {
-      // MAX Split Charge (ChatGPT r9): run the primer selection twice (the first target is then ineligible)
-      for (let k = 0; k < (nthEvery('battery', 6, 5, a) || (a.rank >= MAX_RANK && !TUNING.clarity) ? 2 : 1); k++) {
+      // MAX Split Charge (ChatGPT r9) / L6 Twin Charge / L9 Universal Socket: run the primer selection twice (the first target is then ineligible)
+      for (let k = 0; k < (lvl('battery') >= 9 || nthEvery('battery', 6, 5, a) || (a.rank >= MAX_RANK && !TUNING.clarity) ? 2 : 1); k++) {
         const id = batteryPrime(grid, idx, primedNow, fired, blockSet);
         if (id === null) break;
         primes.push(id);
@@ -368,9 +368,9 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
     if (a.family === 'amplifier') {
       // r32 Amplifier: marks the strongest shooter/relay orthogonally touching it (unfired), row-major tie
-      // L3 Wide Pickup (rank 4+: 8 neighbours), L6 Dual Channel (every 5th: 2 targets), L9 Long Range (rank 7-8: Chebyshev 2)
+      // L3 Wide Pickup (rank 4+: 8 neighbours), L6 Dual Channel (every 5th: 2 targets), L9 Long Range (rank 6 = helper max: Chebyshev 2)
       const [r0, c0] = rc(idx);
-      const reach = hasPerk('amplifier', 9, 7, a) ? 2 : 1;
+      const reach = hasPerk('amplifier', 9, MAX_RANK, a) ? 2 : 1;
       const diag = hasPerk('amplifier', 3, 4, a) || reach > 1;
       const cand: number[] = [];
       for (let dr = -reach; dr <= reach; dr++)
@@ -386,7 +386,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
     if (a.family === 'signal_beacon') {
       // r32 Signal Beacon: nearest unfired shooter AND nearest unfired relay anywhere (Manhattan, rank, row-major)
-      // L3 Third Signal (rank 4+: also the nearest helper), L6 Broadcast Boost (every 6th: +0.25), L9 GO! (rank 7-8: wakes them)
+      // L3 Third Signal (rank 4+: also the nearest helper), L6 Broadcast Boost (every 6th: +0.25), L9 GO! (rank 6 = helper max: wakes them)
       const [r0, c0] = rc(idx);
       const isHelper = (f: Family) => !isShooter(f) && !isRelay(f);
       const kinds = hasPerk('signal_beacon', 3, 4, a) ? [isShooter, isRelay, isHelper] : [isShooter, isRelay];
@@ -400,7 +400,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         });
         if (best < 0) continue;
         mark(best, mult, idx);
-        if (hasPerk('signal_beacon', 9, 7, a) && !visited.has(best)) enqueue(idx, best, a.depth + 1);
+        if (hasPerk('signal_beacon', 9, MAX_RANK, a) && !visited.has(best)) enqueue(idx, best, a.depth + 1);
       }
       continue;
     }
@@ -408,7 +408,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       // MAX Twin Pull (ChatGPT r9): a second pull on the updated board, other direction, never the first moved piece
       let skip = -1;
       const busy = new Set(visited.keys());
-      // L3 Strong Magnet (search +1 cell), L6 Double Pull (every 4th), L9 Snap In (rank 7-8 wakes what it pulled)
+      // L3 Strong Magnet (search +1 cell), L6 Double Pull (every 4th), L9 Snap In (rank 6 = helper max: wakes what it pulled)
       for (let k = 0; k < (nthEvery('magnet', 6, 4, a) || (a.rank >= MAX_RANK && !TUNING.clarity) ? 2 : 1); k++) {
         const p = magnetPull(grid, idx, busy, blockSet, skip, lvl('magnet') >= 3 ? 4 : 3);
         if (!p) break;
@@ -418,7 +418,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         grid[p.from] = null;
         skip = p.dir;
         busy.add(p.to);
-        if (hasPerk('magnet', 9, 7, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
+        if (hasPerk('magnet', 9, MAX_RANK, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
       }
       continue;
     }

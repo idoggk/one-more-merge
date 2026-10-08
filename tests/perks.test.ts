@@ -30,6 +30,43 @@ describe('r32 milestone perks', () => {
     expect(eighth.total).toBeCloseTo(normal.total * 2);
     expect(normal.fires?.cannon).toBe(1);
   });
+  it('helper L9 perks trigger at rank 6 (the helper max), not before L9', () => {
+    const ids = (r: ReturnType<typeof woke>) => r.activations.map((a) => a.id);
+    // Magnet Snap In: rank 6 magnet pulls the cannon at 2 into 7 and wakes it
+    const mag = (lv: number) => { const c = g('cannon'); return { c, r: woke(board([[12, g('magnet', 6)], [2, c]]), 12, { magnet: lv }) }; };
+    const m9 = mag(9), m8 = mag(8);
+    expect(m9.r.moves[0]?.id).toBe(m9.c.id);
+    expect(ids(m9.r)).toContain(m9.c.id);
+    expect(ids(m8.r)).not.toContain(m8.c.id);
+    // Fan Launch: a bell rings the rank 6 fan, which pushes the cannon at 9 up into 4 and wakes it
+    const fan = (lv: number) => { const c = g('cannon'); return { c, r: woke(board([[10, g('bell')], [14, g('fan', 6)], [9, c]]), 10, { fan: lv }) }; };
+    const f9 = fan(9), f8 = fan(8);
+    expect(f9.r.moves[0]).toMatchObject({ id: f9.c.id, from: 9, to: 4 });
+    expect(ids(f9.r)).toContain(f9.c.id);
+    expect(ids(f8.r)).not.toContain(f8.c.id);
+    // Amplifier Long Range: rank 6 marks a cannon 2 cells away
+    const amp = (lv: number) => { const c = g('cannon'); return { c, r: woke(board([[12, g('amplifier', 6)], [2, c]]), 12, { amplifier: lv }) }; };
+    const a9 = amp(9), a8 = amp(8);
+    expect(a9.r.amps?.map((x) => x.id)).toContain(a9.c.id);
+    expect(a8.r.amps?.map((x) => x.id) ?? []).not.toContain(a8.c.id);
+    // Beacon GO!: rank 6 marks AND wakes the far cannon
+    const bea = (lv: number) => { const c = g('cannon'); return { c, r: woke(board([[12, g('signal_beacon', 6)], [0, c]]), 12, { signal_beacon: lv }) }; };
+    const b9 = bea(9), b8 = bea(8);
+    expect(b9.r.amps?.map((x) => x.id)).toContain(b9.c.id);
+    expect(ids(b9.r)).toContain(b9.c.id);
+    expect(b8.r.amps?.map((x) => x.id)).toContain(b8.c.id);
+    expect(ids(b8.r)).not.toContain(b8.c.id);
+  });
+  it('Battery primes any shooter; L9 Universal Socket primes 2 touching shooters', () => {
+    const run = (lv: number) => {
+      const c = g('cannon'), r = g('rocket');
+      return { c, r, res: woke(board([[12, g('battery')], [7, r], [17, c]]), 12, { battery: lv }) };
+    };
+    const l1 = run(1), l9 = run(9);
+    expect(l1.res.primes).toEqual([l1.r.id]); // first in up/right/down/left order: the Rocket above
+    expect(l9.res.primes).toEqual([l9.r.id, l9.c.id]);
+    expect(l9.res.edges.filter((e) => e.kind === 'battery')).toHaveLength(2);
+  });
   it('perks are off at level 1 (calibration baseline unchanged)', () => {
     const a = woke(board([[12, g('cannon', 5)]]), 12, {}), b = woke(board([[12, g('cannon', 5)]]), 12, { cannon: 1 });
     expect(a.total).toBe(b.total);

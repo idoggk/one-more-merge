@@ -13,7 +13,7 @@ export const FAMILY_INFO = {
   cannon: { name: 'Cannon', color: 0xe8452c, role: 'SHOOTER', text: 'Shoots by itself, weakly. Woken by a chain it fires a FULL shot. Wakes nobody.', tryThis: 'Put Cannons where Coils and Bells can reach them.' },
   coil: { name: 'Coil', color: 0x27c4e0, role: 'RELAY', text: 'Hits the monster and wakes OTHER gadgets up to 2 cells away: up, down, left, right.', tryThis: 'Put Cannons inside its cross.' },
   bell: { name: 'Bell', color: 0xf2b521, role: 'RELAY', text: 'Hits the monster and wakes every OTHER gadget in its row.', tryThis: 'Fill its row with Cannons and Coils.' },
-  battery: { name: 'Battery', color: 0x7ccf2e, role: 'SUPPORT', text: 'Charges one Cannon next to it: its next chain shot hits x1.5.', tryThis: 'Park it beside your biggest Cannon.' },
+  battery: { name: 'Battery', color: 0x7ccf2e, role: 'SUPPORT', text: 'Charges one shooter next to it: its next chain shot hits x1.5.', tryThis: 'Park it beside your biggest shooter.' },
   fan: { name: 'Fan', color: 0x7fc8f0, role: 'MOVER', text: 'Pushes one gadget next to it one cell away.', tryThis: 'Use it to open space or line pieces up.' },
   rocket: { name: 'Rocket', color: 0xff8a3c, role: 'SHOOTER', text: 'Never shoots by itself. Woken by a chain it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.' },
   mortar: { name: 'Mortar', color: 0x6a7a3a, role: 'SHOOTER', text: 'Never shoots by itself. Woken DEEP in a chain it hits harder: x0.9 at the first link, up to x1.65 six links in.', tryThis: 'Put it at the far end of your longest chain.' },
