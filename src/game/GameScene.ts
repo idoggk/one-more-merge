@@ -32,7 +32,7 @@ import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MO
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
-import { applyBundle, exportCode, importCode, META_KEY, readBundle, SAVE_KEY, type SaveBundle } from '../platform/backup';
+import { applyBundle, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, SAVE_KEY, storeTo, type SaveBundle } from '../platform/backup';
 import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
@@ -241,8 +241,7 @@ function loadMeta(): Meta {
 }
 const store = (k: string, v: string | null) => {
   try {
-    if (v === null) localStorage.removeItem(k);
-    else localStorage.setItem(k, v);
+    storeTo(localStorage, k, v);
   } catch {
     /* storage unavailable */
   }
@@ -3562,24 +3561,29 @@ Now beat the real level.`, this.coachY());
     });
   }
 
-  confirmImport(b: SaveBundle) {
+  /** `undo`: put back the save from before the last load (Settings link). */
+  confirmImport(b: SaveBundle, undo = false) {
     closeCodeBox();
     const c = this.sheet(620);
     const top = H / 2 - 310;
-    this.sheetTitle(c, top, 'LOAD THIS SAVE?', 'This replaces your current progress.\nIt cannot be undone.');
+    this.sheetTitle(c, top, undo ? 'UNDO LAST LOAD?' : 'LOAD THIS SAVE?', undo ? 'This puts back the save you had\nbefore you loaded a code.' : 'This replaces your current progress.\nYou can undo it once in Settings.');
     const sum = (meta: Record<string, unknown>) => {
       const stars = Object.values((meta.levelStars ?? {}) as Record<string, number>);
       return `${stars.length} levels  ·  ${stars.reduce((a, x) => a + (Number(x) || 0), 0)} stars  ·  ${Number(meta.bolts) || 0} Bolts`;
     };
     const when = b.at ? new Date(b.at).toLocaleDateString() : '';
-    c.add(this.add.text(W / 2, top + 210, `SAVE CODE${when ? ` (${when})` : ''}\n${sum(b.meta)}\n\nNOW ON THIS PHONE\n${sum(this.meta as unknown as Record<string, unknown>)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0));
+    c.add(this.add.text(W / 2, top + 210, `${undo ? 'BEFORE THE LOAD' : `SAVE CODE${when ? ` (${when})` : ''}`}\n${sum(b.meta)}\n\nNOW ON THIS PHONE\n${sum(this.meta as unknown as Record<string, unknown>)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0));
     this.button(c, W / 2 - 140, top + 540, 260, 'CANCEL', 0x8a6a4a, () => this.openSettings(), 0.8);
-    this.button(c, W / 2 + 140, top + 540, 260, 'REPLACE', 0xe8452c, () => {
-      tlog.log('backup_restore');
+    this.button(c, W / 2 + 140, top + 540, 260, undo ? 'UNDO' : 'REPLACE', 0xe8452c, () => {
+      tlog.log(undo ? 'backup_undo' : 'backup_restore');
       tlog.flush();
+      // lock first: nothing may write the old in-memory game back before or during the reload
+      lockSaves();
       try {
-        applyBundle(localStorage, b);
+        if (undo) restorePreimport(localStorage);
+        else applyBundle(localStorage, b);
       } catch {
+        lockSaves(false);
         return this.showToast("COULDN'T SAVE ON THIS PHONE");
       }
       location.reload();
@@ -5276,7 +5280,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
       });
     });
     // r43 save backup code
-    c.add(this.add.text(W / 2, top + 580, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    const pre = readPreimport(localStorage);
+    if (pre) {
+      // a code was loaded: this line becomes the one-time undo
+      const un = this.add.text(W / 2, top + 580, 'Loaded the wrong code? Tap to undo', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      un.on('pointerup', () => this.confirmImport(pre, true));
+      c.add(un);
+    } else c.add(this.add.text(W / 2, top + 580, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
     this.button(c, W / 2 - 150, top + 640, 360, 'COPY SAVE CODE', 0x5fbf4a, () => this.copySaveCode(), 0.78);
     this.button(c, W / 2 + 150, top + 640, 360, 'PASTE SAVE CODE', 0x27a4c0, () => this.openPasteCode(), 0.78);
     const pd = this.add.text(W / 2, top + 710, 'Playtest stats', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -5311,6 +5321,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       tlog.log('start_over');
       store(SAVE_KEY, null);
       store(META_KEY, null);
+      lockSaves(); // the reload's visibilitychange -> save() must not write the old game back
       location.reload();
     }, 0.85);
     // 2) jump to level: every earlier level counts as cleared (2 stars), then the level card opens

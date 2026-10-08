@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBundle, BACKUP_VERSION, crc32, exportCode, importCode, META_KEY, readBundle, SAVE_KEY, type SaveBundle } from '../src/platform/backup';
+import { applyBundle, BACKUP_VERSION, crc32, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, SAVE_KEY, storeTo, type SaveBundle } from '../src/platform/backup';
 import { newGame, serialize } from '../src/core/game';
 
 class MemStore {
@@ -99,5 +99,54 @@ describe('save backup code', () => {
       }
     }
     expect(store.map).toEqual(before);
+  });
+
+  it('REPLACE flow: once saves are locked, the reload-time save() cannot write the old game back', async () => {
+    const phone = new MemStore();
+    phone.setItem(META_KEY, JSON.stringify({ tutorialDone: false, bolts: 5 }));
+    phone.setItem(SAVE_KEY, 'old run');
+    const r = await importCode(await exportCode({ ...bundle(), run: null }));
+    if (!r.ok) throw new Error(r.message);
+    lockSaves();
+    try {
+      applyBundle(phone, r.bundle);
+      // what visibilitychange -> save() does during unload
+      storeTo(phone, META_KEY, JSON.stringify({ tutorialDone: true, bolts: 5 }));
+      storeTo(phone, SAVE_KEY, 'old run');
+    } finally {
+      lockSaves(false);
+    }
+    expect(readBundle(phone)).toEqual({ meta: r.bundle.meta, run: null });
+  });
+
+  it('keeps the previous save and can undo the load once', () => {
+    const phone = new MemStore();
+    phone.setItem(META_KEY, '{"bolts":5}');
+    phone.setItem(SAVE_KEY, 'old run');
+    applyBundle(phone, bundle());
+    expect(readPreimport(phone)).toEqual({ meta: { bolts: 5 }, run: 'old run' });
+    expect(restorePreimport(phone)).toBe(true);
+    expect(readBundle(phone)).toEqual({ meta: { bolts: 5 }, run: 'old run' });
+    expect(readPreimport(phone)).toBeNull();
+    expect(restorePreimport(phone)).toBe(false);
+    // a fresh phone (no meta yet) restores to an empty meta and no run
+    const fresh = new MemStore();
+    applyBundle(fresh, bundle());
+    restorePreimport(fresh);
+    expect(readBundle(fresh)).toEqual({ meta: {}, run: null });
+  });
+
+  it('is all or nothing: a failed write (quota) leaves the old save in place', () => {
+    const phone = new MemStore();
+    phone.setItem(META_KEY, '{"bolts":5}');
+    phone.setItem(SAVE_KEY, 'old run');
+    const before = new Map(phone.map);
+    const set = phone.setItem.bind(phone);
+    phone.setItem = (k: string, v: string) => {
+      if (k === SAVE_KEY && v !== 'old run') throw new Error('QuotaExceededError');
+      set(k, v);
+    };
+    expect(() => applyBundle(phone, bundle())).toThrow();
+    expect(phone.map).toEqual(before);
   });
 });

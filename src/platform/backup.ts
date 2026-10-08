@@ -109,9 +109,74 @@ export function readBundle(storage: KV): SaveBundle {
   return { meta, run: storage.getItem(SAVE_KEY) };
 }
 
-/** Replaces the stored save with a decoded bundle (the caller reloads the game afterwards). */
-export function applyBundle(storage: KV, bundle: SaveBundle) {
-  storage.setItem(META_KEY, JSON.stringify(bundle.meta));
-  if (bundle.run === null) storage.removeItem(SAVE_KEY);
-  else storage.setItem(SAVE_KEY, bundle.run);
+/** The save as it was before the last load, kept so a wrong code can be undone. */
+export const PREIMPORT = '.preimport';
+
+const put = (storage: KV, k: string, v: string | null) => (v === null ? storage.removeItem(k) : storage.setItem(k, v));
+
+/**
+ * Replaces the stored save with a decoded bundle (the caller locks saves, then reloads the game).
+ * Keeps the previous save under *.preimport unless `keepPrevious` is false. All or nothing: if a write fails
+ * (quota), every key goes back to what it was and the error is rethrown.
+ */
+export function applyBundle(storage: KV, bundle: SaveBundle, keepPrevious = true) {
+  const keys = [META_KEY, SAVE_KEY, META_KEY + PREIMPORT, SAVE_KEY + PREIMPORT];
+  const old = keys.map((k) => storage.getItem(k));
+  try {
+    if (keepPrevious) {
+      put(storage, META_KEY + PREIMPORT, old[0] ?? '{}');
+      put(storage, SAVE_KEY + PREIMPORT, old[1]);
+    }
+    put(storage, META_KEY, JSON.stringify(bundle.meta));
+    put(storage, SAVE_KEY, bundle.run);
+  } catch (e) {
+    // free the space first, then put the old values back
+    keys.forEach((k) => storage.removeItem(k));
+    keys.forEach((k, i) => {
+      try {
+        put(storage, k, old[i]);
+      } catch {
+        /* nothing more to do */
+      }
+    });
+    throw e;
+  }
+}
+
+/** The save kept by the last load, or null. */
+export function readPreimport(storage: KV): SaveBundle | null {
+  const raw = storage.getItem(META_KEY + PREIMPORT);
+  if (raw === null) return null;
+  let meta: Record<string, unknown> = {};
+  try {
+    meta = JSON.parse(raw);
+  } catch {
+    /* unreadable: restore an empty one */
+  }
+  return { meta, run: storage.getItem(SAVE_KEY + PREIMPORT) };
+}
+
+/** Puts back the save from before the last load and forgets the snapshot. */
+export function restorePreimport(storage: KV): boolean {
+  const pre = readPreimport(storage);
+  if (!pre) return false;
+  applyBundle(storage, pre, false);
+  storage.removeItem(META_KEY + PREIMPORT);
+  storage.removeItem(SAVE_KEY + PREIMPORT);
+  return true;
+}
+
+let locked = false;
+/**
+ * Stops every later save write until the page reloads. Set before a load / undo / wipe: reload fires
+ * visibilitychange -> save(), which would otherwise write the old in-memory game over the new save.
+ */
+export function lockSaves(on = true) {
+  locked = on;
+}
+
+/** The game's only save writer: a no-op while saves are locked. */
+export function storeTo(storage: KV, k: string, v: string | null) {
+  if (locked) return;
+  put(storage, k, v);
 }
