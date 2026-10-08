@@ -452,16 +452,25 @@ const item = await page.evaluate(async () => {
 check('held power-up cleared by cancelDrag and the safety net', item.byCancel === null && item.byNet === null, item);
 
 // 16) repeated mismatch bounces: every sprite back on its cell, every rank label back to size
-await setBoard({ 12: 'c2', 13: 'c3', 17: 'c2', 18: 'c3' });
+await setBoard({ 12: 'c2', 13: 'c3' });
 await wait(200);
-for (let k = 0; k < 4; k++) await drag(k % 2 ? 17 : 12, k % 2 ? 18 : 13, { x: 0, y: 0 }, 5, 40, 0);
+await drag(12, 13, { x: 0, y: 0 }); // one real bounce, then three more that each land mid-pulse of the last
+const bounced = await page.evaluate(async () => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const out = [];
+  for (let k = 0; k < 3; k++) {
+    out.push(sc.commitDrop(12, 13, sc.s.grid[12].id));
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return out;
+});
 await wait(1400);
 st = await state();
 const ranks = await page.evaluate(() => {
   const sc = window.__omm.game.scene.getScene('game');
   return [...sc.views.values()].map((v) => v.getByName('rank')?.scale).filter((s) => s !== undefined && Math.abs(s - 1) > 0.01);
 });
-check('repeated shakes leave no sprite offset and no enlarged rank label', st.cells[12] === 'c2' && st.cells[13] === 'c3' && clean(st) && !ranks.length, { st, ranks });
+check('repeated shakes leave no sprite offset and no enlarged rank label', bounced.every((b) => b === false) && st.cells[12] === 'c2' && st.cells[13] === 'c3' && clean(st) && !ranks.length, { bounced, st, ranks });
 
 // --- iPhone safe areas: #game inset like a notched phone, so the canvas has margins the finger can slide into ---
 await page.evaluateOnNewDocument(() => {
