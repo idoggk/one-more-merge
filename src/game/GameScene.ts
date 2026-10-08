@@ -400,8 +400,10 @@ export class GameScene extends Phaser.Scene {
       }
     })();
     const loaded = saved ? deserialize(saved) : null;
-    if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial')) this.startState(loaded);
-    else {
+    if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial')) {
+      this.tutorialShort = !this.meta.tutorialDone; // a reloaded first-launch warm-up stays the one-merge warm-up
+      this.startState(loaded);
+    } else {
       this.tutorialShort = !this.meta.tutorialDone;
       this.startState(newGame(Date.now() >>> 0, !this.meta.tutorialDone));
       if (this.meta.tutorialDone) this.openTitle();
@@ -1177,6 +1179,7 @@ export class GameScene extends Phaser.Scene {
       this.dragView = null;
       this.drawHeld();
       if (this.s.phase === 'playing') this.openInspect(tapped);
+      else if (this.s.phase === 'tutorial') this.showEvent('DRAG it onto its match!', '#fff0cf', 1400); // a tap is not a merge
       return;
     }
     const from = this.dragIdx;
@@ -1631,6 +1634,7 @@ Now beat the real level.`, this.coachY());
     const steps = this.tutorialShort ? GameScene.TUTORIAL.slice(0, 1) : GameScene.TUTORIAL;
     const step = steps[this.tutorialStep];
     this.coach.clear();
+    this.tutorialWaiting = false; // the coach shows no GOT IT now: input must never stay gated on a hidden one
     if (!step) {
       // script done: the real run starts on the board they just built
       const ev = recordCommand(this.runLog, this.s, { k: 'tutorial' }).events;
@@ -1660,6 +1664,14 @@ Now beat the real level.`, this.coachY());
   /** After a tutorial merge: the explanation waits for GOT IT (r24: players never looked up), then the next step. */
   onTutorialMerge() {
     const step = GameScene.TUTORIAL[this.tutorialStep];
+    if (step?.kind === 'mismatch') {
+      // a merge during the mismatch step can use up its pair: re-pick one (or skip the step) so the script never stalls.
+      // If the previous step's GOT IT is up (or about to be), leave it: its onNext re-runs this step anyway.
+      if (this.tutorialWaiting) return;
+      this.coach.clear();
+      this.time.delayedCall(1200, () => GameScene.TUTORIAL[this.tutorialStep] === step && !this.tutorialWaiting && this.runTutorial());
+      return;
+    }
     if (!step || step.kind !== 'merge') return;
     this.coach.clear();
     this.tutorialStep++;

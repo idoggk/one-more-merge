@@ -11,10 +11,131 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true 
 const page = await browser.newPage();
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(String(e)));
+// iPhone has no navigator.vibrate: run the iOS haptic path (hidden switch <label>.click()) like the phone does
+await page.evaluateOnNewDocument(() => delete Navigator.prototype.vibrate);
 await page.setViewport({ width: 390, height: 763, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
 await page.goto(`${server.resolvedUrls.local[0]}?timer`, { waitUntil: 'networkidle0', timeout: 90000 });
 await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let fails = 0;
+const check = (name, cond, info) => {
+  console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${cond ? '' : '  ' + JSON.stringify(info)}`);
+  if (!cond) fails++;
+};
+
+// --- fresh player: the warm-up tutorial is played with touch only (t-a4bbd2f7: "in the warm up tutorial I can't click on anything") ---
+const tut = () =>
+  page.evaluate(() => {
+    const sc = window.__omm.game.scene.getScene('game');
+    const step = sc.constructor.TUTORIAL[sc.tutorialStep];
+    const b = sc.coach.nextBtn.getBounds();
+    return { phase: sc.s.phase, step: sc.tutorialStep, short: sc.tutorialShort, waiting: sc.tutorialWaiting, pair: step && sc.s.phase === 'tutorial' ? sc.tutorialPair(step) : null, gotIt: { x: b.centerX, y: b.centerY }, merges: sc.s.stats.merges, done: sc.meta.tutorialDone, focus: document.activeElement?.tagName, modal: !!sc.modal };
+  });
+const toScreen = (wx, wy) => page.evaluate((wx, wy) => { const r = document.querySelector('canvas').getBoundingClientRect(); return { x: r.left + wx * (r.width / 720), y: r.top + wy * (r.width / 720) }; }, wx, wy);
+const cellScreen = (i, dy = 0) => page.evaluate((i, dy) => { const sc = window.__omm.game.scene.getScene('game'); const c = sc.cellCenter(i); const r = document.querySelector('canvas').getBoundingClientRect(); return { x: r.left + c.x * (r.width / 720), y: r.top + (c.y + dy) * (r.width / 720) }; }, i, dy);
+/** Touch-drag so the lifted PIECE (85 world px above the finger) lands on `to`. */
+async function touchDrag(from, to) {
+  const a = await cellScreen(from), b = await cellScreen(to, 85);
+  await page.touchscreen.touchStart(a.x, a.y);
+  for (let i = 1; i <= 12; i++) {
+    await page.touchscreen.touchMove(a.x + ((b.x - a.x) * i) / 12, a.y + ((b.y - a.y) * i) / 12);
+    await wait(16);
+  }
+  await wait(60);
+  await page.touchscreen.touchEnd();
+}
+/** Any same-family same-rank pair on the board (a legal merge), or null. */
+const anyPair = () =>
+  page.evaluate(() => {
+    const g = window.__omm.game.scene.getScene('game').s.grid;
+    for (let i = 0; i < g.length; i++) for (let j = 0; j < g.length; j++) if (i !== j && g[i] && g[j] && g[i].family === g[j].family && g[i].rank === g[j].rank) return [i, j];
+    return null;
+  });
+/** Plays the tutorial by touch as the coach asks (drag the shown pair, tap GOT IT); `wrongAt`: at that mismatch step, merge a pair instead;
+ *  `doubleAt`: at that step, make a second merge right after the asked one (before its GOT IT shows). */
+async function playTutorial(wrongAt = -1, doubleAt = -1) {
+  let wrong = false, doubled = false;
+  for (let guard = 0; guard < 30; guard++) {
+    const t = await tut();
+    if (t.phase !== 'tutorial') {
+      await wait(1200); // the script's own startLevel(1) lands first
+      return tut();
+    }
+    if (t.waiting) {
+      const g = await toScreen(t.gotIt.x, t.gotIt.y);
+      await page.touchscreen.tap(g.x, g.y);
+      await wait(1500);
+      continue;
+    }
+    if (!t.pair) {
+      await wait(500);
+      continue;
+    }
+    let [a, b] = t.pair;
+    if (t.step === wrongAt && !wrong) {
+      wrong = true;
+      [a, b] = await page.evaluate(() => {
+        const g = window.__omm.game.scene.getScene('game').s.grid;
+        for (let i = 0; i < g.length; i++) for (let j = 0; j < g.length; j++) if (i !== j && g[i] && g[j] && g[i].family === 'cannon' && g[j].family === 'cannon' && g[i].rank === g[j].rank) return [i, j];
+        return [-1, -1];
+      });
+    }
+    await touchDrag(a, b);
+    if (t.step === doubleAt && !doubled) {
+      doubled = true;
+      const p = await anyPair();
+      if (p) await touchDrag(p[0], p[1]);
+    }
+    await wait(1800);
+  }
+  return tut();
+}
+await wait(800);
+let t0 = await tut();
+const t0Tap = await cellScreen(t0.pair?.[0] ?? 0);
+await page.touchscreen.tap(t0Tap.x, t0Tap.y); // a tap is not a drag: nothing breaks, the coach says to drag
+await wait(300);
+const tapMsg = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  return { text: sc.laneMsg.text, live: sc.time.now < sc.laneMsg.until };
+});
+check('tutorial tap says to drag', tapMsg.text === 'DRAG it onto its match!' && tapMsg.live, tapMsg);
+const tEnd = await playTutorial();
+check('fresh player: warm-up starts short and finishes by touch', t0.phase === 'tutorial' && t0.short && tEnd.phase === 'playing' && tEnd.done && tEnd.merges === 0, { t0, tEnd });
+check('iOS haptic switch never takes focus', tEnd.focus === 'BODY' || tEnd.focus === 'CANVAS', tEnd);
+// full tutorial (Replay tutorial); a merge during the mismatch step must not stall the script
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+  sc.startTutorial();
+});
+await wait(800);
+const tFull = await playTutorial(3);
+check('full tutorial: a merge in the mismatch step does not stall it', tFull.phase === 'playing', tFull);
+// full tutorial: two quick merges at the bell step (the 2nd lands in the mismatch step before GOT IT shows) must not lock input
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+  sc.startTutorial();
+});
+await wait(800);
+const tDouble = await playTutorial(-1, 2);
+check('full tutorial: two quick merges into the mismatch step do not lock input', tDouble.phase === 'playing', tDouble);
+// a warm-up saved mid-way and reloaded stays the one-merge warm-up
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+  sc.startTutorial();
+  sc.save();
+  localStorage.setItem('omm.meta.v1', JSON.stringify({ ...sc.meta, tutorialDone: false }));
+});
+await page.reload({ waitUntil: 'load', timeout: 90000 });
+await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
+await wait(800);
+t0 = await tut();
+const tReload = await playTutorial();
+check('reloaded warm-up stays the one-merge warm-up and finishes', t0.phase === 'tutorial' && t0.short && tReload.phase === 'playing' && tReload.done, { t0, tReload });
 
 /** Fresh board from { cell: 'b1' | 'c2' | 'n3' ... } (b = bell, c = coil, n = cannon); no deliveries during the test. */
 const setBoard = (cells) =>
@@ -34,6 +155,7 @@ const setBoard = (cells) =>
 // board: bell1 @0, coil2 @12, cannon3 @13, bell2 @20, bell2 @24
 await page.evaluate(() => {
   const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
   sc.closeModal();
   sc.coach.clear();
   Object.assign(sc.meta, { tutorialDone: true, toys: {}, tips: { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_kick_fuse: true, x_kick_plain: true } });
@@ -96,11 +218,6 @@ const state = () =>
   });
 const clean = (st) => !st.off.length && st.views === st.live && st.dragIdx === -1;
 
-let fails = 0;
-const check = (name, cond, info) => {
-  console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${cond ? '' : '  ' + JSON.stringify(info)}`);
-  if (!cond) fails++;
-};
 await drag(0, 7);
 let st = await state();
 check('move into empty cell lands exactly', st.cells[7] === 'b1' && st.cells[0] === '.' && !st.off.length && st.views === st.live, st);
