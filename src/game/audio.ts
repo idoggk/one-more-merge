@@ -253,7 +253,8 @@ function iosHapticLabel(): HTMLLabelElement | null {
   if (typeof document === 'undefined' || typeof navigator === 'undefined' || !(navigator.maxTouchPoints > 0)) return null;
   const label = document.createElement('label');
   label.setAttribute('aria-hidden', 'true');
-  label.style.display = 'none';
+  // never hit-testable, never over the canvas, never scrolled to
+  label.style.cssText = 'display:none;position:fixed;left:-9999px;top:0;pointer-events:none';
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.setAttribute('switch', '');
@@ -270,7 +271,11 @@ export function haptic(ms = 10) {
       navigator.vibrate(ms);
       return;
     }
-    iosHapticLabel()?.click();
+    const label = iosHapticLabel();
+    if (!label) return;
+    label.click();
+    // the switch must never keep focus (the canvas takes every touch)
+    if (label.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
   } catch {
     /* ignore: haptics are a bonus, never an error */
   }
