@@ -337,6 +337,188 @@ await wait(300);
 const after = await state();
 check('touchcancel: a late finger-up does nothing', after.cells[6] === 'b1' && after.cells[8] === 'b1' && after.merges === m0 && clean(after), after);
 
+// --- drag reliability on iPhone Safari (t-82a81e11) ---
+/** Finger down at the first screen point, slides through the rest, lifts unless `lift` is false. */
+async function fingerPath(pts, { steps = 10, lift = true, settle = 450 } = {}) {
+  await page.touchscreen.touchStart(pts[0].x, pts[0].y);
+  for (let k = 1; k < pts.length; k++)
+    for (let i = 1; i <= steps; i++) {
+      await page.touchscreen.touchMove(pts[k - 1].x + ((pts[k].x - pts[k - 1].x) * i) / steps, pts[k - 1].y + ((pts[k].y - pts[k - 1].y) * i) / steps);
+      await wait(16);
+    }
+  if (lift) await release(settle);
+}
+/** Screen point of the finger that holds the PIECE over cell `i` (the piece floats LIFT world px above the finger). */
+const holdOver = (i) => cellScreen(i, LIFT);
+const setLevel = (n) => page.evaluate((n) => (window.__omm.game.scene.getScene('game').s.level = n), n);
+/** A finger point (world) where the held piece is over SCRAP and also over the bottom-right cell (BR), else over SCRAP alone. */
+const scrapFinger = () =>
+  page.evaluate(() => {
+    const sc = window.__omm.game.scene.getScene('game');
+    const zx = sc.scrapZone.x, zy = sc.scrapZone.y;
+    const hv = sc.hoverIdx;
+    sc.hoverIdx = -1;
+    let both = null;
+    for (let y = zy - 10; y < zy + 70 && !both; y += 2) for (let x = zx - 66; x < zx + 60 && !both; x += 2) if (sc.overScrap(x, y - 45) && sc.targetCell(x, y - LIFT_W) === sc.s.grid.length - 1) both = { x, y };
+    sc.hoverIdx = hv;
+    return { both, scrap: { x: zx, y: zy + 45 } };
+  }).then(async (r) => ({ both: r.both && (await toScreen(r.both.x, r.both.y)), scrap: await toScreen(r.scrap.x, r.scrap.y) }));
+await page.evaluate((l) => (window.LIFT_W = l), LIFT);
+const BR = await page.evaluate(() => window.__omm.game.scene.getScene('game').s.grid.length - 1);
+
+// 11) SCRAP is hidden in levels 1-3: a low piece dropped there is never deleted
+await setLevel(2);
+await setBoard({ 27: 'b1' });
+await wait(200);
+let sf = await scrapFinger();
+await fingerPath([await cellScreen(27), sf.scrap]);
+st = await state();
+check('hidden SCRAP zone (level 2) never deletes a piece', st.live === 1 && st.cells.includes('b1') && clean(st), st);
+
+// 12) SCRAP shown (level 10): a highlighted merge over the zone wins; without a merge there, the zone scraps
+await setLevel(10);
+await setBoard({ 27: 'b1', [BR]: 'b1' });
+await wait(200);
+sf = await scrapFinger();
+check('a finger point exists where SCRAP and the bottom-right cell overlap', !!sf.both, sf);
+m0 = (await state()).merges;
+await fingerPath([await cellScreen(27), sf.both ?? sf.scrap]);
+st = await state();
+check('highlighted merge over the SCRAP zone merges, never scraps', st.cells[BR] === 'b2' && st.live === 1 && st.merges === m0 + 1 && clean(st), st);
+await setBoard({ 27: 'b1', [BR]: 'n2' });
+await wait(200);
+await fingerPath([await cellScreen(27), sf.both ?? sf.scrap]);
+st = await state();
+check('no merge under the piece: shown SCRAP zone scraps it', st.live === 1 && st.cells[BR] === 'c2' && clean(st), st);
+
+// 13) background/foreground mid-touch (the touchend never comes): the next drag still works
+const ghostTouch = (i, id) =>
+  page.evaluate(
+    (i, id) => {
+      const sc = window.__omm.game.scene.getScene('game');
+      const canvas = document.querySelector('canvas');
+      const r = canvas.getBoundingClientRect();
+      const c = sc.cellCenter(i);
+      const t = new Touch({ identifier: id, target: canvas, clientX: r.left + c.x * (r.width / 720), clientY: r.top + c.y * (r.width / 720), pageX: r.left + c.x * (r.width / 720), pageY: r.top + c.y * (r.width / 720) });
+      canvas.dispatchEvent(new TouchEvent('touchstart', { changedTouches: [t], touches: [t], targetTouches: [t], bubbles: true, cancelable: true }));
+      return sc.dragIdx;
+    },
+    i,
+    id,
+  );
+const setHidden = (h) =>
+  page.evaluate((h) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, h);
+await setLevel(10);
+await setBoard({ 6: 'b1', 8: 'b1' });
+await wait(200);
+const ghostHeld = await ghostTouch(6, 4242);
+await setHidden(true);
+await wait(200);
+await setHidden(false);
+await wait(300);
+const back = await state();
+m0 = back.merges;
+await fingerPath([await cellScreen(6), await holdOver(8)]);
+st = await state();
+check('backgrounded mid-touch: the hold is dropped and the next drag merges', ghostHeld === 6 && back.dragIdx === -1 && st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st), { ghostHeld, back, st });
+
+// 14) a lost touchend with no app switch: the next touch frees the dead touch slot
+await setBoard({ 6: 'b1', 8: 'b1' });
+await wait(200);
+const ghost2 = await ghostTouch(6, 4343);
+await wait(300);
+m0 = (await state()).merges;
+await fingerPath([await cellScreen(6), await holdOver(8)]);
+st = await state();
+check('lost touchend: the next touch still drags and merges', ghost2 === 6 && st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st), st);
+
+// 15) a held power-up is dropped by cancelDrag and by the lost-finger safety net
+const item = await page.evaluate(async () => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.itemDrag = { x: 0, y: 0, moved: true };
+  sc.cancelDrag();
+  const byCancel = sc.itemDrag;
+  sc.itemDrag = { x: 0, y: 0, moved: true }; // no finger is down
+  await new Promise((r) => setTimeout(r, 200));
+  const byNet = sc.itemDrag;
+  sc.itemDrag = null;
+  sc.itemSelected = false;
+  return { byCancel, byNet };
+});
+check('held power-up cleared by cancelDrag and the safety net', item.byCancel === null && item.byNet === null, item);
+
+// 16) repeated mismatch bounces: every sprite back on its cell, every rank label back to size
+await setBoard({ 12: 'c2', 13: 'c3', 17: 'c2', 18: 'c3' });
+await wait(200);
+for (let k = 0; k < 4; k++) await drag(k % 2 ? 17 : 12, k % 2 ? 18 : 13, { x: 0, y: 0 }, 5, 40, 0);
+await wait(1400);
+st = await state();
+const ranks = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  return [...sc.views.values()].map((v) => v.getByName('rank')?.scale).filter((s) => s !== undefined && Math.abs(s - 1) > 0.01);
+});
+check('repeated shakes leave no sprite offset and no enlarged rank label', st.cells[12] === 'c2' && st.cells[13] === 'c3' && clean(st) && !ranks.length, { st, ranks });
+
+// --- iPhone safe areas: #game inset like a notched phone, so the canvas has margins the finger can slide into ---
+await page.evaluateOnNewDocument(() => {
+  document.addEventListener('DOMContentLoaded', () => {
+    const s = document.createElement('style');
+    s.textContent = '#game{inset:47px 0 34px 0 !important}';
+    document.head.appendChild(s);
+  });
+});
+await page.reload({ waitUntil: 'load', timeout: 90000 });
+await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
+await wait(800);
+await page.evaluate((l) => {
+  window.LIFT_W = l;
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+  sc.closeModal();
+  sc.coach.clear();
+  sc.retry(false, -1);
+  sc.finishIntro(true);
+  while (sc.explaining) sc.nextExplain();
+  sc.s.level = 10;
+}, LIFT);
+const rect = await page.evaluate(() => {
+  const r = document.querySelector('canvas').getBoundingClientRect();
+  return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, vh: innerHeight };
+});
+check('inset layout: the canvas sits inside the safe areas', rect.top >= 46 && rect.bottom <= rect.vh - 33, rect);
+
+// 17) the finger slides off the canvas (into the top inset) and comes back: the drop still lands
+await setBoard({ 6: 'b1', 8: 'b1' });
+await wait(300);
+m0 = (await state()).merges;
+await fingerPath([await cellScreen(6), { x: (rect.left + rect.right) / 2, y: rect.top - 20 }, await holdOver(8)]);
+st = await state();
+check('inset: drag that leaves the canvas and comes back still merges', st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st), st);
+
+// 18) the finger lets go off the canvas (side margin): the highlighted merge lands
+await setBoard({ 5: 'b1', 9: 'b1' });
+await wait(300);
+m0 = (await state()).merges;
+const over9 = await holdOver(9);
+await fingerPath([await cellScreen(5), over9], { lift: false });
+await page.touchscreen.touchMove(rect.right + 6, over9.y); // one jump off the right edge
+await wait(40);
+await release();
+st = await state();
+check('inset: release off the canvas lands on the highlighted merge', rect.right + 6 < 390 && st.cells[9] === 'b2' && st.merges === m0 + 1 && clean(st), { st, rect });
+
+// 19) a SCRAP drag that overshoots below the canvas (into the home-bar inset) still scraps
+await setBoard({ 27: 'b1', 0: 'c3' });
+await wait(300);
+sf = await scrapFinger();
+await fingerPath([await cellScreen(27), sf.scrap, { x: sf.scrap.x, y: rect.bottom + 14 }]);
+st = await state();
+check('inset: SCRAP overshoot below the canvas still scraps', !st.cells.includes('b1') && st.live === 1 && clean(st), { st, rect });
+
 check('no page errors', !pageErrors.length, pageErrors);
 await browser.close();
 await server.close();
