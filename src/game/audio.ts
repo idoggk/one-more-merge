@@ -2,7 +2,13 @@
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let voices = 0;
+let noise: AudioBuffer | null = null;
 export const audioSettings = { on: true, music: true };
+
+/** Resumes from any non-running state: iOS leaves the context 'interrupted' (not 'suspended') after a call or Siri. */
+function resume() {
+  if (ctx && ctx.state !== 'running') ctx.resume().catch(() => undefined);
+}
 
 export function unlockAudio() {
   try {
@@ -12,15 +18,36 @@ export function unlockAudio() {
       master = ctx.createGain();
       master.gain.value = 0.5;
       master.connect(comp).connect(ctx.destination);
+      if (typeof document !== 'undefined')
+        document.addEventListener('visibilitychange', () => {
+          try {
+            if (document.hidden) ctx?.suspend().catch(() => undefined);
+            else resume();
+          } catch {
+            /* ignore */
+          }
+        });
     }
-    if (ctx.state === 'suspended') void ctx.resume();
+    resume();
   } catch {
     ctx = null;
   }
 }
 
-function tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, slideTo?: number) {
-  if (!ctx || !master || !audioSettings.on || voices > 10) return;
+/** One shared second of white noise; every noise sound plays a random slice of it under its own envelope. */
+function noiseBuffer(c: AudioContext) {
+  if (!noise) {
+    noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
+    const d = noise.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noise;
+}
+const noiseOffset = (dur: number) => Math.random() * Math.max(0, 0.95 - dur);
+
+/** `keep`: musical phrase notes (cascade steps, the chord) are never dropped by the voice cap. */
+function tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, slideTo?: number, keep = false) {
+  if (!ctx || !master || !audioSettings.on || (voices > 10 && !keep)) return;
   try {
     const t = ctx.currentTime + delay;
     const o = ctx.createOscillator();
@@ -51,21 +78,21 @@ function bandNoise(dur: number, vol: number, delay: number, freq: number, q = 1.
   if (!ctx || !master || !audioSettings.on || voices > 12) return;
   try {
     const t = ctx.currentTime + delay;
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
     const src = ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = noiseBuffer(ctx);
     const f = ctx.createBiquadFilter();
     f.type = 'bandpass';
     f.frequency.value = freq;
     f.Q.value = q;
     const g = ctx.createGain();
-    g.gain.value = vol;
+    // fast decay (was a squared fade baked into a fresh buffer per sound)
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f).connect(g).connect(master);
     voices++;
     src.onended = () => voices--;
-    src.start(t);
+    src.start(t, noiseOffset(dur));
+    src.stop(t + dur);
   } catch {
     /* ignore */
   }
@@ -144,13 +171,13 @@ export const sfx = {
   /** cascade_phrase: one soft pluck per presentation beat (depth), max 4 rising steps. */
   cascadeStep: (beat: number, delay: number) => {
     const semi = PHRASE[Math.min(beat, PHRASE.length - 1)];
-    tone(440 * Math.pow(2, semi / 12), 0.12, 'triangle', 0.1, delay);
+    tone(440 * Math.pow(2, semi / 12), 0.12, 'triangle', 0.1, delay, undefined, true);
   },
   /** phrase resolution on the biggest shot */
   chord: (n: number) => {
     const root = 220 * (n >= 10 ? 1.5 : 1);
-    for (const m of [1, 1.26, 1.5]) tone(root * m, 0.4, 'triangle', 0.08);
-    tone(root / 2, 0.3, 'sine', 0.12);
+    for (const m of [1, 1.26, 1.5]) tone(root * m, 0.4, 'triangle', 0.08, 0, undefined, true);
+    tone(root / 2, 0.3, 'sine', 0.12, 0, undefined, true);
   },
   /** cannon_fire: passive = cork pop; payload = pressure release + body thump with midrange weight. */
   cannon: (delay = 0, big = false) => {
@@ -332,24 +359,25 @@ function mtone(freq: number, t: number, dur: number, type: OscillatorType, vol: 
 
 function mnoise(t: number, dur: number, vol: number) {
   if (!ctx || !master) return;
-  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
   const src = ctx.createBufferSource();
-  src.buffer = buf;
+  src.buffer = noiseBuffer(ctx);
   const f = ctx.createBiquadFilter();
   f.type = 'highpass';
   f.frequency.value = 6000;
   const g = ctx.createGain();
-  g.gain.value = vol;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.linearRampToValueAtTime(0, t + dur);
   src.connect(f).connect(g).connect(musicBus());
-  src.start(t);
+  src.start(t, noiseOffset(dur));
+  src.stop(t + dur);
 }
 
 function schedule() {
   if (!ctx || !music.on || !audioSettings.on || !audioSettings.music) return;
   const md = MODES[music.mode];
   const spb = 60 / (md.bpm * (music.intense ? 1.25 : 1)) / 2; // eighth notes
+  // after a mute (or a throttled timer) never play the missed notes in one burst: pick the groove up from now
+  if (music.next < ctx.currentTime) music.next = ctx.currentTime + 0.05;
   while (music.next < ctx.currentTime + 0.2) {
     const t = music.next;
     const s = music.step % 16;

@@ -57,8 +57,14 @@ export function openCodeBox(o: CodeBoxOpts) {
     b.addEventListener('click', async () => {
       err.textContent = '';
       b.disabled = true;
-      const msg = await a.run(box.value);
-      b.disabled = false;
+      let msg: string | void;
+      try {
+        msg = await a.run(box.value);
+      } catch {
+        msg = 'Something went wrong. Please try again.';
+      } finally {
+        b.disabled = false;
+      }
       if (msg) err.textContent = msg;
       else if (open === root) closeCodeBox();
     });

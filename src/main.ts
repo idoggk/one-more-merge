@@ -2,6 +2,7 @@ import '@fontsource/lilita-one';
 import Phaser from 'phaser';
 import { computeLayout, GameScene, layoutHeight, setRenderScale, W } from './game/GameScene';
 import { ScrewScene } from './game/ScrewScene';
+import { startMusic, unlockAudio } from './game/audio';
 
 async function boot() {
   // make sure canvas text uses the real font from the first frame (never block more than 1.5 s)
@@ -40,10 +41,22 @@ async function boot() {
     backgroundColor: '#f3cf9b',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: Math.round(W * (forced > 0 ? forced : RS)), height: Math.round(H * (forced > 0 ? forced : RS)) },
     input: { activePointers: 1 },
+    // all sound is our own WebAudio synth (game/audio.ts): no second, unused AudioContext from Phaser
+    audio: { noAudio: true },
     // dev aid: ?timer keeps the loop running in hidden/background tabs (automated checks)
     fps: new URLSearchParams(location.search).has('timer') || (window as unknown as { __OMM_TIMER?: boolean }).__OMM_TIMER ? { forceSetTimeOut: true, target: 60 } : undefined,
     scene: [GameScene, ScrewScene],
   });
+  // iOS Safari only lets a gesture's END (touchend / pointerup / click) unlock audio; the scene unlocks on pointerdown
+  for (const ev of ['pointerup', 'touchend'])
+    window.addEventListener(
+      ev,
+      () => {
+        unlockAudio();
+        startMusic();
+      },
+      { capture: true, passive: true },
+    );
   // expose for debugging / automated checks
   (window as unknown as { __omm: unknown }).__omm = { Phaser, game };
   // r34 splash: keep the key art up until 1.8 s after page start, then fade it once the game scene has drawn its first screen

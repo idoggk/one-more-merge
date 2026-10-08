@@ -102,7 +102,8 @@ type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export function readBundle(storage: KV): SaveBundle {
   let meta: Record<string, unknown> = {};
   try {
-    meta = JSON.parse(storage.getItem(META_KEY) || '{}');
+    const v: unknown = JSON.parse(storage.getItem(META_KEY) || '{}');
+    if (isRecord(v)) meta = v;
   } catch {
     /* unreadable meta: export an empty one */
   }
@@ -143,27 +144,72 @@ export function applyBundle(storage: KV, bundle: SaveBundle, keepPrevious = true
   }
 }
 
-/** The save kept by the last load, or null. */
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** The save kept by the last load, or null (none, or unreadable: an unreadable snapshot is never offered as an undo). */
 export function readPreimport(storage: KV): SaveBundle | null {
   const raw = storage.getItem(META_KEY + PREIMPORT);
   if (raw === null) return null;
-  let meta: Record<string, unknown> = {};
   try {
-    meta = JSON.parse(raw);
+    const meta: unknown = JSON.parse(raw);
+    return isRecord(meta) ? { meta, run: storage.getItem(SAVE_KEY + PREIMPORT) } : null;
   } catch {
-    /* unreadable: restore an empty one */
+    return null;
   }
-  return { meta, run: storage.getItem(SAVE_KEY + PREIMPORT) };
 }
 
-/** Puts back the save from before the last load and forgets the snapshot. */
+/**
+ * Puts back the save from before the last load and forgets the snapshot. Never writes an empty `{}` meta over the
+ * save: an empty snapshot (the phone had no save yet) removes the meta key, an unreadable one changes nothing.
+ */
 export function restorePreimport(storage: KV): boolean {
   const pre = readPreimport(storage);
   if (!pre) return false;
-  applyBundle(storage, pre, false);
+  const keys = [META_KEY, SAVE_KEY];
+  const old = keys.map((k) => storage.getItem(k));
+  try {
+    put(storage, META_KEY, Object.keys(pre.meta).length ? JSON.stringify(pre.meta) : null);
+    put(storage, SAVE_KEY, pre.run);
+  } catch (e) {
+    keys.forEach((k, i) => {
+      try {
+        put(storage, k, old[i]);
+      } catch {
+        /* nothing more to do */
+      }
+    });
+    throw e;
+  }
   storage.removeItem(META_KEY + PREIMPORT);
   storage.removeItem(SAVE_KEY + PREIMPORT);
   return true;
+}
+
+/** True for a browser "storage full" error (names / legacy codes differ per engine). */
+export function isQuotaError(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false;
+  const { name, code } = e as { name?: unknown; code?: unknown };
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22 || code === 1014;
+}
+
+/**
+ * Loaded meta over its defaults, checked field by field: a stored value whose shape doesn't match the default
+ * (e.g. `tips: null`, `toys: []`, `runs: "3"`) falls back to the default instead of crashing the game later.
+ * A field the defaults don't name is kept as stored. Anything that isn't an object gives the defaults.
+ */
+export function mergeMeta<T extends object>(defaults: T, raw: unknown): T {
+  const out: Record<string, unknown> = { ...(defaults as Record<string, unknown>) };
+  if (!isRecord(raw)) return out as T;
+  for (const [k, v] of Object.entries(raw)) {
+    if (!(k in defaults)) {
+      out[k] = v;
+      continue;
+    }
+    const d = (defaults as Record<string, unknown>)[k];
+    const ok = d === null ? v === null || (typeof v === 'number' && Number.isFinite(v)) : isRecord(d) ? isRecord(v) : typeof d === 'number' ? typeof v === 'number' && Number.isFinite(v) : typeof v === typeof d;
+    if (ok) out[k] = v;
+  }
+  return out as T;
 }
 
 let locked = false;

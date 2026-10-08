@@ -30,7 +30,8 @@ import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MO
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
-import { applyBundle, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, SAVE_KEY, storeTo, type SaveBundle } from '../platform/backup';
+import { applyBundle, exportCode, importCode, isQuotaError, lockSaves, mergeMeta, META_KEY, readBundle, readPreimport, restorePreimport, SAVE_KEY, storeTo, type SaveBundle } from '../platform/backup';
+import { warnStorageFull } from '../platform/storageWarn';
 import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
@@ -277,7 +278,7 @@ const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (
 function loadMeta(): Meta {
   const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {}, remixBest: {}, tips: {} };
   try {
-    return { ...d, ...JSON.parse(localStorage.getItem(META_KEY) || '{}') };
+    return mergeMeta(d, JSON.parse(localStorage.getItem(META_KEY) || '{}'));
   } catch {
     return d;
   }
@@ -285,8 +286,8 @@ function loadMeta(): Meta {
 const store = (k: string, v: string | null) => {
   try {
     storeTo(localStorage, k, v);
-  } catch {
-    /* storage unavailable */
+  } catch (e) {
+    if (isQuotaError(e)) warnStorageFull(); // else: storage unavailable
   }
 };
 // t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)

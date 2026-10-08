@@ -9,14 +9,25 @@ export interface TEvent {
   [k: string]: unknown;
 }
 
+/** A stored log as events: anything that isn't an array of event objects (corrupt / foreign data) is dropped. */
+export function parseLog(raw: string | null): TEvent[] {
+  try {
+    const v: unknown = JSON.parse(raw || '[]');
+    if (!Array.isArray(v)) return [];
+    return v.filter((x): x is TEvent => !!x && typeof x === 'object' && !Array.isArray(x) && Number.isFinite(x.run) && Number.isFinite(x.t));
+  } catch {
+    return [];
+  }
+}
+
 let buf: TEvent[] = [];
 let run = 0;
 try {
-  buf = JSON.parse(localStorage.getItem(KEY) || '[]');
-  run = buf.length ? buf[buf.length - 1].run : 0;
+  buf = parseLog(localStorage.getItem(KEY));
 } catch {
   buf = [];
 }
+run = buf.length ? buf[buf.length - 1].run : 0;
 
 let dirty = false;
 export function log(e: string, data: Record<string, unknown> = {}) {
@@ -36,7 +47,13 @@ export function flush() {
   try {
     localStorage.setItem(KEY, JSON.stringify(buf));
   } catch {
-    /* storage full / unavailable */
+    // storage full: the playtest log gives way (keep the newer half), never the save
+    buf = buf.slice(-Math.floor(buf.length / 2));
+    try {
+      localStorage.setItem(KEY, JSON.stringify(buf));
+    } catch {
+      /* still full / unavailable */
+    }
   }
 }
 
