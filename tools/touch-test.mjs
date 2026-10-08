@@ -528,6 +528,177 @@ await fingerPath([await cellScreen(27), sf.scrap, { x: sf.scrap.x, y: rect.botto
 st = await state();
 check('inset: SCRAP overshoot below the canvas still scraps', !st.cells.includes('b1') && st.live === 1 && clean(st), { st, rect });
 
+// --- reloads and HOME: the session flow (t-abfbda44) ---
+const reload = async () => {
+  await page.reload({ waitUntil: 'load', timeout: 90000 });
+  await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
+  await wait(800);
+};
+const flow = () =>
+  page.evaluate(() => {
+    const sc = window.__omm.game.scene.getScene('game');
+    return { phase: sc.s.phase, level: sc.s.level, home: !!sc.homeC?.active, saved: localStorage.getItem('omm.save.v1') !== null, hard: !!sc.meta.hardUnlocked, showcase: !!sc.s.showcase, puzzle: sc.s.puzzle?.id, def: sc.puzzleDef?.id, rush: sc.s.rush?.slot };
+  });
+/** Every visible text in the open panel (result cards, pause menu). */
+const modalTexts = () =>
+  page.evaluate(() => {
+    const sc = window.__omm.game.scene.getScene('game');
+    const out = [];
+    const walk = (o) => {
+      if (!o || o.visible === false) return;
+      if (o.type === 'Text') out.push(o.text);
+      for (const ch of o.list ?? []) walk(ch);
+    };
+    walk(sc.modal);
+    return out;
+  });
+/** Taps the panel button labelled `label` with a real touch; false when there is none. */
+async function tapLabel(label) {
+  const p = await page.evaluate((label) => {
+    const sc = window.__omm.game.scene.getScene('game');
+    const find = (o) => {
+      if (!o || o.visible === false) return null;
+      if (o.type === 'Text' && o.text === label) return o;
+      for (const ch of o.list ?? []) {
+        const f = find(ch);
+        if (f) return f;
+      }
+      return null;
+    };
+    const t = find(sc.modal);
+    if (!t) return null;
+    const b = t.getBounds();
+    const r = document.querySelector('canvas').getBoundingClientRect();
+    return { x: r.left + b.centerX * (r.width / 720), y: r.top + b.centerY * (r.width / 720) };
+  }, label);
+  if (p) await page.touchscreen.tap(p.x, p.y);
+  await wait(400);
+  return !!p;
+}
+const drain = () =>
+  page.evaluate(() => {
+    const sc = window.__omm.game.scene.getScene('game');
+    while (sc.explaining) sc.nextExplain();
+  });
+
+// 20) (a) a cold start with no saved run shows home; the run behind it is never saved, so the next launch is home again
+await drain();
+await page.evaluate(() => window.__omm.game.scene.getScene('game').quitHome());
+await page.evaluate(() => localStorage.removeItem('omm.save.v1'));
+await reload();
+await wait(2600); // the 2 s autosave has had its chance
+let fl = await flow();
+await reload();
+let fl2 = await flow();
+check('cold start: home, the run behind it is never saved, reopening lands on home', fl.home && !fl.saved && fl2.home && !fl2.saved, { fl, fl2 });
+
+// 21) (b) SKIP TUTORIAL starts Level 1 (not a classic run), and winning it does not unlock the hard events
+await drain();
+const hard0 = (await flow()).hard;
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.meta.hardUnlocked = false;
+  sc.startTutorial();
+});
+await wait(800);
+await page.evaluate(() => window.__omm.game.scene.getScene('game').openPause());
+await wait(300);
+const skipped = await tapLabel('SKIP TUTORIAL');
+await wait(600);
+fl = await flow();
+await drain();
+await page.evaluate(() => setTimeout(() => window.__omm.game.scene.getScene('game').openResult(true)));
+await wait(800);
+fl2 = await flow();
+check('SKIP TUTORIAL starts Level 1; winning it does not unlock the hard events', skipped && fl.phase === 'playing' && fl.level === 1 && !fl2.hard, { skipped, fl, fl2 });
+await page.evaluate((h) => (window.__omm.game.scene.getScene('game').meta.hardUnlocked = h), hard0);
+
+// 22) (c) HOME from a showcase or a replayed tutorial clears the run (nothing resumes on the next launch)
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.closeModal();
+  sc.startShowcase(7, 21);
+});
+await wait(800);
+await page.evaluate(() => window.__omm.game.scene.getScene('game').openPause());
+await wait(300);
+let homed = await tapLabel('HOME');
+await wait(2600);
+fl = await flow();
+await reload();
+fl2 = await flow();
+check('HOME from a showcase clears the run', homed && fl.home && !fl.saved && fl2.home && !fl2.showcase, { homed, fl, fl2 });
+await drain();
+await page.evaluate(() => window.__omm.game.scene.getScene('game').startTutorial());
+await wait(800);
+await page.evaluate(() => window.__omm.game.scene.getScene('game').openPause());
+await wait(300);
+homed = await tapLabel('HOME');
+await wait(2600);
+fl = await flow();
+await reload();
+fl2 = await flow();
+check('HOME from a replayed tutorial clears the run', homed && fl.home && !fl.saved && fl2.home && fl2.phase !== 'tutorial', { homed, fl, fl2 });
+
+// 23) (d) a puzzle reloaded mid-way finishes without a page error
+let errs0 = pageErrors.length;
+await drain();
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.startPuzzle(sc.dailyPuzzle(), 'daily');
+  sc.save();
+});
+await reload();
+await drain();
+fl = await flow();
+await page.evaluate(() => setTimeout(() => window.__omm.game.scene.getScene('game').openResult(false)));
+await wait(800);
+let texts = await modalTexts();
+check('puzzle reloaded mid-way finishes without a page error', fl.puzzle && fl.def === fl.puzzle && texts.includes('NOT QUITE') && pageErrors.length === errs0, { fl, texts, errs: pageErrors.slice(errs0) });
+
+// 24) (d) Boss Rush reloaded between fights keeps the earlier fight times; a lost rush record never throws
+errs0 = pageErrors.length;
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.closeModal();
+  sc.meta.levelStars = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [String(i + 1), 1]));
+  sc.startRush();
+  sc.s.elapsed = 30;
+  setTimeout(() => sc.openResult(true));
+});
+await wait(800);
+const next1 = await tapLabel('NEXT FIGHT');
+await page.evaluate(() => window.__omm.game.scene.getScene('game').save());
+await reload();
+await drain();
+fl = await flow();
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.s.elapsed = 20;
+  setTimeout(() => sc.openResult(true));
+});
+await wait(800);
+texts = await modalTexts();
+check('Boss Rush reloaded between fights keeps the fight times', next1 && fl.rush === 1 && texts.includes('FIGHT 2 CLEARED!') && texts.some((t) => t.startsWith('2 of 3 fights  ·  50.0s')) && pageErrors.length === errs0, { next1, fl, texts, errs: pageErrors.slice(errs0) });
+const next2 = await tapLabel('NEXT FIGHT');
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.save();
+  delete sc.meta.rush;
+  localStorage.setItem('omm.meta.v1', JSON.stringify(sc.meta));
+});
+await reload();
+await drain();
+fl = await flow();
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.s.elapsed = 25;
+  setTimeout(() => sc.openResult(true));
+});
+await wait(800);
+fl2 = await flow();
+check('Boss Rush with no rush record after a reload ends without a page error', next2 && fl.rush === 2 && fl2.home && !fl2.saved && pageErrors.length === errs0, { next2, fl, fl2, errs: pageErrors.slice(errs0) });
+
 check('no page errors', !pageErrors.length, pageErrors);
 await browser.close();
 await server.close();
