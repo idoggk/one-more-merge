@@ -9,12 +9,8 @@ const STAGE_RAMP = 0.3;
 /** r34 onboarding: chapters 1-2 keep the board calmer (deliveries wait at 20 of 30 cells). */
 const CALM_UNTIL = 20;
 const CALM_CAP = 20;
-/** r35 reactive supply: a merge earns 2 parts below REACT_TWO parts on the board, 1 below REACT_CAP, else none. */
-const REACT_TWO = 12;
-const REACT_CAP = 18;
-const REACT_GAP = 0.35;
-/** r38: the first earned part waits this long after the merge (the chain's payoff plays on a still board). */
-const REACT_DELAY = 0.6;
+// r35 reactive supply: a merge earns 2 parts below TUNING.reactTwo parts on the board, 1 below reactCap, else none;
+// r38: the first earned part waits reactDelay s after the merge (the chain's payoff plays on a still board)
 const REACT_STUCK = 2.5;
 const REACT_STUCK_NEXT = 3;
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
@@ -160,6 +156,8 @@ export interface GameState {
   jumpstart?: boolean;
   /** EXPERIMENT optionA2 spam fatigue: when the last player merge was made (elapsed). */
   lastMergeAt?: number;
+  /** PACE CALM breather: until this elapsed time after a machine breaks, no supply and no new boss warning. */
+  breatherUntil?: number;
   stats: Stats;
 }
 
@@ -409,7 +407,7 @@ function makeGadget(s: GameState, family: Family, rank: number): Gadget {
 export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPeriodOverdrive : TUNING.cannonPeriod);
 export const odByChain = () => TUNING.optionA || TUNING.optionA2 || TUNING.optionA3;
 export const odNeeded = (s: GameState) =>
-  odByChain() ? Math.round(TUNING.optA.odChain * (s.perks.includes('juice') ? 5 / 6 : 1)) : s.perks.includes('juice') ? 5 : TUNING.overdriveMerges;
+  odByChain() ? Math.round((TUNING.optionA ? TUNING.optA.odChain : TUNING.odChain) * (s.perks.includes('juice') ? 5 / 6 : 1)) : s.perks.includes('juice') ? 5 : TUNING.overdriveMerges;
 const matchShare = () => (TUNING.optionA ? TUNING.optA.matchShare : TUNING.matchShare);
 const odDuration = (s: GameState) => (s.perks.includes('juice') ? 8 : TUNING.overdriveDuration);
 
@@ -454,14 +452,14 @@ export function mergeEarns(s: GameState): number {
   if (!s.reactive) return 0;
   const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0);
   if (TUNING.optionA) return reactEarnA(occ, 1); // the chain is unknown before the merge: show the guaranteed part
-  return occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0;
+  return occ < TUNING.reactTwo ? 2 : occ < TUNING.reactCap ? 1 : 0;
 }
 
 /** Option A: parts earned by a merge whose cascade activated `chain` gadgets, with `occ` parts on/owed to the board. */
 function reactEarnA(occ: number, chain: number): number {
   const A = TUNING.optA;
-  if (occ >= REACT_CAP) return 0;
-  const earned = Math.min(A.maxEarn, Math.floor(chain / A.partsPerChain), REACT_CAP - occ);
+  if (occ >= TUNING.reactCap) return 0;
+  const earned = Math.min(A.maxEarn, Math.floor(chain / A.partsPerChain), TUNING.reactCap - occ);
   return occ < A.floorBelow ? Math.max(1, earned) : earned;
 }
 
@@ -669,11 +667,11 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   let gatedEarn = 0;
   if (s.reactive && s.phase === 'playing' && !TUNING.optionA) {
     const occ = occNow();
-    const earn = occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0;
+    const earn = occ < TUNING.reactTwo ? 2 : occ < TUNING.reactCap ? 1 : 0;
     if (TUNING.optionA3 && occ > TUNING.optA3.gateAbove) gatedEarn = earn;
     else s.owed = (s.owed ?? 0) + earn;
     // r38 (ChatGPT review): earned parts land after the merge's payoff, not during it
-    s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
+    s.supplyTimer = Math.max(s.supplyTimer, TUNING.reactDelay);
   }
 
   let odStart = false;
@@ -702,7 +700,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
     // Option A: the chain, not the merge count, pays for parts and Overdrive (it starts after this cascade)
     if (TUNING.optionA && s.reactive) {
       s.owed = (s.owed ?? 0) + reactEarnA(occNow(), result.count);
-      s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
+      s.supplyTimer = Math.max(s.supplyTimer, TUNING.reactDelay);
     }
     if (!s.noOverdrive) {
       s.odCharge += result.count - 1;
@@ -900,6 +898,7 @@ function nextWave(s: GameState, over: number, ev: GameEvent[]) {
     s.boss = { ...st.boss, t0: s.elapsed };
     delete st.boss;
   }
+  if (TUNING.breather > 0) s.breatherUntil = s.elapsed + TUNING.breather;
   ev.push({ type: 'newTarget', target: s.target, wave: st.i });
   if (over > 0 && !s.goal) applyDamage(s, Math.min(over, Math.ceil(s.maxHp * TUNING.cascadeCap)), ev, 'carry');
 }
@@ -980,8 +979,11 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 
   // Remix attacks (resolve before deliveries; warnings wait for falling Kickback parts)
   if (s.remix) ev.push(...remixTick(s.remix, s.grid, s.elapsed, s.drops.length === 0, new Set([...reserved, ...dropReserved(s)])));
+  // PACE CALM breather: the next machine walks in on a still board (the hazard schedule pauses with it)
+  const resting = s.breatherUntil !== undefined && s.elapsed < s.breatherUntil;
   if (s.boss) {
-    const be = bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)]));
+    if (resting) s.boss.t0 = (s.boss.t0 ?? 0) + dt;
+    const be = bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)]), resting);
     // r29 TIME RANSOM: an unsaved ransom takes 2 s from the clock and counts as 2 s more for stars
     for (const e of be)
       if (e.type === 'bossRansom' && !e.saved) {
@@ -995,8 +997,11 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   // Supply
   admitPending(s, reserved, ev);
   const calm = s.calmCap !== undefined && s.grid.filter(Boolean).length >= s.calmCap;
-  if (s.reactive) {
-    // r35/r38: earned parts drop in one at a time (REACT_GAP apart, REACT_DELAY after the merge); a board with no
+  if (resting && !(s.reactive && (s.owed ?? 0) > 0)) {
+    // breather: no rescue part and no timed delivery while the next machine walks in. Parts a merge earned still land
+    // in their quick burst (held until the breather ends, they dropped on a player already thinking: probe 7% of decisions)
+  } else if (s.reactive) {
+    // r35/r38: earned parts drop in one at a time (reactGap apart, reactDelay after the merge); a board with no
     // legal pair gets a rescue part after REACT_STUCK s, then every REACT_STUCK_NEXT s until a pair exists
     s.supplyTimer -= dt;
     if ((s.owed ?? 0) > 0) {
@@ -1010,7 +1015,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
             ? TUNING.optA3.beat
             : TUNING.optionA2 && TUNING.optA2.beat
               ? TUNING.optA2.beat
-              : REACT_GAP;
+              : TUNING.reactGap;
         admitPending(s, reserved, ev);
       }
     } else if (!s.pending.length && !legalPairs(s).length) {

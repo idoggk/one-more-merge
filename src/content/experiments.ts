@@ -1,6 +1,7 @@
 // Mid-level chaos experiments (t-2c7cbae7): named presets of the TUNING.optionA2 / optionA3 flags, shared by the QA
 // panel toggle and the sim tools. 'off' is the live game; nothing here is on by default.
-import { TUNING } from './tuning';
+// PACE prototype (t-1bef1042): TODAY / CALM / MANIA blocks of TUNING.paces, same pattern (QA toggle + pace-probe).
+import { TUNING, type Pace } from './tuning';
 
 export type SpamVariant = 'off' | 'a2' | 'a3' | 'a3f';
 export const SPAM_VARIANTS: { id: SpamVariant; label: string }[] = [
@@ -12,9 +13,11 @@ export const SPAM_VARIANTS: { id: SpamVariant; label: string }[] = [
 
 const A2_DEFAULT = structuredClone(TUNING.optA2);
 const A3_DEFAULT = structuredClone(TUNING.optA3);
+let spam: SpamVariant = 'off';
 
 /** Set the experiment flags for a preset (the other experiments off). A2 = the t-0c31a7ab tuned run. */
 export function applySpamVariant(v: SpamVariant) {
+  spam = v;
   TUNING.optionA = false;
   TUNING.optionA2 = v === 'a2';
   TUNING.optionA3 = v === 'a3' || v === 'a3f';
@@ -22,4 +25,28 @@ export function applySpamVariant(v: SpamVariant) {
   Object.assign(TUNING.optA3, structuredClone(A3_DEFAULT));
   if (v === 'a2') Object.assign(TUNING.optA2, { chain: true, fatigue: true, chainMult: [0.35, 0.55, 0.75, 0.9, 1, 1.1], window: 3 });
   if (v === 'a3f') TUNING.optA3.fatigue = true;
+  if (!TUNING.antiSpam) TUNING.optionA2 = TUNING.optionA3 = false;
+}
+
+export const PACES: { id: Pace; label: string }[] = [
+  { id: 'today', label: 'TODAY' },
+  { id: 'calm', label: 'CALM' },
+  { id: 'mania', label: 'MANIA' },
+];
+
+/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = TODAY. */
+export const PACE_KEY = 'omm_qa_pace';
+export function storedPace(read: () => string | null): Pace {
+  try {
+    const v = read();
+    return PACES.some((x) => x.id === v) ? (v as Pace) : 'today';
+  } catch {
+    return 'today';
+  }
+}
+
+/** Copy a pace block onto TUNING. MANIA (antiSpam false) forces A2/A3 off; leaving it restores the spam preset. */
+export function applyPace(p: Pace) {
+  Object.assign(TUNING, TUNING.paces[p] ?? TUNING.paces.today, { pace: TUNING.paces[p] ? p : 'today' });
+  applySpamVariant(spam);
 }

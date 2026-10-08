@@ -4,7 +4,50 @@ export const COLS = 5;
 export const MAX_RANK = 6;
 export const TICK = 0.05;
 
+export type Pace = 'today' | 'calm' | 'mania';
+
+/** PACE prototype (t-1bef1042, owner: "too much happening, I can't think" + special craze/MANIA levels). A pace block is
+ *  copied onto TUNING by applyPace() (src/content/experiments.ts); TODAY = the live game and the TUNING defaults below.
+ *  react*: a merge earns 2 parts below reactTwo parts on the board, 1 below reactCap; the first lands reactDelay s after
+ *  the merge, the rest reactGap s apart. Boss: hazards every bossEvery s (first at 8 s) with bossWarn s of warning; an
+ *  ordinary monster's light behaviour first at 10 s, then every lightEvery s; bossAttacks false = none at all.
+ *  breather: s of quiet after a machine breaks (no supply, no boss warning) while the next walks in. quietPassive: small
+ *  auto-shot effect, no damage number. antiSpam false forces the A2/A3 experiments off. odChain = Overdrive fill under A2/A3. */
+const TODAY_PACE = {
+  reactTwo: 12,
+  reactCap: 18,
+  reactDelay: 0.6,
+  reactGap: 0.35,
+  matchShare: 0.6,
+  bigCascade: 8,
+  bigCascadeCooldown: 8,
+  kickbackFuse: true,
+  bossEvery: 12,
+  bossWarn: 2.5,
+  lightEvery: 15,
+  bossAttacks: true,
+  overdriveMerges: 6,
+  odChain: 12,
+  breather: 0,
+  quietPassive: false,
+  antiSpam: true,
+};
+export type PaceBlock = typeof TODAY_PACE;
+
 export const TUNING = {
+  pace: 'today' as Pace,
+  paces: {
+    today: { ...TODAY_PACE },
+    /** Think between merges: a smaller board, a quick burst per merge, no auto-fuse, rarer hazards, a breather per kill. */
+    // tools/pace-probe.ts: the design odChain 28 left A3 at Overdrive 26% @3.5 s (target <= 25%) -> 32. Arrivals sit
+    // at the 22/min edge; big drop chain 10 or reactTwo 9 trimmed them but cost the smart bot wins (L22 0%), so no.
+    calm: { ...TODAY_PACE, reactTwo: 10, reactCap: 15, reactDelay: 0.5, reactGap: 0.15, matchShare: 0.45, bigCascade: 8, bigCascadeCooldown: 12, kickbackFuse: false, bossEvery: 16, bossWarn: 3.5, lightEvery: 18, overdriveMerges: 9, odChain: 32, breather: 2.5, quietPassive: true },
+    /** Labelled craze level: a big, fast board, lots of matches and kickback, frequent Overdrive, no hazards. */
+    // probe: design reactTwo 14 / Overdrive 4 merges settled the 1 s board at 15.6 and Overdrive @2 s at 56% (targets
+    // 18-22, >= 60%) -> 19 / 3
+    mania: { ...TODAY_PACE, reactTwo: 19, reactCap: 24, reactDelay: 0.3, reactGap: 0.15, matchShare: 0.85, bigCascade: 5, bigCascadeCooldown: 3, kickbackFuse: true, bossAttacks: false, overdriveMerges: 3, antiSpam: false },
+  } as Record<Pace, PaceBlock>,
+  ...TODAY_PACE,
   /** Clarity ruleset (playtest: "I don't understand what each machine does"; ChatGPT r14): Coil = fixed 2-cell cross,
    *  Bell = its row, no coil charge bonus, rank only changes damage, MAX signatures off (visual only). false = legacy. */
   clarity: true,
@@ -17,7 +60,6 @@ export const TUNING = {
   comboSlope: 0.08,
   comboCap: 3.0,
   overdriveFactor: 1.5,
-  overdriveMerges: 6,
   overdriveDuration: 6,
   /** Fallback / last delivery interval. */
   supplyPeriod: 2.4,
@@ -29,8 +71,7 @@ export const TUNING = {
   maxPending: 3,
   /** Round 19: low-board delivery packets (2-3 parts per deadline) so fast players keep a board to build on. */
   packets: true,
-  /** Merge fest: share of deliveries that copy a lonely gadget on the board (always when no pair exists). */
-  matchShare: 0.6,
+  // matchShare (pace block): merge fest share of deliveries that copy a lonely gadget (always when no pair exists)
   bag: { cannon: 6, coil: 4, bell: 2 } as Record<string, number>,
   /** Unlocked toys add these tokens to the 12-token bag. */
   toyBag: { magnet: 1, battery: 1, fan: 1, amplifier: 1, signal_beacon: 1 } as Record<string, number>,
@@ -51,19 +92,16 @@ export const TUNING = {
   kickback: true,
   /** false = bells never ring bells, coils never zap coils (limits whole-board chains). */
   sameFamilyRelay: false,
-  /** Threshold drops auto-fuse; big-cascade drops just land beside a match. */
-  kickbackFuse: true,
+  // kickbackFuse (pace block): threshold drops auto-fuse; big-cascade drops (bigCascade+ chain, cooldown s) land beside a match
   /** Auto-fuse only into rank <= this, so Kickback never skips the player's expensive upgrades. */
   kickbackMaxRank: 2,
   kickbackFall: 0.6,
-  bigCascade: 8,
-  bigCascadeCooldown: 8,
   /** EXPERIMENT (t-ce493a56, mid-level chaos Option A), default OFF: Overdrive charges by chain size (links past the
    *  merged part, odChain to fill), reactive parts are earned by chain size (1 per partsPerChain activations, at most
    *  maxEarn; a board under floorBelow parts still earns 1) and land at most one per `beat` s; matchmaker share drops. */
   optionA: false,
   optA: { odChain: 12, partsPerChain: 3, maxEarn: 3, floorBelow: 8, beat: 1.2, matchShare: 0.35 },
-  /** EXPERIMENT (t-0c31a7ab, Option A2), default OFF: Overdrive charges by chain size (optA.odChain), supply as today
+  /** EXPERIMENT (t-0c31a7ab, Option A2), default OFF: Overdrive charges by chain size (TUNING.odChain), supply as today
    *  (beat > 0 = earned parts land at most one per `beat` s), and anti-spam sits on DAMAGE per merge, never on input:
    *  (a) `chain`: a player cascade of n activations deals chainMult[n-1] (last entry repeats) of its damage;
    *  (b) `fatigue`: a merge `gap` s after the previous one deals clamp(gap / window, minMult, 1) of its damage, so
@@ -73,7 +111,7 @@ export const TUNING = {
   optA2: { chain: true, fatigue: true, chainMult: [0.6, 0.8, 1, 1.15, 1.3, 1.4], window: 1.5, minMult: 0.2, beat: 0 },
   /** EXPERIMENT (t-2c7cbae7, Option A3), default OFF; wins over optionA2 when both are on. Spam pays through board
    *  growth (every merge earns parts), so A3 gates the SUPPLY on a full board and keeps damage near-neutral:
-   *  Overdrive charges by chain size (optA.odChain); a player cascade of n activations deals chainMult[n-1];
+   *  Overdrive charges by chain size (TUNING.odChain); a player cascade of n activations deals chainMult[n-1];
    *  a board holding more than gateAbove parts (grid + waiting + owed) pays a merge's reactive part(s) only when its
    *  cascade activates at least gateChain gadgets (thinner boards always earn: no starving). Probe knob `beat`: earned
    *  parts drip in at most one per beat s (0 = today's 0.35 s); a 2 s beat cut spam further but thinned the smart

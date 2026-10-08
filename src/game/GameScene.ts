@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applySpamVariant, SPAM_VARIANTS, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -34,7 +34,7 @@ import { applyBundle, exportCode, importCode, lockSaves, META_KEY, readBundle, r
 import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
-import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, BOSS_WARN, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
+import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -259,6 +259,9 @@ const spamVariant = (): SpamVariant => {
   }
 };
 applySpamVariant(spamVariant());
+// t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
+const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
+applyPace(qaPace());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -322,6 +325,7 @@ export class GameScene extends Phaser.Scene {
   scrapRing!: Phaser.GameObjects.Graphics;
   tutorialText!: Phaser.GameObjects.Text;
   practiceText!: Phaser.GameObjects.Text;
+  maniaBadge: Phaser.GameObjects.Text | null = null;
   modal: Phaser.GameObjects.Container | null = null;
   /** r43: this attempt's command log (best-chain replay on the results screen). */
   runLog: RunLog = newRunLog();
@@ -1886,6 +1890,9 @@ Now beat the real level.`, this.coachY());
     this.timerText.setColor(s.timeLeft < 10 && !demo ? '#d8261a' : '#3b2533');
     this.drawClock(demo || !!s.showcase);
     this.practiceText.setVisible(s.practice && !demo);
+    // QA PACE MANIA: label the craze rules on the HUD (top-right of the stage window)
+    if (!this.maniaBadge) this.maniaBadge = this.add.text(W - 92, STAGE_TOP + 28, 'MANIA', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#c0287a', padding: { x: 12, y: 4 } }).setOrigin(1, 0.5).setDepth(22);
+    this.maniaBadge.setVisible(TUNING.pace === 'mania' && s.level !== undefined && !s.puzzle && !demo);
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
     const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
     if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
@@ -2730,9 +2737,9 @@ Now beat the real level.`, this.coachY());
     this.tweens.add({ targets: f, alpha: 0, delay: 25, duration: outMs, ease: 'Quad.Out', onUpdate: follow, onComplete: () => f.destroy() });
   }
 
-  shoot(fromX: number, fromY: number, color: number, delay: number, big: boolean, onHit?: () => void) {
+  shoot(fromX: number, fromY: number, color: number, delay: number, big: boolean, onHit?: () => void, scale = big ? 1.7 : 0.8) {
     this.time.delayedCall(delay, () => {
-      const b = this.add.image(fromX, fromY, 'dot').setTint(color).setDepth(52).setScale(big ? 1.7 : 0.8);
+      const b = this.add.image(fromX, fromY, 'dot').setTint(color).setDepth(52).setScale(scale);
       const trail = big ? this.add.image(fromX, fromY, 'dot').setTint(0xffffff).setDepth(51).setScale(1).setAlpha(0.6) : null;
       const tx = this.target.x + Phaser.Math.Between(-50, 50);
       const ty = this.target.y + Phaser.Math.Between(-60, 50);
@@ -2770,6 +2777,11 @@ Now beat the real level.`, this.coachY());
     }
     sfx.cannon(0, false);
     this.passiveAcc += dmg;
+    if (TUNING.quietPassive) {
+      // PACE CALM: a small pale dot and a puff, no knock and no number, so auto-fire stays background
+      this.shoot(x, y - 40, 0xffc0a0, 0, false, () => (this.passiveAcc = 0), 0.45);
+      return;
+    }
     this.shoot(x, y - 40, 0xff9a72, 0, false, () => {
       this.hitTarget(false);
       // r19: passive hits = particles; a small, pale number so auto-shots read as damage without competing with chain payloads
@@ -4963,6 +4975,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (td?.slot === 'shooter') shooter = td.id;
     else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
     else if (td?.slot === 'helper') toys = [td.id];
+    applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -5502,7 +5515,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const save = () => store(META_KEY, JSON.stringify(m));
     // 1) start over (second tap within 3 s confirms)
     let armed = 0;
-    const wipe = this.button(c, W / 2, top + 200, 520, 'START OVER (WIPE ALL)', 0xd8261a, () => {
+    const wipe = this.button(c, W / 2, top + 185, 520, 'START OVER (WIPE ALL)', 0xd8261a, () => {
       if (this.time.now - armed > 3000) {
         armed = this.time.now;
         sfx.invalid();
@@ -5517,15 +5530,15 @@ Merge them into a RANK ${rank}!`, this.coachY());
       location.reload();
     }, 0.85);
     // 2) jump to level: every earlier level counts as cleared (2 stars), then the level card opens
-    c.add(this.add.text(W / 2, top + 320, 'JUMP TO LEVEL', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0.5));
-    const lvT = this.add.text(W / 2, top + 400, `${jump}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#e8452c' }).setOrigin(0.5);
+    c.add(this.add.text(W / 2, top + 280, 'JUMP TO LEVEL', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0.5));
+    const lvT = this.add.text(W / 2, top + 350, `${jump}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#e8452c' }).setOrigin(0.5);
     c.add(lvT);
     const set = (d: number) => {
       jump = Math.max(1, Math.min(LEVELS.length + 1, jump + d));
       lvT.setText(`${jump}`);
     };
-    ([[-10, 110], [-1, 240], [1, W - 240], [10, W - 110]] as const).forEach(([d, x]) => this.button(c, x, top + 400, 110, d > 0 ? `+${d}` : `${d}`, 0x8a6a4a, () => set(d), 0.7));
-    this.button(c, W / 2, top + 500, 420, 'GO', 0x5fbf4a, () => {
+    ([[-10, 110], [-1, 240], [1, W - 240], [10, W - 110]] as const).forEach(([d, x]) => this.button(c, x, top + 350, 110, d > 0 ? `+${d}` : `${d}`, 0x8a6a4a, () => set(d), 0.7));
+    this.button(c, W / 2, top + 430, 420, 'GO', 0x5fbf4a, () => {
       const st: Record<string, number> = {};
       for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
       m.levelStars = st;
@@ -5537,7 +5550,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (jump <= LEVELS.length) this.openLevelSheet(jump);
     }, 0.85);
     // 3) give stuff
-    this.button(c, W / 2, top + 640, 520, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
+    this.button(c, W / 2, top + 530, 520, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
       m.units = m.units ?? {};
       for (const u of UNITS) {
         m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
@@ -5546,23 +5559,23 @@ Merge them into a RANK ${rank}!`, this.coachY());
       save();
       this.showToast('ALL 13 UNITS AT LEVEL 5');
     }, 0.8);
-    this.button(c, W / 2, top + 760, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
+    this.button(c, W / 2, top + 620, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
       m.bolts = (m.bolts ?? 0) + 2000;
       m.gems = (m.gems ?? 0) + 500;
       save();
       this.showToast('+2000 BOLTS  +500 GEMS');
     }, 0.8);
-    this.button(c, W / 2, top + 870, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
+    this.button(c, W / 2, top + 710, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
       for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) this.giveCrate(k);
       save();
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
     }, 0.8);
     // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
-    c.add(this.add.text(W / 2, top + 950, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 790, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const cur = spamVariant();
     SPAM_VARIANTS.forEach((v, i) => {
       const on = v.id === cur;
-      this.button(c, W / 2 + (i - 1.5) * 162, top + 1015, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1.5) * 162, top + 850, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(SPAM_KEY, v.id === 'off' ? null : v.id);
         applySpamVariant(v.id);
         tlog.log('qa_spam_variant', { variant: v.id });
@@ -5570,7 +5583,19 @@ Merge them into a RANK ${rank}!`, this.coachY());
         this.openQaTools(jump);
       }, 0.62);
     });
-    this.button(c, W / 2, top + 1110, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    // 5) t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
+    c.add(this.add.text(W / 2, top + 935, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const curPace = qaPace();
+    PACES.forEach((p, i) => {
+      const on = p.id === curPace;
+      this.button(c, W / 2 + (i - 1) * 210, top + 995, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(PACE_KEY, p.id === 'today' ? null : p.id);
+        tlog.log('qa_pace', { pace: p.id });
+        this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    this.button(c, W / 2, top + 1100, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
@@ -6867,7 +6892,6 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const missed = !warn && atk === 'clamp' && cellsOf().every((c) => !this.s.grid[c]);
       const why = missed ? 'it missed! that cell is blocked' : ATTACK_COPY[atk].why;
       this.updateLane(warn ? `${what} IN ${left.toFixed(1)}s  \u00b7  ${why}` : `${what}  \u00b7  ${why}  \u00b7  ${left.toFixed(1)}s`, '#ffd2c8');
-      void BOSS_WARN;
       return;
     }
     // CORNERS modifiers: permanently blocked cells

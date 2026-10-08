@@ -2,7 +2,7 @@
 // phases (HP > 66% / 66-33% / <= 33%). A telegraphed attack every 12 s from 8 s: 2.5 s warning, then an effect whose
 // duration (or Suction count) grows with the phase. Effects resolve between cascades, never reactivate ids, never
 // auto-merge, and death cancels everything. Deterministic: targets come from the board at warning time.
-import { COLS, ROWS } from '../content/tuning';
+import { COLS, ROWS, TUNING } from '../content/tuning';
 import { isShooter, type Grid } from './types';
 
 export type BossAttack = 'clamp' | 'frost' | 'suction' | 'hot' | 'rest' | 'split' | 'bomb' | 'conveyor' | 'mirror' | 'blocks' | 'pull' | 'bounce' | 'slick' | 'portals' | 'tow' | 'ransom';
@@ -62,8 +62,7 @@ export const ATTACK_COPY: Record<BossAttack, { what: string; why: string }> = {
 export const RANSOM_COST = 2;
 export const BOSS_CLOCK = 90;
 export const BOSS_FIRST = 8;
-export const BOSS_EVERY = 12;
-export const BOSS_WARN = 2.5;
+// hazard interval / warning / light-behaviour interval: TUNING.bossEvery / bossWarn / lightEvery (pace blocks)
 const DURATION = [2, 3, 4];
 
 export interface BossTarget {
@@ -344,8 +343,9 @@ function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: 
   return { boundary: bestB };
 }
 
-/** Advance the boss for one tick (after player input + cascades). Mutates grid on Suction. */
-export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>): BossEvent[] {
+/** Advance the boss for one tick (after player input + cascades). Mutates grid on Suction. `quiet` = no new warning
+ *  (PACE CALM breather); TUNING.bossAttacks false (PACE MANIA) = never any. */
+export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>, quiet = false): BossEvent[] {
   const ev: BossEvent[] = [];
   const def = BOSSES[b.def];
   const ph = b.light || (b.mini && !def.second) ? 0 : bossPhase(hp, maxHp);
@@ -437,8 +437,8 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
       ev.push({ type: 'bossHit', attack: atk, target: p, outcome: 'hit' });
     }
   }
-  const due = (b.t0 ?? 0) + (b.light ? 10 + b.next * 15 : BOSS_FIRST + b.next * BOSS_EVERY);
-  if (elapsed >= due - 1e-9) {
+  const due = (b.t0 ?? 0) + (b.light ? 10 + b.next * TUNING.lightEvery : BOSS_FIRST + b.next * TUNING.bossEvery);
+  if (!quiet && TUNING.bossAttacks && elapsed >= due - 1e-9) {
     b.next++;
     if (!b.pending && !b.active) {
       // r27 final phase: alternate the chapter's mini-boss attack (second first), never overlapping a persistent hazard
@@ -448,7 +448,7 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
       const t = hazardLeft ? null : pick(atk, grid, new Set([...blocked, ...bossBlockCells(b)]), b.mini ? 0 : ph, b);
       if (t) {
         if (def.second && ph === 2 && !b.light) b.alt = (b.alt ?? 0) + 1;
-        b.pending = { ...t, attack: atk, deadline: elapsed + BOSS_WARN, phase: b.mini ? 0 : ph };
+        b.pending = { ...t, attack: atk, deadline: elapsed + TUNING.bossWarn, phase: b.mini ? 0 : ph };
         ev.push({ type: 'bossWarn', attack: atk, target: t, deadline: b.pending.deadline });
       }
     }
