@@ -63,6 +63,14 @@ export const TUNING = {
    *  maxEarn; a board under floorBelow parts still earns 1) and land at most one per `beat` s; matchmaker share drops. */
   optionA: false,
   optA: { odChain: 12, partsPerChain: 3, maxEarn: 3, floorBelow: 8, beat: 1.2, matchShare: 0.35 },
+  /** EXPERIMENT (t-0c31a7ab, Option A2), default OFF: Overdrive charges by chain size (optA.odChain), supply as today
+   *  (beat > 0 = earned parts land at most one per `beat` s), and anti-spam sits on DAMAGE per merge, never on input:
+   *  (a) `chain`: a player cascade of n activations deals chainMult[n-1] (last entry repeats) of its damage;
+   *  (b) `fatigue`: a merge `gap` s after the previous one deals clamp(gap / window, minMult, 1) of its damage, so
+   *      merge damage per second can never beat one full merge per `window` s, however fast (or bursty) the taps.
+   *  The merge itself always happens and always cascades; only the damage number changes. */
+  optionA2: false,
+  optA2: { chain: true, fatigue: true, chainMult: [0.6, 0.8, 1, 1.15, 1.3, 1.4], window: 1.5, minMult: 0.2, beat: 0 },
 };
 
 export type Tuning = typeof TUNING;

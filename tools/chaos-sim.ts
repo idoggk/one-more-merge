@@ -1,19 +1,22 @@
 // Chaos / decision-quality probe: random vs best bots, board load, decision flatness over the level clock.
-// Usage: npx vite-node tools/chaos-sim.ts [--levels 3,9,22] [--n 24] [--optA]  (--optA = TUNING.optionA experiment)
+// Usage: npx vite-node tools/chaos-sim.ts [--levels 3,9,22] [--n 24] [--optA] [--optA2 [--a2 a|b|ab]]
+// (--optA = TUNING.optionA experiment, --optA2 = TUNING.optionA2: a chain-weighted damage, b spam fatigue)
 // Columns are fifths of the level clock. trivial = a random merge scores >= 85% of the best on average (or <= 1 pair);
 // capReach = some option hits the 35% cascade cap; capped = the chosen merge did. Bots think every N s ±20%.
 import { LEVELS } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
 import { drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
+import { a2Tag, applyA2 } from './a2-flags';
 
 const args = process.argv.slice(2);
 const arg = (k: string) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
 const LV = (arg('--levels') ?? '3,5,9,13,17,22,25,31,45,55,61,66,71,76,30,40,50,60,70,80').split(',').map(Number);
 const N = Number(arg('--n')) || 24;
 if (args.includes('--optA')) TUNING.optionA = true;
-console.log(`chaos-sim | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | n ${N}`);
-const SUM: { gap: number; arr1: number; triv: number; trivR: number }[] = [];
+applyA2(args); // --optA2 [--a2 a|b|ab] [--a2beat S]
+console.log(`chaos-sim | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a2Tag()} | n ${N}`);
+const SUM: { gap: number; arr1: number; triv: number; trivR: number; noPair2: number }[] = [];
 
 type Opt = { f: number; t: number; raw: number; eff: number; count: number; rank: number };
 const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
@@ -39,7 +42,7 @@ const BOTS: Bot[] = [
 ];
 const B = 5; // fifths of the level clock
 const bk = () => Array.from({ length: B }, () => [] as number[]);
-const mk = () => ({ wins: 0, times: [] as number[], occ: bk(), pairs: bk(), arrivals: bk(), od: bk(), noPair: bk(), trivial: bk(), ratio: bk(), capReach: bk(), capped: bk(), hpLeft: bk(), mach: new Map<number, { triv: number; n: number; ratio: number }>() });
+const mk = () => ({ wins: 0, times: [] as number[], dmg: {} as Record<string, number>, merges: 0, occ: bk(), pairs: bk(), arrivals: bk(), od: bk(), noPair: bk(), trivial: bk(), ratio: bk(), capReach: bk(), capped: bk(), hpLeft: bk(), mach: new Map<number, { triv: number; n: number; ratio: number }>() });
 type Agg = ReturnType<typeof mk>;
 const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
 const median = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : NaN);
@@ -92,6 +95,8 @@ function run(L: number, bot: Bot, seed: number, agg: Agg) {
   }
   for (let i = 0; i < B; i++) if (secs[i] >= 3) agg.arrivals[i].push((arr[i] / secs[i]) * 60);
   if (s.phase === 'won') { agg.wins++; agg.times.push(s.elapsed); }
+  for (const [k, v] of Object.entries(s.stats.dmgBy)) agg.dmg[k] = (agg.dmg[k] ?? 0) + v / Math.max(1, s.elapsed);
+  agg.merges += s.stats.merges / Math.max(1, s.elapsed);
 }
 
 const f = (x: number, d = 0) => (Number.isNaN(x) ? '   -' : x.toFixed(d).padStart(5));
@@ -106,7 +111,9 @@ for (const L of LV) {
     const agg = mk();
     for (let k = 1; k <= N; k++) run(L, bot, L * 1009 + k * 7919, agg);
     res[bot.name] = agg;
-    console.log(`${bot.name.padEnd(10)} win ${pct(agg.wins / N)} clear ${f(median(agg.times))}s | parts ${row(agg.occ, (x) => f(x))} | pairs ${row(agg.pairs, (x) => f(x, 1))} | arrive/min ${row(agg.arrivals, (x) => f(x))} | OD ${row(agg.od, pct)} | noPair ${row(agg.noPair, pct)}`);
+    const dps = Object.entries(agg.dmg).map(([k, v]) => `${k} ${f(v / N)}`).join(' ');
+    console.log(`${bot.name.padEnd(10)} win ${pct(agg.wins / N)} clear ${f(median(agg.times))}s | merges/min ${f((agg.merges / N) * 60)} | dmg/s ${dps} |`);
+    console.log(`${''.padEnd(10)} parts ${row(agg.occ, (x) => f(x))} | pairs ${row(agg.pairs, (x) => f(x, 1))} | arrive/min ${row(agg.arrivals, (x) => f(x))} | OD ${row(agg.od, pct)} | noPair ${row(agg.noPair, pct)}`);
   }
   for (const name of ['best 2.0s', 'rand 1.0s']) {
     const a = res[name];
@@ -120,7 +127,8 @@ for (const L of LV) {
     arr1: mean(res['rand 1.0s'].arrivals.flat()),
     triv: mid(res['best 2.0s'].trivial),
     trivR: mid(res['rand 1.0s'].trivial),
+    noPair2: mean(res['best 2.0s'].noPair.flat()),
   });
 }
 const avg = (k: keyof (typeof SUM)[number]) => mean(SUM.map((x) => x[k]).filter((x) => !Number.isNaN(x)));
-console.log(`\nSUMMARY (${SUM.length} levels, optionA ${TUNING.optionA ? 'ON' : 'OFF'}): win gap best3.5-rand2 ${pct(avg('gap'))} | arrive/min @rand1.0s ${f(avg('arr1'), 1)} | mid-level trivial [best 2.0s] ${pct(avg('triv'))} [rand 1.0s] ${pct(avg('trivR'))}`);
+console.log(`\nSUMMARY (${SUM.length} levels, optionA ${TUNING.optionA ? 'ON' : 'OFF'}, optionA2 ${a2Tag()}): win gap best3.5-rand2 ${pct(avg('gap'))} | arrive/min @rand1.0s ${f(avg('arr1'), 1)} | mid-level trivial [best 2.0s] ${pct(avg('triv'))} [rand 1.0s] ${pct(avg('trivR'))} | noPair [best 2.0s] ${pct(avg('noPair2'))}`);
