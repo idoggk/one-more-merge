@@ -41,9 +41,21 @@ export function newRun(data: Record<string, unknown> = {}) {
   log('run_start', data);
 }
 
-export function flush() {
+/** Routine saves write the log at most this often: stringifying up to MAX events is heavy on a phone. Going to the
+ *  background and the end of a level flush right away (`flush`). */
+export const FLUSH_EVERY_MS = 30000;
+let lastFlush = -Infinity;
+
+/** `flush` for the routine save path: skipped if the log was written less than FLUSH_EVERY_MS ago. */
+export function flushThrottled(now = Date.now()) {
+  if (now - lastFlush < FLUSH_EVERY_MS) return;
+  flush(now);
+}
+
+export function flush(now = Date.now()) {
   if (!dirty) return;
   dirty = false;
+  lastFlush = now;
   try {
     localStorage.setItem(KEY, JSON.stringify(buf));
   } catch {

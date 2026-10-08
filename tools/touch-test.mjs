@@ -528,6 +528,28 @@ await fingerPath([await cellScreen(27), sf.scrap, { x: sf.scrap.x, y: rect.botto
 st = await state();
 check('inset: SCRAP overshoot below the canvas still scraps', !st.cells.includes('b1') && st.live === 1 && clean(st), { st, rect });
 
+// 20) home tab switches leak nothing (phone perf): scene input listeners and display-list objects stay flat over 20 switches
+const homeLeak = await page.evaluate(async () => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  const snap = () => ({ listeners: sc.input.eventNames().reduce((n, e) => n + sc.input.listenerCount(e), 0), objects: sc.children.list.length });
+  sc.coach.clear();
+  sc.openTitle('road');
+  await pause(400);
+  const before = snap();
+  const tabs = ['machine', 'road', 'events', 'road', 'workshop'];
+  for (let k = 0; k < 20; k++) {
+    const t = tabs[k % tabs.length];
+    if (t === 'workshop') sc.openWorkshop();
+    else sc.openTitle(t);
+    await pause(60);
+  }
+  sc.openTitle('road');
+  await pause(400);
+  return { before, after: snap(), road: sc.homeTab === 'road' && sc.hasArt('node_normal') };
+});
+check('20 home tab switches leak no listeners or objects', homeLeak.road && homeLeak.after.listeners === homeLeak.before.listeners && homeLeak.after.objects === homeLeak.before.objects, homeLeak);
+
 // --- reloads and HOME: the session flow (t-abfbda44) ---
 const reload = async () => {
   await page.reload({ waitUntil: 'load', timeout: 90000 });
@@ -581,7 +603,7 @@ const drain = () =>
     while (sc.explaining) sc.nextExplain();
   });
 
-// 20) (a) a cold start with no saved run shows home; the run behind it is never saved, so the next launch is home again
+// 21) (a) a cold start with no saved run shows home; the run behind it is never saved, so the next launch is home again
 await drain();
 await page.evaluate(() => window.__omm.game.scene.getScene('game').quitHome());
 await page.evaluate(() => localStorage.removeItem('omm.save.v1'));
@@ -592,7 +614,7 @@ await reload();
 let fl2 = await flow();
 check('cold start: home, the run behind it is never saved, reopening lands on home', fl.home && !fl.saved && fl2.home && !fl2.saved, { fl, fl2 });
 
-// 21) (b) SKIP TUTORIAL starts Level 1 (not a classic run), and winning it does not unlock the hard events
+// 22) (b) SKIP TUTORIAL starts Level 1 (not a classic run), and winning it does not unlock the hard events
 await drain();
 const hard0 = (await flow()).hard;
 await page.evaluate(() => {
@@ -613,7 +635,7 @@ fl2 = await flow();
 check('SKIP TUTORIAL starts Level 1; winning it does not unlock the hard events', skipped && fl.phase === 'playing' && fl.level === 1 && !fl2.hard, { skipped, fl, fl2 });
 await page.evaluate((h) => (window.__omm.game.scene.getScene('game').meta.hardUnlocked = h), hard0);
 
-// 22) (c) HOME from a showcase or a replayed tutorial clears the run (nothing resumes on the next launch)
+// 23) (c) HOME from a showcase or a replayed tutorial clears the run (nothing resumes on the next launch)
 await page.evaluate(() => {
   const sc = window.__omm.game.scene.getScene('game');
   sc.closeModal();
@@ -640,7 +662,7 @@ await reload();
 fl2 = await flow();
 check('HOME from a replayed tutorial clears the run', homed && fl.home && !fl.saved && fl2.home && fl2.phase !== 'tutorial', { homed, fl, fl2 });
 
-// 23) (d) a puzzle reloaded mid-way finishes without a page error
+// 24) (d) a puzzle reloaded mid-way finishes without a page error
 let errs0 = pageErrors.length;
 await drain();
 await page.evaluate(() => {
@@ -656,7 +678,7 @@ await wait(800);
 let texts = await modalTexts();
 check('puzzle reloaded mid-way finishes without a page error', fl.puzzle && fl.def === fl.puzzle && texts.includes('NOT QUITE') && pageErrors.length === errs0, { fl, texts, errs: pageErrors.slice(errs0) });
 
-// 24) (d) Boss Rush reloaded between fights keeps the earlier fight times; a lost rush record never throws
+// 25) (d) Boss Rush reloaded between fights keeps the earlier fight times; a lost rush record never throws
 errs0 = pageErrors.length;
 await page.evaluate(() => {
   const sc = window.__omm.game.scene.getScene('game');

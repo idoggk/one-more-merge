@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyBundle, isQuotaError, mergeMeta, META_KEY, readBundle, readPreimport, PREIMPORT, restorePreimport, SAVE_KEY } from '../src/platform/backup';
+import * as tlog from '../src/platform/telemetry';
 import { parseLog } from '../src/platform/telemetry';
 import { warnStorageFull } from '../src/platform/storageWarn';
 
@@ -98,6 +99,30 @@ describe('save hardening', () => {
   it('a corrupt telemetry log is dropped instead of crashing', () => {
     for (const raw of ['{"a":1}', 'null', '42', '"str"', '{bad', null]) expect(parseLog(raw)).toEqual([]);
     expect(parseLog('[null, 3, {"t":1,"run":2,"e":"x"}, {"e":"no run"}]')).toEqual([{ t: 1, run: 2, e: 'x' }]);
+  });
+
+  it('routine saves write the telemetry log at most every 30 s; an explicit flush writes at once', () => {
+    const ls = new MemStore();
+    vi.stubGlobal('localStorage', ls);
+    try {
+      const t0 = 9e12;
+      const writes = () => ls.writes.filter(([k]) => k === 'omm.telemetry.v1').length;
+      tlog.log('a');
+      tlog.flushThrottled(t0);
+      expect(writes()).toBe(1);
+      tlog.log('b');
+      tlog.flushThrottled(t0 + 2000);
+      tlog.flushThrottled(t0 + tlog.FLUSH_EVERY_MS - 1);
+      expect(writes()).toBe(1);
+      tlog.flushThrottled(t0 + tlog.FLUSH_EVERY_MS);
+      expect(writes()).toBe(2);
+      tlog.log('c');
+      tlog.flush(t0 + tlog.FLUSH_EVERY_MS + 1); // hidden / level end
+      expect(writes()).toBe(3);
+      expect(parseLog(ls.getItem('omm.telemetry.v1')).map((e) => e.e).slice(-3)).toEqual(['a', 'b', 'c']);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

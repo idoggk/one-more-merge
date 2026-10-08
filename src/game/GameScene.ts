@@ -274,6 +274,15 @@ function drawBossCell(g: Gfx, x0: number, y0: number, sz: number, warn: boolean,
 const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
+/** Phaser's setColor / setBackgroundColor / setPadding re-render the text texture even when nothing changed:
+ *  per-frame HUD code calls these instead (phone performance). */
+const textColor = (t: Phaser.GameObjects.Text, c: string) => (t.style.color === c ? t : t.setColor(c));
+const textBg = (t: Phaser.GameObjects.Text, bg: string, px: number, py: number) => {
+  if (t.style.backgroundColor !== bg) t.setBackgroundColor(bg);
+  const p = t.padding;
+  if (p.left !== px || p.right !== px || p.top !== py || p.bottom !== py) t.setPadding(px, py);
+  return t;
+};
 
 function loadMeta(): Meta {
   const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {}, remixBest: {}, tips: {} };
@@ -465,6 +474,7 @@ export class GameScene extends Phaser.Scene {
       if (document.hidden) {
         stopMusic();
         this.save();
+        tlog.flush();
         this.cancelDrag();
       }
       this.freeStalePointers(); // a touch held while the app went away never gets its touchend
@@ -1025,6 +1035,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Make sprites match the model grid. */
   reconcile(instant = false, spawnFrom?: Map<number, { x: number; y: number }>, mergeInto?: { x: number; y: number }) {
+    this.boardVer++;
     const live = new Set<number>();
     this.s.grid.forEach((g, idx) => {
       if (!g) return;
@@ -1529,6 +1540,19 @@ Now beat the real level.`, this.coachY());
     this.handleEvents(res.events);
   }
 
+  /** drawHeld runs every frame while a hint is up: the hold's cascade preview is cached per (from, to) and
+   *  recomputed only when the model has emitted events since (phone performance). */
+  boardVer = 0;
+  heldCache: { s: GameState; key: string; ver: number; p: CascadeResult | null } | null = null;
+  heldPreview(from: number, to: number) {
+    const key = `${from}:${this.s.grid[from]?.id}>${to}:${this.s.grid[to]?.id}`;
+    const c = this.heldCache;
+    if (c && c.s === this.s && c.key === key && c.ver === this.boardVer) return c.p;
+    const p = previewMerge(this.s, from, to);
+    this.heldCache = { s: this.s, key, ver: this.boardVer, p };
+    return p;
+  }
+
   /** Highlights for held/selected piece: matching double-rings + live cascade preview. */
   drawHeld() {
     const g = this.overlayG.clear();
@@ -1562,7 +1586,7 @@ Now beat the real level.`, this.coachY());
       });
       const hov = this.dragIdx >= 0 ? this.hoverIdx : -1;
       if (hov >= 0 && hov !== src && canMerge(a, this.s.grid[hov], this.s)) {
-        const p = previewMerge(this.s, src, hov)!;
+        const p = this.heldPreview(src, hov)!;
         for (const act of p.activations) {
           if (act.idx === hov) continue;
           const { x, y } = cellXY(act.idx);
@@ -2035,7 +2059,7 @@ Now beat the real level.`, this.coachY());
   drawHud(dms: number) {
     const s = this.s;
     const demo = s.target < 0;
-    this.headerText.setColor(s.hard ? '#b3201a' : s.remix ? '#1f6f8f' : '#3b2533');
+    textColor(this.headerText, s.hard ? '#b3201a' : s.remix ? '#1f6f8f' : '#3b2533');
     if (this.headerText.text !== this.lastHeader) {
       // fixed header columns: the name gets x 70..350 and shrinks to fit
       this.lastHeader = this.headerText.text;
@@ -2093,7 +2117,7 @@ Now beat the real level.`, this.coachY());
     (this.capsuleBtn?.getByName('stock') as Phaser.GameObjects.Text | undefined)?.setText(`hold  ·  ${this.meta.capsules ?? 0} left`);
     const t = Math.ceil(s.timeLeft);
     this.timerText.setText(demo || s.showcase ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
-    this.timerText.setColor(s.timeLeft < 10 && !demo ? '#d8261a' : '#3b2533');
+    textColor(this.timerText, s.timeLeft < 10 && !demo ? '#d8261a' : '#3b2533');
     this.drawClock(demo || !!s.showcase);
     this.practiceText.setVisible(s.practice && !demo);
     // QA PACE MANIA: label the craze rules on the HUD (top-right of the stage window)
@@ -2107,12 +2131,12 @@ Now beat the real level.`, this.coachY());
       const goal = s.elapsed <= g3 ? 3 : s.elapsed <= g2 ? 2 : 0;
       const left = Math.ceil((goal === 3 ? g3 : g2) - s.elapsed);
       const txt = goal ? `${goal}★ · ${left}s left` : '';
-      if (txt !== this.starChase.text) this.starChase.setText(txt).setColor(left <= 5 ? '#ff8a5c' : '#ffcf33');
+      if (txt !== this.starChase.text) textColor(this.starChase.setText(txt), left <= 5 ? '#ff8a5c' : '#ffcf33');
       this.starChase.setVisible(!!goal);
     } else if (s.puzzle && s.phase === 'playing') {
       // r42: the puzzle's rule lives where the star chase usually is
       const rule = s.puzzle.only ? `ONLY: ${s.puzzle.only.map((f) => FAMILY_INFO[f as 'cannon'].name.toUpperCase().replace('SIGNAL ', '')).join(' + ')}` : 'ANY MERGE';
-      if (this.starChase.text !== rule) this.starChase.setText(rule).setColor('#d9c2ff');
+      if (this.starChase.text !== rule) textColor(this.starChase.setText(rule), '#d9c2ff');
       this.starChase.setVisible(true);
     } else this.starChase.setVisible(false);
 
@@ -2214,7 +2238,7 @@ Now beat the real level.`, this.coachY());
     // r38: reactive levels say what the next merge earns (the board only changes when you merge)
     const earn = mergeEarns(s);
     this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? (earn && supplyGated(s) ? `CHAIN \u2192 +${earn}` : `MERGE \u2192 +${earn}`) : '');
-    this.pendingText.setColor(s.pending.length ? '#9e2416' : '#3b2533').setBackgroundColor(this.pendingText.text && !s.pending.length ? '#fbe7c6' : '').setPadding(this.pendingText.text && !s.pending.length ? 10 : 0, 4);
+    textBg(textColor(this.pendingText, s.pending.length ? '#9e2416' : '#3b2533'), this.pendingText.text && !s.pending.length ? '#fbe7c6' : '', this.pendingText.text && !s.pending.length ? 10 : 0, 4);
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(this.scrapShown());
     this.trayPlate?.setVisible(!tut && !s.puzzle);
@@ -2235,6 +2259,7 @@ Now beat the real level.`, this.coachY());
   // ---------- events → presentation ----------
 
   handleEvents(events: GameEvent[]) {
+    if (events.length) this.boardVer++;
     const spawn = new Map<number, { x: number; y: number }>();
     let needReconcile = false;
     for (const e of events) {
@@ -2745,7 +2770,8 @@ Now beat the real level.`, this.coachY());
     const s = this.s;
     const r = this.clockRing.clear();
     const sc = s.stage ? this.stageCount() : undefined;
-    this.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
+    // puzzles set the pips to merges-left below: skip this text so it isn't re-rendered twice every frame
+    if (!s.puzzle) this.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
     if (sc) {
       r.fillStyle(0x2b1d2e, 1).fillRoundedRect(W - CLOCK_X - 46, HP_Y - 26, 92, 52, 16);
     }
@@ -2802,7 +2828,7 @@ Now beat the real level.`, this.coachY());
       this.laneText.setFontSize(28).setText(msg);
       if (this.laneText.width > 610) this.laneText.setFontSize(Math.max(26, Math.floor((28 * 610) / this.laneText.width)));
     }
-    if (msg) this.laneText.setColor(col);
+    if (msg) textColor(this.laneText, col);
     const a = on ? 1 : Math.max(0, this.laneText.alpha - 0.08);
     this.laneText.setAlpha(a);
     this.laneBg.setAlpha(a * 0.95);
@@ -3674,7 +3700,7 @@ Now beat the real level.`, this.coachY());
     if (this.paceShownAt < 0 || s.elapsed - this.paceShownAt >= 0.25 || s.elapsed < this.paceShownAt) {
       this.paceShownAt = s.elapsed;
       const d = paceDelta(this.paceGhost, s.elapsed, p);
-      this.paceText.setText(paceLabel(d)).setColor(Math.abs(d) < 0.05 ? '#fff0cf' : d > 0 ? '#8ef08a' : '#ffa58a');
+      textColor(this.paceText.setText(paceLabel(d)), Math.abs(d) < 0.05 ? '#fff0cf' : d > 0 ? '#8ef08a' : '#ffa58a');
     }
     this.paceText.setVisible(true);
   }
@@ -4729,18 +4755,26 @@ Now beat the real level.`, this.coachY());
       startScroll = scrollY;
       dragDist = 0;
     });
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+    const onMove = (p: Phaser.Input.Pointer) => {
       if (!p.isDown || this.homeC !== c || !c.active) return;
       if (p.worldY < top - 40 || p.worldY > bottom + 40) return;
       dragDist = p.worldY - dragStart;
       scrollY = Phaser.Math.Clamp(startScroll + dragDist, minScroll, maxScroll);
       road.setY(scrollY);
-    });
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+    };
+    const onDown = (p: Phaser.Input.Pointer) => {
       if (this.homeC !== c || !c.active) return;
       dragStart = p.worldY;
       startScroll = scrollY;
       dragDist = 0;
+    };
+    this.input.on('pointermove', onMove);
+    this.input.on('pointerdown', onDown);
+    // leaving the tab: drop the scene listeners and the (unparented) mask, or every visit would stack another set
+    c.once(Phaser.GameObjects.Events.DESTROY, () => {
+      this.input.off('pointermove', onMove);
+      this.input.off('pointerdown', onDown);
+      mask.destroy();
     });
     this.drawWallet(c);
     // chapter strip (r17): progress toward the chapter chest; tap previews the reward
@@ -6636,6 +6670,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       sb.setY(top + 400 - sb.displayHeight * 0.54);
       const win = this.add.graphics().setVisible(false).fillRoundedRect(50, top + 140, W - 100, 290, 20);
       sb.setMask(win.createGeometryMask());
+      sb.once(Phaser.GameObjects.Events.DESTROY, () => win.destroy()); // the mask Graphics is unparented: free it with the sheet
       c.add(sb);
     }
     const mach = buildMachine(this, W / 2, top + 390, 470, Object.values(m.mastery ?? {}).some(Boolean) ? (m.mastery ?? {}) : { cannon: 1, coil: 1, bell: 1, [this.teamShooter()]: 1 }, this.activeToys()[0] ?? null, this.teamShooter())!;
@@ -7394,7 +7429,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   save() {
     this.lastSave = this.time.now;
-    tlog.flush();
+    tlog.flushThrottled(); // every 2 s and every drop: the log itself is written at most every 30 s (and when hidden / at level end)
     if (this.homeIdle || this.s.phase === 'won' || this.s.phase === 'lost') return;
     if (this.s.phase !== 'tutorial' && !this.meta.tutorialDone) {
       this.meta.tutorialDone = true;
