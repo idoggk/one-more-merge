@@ -206,6 +206,15 @@ describe('board marks: inspect card lines', () => {
     expect(MARK_MEANING.kick).toBe('kickback');
   });
 
+  it('a plain (big-chain) loose part does not claim a panel broke', () => {
+    const s = board();
+    s.drops = [{ t: 0.6, fuse: false, plan: { idx: idxOf(3, 3), land: idxOf(3, 2), id: 0 } }];
+    const line = inspectMarks(s, idxOf(3, 2)).marks[0];
+    expect(line).toMatchObject({ key: 'kick', label: 'KICKBACK' });
+    expect(line.text).not.toMatch(/panel/i);
+    expect(PALETTE.kickback.text).toMatch(/big chain/i);
+  });
+
   it('boss ransom follows the marked ids and explains the merge', () => {
     const s = board();
     const a = g('cannon', 2), b = g('coil', 1);

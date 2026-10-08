@@ -19,16 +19,16 @@ export const PALETTE: Record<Meaning, { label: string; hue: number; icon: MarkIc
   max: { label: 'MAX', hue: 0xffcf33, icon: 'crown', text: "Top rank: it can't merge any higher. In levels, two MAX parts squash into one." },
   attack: { label: 'ATTACK', hue: 0xff684a, icon: 'attack', text: 'Dashed: a boss attack lands here when the countdown ends. Move or merge the machine first.', now: 'Filled: an attack is on now. Each one has its own tint and icon: tap the machine to read it.' },
   locked: { label: 'LOCKED', hue: 0x4f6d8f, icon: 'lock', text: 'Locked or clamped: it cannot move or merge until the timer runs out.' },
-  overdrive: { label: 'OVERDRIVE', hue: 0xff7200, icon: 'glow', text: 'Merges fill the Overdrive meter; full = Cannons fire fast for a few seconds.' },
+  overdrive: { label: 'OVERDRIVE', hue: 0xff7200, icon: 'glow', text: 'Merges fill the Overdrive meter; full = Cannons fire fast and chains hit x1.5 for a few seconds.' },
   parts: { label: 'PARTS', hue: 0x3fd9a0, icon: 'part', text: 'New parts this merge earns; they drop in after the chain.' },
-  kickback: { label: 'KICKBACK', hue: 0x6f6cff, icon: 'drop', text: 'A panel broke: a loose part lands in the ring. Double ring: it lands on its match and merges.' },
+  kickback: { label: 'KICKBACK', hue: 0x6f6cff, icon: 'drop', text: 'A big chain or a broken panel shakes a loose part out: it lands in the ring. Double ring: it lands on its match and merges.' },
 };
 /** Board cells and HUD meters (guide page 2): plain copy for things that are not a mark on a part. */
 export const CELL_COPY = {
   junk: { label: 'JUNK BLOCK', text: 'Boss junk: no part can go here. Fire a machine next to it to clear it, or wait it out.' },
   blocked: { label: 'BLOCKED', text: 'Closed for the whole level: no part can go here.' },
   divider: { label: 'DIVIDER', text: 'A boss wall: relays cannot wake machines on the other side of it.' },
-  hpTicks: { label: 'HP BAR MARKS', text: 'Each 25% a panel breaks off (KICKBACK). Boss: 2 armor marks; attacks get stronger past each.' },
+  hpTicks: { label: 'HP BAR MARKS', text: 'Each 25% a panel breaks off: a loose part (KICKBACK) or a power-up. Boss: 2 armor marks; attacks get stronger past each.' },
   starTicks: { label: 'CLOCK TICKS', text: 'Gold ticks = star times. Win before a tick passes to keep that star; faded = missed.' },
 } as const;
 /** Boss attack tints (identity of each attack under the shared ATTACK frame + its icon). Kept off every other meaning's hue. */

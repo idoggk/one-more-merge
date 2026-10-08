@@ -2411,8 +2411,11 @@ Now beat the real level.`, this.coachY());
             else {
               const lg = this.s.grid[landedAt];
               const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
+              // plain drops come from big chains; only paces without kickbackFuse (CALM) also drop them on panel breaks
               this.explain('x_kick_plain', [
-                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot, hpSpot] },
+                TUNING.kickbackFuse
+                  ? { text: `Your big chain (${TUNING.bigCascade}+) shook\na part loose from the monster!`, spots: [tgtSpot] }
+                  : { text: `A big chain (${TUNING.bigCascade}+) or a broken monster panel\n(every 25% of HP: the marks on the HP bar)\nshook a part loose!`, spots: [tgtSpot, hpSpot] },
                 { text: 'It shook a part loose.\nThe ring showed where it lands: this cell.\n(A DOUBLE ring = it lands on its match and merges.)', spots: [cellXY(landedAt)] },
                 { text: 'This one waits for you.\nMerge it with the same gadget\nand the same number!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
               ]);
@@ -6889,7 +6892,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'marks', title: 'BOARD MARKS', role: 'SPECIAL', text: '', tryThis: 'Tap any machine to see its marks and what a merge does with them.', unlock: 0 },
     // clarity pass 3: what empty cells, the HP bar, the clock ring and the bolt meter show
     { key: 'marks2', title: 'CELLS & METERS', role: 'SPECIAL', text: '', tryThis: 'Tap a marked empty cell or a junk block to see what it does.', unlock: 0 },
-    { key: 'overdrive', title: 'OVERDRIVE', role: 'SPECIAL', text: 'Merges fill the bolt meter at the top (in some modes, chain links do). Full: OVERDRIVE! For a few seconds your Cannons fire super fast and the board glows orange. Then the meter starts again.', tryThis: 'When the meter is one short, save a big merge for it.', unlock: 0 },
+    { key: 'overdrive', title: 'OVERDRIVE', role: 'SPECIAL', text: 'Merges fill the bolt meter at the top (in some modes, chain links do). Full: OVERDRIVE! For a few seconds your Cannons fire super fast, every chain hits x1.5 and the board glows orange. Then the meter starts again.', tryThis: 'When the meter is one short, save a big merge for it.', unlock: 0 },
   ];
 
   /** Board marks legend: a mini cell per mark, drawn with the same functions / art as the board, one sentence each. */
