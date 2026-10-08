@@ -379,6 +379,11 @@ check('hidden SCRAP zone (level 2) never deletes a piece', st.live === 1 && st.c
 await setLevel(10);
 await setBoard({ 27: 'b1', [BR]: 'b1' });
 await wait(200);
+// a first-time explainer (clarity-pass tips) may open here and pause input; read it before the drags
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+});
 sf = await scrapFinger();
 check('a finger point exists where SCRAP and the bottom-right cell overlap', !!sf.both, sf);
 m0 = (await state()).merges;
@@ -720,6 +725,99 @@ await page.evaluate(() => {
 await wait(800);
 fl2 = await flow();
 check('Boss Rush with no rush record after a reload ends without a page error', next2 && fl.rush === 2 && fl2.home && !fl2.saved && pageErrors.length === errs0, { next2, fl, fl2, errs: pageErrors.slice(errs0) });
+
+// 26) (t-d88cc343) a finished run never comes back on reload: Rush, Bounty, Endless, Puzzle, and a level during the best-chain replay
+errs0 = pageErrors.length;
+for (const mode of ['rush', 'bounty', 'endless', 'puzzle', 'level']) {
+  await drain();
+  const started = await page.evaluate((mode) => {
+    const sc = window.__omm.game.scene.getScene('game');
+    sc.closeModal();
+    sc.meta.levelStars = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [String(i + 1), 1]));
+    if (mode === 'rush') sc.startRush();
+    else if (mode === 'bounty') sc.startBounty(0);
+    else if (mode === 'endless') sc.startEndless();
+    else if (mode === 'puzzle') sc.startPuzzle(sc.dailyPuzzle(), 'daily');
+    else {
+      sc.startLevel(3);
+      sc.runLog.best = { at: 0, count: 5 }; // even a replay that ends early: the save is gone when the run ends
+    }
+    sc.save();
+    const was = localStorage.getItem('omm.save.v1') !== null;
+    sc.s.phase = 'lost';
+    sc.openResult(false);
+    return was;
+  }, mode);
+  const gone = await page.evaluate(() => localStorage.getItem('omm.save.v1') === null);
+  await reload();
+  fl = await flow();
+  check(`finished ${mode} run is not resumed on reload`, started && gone && !fl.saved && fl.home && pageErrors.length === errs0, { mode, started, gone, fl, errs: pageErrors.slice(errs0) });
+}
+
+// 27) one bad meta value never bricks the game: the next launch repairs it
+await drain();
+await page.evaluate(() => {
+  const m = JSON.parse(localStorage.getItem('omm.meta.v1'));
+  m.units = { ...m.units, rocket: null, coil: { level: 'x' } };
+  m.levelStars = { ...m.levelStars, 2: null };
+  localStorage.setItem('omm.meta.v1', JSON.stringify(m));
+  localStorage.setItem('omm.save.v1', JSON.stringify(window.__omm.game.scene.getScene('game').s)); // a run resumes: startState reads units
+});
+await reload();
+let fixed = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const stored = JSON.parse(localStorage.getItem('omm.meta.v1'));
+  return { rocket: sc.meta.units.rocket ?? null, coil: sc.meta.units.coil, stored: stored.units.rocket ?? null, star2: stored.levelStars['2'] ?? null, phase: sc.s.phase };
+});
+check('bad nested meta loads repaired (no crash, repaired meta written back)', fixed.rocket === null && fixed.stored === null && fixed.star2 === null && fixed.coil?.level === 1 && pageErrors.length === errs0, { fixed, errs: pageErrors.slice(errs0) });
+
+// 28) a saved level this build no longer has: home, the save dropped
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.quitHome(); // home: the unload-time save() must not write the live run over the planted one
+  const s = sc.s;
+  localStorage.setItem('omm.save.v1', JSON.stringify({ ...s, phase: 'playing', level: 9999, rush: undefined, bounty: undefined, endless: undefined, puzzle: undefined }));
+});
+await reload();
+fl = await flow();
+check('a saved level that no longer exists opens home', fl.home && !fl.saved && pageErrors.length === errs0, { fl, errs: pageErrors.slice(errs0) });
+
+// 29) a save mid upgrade-pick whose upgrade was removed: the pick shows real upgrades
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.quitHome();
+  const s = JSON.parse(JSON.stringify(sc.s));
+  Object.assign(s, { phase: 'choice', offer: ['gone_perk'], perks: [], level: undefined, rush: undefined, bounty: undefined, endless: undefined, puzzle: undefined, target: 0 });
+  localStorage.setItem('omm.save.v1', JSON.stringify(s));
+});
+await reload();
+await wait(400);
+texts = await modalTexts();
+fl = await flow();
+check('a removed upgrade in a saved pick re-rolls (board not frozen)', fl.phase === 'choice' && texts.includes('PICK AN UPGRADE') && pageErrors.length === errs0, { fl, texts, errs: pageErrors.slice(errs0) });
+await page.evaluate(() => localStorage.removeItem('omm.save.v1'));
+
+// 30) storage blocked: Settings and Copy Save Code don't throw
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.closeModal();
+  window.__lsDesc = Object.getOwnPropertyDescriptor(window, 'localStorage');
+  Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('The operation is insecure.', 'SecurityError'); } });
+});
+const blocked = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const out = { settings: 'ok', copy: 'ok' };
+  try { sc.openSettings(); } catch (e) { out.settings = String(e); }
+  try { sc.copySaveCode(); } catch (e) { out.copy = String(e); }
+  return out;
+});
+await wait(800);
+await page.evaluate(() => {
+  Object.defineProperty(window, 'localStorage', window.__lsDesc);
+  window.__omm.game.scene.getScene('game').closeModal();
+  [...document.querySelectorAll('button')].find((b) => b.textContent === 'DONE')?.click();
+});
+check('storage blocked: Settings and Copy Save Code do not throw', blocked.settings === 'ok' && blocked.copy === 'ok' && pageErrors.length === errs0, { blocked, errs: pageErrors.slice(errs0) });
 
 check('no page errors', !pageErrors.length, pageErrors);
 await browser.close();

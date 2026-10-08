@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBundle, BACKUP_VERSION, crc32, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, SAVE_KEY, storeTo, type SaveBundle } from '../src/platform/backup';
+import { applyBundle, BACKUP_VERSION, crc32, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, safeStorage, SAVE_KEY, storeTo, type SaveBundle } from '../src/platform/backup';
 import { newGame, serialize } from '../src/core/game';
 
 class MemStore {
@@ -25,7 +25,7 @@ const meta = {
   bolts: 1234,
   gems: 17,
   medals: { '1': true, '2': true, '3': true },
-  season: { id: 3, xp: 220, claimed: [1, 2] },
+  season: { id: 3, xp: 220, premium: false, claimed: { free: [1, 2], prem: [] }, day: 20300, daily: [0, 1, 0], week: 2900, weekly: [0, 0, 0, 0] },
   note: 'unicode é★',
 };
 const bundle = (): SaveBundle => ({ meta: structuredClone(meta), run: serialize(newGame(1234, false)), at: 1_700_000_000_000 });
@@ -134,6 +134,31 @@ describe('save backup code', () => {
     applyBundle(fresh, bundle());
     restorePreimport(fresh);
     expect(readBundle(fresh)).toEqual({ meta: {}, run: null });
+  });
+
+  it('a code with bad nested meta values loads repaired, good values untouched', async () => {
+    const bad = { ...structuredClone(meta), units: { cannon: { level: 4, cards: 3 }, rocket: null, coil: { level: '2' }, nope: { level: 1, cards: 0 } }, levelStars: { '1': 3, '2': null }, rush: { week: 'x' }, crates: { iron: 2, gold: 'many' } };
+    const r = await importCode(await exportCode({ meta: bad, run: null }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.bundle.meta.units).toEqual({ cannon: { level: 4, cards: 3 } });
+    expect(r.bundle.meta.levelStars).toEqual({ '1': 3 });
+    expect(r.bundle.meta.crates).toEqual({ iron: 2 });
+    expect('rush' in r.bundle.meta).toBe(false);
+    expect(r.bundle.meta.season).toEqual(meta.season);
+    expect(r.bundle.meta.note).toBe(meta.note);
+  });
+
+  it('blocked storage: reads fall back instead of throwing', () => {
+    const blocked = () => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    };
+    expect(safeStorage(readPreimport, () => null, blocked)).toBeNull();
+    const mem = { meta: { bolts: 3 }, run: null };
+    expect(safeStorage(readBundle, () => mem, blocked)).toBe(mem);
+    const phone = new MemStore();
+    phone.setItem(META_KEY, '{"bolts":9}');
+    expect(safeStorage(readBundle, () => mem, () => phone)).toEqual({ meta: { bolts: 9 }, run: null });
   });
 
   it('is all or nothing: a failed write (quota) leaves the old save in place', () => {

@@ -6,6 +6,7 @@ import {
   canMerge,
   capOf,
   deserialize,
+  resumable,
   legalPairs,
   newGame,
   newLevel,
@@ -30,7 +31,7 @@ import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MO
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
-import { applyBundle, exportCode, importCode, isQuotaError, lockSaves, mergeMeta, META_KEY, readBundle, readPreimport, restorePreimport, SAVE_KEY, storeTo, type SaveBundle } from '../platform/backup';
+import { applyBundle, exportCode, importCode, isQuotaError, lockSaves, mergeMeta, META_KEY, readBundle, readPreimport, restorePreimport, safeStorage, SAVE_KEY, storeTo, type SaveBundle } from '../platform/backup';
 import { warnStorageFull } from '../platform/storageWarn';
 import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
@@ -451,9 +452,11 @@ export class GameScene extends Phaser.Scene {
         return null;
       }
     })();
-    const loaded = saved ? deserialize(saved) : null;
+    // a finished run, a level or upgrade this build no longer has: never resumed (resumable() repairs or drops it)
+    const loaded = saved ? resumable(deserialize(saved), LEVELS.length) : null;
     const pz = loaded?.puzzle ? this.findPuzzle(loaded.puzzle.id) : null;
-    if (loaded && (loaded.phase === 'playing' || loaded.phase === 'choice' || loaded.phase === 'tutorial') && (!loaded.puzzle || pz)) {
+    if (saved && (!loaded || (loaded.puzzle && !pz))) store(SAVE_KEY, null);
+    if (loaded && (!loaded.puzzle || pz)) {
       this.tutorialShort = !this.meta.tutorialDone; // a reloaded first-launch warm-up stays the one-merge warm-up
       // a reloaded puzzle starts its board fresh: the merges played (HINT / NEXT MOVE need them) are not in the save
       if (pz) this.startPuzzle(pz.def, pz.kind);
@@ -3542,6 +3545,8 @@ Now beat the real level.`, this.coachY());
 
   openResult(won: boolean) {
     if (this.modal) this.closeModal();
+    // the run is over: its last 'playing' snapshot must never resume (a lost fight retried, a won one replayed)
+    store(SAVE_KEY, null);
     if (this.s.rush) return this.openRushResult(won);
     if (this.s.bounty) return this.openBountyResult(won);
     if (this.s.endless) return this.openEndlessResult(won);
@@ -3782,6 +3787,7 @@ Now beat the real level.`, this.coachY());
     const m = this.meta;
     const n = s.level!;
     const def = LEVELS[n - 1];
+    if (!def) return this.openTitle(); // a level this build no longer has: nothing to score, back home
     m.runs++;
     const key = String(n);
     const stars = (m.levelStars ??= {});
@@ -4027,9 +4033,11 @@ Now beat the real level.`, this.coachY());
 
   /** r43 save backup: the whole save as a code on the clipboard; a select-all text box when the clipboard is refused. */
   copySaveCode() {
-    if ((this.s.phase === 'playing' || this.s.phase === 'choice') && !this.s.showcase) this.save();
+    const live = (this.s.phase === 'playing' || this.s.phase === 'choice') && !this.s.showcase && !this.homeIdle;
+    if (live) this.save();
     store(META_KEY, JSON.stringify(this.meta));
-    const code = exportCode(readBundle(localStorage));
+    // storage blocked (private mode, site data off): the code is made from the game in memory
+    const code = exportCode(safeStorage(readBundle, () => ({ meta: this.meta as unknown as Record<string, unknown>, run: live ? serialize(this.s) : null })));
     void copyText(code).then((ok) => {
       tlog.log('backup_copy', { clipboard: ok });
       if (ok) return this.showToast('SAVE CODE COPIED!\nPaste it in Notes to keep it safe');
@@ -5868,7 +5876,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       });
     });
     // r43 save backup code
-    const pre = readPreimport(localStorage);
+    const pre = safeStorage(readPreimport, () => null);
     if (pre) {
       // a code was loaded: this line becomes the one-time undo
       const un = this.add.text(W / 2, top + 580, 'Loaded the wrong code? Tap to undo', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });

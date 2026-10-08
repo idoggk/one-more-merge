@@ -3,6 +3,9 @@
 // The checksum covers everything before the last dot, so a typo, a cut-off paste or a swapped version is caught
 // before anything is decoded. Nothing here touches storage until applyBundle() is called.
 
+import { CRATES, UNITS } from '../content/units';
+import { FAMILIES } from '../core/types';
+
 export const SAVE_KEY = 'omm.save.v1';
 export const META_KEY = 'omm.meta.v1';
 
@@ -93,10 +96,21 @@ export async function importCode(input: string): Promise<ImportResult> {
   if (!d || typeof d !== 'object' || d.v !== v) return fail('damaged');
   if (!d.meta || typeof d.meta !== 'object' || Array.isArray(d.meta)) return fail('damaged');
   if (d.run !== null && typeof d.run !== 'string') return fail('damaged');
-  return { ok: true, bundle: { meta: d.meta as Record<string, unknown>, run: d.run, at: typeof d.at === 'number' ? d.at : undefined } };
+  // a code whose meta has bad nested values loads repaired (never written to the phone as is)
+  return { ok: true, bundle: { meta: repairMeta(d.meta as Record<string, unknown>), run: d.run, at: typeof d.at === 'number' ? d.at : undefined } };
 }
 
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+/** `read(localStorage)`, or `fallback()` when storage is blocked (private mode / site data off: even touching
+ *  `localStorage` throws). */
+export function safeStorage<T>(read: (storage: KV) => T, fallback: () => T, storage: () => KV = () => localStorage): T {
+  try {
+    return read(storage());
+  } catch {
+    return fallback();
+  }
+}
 
 /** The save as it sits in storage right now. */
 export function readBundle(storage: KV): SaveBundle {
@@ -192,15 +206,124 @@ export function isQuotaError(e: unknown): boolean {
   return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22 || code === 1014;
 }
 
+// ---------- meta shapes: one bad nested value (units: { rocket: null }) must never brick every launch ----------
+/** Returns the value (repaired) or undefined: drop it, the game treats it as never set. */
+type Fix = (v: unknown) => unknown;
+const num: Fix = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+const bool: Fix = (v) => (typeof v === 'boolean' ? v : undefined);
+const str: Fix = (v) => (typeof v === 'string' ? v : undefined);
+const orNull = (f: Fix): Fix => (v) => (v === null ? null : f(v));
+const oneOf = (allowed: readonly string[]): Fix => (v) => (allowed.includes(v as string) ? v : undefined);
+/** A list: bad items are dropped. */
+const list = (f: Fix): Fix => (v) => (Array.isArray(v) ? v.map(f).filter((x) => x !== undefined) : undefined);
+const tuple = (f: Fix, n: number): Fix => (v) => (Array.isArray(v) && v.length === n && v.every((x) => f(x) !== undefined) ? v : undefined);
+/** A keyed record: bad entries (and keys outside `keys`, when given) are dropped, the rest kept. */
+const rec =
+  (f: Fix, keys?: readonly string[]): Fix =>
+  (v) => {
+    if (!isRecord(v)) return undefined;
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) {
+      const y = keys && !keys.includes(k) ? undefined : f(x);
+      if (y !== undefined) out[k] = y;
+    }
+    return out;
+  };
+/** A fixed-shape object: `req` fields must be there; an `opt` field may be missing. Any field present with the wrong
+ *  shape drops the whole object (the game rebuilds a fresh one), since the code reads these fields without checks. */
+const obj =
+  (req: Record<string, Fix>, opt: Record<string, Fix> = {}): Fix =>
+  (v) => {
+    if (!isRecord(v)) return undefined;
+    const out: Record<string, unknown> = { ...v };
+    for (const [k, f] of Object.entries({ ...req, ...opt })) {
+      if (!(k in v) && !(k in req)) continue;
+      const y = f(v[k]);
+      if (y === undefined) return undefined;
+      out[k] = y;
+    }
+    return out;
+  };
+const flags = rec(bool);
+const nums = rec(num);
+
+/** Every meta field the game reads, by shape. Fields not listed here are kept as stored. */
+export const META_SHAPES: Record<string, Fix> = {
+  toys: flags,
+  remixBest: nums,
+  tips: flags,
+  stage: orNull(str),
+  ornament: orNull(str),
+  workshopSeenBolts: num,
+  medals: flags,
+  backupNudged: flags,
+  lessons: flags,
+  levelStars: nums,
+  levelPace: rec(obj({ t: num, p: str })),
+  kits: num,
+  capsules: num,
+  grants: flags,
+  failPaid: rec(str),
+  shooter: oneOf(FAMILIES),
+  playtestMode: bool,
+  units: rec(obj({ level: num, cards: num }), UNITS.map((u) => u.id)),
+  gems: num,
+  crates: rec(num, Object.keys(CRATES)),
+  crateSeq: num,
+  pity: obj({ epic: num, dry: num }, { featured: num }),
+  unitChoiceDone: bool,
+  relays: tuple(str, 2),
+  bounty: rec(obj({ won: list(num), mastered: list(num) })),
+  bossMastery: nums,
+  trophies: list(str),
+  screwdrivers: num,
+  yardBoosters: nums,
+  trial: obj({ date: str, unit: str, left: num, on: bool }, { endShown: bool }),
+  puzzles: obj({}, { date: str, day: num, streak: num, lastSolved: str, drills: list(str), fails: nums, shown: list(str) }),
+  season: obj({ id: num, xp: num }, { premium: bool, claimed: obj({ free: list(num), prem: list(num) }), day: num, daily: list(num), week: num, weekly: list(num) }),
+  sagaMedals: rec(list(num)),
+  endless: obj({ floor: num, best: num }),
+  collClaimed: num,
+  yard: obj({ week: num }, { clears: num, paid: num, stars: nums }),
+  masteryPaid: num,
+  rush: obj(
+    { week: num, course: list(str) },
+    { granted: num, best: obj({ fights: num, time: num }), stamps: flags, medal: bool, weeks: list(num), run: obj({ i: num, times: list(num) }) },
+  ),
+  swapMismatch: bool,
+  shake: bool,
+  bolts: num,
+  owned: list(str),
+  finish: orNull(str),
+  nameIdx: num,
+  onboarded: bool,
+  dailyPaid: flags,
+  lastSettle: str,
+  homeSeen: nums,
+  mastery: nums,
+  daily: rec(obj({ v: num, targets: num, dmg: num, attempts: num }, { time: orNull(num) })),
+};
+
+/** The meta with every known field checked by shape: bad entries are dropped or repaired, unknown fields kept. */
+export function repairMeta(raw: Record<string, unknown>, shapes: Record<string, Fix> = META_SHAPES): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const y = Object.prototype.hasOwnProperty.call(shapes, k) ? shapes[k](v) : v;
+    if (y !== undefined) out[k] = y;
+  }
+  return out;
+}
+
 /**
  * Loaded meta over its defaults, checked field by field: a stored value whose shape doesn't match the default
  * (e.g. `tips: null`, `toys: []`, `runs: "3"`) falls back to the default instead of crashing the game later.
- * A field the defaults don't name is kept as stored. Anything that isn't an object gives the defaults.
+ * Nested fields are checked too (META_SHAPES): a bad entry is dropped, not the whole save.
+ * A field nobody describes is kept as stored. Anything that isn't an object gives the defaults.
  */
 export function mergeMeta<T extends object>(defaults: T, raw: unknown): T {
   const out: Record<string, unknown> = { ...(defaults as Record<string, unknown>) };
   if (!isRecord(raw)) return out as T;
-  for (const [k, v] of Object.entries(raw)) {
+  for (const [k, v] of Object.entries(repairMeta(raw))) {
     if (!(k in defaults)) {
       out[k] = v;
       continue;

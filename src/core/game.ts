@@ -742,13 +742,19 @@ export function choosePerk(s: GameState, perk: PerkId): CommandResult {
   const ev: GameEvent[] = [];
   if (s.phase !== 'choice' || !s.offer.includes(perk)) return { ok: false, events: ev };
   s.perks.push(perk);
-  s.offer = [];
   if (perk === 'juice') {
     if (s.odCharge >= 5) {
       s.odCharge = 0;
       enterOverdrive(s, 8);
     } else if (s.odLeft > 0) s.odLeft = Math.min(8, s.odLeft + 2);
   }
+  return { ok: true, events: endChoice(s) };
+}
+
+/** Leaves the upgrade pick: the next opponent comes in and the carried-over damage lands on it. */
+function endChoice(s: GameState): GameEvent[] {
+  const ev: GameEvent[] = [];
+  s.offer = [];
   s.phase = 'playing';
   s.target++;
   s.maxHp = s.hp = targetHp(s, s.target);
@@ -757,7 +763,7 @@ export function choosePerk(s: GameState, perk: PerkId): CommandResult {
   const carry = s.pendingDamage;
   s.pendingDamage = 0;
   if (carry > 0) applyDamage(s, carry, ev, 'carry');
-  return { ok: true, events: ev };
+  return ev;
 }
 
 // ---------- internals ----------
@@ -1100,6 +1106,25 @@ export function deserialize(json: string): GameState | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * A loaded run this build can still resume, repaired in place; null = don't resume (start from home).
+ * Finished runs never resume; a saga level this build no longer has is dropped; upgrades this build no longer has
+ * are forgotten, and an upgrade pick left with nothing to offer re-rolls (or, with nothing left, just moves on).
+ */
+export function resumable(s: GameState | null, levelCount: number): GameState | null {
+  if (!s || (s.phase !== 'playing' && s.phase !== 'choice' && s.phase !== 'tutorial')) return null;
+  const sagaLevel = s.level !== undefined && !s.rush && !s.bounty && s.endless === undefined && !s.puzzle;
+  if (sagaLevel && !(Number.isInteger(s.level) && s.level! >= 1 && s.level! <= levelCount)) return null;
+  const known = (p: unknown): p is PerkId => ALL_PERKS.includes(p as PerkId);
+  s.perks = Array.isArray(s.perks) ? s.perks.filter(known) : [];
+  s.offer = Array.isArray(s.offer) ? s.offer.filter(known) : [];
+  if (s.phase === 'choice' && !s.offer.length) {
+    s.offer = makeOffer(s);
+    if (!s.offer.length) endChoice(s);
+  }
+  return s;
 }
 
 // ---------- kickback ----------

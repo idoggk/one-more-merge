@@ -3,6 +3,9 @@ import { applyBundle, isQuotaError, mergeMeta, META_KEY, readBundle, readPreimpo
 import * as tlog from '../src/platform/telemetry';
 import { parseLog } from '../src/platform/telemetry';
 import { warnStorageFull } from '../src/platform/storageWarn';
+import { ALL_PERKS, deserialize, newGame, newLevel, resumable, serialize, type GameState } from '../src/core/game';
+import type { PerkId } from '../src/core/types';
+import { LEVELS } from '../src/content/levels';
 
 class MemStore {
   map = new Map<string, string>();
@@ -33,6 +36,77 @@ describe('save hardening', () => {
     const a = mergeMeta(defaults(), null);
     a.tips.x = true;
     expect(defaults().tips).toEqual({});
+  });
+
+  it('one bad nested meta value is dropped, never the whole save (units: { rocket: null } bricked every launch)', () => {
+    const m = mergeMeta(defaults(), {
+      units: { cannon: { level: 3, cards: 2 }, rocket: null, coil: { level: 2 }, bell: 'x' },
+      levelStars: { '1': 3, '2': '3', '3': null },
+      rush: { week: 2900, course: ['a', 5], run: null },
+      crates: { iron: 1, gold: null, stone: 4 },
+      relays: ['coil'],
+      shooter: 'laser',
+      tips: { a: true, b: null },
+      trophies: ['x', 7],
+      endless: { floor: 4 },
+    }) as Record<string, unknown>;
+    expect(m.units).toEqual({ cannon: { level: 3, cards: 2 } });
+    expect(m.levelStars).toEqual({ '1': 3 });
+    expect(m.rush).toBeUndefined(); // a present field with the wrong shape drops the record (a fresh one is built)
+    expect(m.crates).toEqual({ iron: 1 });
+    expect(m.relays).toBeUndefined();
+    expect(m.shooter).toBeUndefined();
+    expect(m.tips).toEqual({ a: true });
+    expect(m.trophies).toEqual(['x']);
+    expect(m.endless).toBeUndefined();
+    // what create() / startState() do with it no longer throws
+    const units = m.units as Record<string, { level: number }>;
+    expect(() => Object.entries(units).map(([, v]) => v.level)).not.toThrow();
+  });
+
+  it('a good full meta loads unchanged', () => {
+    const good = {
+      ...defaults(),
+      tutorialDone: true,
+      bestTime: 50.2,
+      runs: 40,
+      toys: { magnet: true },
+      tips: { merge: true },
+      remixBest: { '1:none': 31.5 },
+      stage: null,
+      ornament: 'o1',
+      medals: { '1': true },
+      levelStars: { '1': 3, '2': 2 },
+      levelPace: { '1': { t: 40, p: 'abc' } },
+      kits: 2,
+      grants: { g: true },
+      failPaid: { '3': 'id' },
+      shooter: 'rocket',
+      units: { cannon: { level: 4, cards: 3 }, rocket: { level: 1, cards: 0 } },
+      gems: 5,
+      crates: { iron: 1 },
+      pity: { epic: 2, dry: 1 },
+      relays: ['coil', 'bell'],
+      bounty: { '2026-10-08': { won: [0, 1], mastered: [] } },
+      bossMastery: { b1: 2 },
+      trophies: ['b1'],
+      yardBoosters: { drill: 1 },
+      trial: { date: '2026-10-08', unit: 'mortar', left: 2, on: true },
+      puzzles: { streak: 3, drills: ['d1'], date: '2026-10-08', day: 4 },
+      season: { id: 3, xp: 220, premium: false, claimed: { free: [1], prem: [] }, day: 20300, daily: [0, 0, 0], week: 2900, weekly: [0, 0, 0, 0] },
+      sagaMedals: { '4': [0, 2] },
+      endless: { floor: 5, best: 4 },
+      yard: { week: 2900, clears: 2, paid: 1, stars: { '1': 3 } },
+      rush: { week: 2900, course: ['b1', 'b2'], granted: 10, best: { fights: 2, time: 80 }, stamps: { b1: true }, weeks: [2899], run: { i: 1, times: [30] } },
+      bolts: 99,
+      owned: ['f1'],
+      finish: null,
+      lastSettle: 'x',
+      mastery: { cannon: 5 },
+      daily: { '2026-10-08': { v: 1, targets: 2, time: null, dmg: 900, attempts: 3 } },
+      someFutureField: { anything: [1] },
+    };
+    expect(mergeMeta(defaults(), structuredClone(good))).toEqual(good);
   });
 
   it('a non-object meta in storage exports as an empty meta', () => {
@@ -123,6 +197,45 @@ describe('save hardening', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('resuming a saved run', () => {
+  const load = (s: GameState) => resumable(deserialize(serialize(s)), LEVELS.length);
+
+  it('a finished run never comes back (won / lost snapshots are dropped)', () => {
+    for (const phase of ['won', 'lost'] as const) expect(load({ ...newGame(7, false), phase })).toBeNull();
+    expect(resumable(null, LEVELS.length)).toBeNull();
+  });
+
+  it('a good saved run resumes unchanged', () => {
+    const s = newGame(7, false);
+    expect(load(s)).toEqual(JSON.parse(serialize(s)));
+    const lv = newLevel(LEVELS[0]);
+    expect(load(lv)?.level).toBe(1);
+  });
+
+  it('a saved level this build no longer has goes home instead of crashing the results', () => {
+    expect(load({ ...newLevel(LEVELS[0]), level: LEVELS.length + 1 })).toBeNull();
+    expect(load({ ...newLevel(LEVELS[0]), level: 0 })).toBeNull();
+  });
+
+  it('an upgrade pick whose upgrade was removed re-rolls instead of freezing the board', () => {
+    const s = { ...newGame(7, false), phase: 'choice' as const, offer: ['gone', 'twin'] as unknown as PerkId[], perks: ['old'] as unknown as PerkId[] };
+    const a = load(s)!;
+    expect(a.phase).toBe('choice');
+    expect(a.offer).toEqual(['twin']);
+    expect(a.perks).toEqual([]);
+    const b = load({ ...s, offer: ['gone'] as unknown as PerkId[] })!;
+    expect(b.phase).toBe('choice');
+    expect(b.offer.length).toBeGreaterThan(0);
+    expect(b.offer.every((p) => ALL_PERKS.includes(p))).toBe(true);
+    // nothing left to offer: the pick is skipped and the next opponent comes in
+    const t0 = s.target;
+    const c = load({ ...s, offer: ['gone'] as unknown as PerkId[], perks: [...ALL_PERKS] })!;
+    expect(c.phase).toBe('playing');
+    expect(c.offer).toEqual([]);
+    expect(c.target).toBe(t0 + 1);
   });
 });
 
