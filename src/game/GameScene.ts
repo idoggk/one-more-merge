@@ -3108,6 +3108,8 @@ Now beat the real level.`, this.coachY());
     const m = this.modal;
     this.modal = null;
     if (!m) return;
+    // modals that own timers (best-chain replay) tear them down here, not 140 ms later on destroy
+    m.emit('modalclose');
     // exit 140ms cubic-in (ChatGPT r9); input dies immediately so the next screen is live
     m.each((o: Phaser.GameObjects.GameObject) => o.disableInteractive?.());
     this.tweens.add({ targets: m, alpha: 0, y: 24, duration: 140, ease: 'Cubic.In', onComplete: () => m.destroy() });
@@ -3341,11 +3343,20 @@ Now beat the real level.`, this.coachY());
 
     let finished = false;
     const timers: Phaser.Time.TimerEvent[] = [];
-    const finish = () => {
-      if (finished) return;
+    // one teardown for every close path: our own finish, closeModal() (e.g. the next level starting) or a direct
+    // destroy (sheet()). Only finish() goes on to done(); an outside close means someone else moved on.
+    const teardown = () => {
+      if (finished) return false;
       finished = true;
       for (const t of timers) t.remove(false);
       this.tweens.killTweensOf(c.list);
+      dim.off('pointerdown').off('pointerup');
+      return true;
+    };
+    c.once('modalclose', teardown);
+    c.once('destroy', teardown);
+    const finish = () => {
+      if (!teardown()) return;
       if (this.modal === c) this.modal = null;
       c.destroy();
       done();
