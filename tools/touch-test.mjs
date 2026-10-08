@@ -477,6 +477,33 @@ const ranks = await page.evaluate(() => {
 });
 check('repeated shakes leave no sprite offset and no enlarged rank label', bounced.every((b) => b === false) && st.cells[12] === 'c2' && st.cells[13] === 'c3' && clean(st) && !ranks.length, { bounced, st, ranks });
 
+// 16b) snap cue: one cue per NEW mergeable cell, none for empty or mismatch cells, throttled; the drag still lands
+await setBoard({ 6: 'b1', 8: 'b1', 9: 'n1' });
+await wait(200);
+const errsSnap = pageErrors.length;
+const cues = () => page.evaluate(() => window.__omm.game.scene.getScene('game').snapCues);
+const c0 = await cues();
+await press(6, { x: 0, y: 0 });
+await slide(7, { x: 0, y: 0 }, 6); // empty cell
+const cEmpty = (await cues()) - c0;
+await slide(8, { x: 0, y: 0 }, 6); // match
+const cMatch = (await cues()) - c0;
+for (const dx of [6, -6, 4]) await page.touchscreen.touchMove(finger.x + dx, finger.y); // wiggle on the same cell
+await wait(50);
+const cSame = (await cues()) - c0;
+await slide(9, { x: 0, y: 0 }, 4); // mismatch
+const cMis = (await cues()) - c0;
+await wait(200);
+await slide(8, { x: 0, y: 0 }, 2); // back onto the match after the gap: a new cue
+const cBack = (await cues()) - c0;
+await slide(7, { x: 0, y: 0 }, 1);
+await slide(8, { x: 0, y: 0 }, 1); // straight back within 120 ms: throttled
+const cFast = (await cues()) - c0;
+m0 = (await state()).merges;
+await release();
+st = await state();
+check('snap cue: once per new match, none on empty/mismatch/same cell, throttled; the drag still merges', cEmpty === 0 && cMatch === 1 && cSame === 1 && cMis === 1 && cBack === 2 && cFast === 2 && st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st) && pageErrors.length === errsSnap, { cEmpty, cMatch, cSame, cMis, cBack, cFast, st, errs: pageErrors.slice(errsSnap) });
+
 // --- iPhone safe areas: #game inset like a notched phone, so the canvas has margins the finger can slide into ---
 await page.evaluateOnNewDocument(() => {
   document.addEventListener('DOMContentLoaded', () => {
@@ -818,6 +845,49 @@ await page.evaluate(() => {
   [...document.querySelectorAll('button')].find((b) => b.textContent === 'DONE')?.click();
 });
 check('storage blocked: Settings and Copy Save Code do not throw', blocked.settings === 'ok' && blocked.copy === 'ok' && pageErrors.length === errs0, { blocked, errs: pageErrors.slice(errs0) });
+
+// 31) prefers-reduced-motion: a merge (rank-up + chain) never scales, spins or tilts a part; every sprite ends on its cell at scale 1
+await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+await reload();
+await drain();
+const rmOn = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.closeModal();
+  sc.coach.clear();
+  sc.retry(false, -1);
+  sc.finishIntro(true);
+  while (sc.explaining) sc.nextExplain();
+  sc.s.level = 10;
+  return matchMedia('(prefers-reduced-motion: reduce)').matches;
+});
+await setBoard({ 6: 'b1', 8: 'b1', 3: 'c2', 9: 'n2', 13: 'n1', 7: 'c1' });
+await wait(300);
+await drain();
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.s.stats.bestRank = 1; // the merge is a rank-up: ring + rank pulse
+  const worst = (window.__rmWorst = { scale: 0, angle: 0, label: 0, burst: 0 });
+  const end = performance.now() + 1500;
+  const sample = () => {
+    for (const v of sc.views.values()) {
+      if (v === sc.dragView || !v.visible) continue;
+      worst.scale = Math.max(worst.scale, Math.abs(v.scaleX - 1), Math.abs(v.scaleY - 1));
+      worst.angle = Math.max(worst.angle, Math.abs(v.angle));
+      const rv = v.getByName('rank');
+      if (rv) worst.label = Math.max(worst.label, Math.abs(rv.scale - 1));
+    }
+    for (const o of sc.children.list) if (o.texture?.key === 'starburst') worst.burst = Math.max(worst.burst, Math.abs(o.angle));
+    if (performance.now() < end) requestAnimationFrame(sample);
+  };
+  requestAnimationFrame(sample);
+});
+m0 = (await state()).merges;
+await fingerPath([await cellScreen(6), await holdOver(8)]);
+await wait(1200);
+st = await state();
+const rmWorst = await page.evaluate(() => window.__rmWorst);
+check('reduced motion: merge lands, no scale/rotation during the merge, sprites end on their cells at scale 1', rmOn && st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st) && rmWorst.scale < 0.01 && rmWorst.angle < 0.5 && rmWorst.label < 0.01 && rmWorst.burst < 0.5, { rmOn, rmWorst, st });
+await page.emulateMediaFeatures([]);
 
 check('no page errors', !pageErrors.length, pageErrors);
 await browser.close();

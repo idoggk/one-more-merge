@@ -66,6 +66,8 @@ const DRAG_LIFT_TOUCH = 85;
 /** A merging piece flies into its partner over this long; the merged gadget pops when it arrives. */
 const MERGE_ARRIVE = 110;
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Snap cue (held piece reaches a mergeable cell): at most one per this many ms. */
+const SNAP_CUE_GAP = 120;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
 /** r38: player-facing durations are m:ss (ChatGPT review: never raw seconds on cards). */
@@ -1077,6 +1079,10 @@ export class GameScene extends Phaser.Scene {
   /** Landing squash: quick flatten then springy settle. */
   squash(v: Phaser.GameObjects.Container) {
     if (!v.active) return;
+    if (REDUCED_MOTION) {
+      v.setScale(1);
+      return;
+    }
     v.setScale(1.06, 0.94);
     this.tweens.add({ targets: v, scaleX: 1, scaleY: 1, duration: 135, ease: 'Sine.Out' });
   }
@@ -1126,7 +1132,7 @@ export class GameScene extends Phaser.Scene {
       this.views.delete(id);
       if (v === this.dragView) this.cancelDrag();
       this.tweens.killTweensOf(v);
-      if (mergeInto) this.tweens.add({ targets: v, x: mergeInto.x, y: mergeInto.y, scale: 0.6, alpha: 0, duration: MERGE_ARRIVE, onComplete: () => v.destroy() });
+      if (mergeInto) this.tweens.add({ targets: v, x: mergeInto.x, y: mergeInto.y, scale: REDUCED_MOTION ? v.scale : 0.6, alpha: 0, duration: MERGE_ARRIVE, onComplete: () => v.destroy() });
       else this.tweens.add({ targets: v, scale: 0, alpha: 0, duration: 150, onComplete: () => v.destroy() });
     }
   }
@@ -1295,6 +1301,13 @@ export class GameScene extends Phaser.Scene {
     const h = this.targetCell(this.dragView.x, this.dragView.y);
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
+      // snap cue: one soft tick + tap as the piece reaches a NEW cell it can merge with (never for empty/mismatch cells)
+      if (this.mergeHighlighted() && this.time.now - this.snapAt >= SNAP_CUE_GAP) {
+        this.snapAt = this.time.now;
+        this.snapCues++;
+        sfx.snap();
+        haptic(6);
+      }
       this.drawHeld();
     }
     const over = this.heldOverScrap(p);
@@ -1316,6 +1329,9 @@ export class GameScene extends Phaser.Scene {
     return !!a && !!b && canMerge(a, b, this.s);
   }
   overScrapFlag = false;
+  snapAt = -1e9;
+  /** Snap cues played (read by tools/touch-test.mjs). */
+  snapCues = 0;
   dragShadow?: Phaser.GameObjects.Ellipse;
   grabOff = { x: 0, y: 0 };
   liftAt = 0;
@@ -1442,8 +1458,10 @@ export class GameScene extends Phaser.Scene {
     const rv = this.views.get(id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
     if (!rv) return;
     this.tweens.killTweensOf(rv);
-    rv.setScale(1);
-    this.tweens.add({ targets: rv, scale, duration, yoyo: true, repeat, ease });
+    rv.setScale(1).setAlpha(1);
+    // reduced motion: the label blinks in place instead of growing
+    if (REDUCED_MOTION) this.tweens.add({ targets: rv, alpha: 0.45, duration, yoyo: true, repeat, ease });
+    else this.tweens.add({ targets: rv, scale, duration, yoyo: true, repeat, ease });
   }
 
   /** Finger is on a part (held or about to drag) or on the power-up. */
@@ -1501,24 +1519,29 @@ export class GameScene extends Phaser.Scene {
         const { x, y } = cellXY(to);
         const sb = this.add.image(x, y, 'starburst').setDepth(9);
         const s0 = Math.min(150 / sb.width, 150 / sb.height);
-        sb.setScale(s0 * 0.4);
-        this.tweens.add({ targets: sb, scale: s0, angle: 90, alpha: 0, duration: 450, ease: 'Quad.Out', onComplete: () => sb.destroy() });
+        // reduced motion: a short in-place fade, no growth or spin
+        if (REDUCED_MOTION) this.tweens.add({ targets: sb.setScale(s0 * 0.7).setAlpha(0.8), alpha: 0, duration: 220, ease: 'Quad.Out', onComplete: () => sb.destroy() });
+        else {
+          sb.setScale(s0 * 0.4);
+          this.tweens.add({ targets: sb, scale: s0, angle: 90, alpha: 0, duration: 450, ease: 'Quad.Out', onComplete: () => sb.destroy() });
+        }
       }
       if (nv) {
         // ONE pop, when the two parts arrive (the chain's root beat skips this gadget so it can't cut the pop short)
         this.tweens.killTweensOf(nv); // the spawn pop from reconcile() would fight the merge punch
         const c = cellXY(to);
-        nv.setPosition(c.x, c.y).setScale(0.9).setVisible(false);
+        nv.setPosition(c.x, c.y).setScale(REDUCED_MOTION ? 1 : 0.9).setVisible(false);
         this.time.delayedCall(MERGE_ARRIVE, () => {
           if (!nv.active) return;
           nv.setVisible(true);
-          this.tweens.chain({
-            targets: nv,
-            tweens: [
-              { scale: 1.16, duration: 90, ease: 'Back.Out' },
-              { scale: 1, duration: 120, ease: 'Sine.Out' },
-            ],
-          });
+          if (!REDUCED_MOTION)
+            this.tweens.chain({
+              targets: nv,
+              tweens: [
+                { scale: 1.16, duration: 90, ease: 'Back.Out' },
+                { scale: 1, duration: 120, ease: 'Sine.Out' },
+              ],
+            });
         });
       }
       const ng = this.s.grid[to]!;
@@ -2923,7 +2946,9 @@ Now beat the real level.`, this.coachY());
   /** Expanding ring burst (merge snap, muzzle flash, impacts). */
   ring(x: number, y: number, color: number, radius = 60, width = 10, dur = 260) {
     const g = this.add.graphics().setDepth(48).setPosition(x, y);
-    const o = { r: radius * 0.3, a: 1 };
+    // reduced motion: the ring fades out at a fixed radius instead of expanding
+    const o = { r: REDUCED_MOTION ? radius * 0.65 : radius * 0.3, a: 1 };
+    if (REDUCED_MOTION) radius = o.r;
     this.tweens.add({
       targets: o,
       r: radius,
@@ -2958,14 +2983,14 @@ Now beat the real level.`, this.coachY());
     if (!this.hasArt(key)) return false;
     const img = this.add.image(x, y, key).setDepth(opts.depth ?? 49).setAngle(opts.angle ?? 0);
     const s = size / Math.max(img.width, img.height);
-    img.setScale(s * 0.6);
-    this.tweens.add({ targets: img, scale: s * (opts.grow ?? 1.3), alpha: 0, duration: opts.dur ?? 160, ease: 'Quad.Out', onComplete: () => img.destroy() });
+    img.setScale(REDUCED_MOTION ? s : s * 0.6);
+    this.tweens.add({ targets: img, scale: REDUCED_MOTION ? s : s * (opts.grow ?? 1.3), alpha: 0, duration: opts.dur ?? 160, ease: 'Quad.Out', onComplete: () => img.destroy() });
     return true;
   }
 
   flash(x: number, y: number, size: number, color = 0xffffff) {
     const c = this.add.image(x, y, 'dot').setTint(color).setDepth(49).setScale(size / 16).setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.add({ targets: c, scale: (size * 1.6) / 16, alpha: 0, duration: 140, onComplete: () => c.destroy() });
+    this.tweens.add({ targets: c, scale: REDUCED_MOTION ? size / 16 : (size * 1.6) / 16, alpha: 0, duration: 140, onComplete: () => c.destroy() });
   }
 
   /** Face patches (face_<target>_<hit|angry|dizzy>) cover the sprite's own face; offsets are fractions of the sprite box. */
@@ -3183,8 +3208,11 @@ Now beat the real level.`, this.coachY());
         const mergePop = !kickback && a.depth === 0 && a.idx === r.rootIdx; // commitDrop already pops the merged gadget
         if (v && v !== this.dragView && !mergePop) {
           this.tweens.killTweensOf(v);
-          v.setScale(1.3).setPosition(x, a.family === 'cannon' ? y + 12 : y);
-          this.tweens.add({ targets: v, scale: 1, x, y, duration: 240, ease: 'Back.Out' });
+          if (REDUCED_MOTION) v.setScale(1).setAngle(0).setPosition(x, y);
+          else {
+            v.setScale(1.3).setPosition(x, a.family === 'cannon' ? y + 12 : y);
+            this.tweens.add({ targets: v, scale: 1, x, y, duration: 240, ease: 'Back.Out' });
+          }
         }
         this.sparks.setParticleTint(color);
         this.sparks.explode(a.charge > 1 ? 10 : 5, x, y);

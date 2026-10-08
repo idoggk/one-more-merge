@@ -158,6 +158,11 @@ export const sfx = {
     tone(450, 0.06, 'sine', 0.025);
   },
   pickup: () => bandNoise(0.03, 0.12, 0, 2500),
+  /** Held piece reaches a cell it can merge with: one soft, quiet tick (well under the merge itself). */
+  snap: () => {
+    tone(1250, 0.03, 'sine', 0.035);
+    bandNoise(0.008, 0.02, 0, 4500, 2);
+  },
   drop: () => tone(300, 0.06, 'triangle', 0.12),
   invalid: () => tone(180, 0.12, 'square', 0.05, 0, 120),
   /** merge_rank_up: click + bright upward bloop; higher ranks add fullness, not endless pitch. */
