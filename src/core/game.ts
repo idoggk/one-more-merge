@@ -158,6 +158,8 @@ export interface GameState {
   showcase?: boolean;
   /** Jumpstart applied this attempt. */
   jumpstart?: boolean;
+  /** EXPERIMENT optionA2 spam fatigue: when the last player merge was made (elapsed). */
+  lastMergeAt?: number;
   stats: Stats;
 }
 
@@ -405,7 +407,10 @@ function makeGadget(s: GameState, family: Family, rank: number): Gadget {
 }
 
 export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPeriodOverdrive : TUNING.cannonPeriod);
-export const odNeeded = (s: GameState) => (s.perks.includes('juice') ? 5 : TUNING.overdriveMerges);
+export const odByChain = () => TUNING.optionA || TUNING.optionA2 || TUNING.optionA3;
+export const odNeeded = (s: GameState) =>
+  odByChain() ? Math.round(TUNING.optA.odChain * (s.perks.includes('juice') ? 5 / 6 : 1)) : s.perks.includes('juice') ? 5 : TUNING.overdriveMerges;
+const matchShare = () => (TUNING.optionA ? TUNING.optA.matchShare : TUNING.matchShare);
 const odDuration = (s: GameState) => (s.perks.includes('juice') ? 8 : TUNING.overdriveDuration);
 
 /** Stateless 32-bit hash (deterministic cosmetic-free choices that peekNext can predict exactly). */
@@ -422,7 +427,7 @@ function hash2(a: number, b: number): number {
  * legal pair at all the delivery always does. Pure function of (state, ordinal), so the NEXT preview is exact.
  */
 export function matchmakerPick(s: GameState, ordinal: number): { family: Family; rank: number } | null {
-  if (!TUNING.matchShare) return null;
+  if (!matchShare()) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
     if (!g || g.rank >= capOf(s, g.family) || !(isShooter(g.family) || isRelay(g.family))) continue;
@@ -435,7 +440,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   const lonely = groups.filter((e) => e.n % 2 === 1).sort((a, b) => a.rank - b.rank || a.family.localeCompare(b.family));
   if (!lonely.length) return null;
   const noPair = !groups.some((e) => e.n >= 2);
-  if (!noPair && (hash2(s.seed, ordinal) % 1000) / 1000 >= TUNING.matchShare) return null;
+  if (!noPair && (hash2(s.seed, ordinal) % 1000) / 1000 >= matchShare()) return null;
   // ordinary copies respect the level's rank cap; a rescue (no legal pair) may copy anything lonely
   const capped = noPair ? lonely : lonely.filter((e) => e.rank <= (s.copyCap ?? MAX_RANK));
   if (!capped.length) return null;
@@ -448,7 +453,47 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
 export function mergeEarns(s: GameState): number {
   if (!s.reactive) return 0;
   const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0);
+  if (TUNING.optionA) return reactEarnA(occ, 1); // the chain is unknown before the merge: show the guaranteed part
   return occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0;
+}
+
+/** Option A: parts earned by a merge whose cascade activated `chain` gadgets, with `occ` parts on/owed to the board. */
+function reactEarnA(occ: number, chain: number): number {
+  const A = TUNING.optA;
+  if (occ >= REACT_CAP) return 0;
+  const earned = Math.min(A.maxEarn, Math.floor(chain / A.partsPerChain), REACT_CAP - occ);
+  return occ < A.floorBelow ? Math.max(1, earned) : earned;
+}
+
+/** Option A2/A3: the spam-fatigue rule in force (A3 wins), or null. */
+export function fatigueCfg(): { window: number; minMult: number } | null {
+  if (TUNING.optionA3) return TUNING.optA3.fatigue ? TUNING.optA3 : null;
+  return TUNING.optionA2 && TUNING.optA2.fatigue ? TUNING.optA2 : null;
+}
+
+/** Option A2/A3: spam-fatigue damage share for a merge made now (time since the previous player merge / window). */
+export function fatigueMult(s: GameState): number {
+  const F = fatigueCfg();
+  return F ? Math.min(1, Math.max(F.minMult, (s.elapsed - (s.lastMergeAt ?? -1e9)) / F.window)) : 1;
+}
+
+/** Option A3: this board is full enough that a merge earns its part(s) only with a chain of optA3.gateChain+. */
+export const supplyGated = (s: GameState) =>
+  TUNING.optionA3 && !!s.reactive && s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0) > TUNING.optA3.gateAbove;
+
+/** Option A2/A3: scale a player cascade's damage by chain size and/or spam fatigue (in place; numbers shown match). */
+function scaleA2(s: GameState, r: CascadeResult): CascadeResult {
+  if (!(TUNING.optionA2 || TUNING.optionA3) || s.phase !== 'playing' || s.goal || s.puzzle) return r;
+  const mult = TUNING.optionA3 ? TUNING.optA3.chainMult : TUNING.optA2.chain ? TUNING.optA2.chainMult : null;
+  let k = 1;
+  if (mult) k *= mult[Math.min(r.count, mult.length) - 1];
+  const fm = fatigueMult(s);
+  if (fm < 1) r.fatigue = fm;
+  k *= fm;
+  if (k === 1) return r;
+  for (const a of r.activations) a.contribution = Math.round(a.contribution * k);
+  r.total = Math.round(r.total * k);
+  return r;
 }
 
 /** Peek the next shipment (family + rank) without consuming RNG. */
@@ -619,20 +664,27 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   s.grid[to] = g;
   s.stats.merges++;
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
-  if (s.reactive && s.phase === 'playing') {
-    const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
-    s.owed = (s.owed ?? 0) + (occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0);
+  const occNow = () => s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
+  // Option A3: on a full board the part(s) are paid after the cascade, only for a chain of gateChain+
+  let gatedEarn = 0;
+  if (s.reactive && s.phase === 'playing' && !TUNING.optionA) {
+    const occ = occNow();
+    const earn = occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0;
+    if (TUNING.optionA3 && occ > TUNING.optA3.gateAbove) gatedEarn = earn;
+    else s.owed = (s.owed ?? 0) + earn;
     // r38 (ChatGPT review): earned parts land after the merge's payoff, not during it
     s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
   }
 
   let odStart = false;
   if (s.phase === 'playing' && !s.noOverdrive) {
-    s.odCharge++;
-    if (s.odCharge >= odNeeded(s)) {
-      s.odCharge = 0;
-      enterOverdrive(s, odDuration(s));
-      odStart = true;
+    if (!odByChain()) {
+      s.odCharge++;
+      if (s.odCharge >= odNeeded(s)) {
+        s.odCharge = 0;
+        enterOverdrive(s, odDuration(s));
+        odStart = true;
+      }
     }
   } else {
     s.tutorialMerges++;
@@ -643,6 +695,24 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing' });
   applyMoves(s, result);
   spendItems(s, result);
+  scaleA2(s, result);
+  if (fatigueCfg() && s.phase === 'playing') s.lastMergeAt = s.elapsed;
+  if (gatedEarn && result.count >= TUNING.optA3.gateChain) s.owed = (s.owed ?? 0) + gatedEarn;
+  if (odByChain() && s.phase === 'playing') {
+    // Option A: the chain, not the merge count, pays for parts and Overdrive (it starts after this cascade)
+    if (TUNING.optionA && s.reactive) {
+      s.owed = (s.owed ?? 0) + reactEarnA(occNow(), result.count);
+      s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
+    }
+    if (!s.noOverdrive) {
+      s.odCharge += result.count - 1;
+      if (s.odCharge >= odNeeded(s)) {
+        s.odCharge = 0;
+        enterOverdrive(s, odDuration(s));
+        odStart = true;
+      }
+    }
+  }
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
   ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
@@ -934,7 +1004,13 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
       if (s.supplyTimer <= 0 && s.pending.length < TUNING.maxPending) {
         s.owed!--;
         s.pending.push(generateShipment(s));
-        s.supplyTimer = REACT_GAP;
+        s.supplyTimer = TUNING.optionA
+          ? TUNING.optA.beat
+          : TUNING.optionA3 && TUNING.optA3.beat
+            ? TUNING.optA3.beat
+            : TUNING.optionA2 && TUNING.optA2.beat
+              ? TUNING.optA2.beat
+              : REACT_GAP;
         admitPending(s, reserved, ev);
       }
     } else if (!s.pending.length && !legalPairs(s).length) {
@@ -1004,7 +1080,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
+  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount }));
 }
 
 export function serialize(s: GameState): string {

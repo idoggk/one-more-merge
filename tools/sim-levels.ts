@@ -3,11 +3,14 @@
 // src/content/levels.json (hp only) unless --dry. Usage: npx vite-node tools/sim-levels.ts [--dry] [--from N] [--to N]
 import { readFileSync, writeFileSync } from 'node:fs';
 import { LEVELS, type LevelDef } from '../src/content/levels';
+import { TUNING } from '../src/content/tuning';
 import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
+import { a2Tag, a3Tag, applyA2 } from './a2-flags';
 
 const args = process.argv.slice(2);
-const dry = args.includes('--dry');
+// experiments and the smart fit never write levels.json
+const dry = args.includes('--dry') || args.includes('--optA') || args.includes('--optA2') || args.includes('--optA3') || args.includes('--variant') || args.includes('--smart');
 const from = Number(args[args.indexOf('--from') + 1]) || 1;
 const to = Number(args[args.indexOf('--to') + 1]) || LEVELS.length;
 const N = Number(args[args.indexOf('--n') + 1]) || 40;
@@ -15,6 +18,28 @@ const N = Number(args[args.indexOf('--n') + 1]) || 40;
 // chance a chain-goal bot picks the best previewed chain (else random): humans see some chains, not all
 const CHAIN_SKILL = Number(args[args.indexOf('--skill') + 1]) || 0.3;
 const EVERY = Number(args[args.indexOf('--every') + 1]) || 3;
+// --optA: TUNING.optionA experiment (mid-level chaos Option A); use with --dry
+if (args.includes('--optA')) TUNING.optionA = true;
+// --optA2 [--a2 a|b|ab]: TUNING.optionA2 experiment (a = chain-weighted damage, b = spam fatigue; default both)
+applyA2(args);
+// --smart: fit HP so the smart bot (best previewed merge every 3.5 s ±20%) wins SMART_TARGET, then report the random
+// bot at 2 s and 1 s on that HP (the win gap). --levels 13,25,... limits the run to a sample.
+const SMART = args.includes('--smart');
+const SMART_TARGET = 0.9;
+const ONLY = args.includes('--levels') ? new Set(args[args.indexOf('--levels') + 1].split(',').map(Number)) : null;
+type Bot = { kind: 'random' | 'best'; every: number };
+const NOVICE: Bot = { kind: 'random', every: EVERY };
+const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+function smart(s: GameState): [number, number] | null {
+  let best: [number, number] | null = null, bd = -1;
+  for (const [a, b] of legalPairs(s))
+    for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
+      const r = previewMerge(s, f, t)!;
+      const d = s.goal?.kind === 'rank' ? s.grid[f]!.rank * 1e9 + r.total : s.goal?.kind === 'chain' ? r.count * 1e9 + r.total : Math.min(r.total, capOf(s));
+      if (d > bd) [bd, best] = [d, [f, t]];
+    }
+  return best;
+}
 
 function novice(s: GameState, rng: Rng): [number, number] | null {
   const p = legalPairs(s);
@@ -40,22 +65,23 @@ function novice(s: GameState, rng: Rng): [number, number] | null {
 // r32: --squad applies ChatGPT's expected average unit levels per chapter (shooter / relays / helper midpoints)
 const SQUAD = args.includes('--squad');
 const EXPECT = [[1.5, 1.5], [2.5, 2.5], [3, 2.5], [3.5, 3], [4, 3.5], [4.5, 4], [5, 4.5], [5.5, 5]];
-function play(def: LevelDef, botSeed: number, idle = false): boolean {
+function play(def: LevelDef, botSeed: number, idle = false, bot: Bot = NOVICE): boolean {
   const s = newLevel(def);
   if (SQUAD) {
     const [sh, rl] = EXPECT[Math.min(7, Math.ceil(def.level / 10) - 1)];
     s.unitMult = { cannon: 1 + 0.04 * (sh - 1), rocket: 1 + 0.04 * (sh - 1), coil: 1 + 0.02 * (rl - 1), bell: 1 + 0.02 * (rl - 1) };
   }
   const rng = new Rng(botSeed);
-  let next = EVERY;
+  let next = bot.every;
   while (s.phase === 'playing' || s.phase === 'choice') {
     if (s.phase === 'choice') {
       choosePerk(s, s.offer[0]);
       continue;
     }
     if (!idle && s.elapsed >= next) {
-      next += EVERY;
-      const m = novice(s, rng);
+      // levels use a fixed seed: the smart bot jitters its think time ±20% (same mean) or it replays one game N times
+      next += bot.kind === 'best' ? bot.every * (0.8 + 0.4 * rng.next()) : bot.every;
+      const m = bot.kind === 'best' ? smart(s) : novice(s, rng);
       if (m) drop(s, m[0], m[1], s.grid[m[0]]!.id);
     }
     tick(s);
@@ -63,15 +89,18 @@ function play(def: LevelDef, botSeed: number, idle = false): boolean {
   return s.phase === 'won';
 }
 
-const winRate = (def: LevelDef, offset = 0) => {
+const winRate = (def: LevelDef, offset = 0, bot: Bot = SMART ? { kind: 'best', every: 3.5 } : NOVICE) => {
   let w = 0;
-  for (let k = 1; k <= N; k++) if (play(def, def.seed * 31 + k + offset)) w++;
+  for (let k = 1; k <= N; k++) if (play(def, def.seed * 31 + k + offset, false, bot)) w++;
   return w / N;
 };
+const KS: number[] = [];
+const GAPS: { best: number; r2: number; r1: number; b2: number }[] = [];
 
 const out = JSON.parse(readFileSync('src/content/levels.json', 'utf8'));
 for (const def of LEVELS) {
   if (def.level < from || def.level > to) continue;
+  if (ONLY && !ONLY.has(def.level)) continue;
   if (args.includes('--bosses') && def.level % 10 !== 0) continue;
   if (args.includes('--staged') && !def.waves) continue;
   // levels 1-3 are onboarding: near-certain wins
@@ -88,7 +117,7 @@ for (const def of LEVELS) {
     [0.95, 0.92, 0.9, 0.88, 0.78, 0.95, 0.88, 0.85, 0.94, 0.75],
     [0.95, 0.92, 0.9, 0.88, 0.78, 0.95, 0.88, 0.85, 0.94, 0.75],
   ];
-  const target = def.level <= 9 && def.level !== 8 ? 0.97 : def.level <= 9 ? 0.95 : def.level <= 20 ? R23[def.level] ?? 0.9 : R26[Math.ceil(def.level / 10) - 3][(def.level - 1) % 10];
+  const target = SMART ? SMART_TARGET : def.level <= 9 && def.level !== 8 ? 0.97 : def.level <= 9 ? 0.95 : def.level <= 20 ? R23[def.level] ?? 0.9 : R26[Math.ceil(def.level / 10) - 3][(def.level - 1) % 10];
   // r33 staged goal levels fit the HP of their machines (the goal machine's n stays as authored)
   if (def.goal && !def.waves) {
     // goal levels have no HP to fit: report the goal-aware win rate (tune n / clock by hand)
@@ -100,9 +129,9 @@ for (const def of LEVELS) {
   const base = def.minion_hp ? { hp: (def.hp + def.minion_hp) * BOSS_SHARE, minion_hp: (def.hp + def.minion_hp) * (1 - BOSS_SHARE) } : { hp: def.hp, minion_hp: undefined };
   const scaled = (k: number) => ({ ...def, hp: Math.round(base.hp * k), ...(base.minion_hp ? { minion_hp: Math.round(base.minion_hp * k) } : {}) });
   const before = winRate(def);
-  // HP scales damage-needed linearly; search a multiplier in [0.2, 8]
-  let lo = 0.2, hi = 8, best = 1;
-  for (let it = 0; it < 11; it++) {
+  // HP scales damage-needed linearly; search a multiplier in [0.2, 32] (t-0c31a7ab: 8 clamped the 1 s fits)
+  let lo = 0.2, hi = 32, best = 1;
+  for (let it = 0; it < 13; it++) {
     const mid = (lo + hi) / 2;
     const r = winRate(scaled(mid));
     best = mid;
@@ -115,9 +144,23 @@ for (const def of LEVELS) {
   const fitted = { ...def, hp, ...(mhp ? { minion_hp: mhp } : {}) };
   const after = winRate(fitted, 100000); // held-out bot seeds
   const idleWins = play(fitted, 1, true);
-  console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}${mhp ? ` minions ${mhp}` : ''}  novice ${(before * 100).toFixed(0)}% -> held-out ${(after * 100).toFixed(0)}% (target ${Math.round(target * 100)}%)${idleWins ? '  IDLE WINS!' : ''}`);
+  KS.push(best);
+  const gap = SMART
+    ? { r2: winRate(fitted, 100000, { kind: 'random', every: 2 }), r1: winRate(fitted, 100000, { kind: 'random', every: 1 }), b2: winRate(fitted, 100000, { kind: 'best', every: 2 }) }
+    : null;
+  if (gap) GAPS.push({ best: after, ...gap });
+  const pc = (x: number) => `${(x * 100).toFixed(0)}%`;
+  console.log(`L${String(def.level).padStart(2)} ${def.difficulty.padEnd(9)} ${def.modifier.padEnd(9)} hp ${def.hp} -> ${hp}${mhp ? ` minions ${mhp}` : ''} (x${best.toFixed(2)})  ${SMART ? 'best@3.5' : 'novice'} ${pc(before)} -> held-out ${pc(after)} (target ${Math.round(target * 100)}%)${gap ? `  best@2 ${pc(gap.b2)} rand@2 ${pc(gap.r2)} rand@1 ${pc(gap.r1)} gap ${pc(after - gap.r2)}` : ''}${idleWins ? '  IDLE WINS!' : ''}`);
   out.levels[def.level - 1].hp = hp;
   if (mhp) out.levels[def.level - 1].minion_hp = mhp;
 }
+const geo = (a: number[]) => Math.exp(a.reduce((x, y) => x + Math.log(y), 0) / a.length);
+const avg = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+const pct = (a: number[]) => `${(avg(a) * 100).toFixed(0)}%`;
+if (KS.length)
+  console.log(
+    `\nSUMMARY ${SMART ? 'smart best@3.5' : `random @${EVERY}s`} | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a2Tag()} | optionA3 ${a3Tag()} | ${KS.length} levels | HP multiplier geomean x${geo(KS).toFixed(3)}` +
+      (GAPS.length ? ` | best@3.5 ${pct(GAPS.map((g) => g.best))} best@2 ${pct(GAPS.map((g) => g.b2))} rand@2 ${pct(GAPS.map((g) => g.r2))} rand@1 ${pct(GAPS.map((g) => g.r1))} gap ${pct(GAPS.map((g) => g.best - g.r2))}` : ''),
+  );
 out.balance_status = `CALIBRATED_RANDOM_BOT_${EVERY}S (tools/sim-levels.ts)`;
 if (!dry) writeFileSync('src/content/levels.json', JSON.stringify(out, null, 2) + '\n');
