@@ -43,6 +43,7 @@ import puzzleData from '../content/puzzles.json';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
 import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
+import { ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
@@ -129,6 +130,8 @@ interface Meta {
   lessons?: Record<string, boolean>;
   /** SAGA progress: best stars per level number, dynamic resources, one-time grants. */
   levelStars?: Record<string, number>;
+  /** r46 ghost pace: the fastest win of each level as a compact progress curve (core/pace). */
+  levelPace?: Record<string, PaceCurve>;
   kits?: number;
   capsules?: number;
   grants?: Record<string, boolean>;
@@ -307,6 +310,11 @@ export class GameScene extends Phaser.Scene {
   modal: Phaser.GameObjects.Container | null = null;
   /** r43: this attempt's command log (best-chain replay on the results screen). */
   runLog: RunLog = newRunLog();
+  /** r46: the best run to race on a replay of a beaten level (null = no pace line). */
+  paceGhost: PaceCurve | null = null;
+  paceText: Phaser.GameObjects.Text | null = null;
+  paceG: Phaser.GameObjects.Graphics | null = null;
+  paceShownAt = -1;
   linkG!: Phaser.GameObjects.Graphics;
   sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   chunks!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -543,6 +551,8 @@ export class GameScene extends Phaser.Scene {
     this.views.clear();
     this.s = s;
     this.runLog = newRunLog();
+    this.paceGhost = s.level !== undefined && levelProgress(s) !== null && (this.meta.levelStars?.[String(s.level)] ?? 0) > 0 ? (this.meta.levelPace?.[String(s.level)] ?? null) : null;
+    this.paceShownAt = -1;
     this.pulledIds.clear();
     this.acc = 0;
     this.heldQueue = []; // cards still waiting for a finger-up belong to the previous run
@@ -1890,6 +1900,7 @@ Now beat the real level.`, this.coachY());
     }
     this.hpText.setText(s.showcase ? 'PRACTICE' : s.goal ? (s.goal.kind === 'rank' ? `BEST RANK ${Math.max(1, s.goal.best)} / ${s.goal.n}` : `BEST CHAIN ${s.goal.best} / ${s.goal.n}`) : fmt(Math.max(0, Math.round(this.shownHp))));
     if (s.goal && this.hpFill) this.hpFill.setCrop(0, 0, this.hpFill.width * (1 - frac), this.hpFill.height).setTint(0x8ef08a);
+    this.drawPace(bw);
     // r23 chain shield chip + bubble on the monster
     if (!this.shieldChip) {
       this.shieldChip = this.add.text(W - 92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(1, 0.5).setDepth(22);
@@ -3379,6 +3390,34 @@ Now beat the real level.`, this.coachY());
     later(end + 650, finish);
   }
 
+  /** r46 ghost pace on a replay of a beaten level: a thin tick on the HP bar where the best run's HP is now, and a
+   *  small "2.1 s ahead" above the bar's right end (over the stage, never the board). Text refreshes 4x a second. */
+  drawPace(bw: number) {
+    const s = this.s;
+    const p = this.paceGhost && s.phase === 'playing' && !this.modal ? levelProgress(s) : null;
+    if (!this.paceText) {
+      this.paceText = this.add.text(W / 2 + bw / 2, HP_Y - 30, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(1, 0.5).setDepth(4).setAlpha(0.85);
+      this.paceG = this.add.graphics().setDepth(1);
+    }
+    this.paceG!.clear();
+    if (p === null || !this.paceGhost || s.elapsed < 1) {
+      this.paceText.setVisible(false);
+      return;
+    }
+    // ghost marker: the ghost's damage mapped into the current machine's bar (stages: the bar is per machine)
+    const st = s.stage;
+    const g = ghostProgress(this.paceGhost, s.elapsed);
+    const inMachine = st ? (g * st.total - st.done) / s.maxHp : g;
+    const gx = W / 2 - bw / 2 + bw * (1 - Math.min(1, Math.max(0, inMachine)));
+    this.paceG!.fillStyle(0xfff0cf, 0.9).fillRect(gx - 1.5, HP_Y - 15, 3, 30);
+    if (this.paceShownAt < 0 || s.elapsed - this.paceShownAt >= 0.25 || s.elapsed < this.paceShownAt) {
+      this.paceShownAt = s.elapsed;
+      const d = paceDelta(this.paceGhost, s.elapsed, p);
+      this.paceText.setText(paceLabel(d)).setColor(Math.abs(d) < 0.05 ? '#fff0cf' : d > 0 ? '#8ef08a' : '#ffa58a');
+    }
+    this.paceText.setVisible(true);
+  }
+
   /** SAGA level result: stars, Bolts (first clear / replay / new stars / eligible fail), free boosters, next step. */
   openLevelResult(won: boolean) {
     this.coach.clear();
@@ -3413,6 +3452,9 @@ Now beat the real level.`, this.coachY());
       firstClear = prev === 0;
       const rw = levelReward(def);
       if (fresh) {
+        // r46 ghost pace: the fastest win becomes the ghost (rebuilt from the run log; a log that doesn't replay to this win is not stored)
+        const curve = paceFromLog(this.runLog);
+        if (curve && Math.abs(curve.t - s.elapsed) < 0.06) updatePace((m.levelPace ??= {}), key, curve);
         const lvB = firstClear ? rw.win_bolts + rw.first_clear_bolts : Math.min(rw.win_bolts, Math.floor(0.15 * s.elapsed));
         const stB = Math.max(0, got - prev) * rw.new_star_bolts;
         bolts += lvB + stB;

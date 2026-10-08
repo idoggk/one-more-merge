@@ -80,15 +80,19 @@ export function recordTick(log: RunLog, s: GameState, reserved: ReadonlySet<numb
   return tick(s, new Set(cells));
 }
 
-/** Rebuild the run: the state right before action `upTo` (all actions and their ticks when omitted). */
-export function replayRun(log: RunLog, upTo = log.actions.length): GameState | null {
+/** Rebuild the run: the state right before action `upTo` (all actions and their ticks when omitted).
+ *  `onTick` sees the state after every replayed tick (ghost pace sampling). */
+export function replayRun(log: RunLog, upTo = log.actions.length, onTick?: (s: GameState) => void): GameState | null {
   const s = log.start ? deserialize(log.start) : null;
   if (!s) return null;
   let t = 0;
   let hold: ReadonlySet<number> = new Set();
   const end = Math.min(upTo, log.actions.length);
   const stepTo = (n: number) => {
-    for (; t < n; t++) tick(s, hold);
+    for (; t < n; t++) {
+      tick(s, hold);
+      onTick?.(s);
+    }
   };
   for (let i = 0; i < end; i++) {
     const a = log.actions[i];
