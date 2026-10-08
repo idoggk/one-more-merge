@@ -30,6 +30,8 @@ export interface YardRules {
 export const CLASSIC_RULES: YardRules = { boxes: OPEN_BOXES, boxSize: BOX_SIZE, dock: TRAY_CAP - 1, autoPull: true, preview: 0, swing: false };
 export const YARD_RULES_2: YardRules = { boxes: 1, boxSize: BOX_SIZE, dock: 4, autoPull: false, preview: 2, swing: true };
 export const DEFAULT_YARD_RULES = YARD_RULES_2;
+// TODO(Screw Yard 2.0 step 3): hidden screws (colour shown only once nothing covers them) and locked screws (need a
+// key screw first) for the later yards. Step 1's model, solver and yards.json have neither, so the scene has none yet.
 /** Board area the plates live in (centre-origin design units). */
 export const YARD_W = 600;
 export const YARD_H = 640;
@@ -91,10 +93,15 @@ export interface YardState {
   won: boolean;
   lost: boolean;
   moves: number;
+  /** 2.0 stars: the most screws that ever waited in the dock at once (a losing overflow is not counted). */
+  peak: number;
+  /** +Well booster used in this yard (rules.dock is one higher). */
+  well?: boolean;
 }
 export interface TapResult {
   ok: boolean;
-  reason?: 'blocked' | 'over' | 'removed';
+  /** 'full': a Drill screw would find no box and no dock slot; 'used': +Well is once per yard. */
+  reason?: 'blocked' | 'over' | 'removed' | 'full' | 'used';
   to?: 'box' | 'tray';
   box?: number;
   /** Boxes (slot index) that filled and left, in order, with their colour. */
@@ -104,6 +111,8 @@ export interface TapResult {
   fell: number[];
   /** Plates this tap left hanging on one screw (they swing, see platePose). */
   swung: number[];
+  /** Magnet only: board screws it pulled out (in order). */
+  taken?: number[];
 }
 
 export interface Pose {
@@ -153,7 +162,7 @@ export function blockedBy(lvl: YardLevel, gone: boolean[], id: number, removed?:
 }
 
 export function newYard(lvl: YardLevel, rules: YardRules = lvl.rules ?? CLASSIC_RULES): YardState {
-  const st: YardState = { lvl, rules, removed: lvl.screws.map(() => false), gone: lvl.plates.map(() => false), boxes: [], qi: 0, tray: [], won: false, lost: false, moves: 0 };
+  const st: YardState = { lvl, rules, removed: lvl.screws.map(() => false), gone: lvl.plates.map(() => false), boxes: [], qi: 0, tray: [], won: false, lost: false, moves: 0, peak: 0 };
   for (let k = 0; k < rules.boxes; k++) st.boxes.push(st.qi < lvl.queue.length ? { color: lvl.queue[st.qi++], n: 0 } : null);
   return st;
 }
@@ -170,6 +179,15 @@ export function tapScrew(st: YardState, id: number): TapResult {
   if (st.won || st.lost) return { ...res, reason: 'over' };
   if (st.removed[id]) return { ...res, reason: 'removed' };
   if (!removable(st, id)) return { ...res, reason: 'blocked' };
+  take(st, id, res);
+  settle(st, res);
+  detach(st, id, res);
+  endCheck(st);
+  return res;
+}
+
+/** The screw leaves the board into its box, else the dock. */
+function take(st: YardState, id: number, res: TapResult) {
   const sc = st.lvl.screws[id];
   st.removed[id] = true;
   st.moves++;
@@ -183,16 +201,86 @@ export function tapScrew(st: YardState, id: number): TapResult {
     st.tray.push(sc.color);
     res.to = 'tray';
   }
-  settle(st, res);
-  // the plate falls when its last screw is out
-  const p = st.lvl.plates[sc.plate];
+}
+
+/** The plate falls when its last screw is out, and swings when one is left. */
+function detach(st: YardState, id: number, res: TapResult) {
+  const p = st.lvl.plates[st.lvl.screws[id].plate];
   const left = p.screws.filter((s) => !st.removed[s]).length;
   if (!left) {
     st.gone[p.id] = true;
     res.fell.push(p.id);
   } else if (left === 1 && st.rules.swing) res.swung.push(p.id);
+}
+
+// ---- 2.0 earned boosters (counts live in the save; the model only applies them) ----
+export type YardBooster = 'drill' | 'magnet' | 'well';
+export const YARD_BOOSTERS: YardBooster[] = ['drill', 'magnet', 'well'];
+
+/** DRILL: take out any one screw, covered or not; it goes to its box, else the dock (refused when that would lose). */
+export function useDrill(st: YardState, id: number): TapResult {
+  const res: TapResult = { ok: false, left: [], pulls: [], fell: [], swung: [] };
+  if (st.won || st.lost) return { ...res, reason: 'over' };
+  if (st.removed[id]) return { ...res, reason: 'removed' };
+  if (fitSlot(st, st.lvl.screws[id].color) < 0 && st.tray.length >= st.rules.dock) return { ...res, reason: 'full' };
+  take(st, id, res);
+  settle(st, res);
+  detach(st, id, res);
   endCheck(st);
   return res;
+}
+
+/** MAGNET: fill the open box: matching dock screws first, then board screws of its colour (free ones first, then the
+ *  topmost), covered or not. The full box leaves as usual. One move. */
+export function useMagnet(st: YardState): TapResult {
+  const res: TapResult = { ok: false, left: [], pulls: [], fell: [], swung: [], taken: [] };
+  if (st.won || st.lost) return { ...res, reason: 'over' };
+  const slot = st.boxes.findIndex((b) => b && b.n < st.rules.boxSize);
+  if (slot < 0) return { ...res, reason: 'blocked' };
+  const b = st.boxes[slot]!;
+  for (let ti = st.tray.indexOf(b.color); ti >= 0 && b.n < st.rules.boxSize; ti = st.tray.indexOf(b.color)) {
+    st.tray.splice(ti, 1);
+    b.n++;
+    res.pulls.push({ color: b.color, slot });
+  }
+  const zOf = (sid: number) => st.lvl.plates[st.lvl.screws[sid].plate].z;
+  const board = st.lvl.screws
+    .filter((s) => !st.removed[s.id] && s.color === b.color)
+    .map((s) => ({ id: s.id, free: removable(st, s.id) }))
+    .sort((x, y) => +y.free - +x.free || zOf(y.id) - zOf(x.id) || x.id - y.id);
+  for (const { id } of board) {
+    if (b.n >= st.rules.boxSize) break;
+    st.removed[id] = true;
+    b.n++;
+    res.taken!.push(id);
+    detach(st, id, res);
+  }
+  st.moves++;
+  res.ok = true;
+  res.to = 'box';
+  res.box = slot;
+  settle(st, res);
+  res.swung = [...new Set(res.swung)].filter((p) => !res.fell.includes(p) && st.lvl.plates[p].screws.filter((s) => !st.removed[s]).length === 1);
+  endCheck(st);
+  return res;
+}
+
+/** +WELL: one extra dock slot for the rest of this yard (once per yard). */
+export function useWell(st: YardState): TapResult {
+  const res: TapResult = { ok: false, left: [], pulls: [], fell: [], swung: [] };
+  if (st.won || st.lost) return { ...res, reason: 'over' };
+  if (st.well) return { ...res, reason: 'used' };
+  st.well = true;
+  st.rules = { ...st.rules, dock: st.rules.dock + 1 };
+  res.ok = true;
+  return res;
+}
+
+/** Stars for a cleared yard, by the dock peak against the solver's minimum (yards.json stats.minDockPeak): within one
+ *  screw of the best possible = 3, within three = 2, any other win = 1. */
+export function yardStars(won: boolean, peak: number, minPeak: number): number {
+  if (!won) return 0;
+  return peak <= minPeak + 1 ? 3 : peak <= minPeak + 3 ? 2 : 1;
 }
 
 /** 2.0, no free auto-pull: tap dock screw `ti` to send it into the open box of its colour. Mutates st. */
@@ -216,6 +304,7 @@ export function tapDock(st: YardState, ti: number): TapResult {
 function endCheck(st: YardState) {
   if (st.removed.every(Boolean) && !st.tray.length) st.won = true;
   else if (st.tray.length > st.rules.dock) st.lost = true;
+  if (!st.lost) st.peak = Math.max(st.peak, st.tray.length);
 }
 
 /** Full boxes leave, the next colours roll in and (with autoPull) pull matching tray screws (cascading). */
@@ -356,19 +445,16 @@ function tryGenerate(n: number, seed: number, easy: boolean, noMix = false): Yar
 }
 
 // ---- weekly event (tiers + grand prize) ----
-export type YardReward = { bolts?: number; gems?: number; crate?: 'wood' | 'iron' | 'gold'; epic?: boolean };
-/** Cleared yards needed for each tier, and its reward. The last one is the grand prize. */
+export type YardReward = { bolts?: number; gems?: number; crate?: 'wood' | 'iron' | 'gold'; epic?: boolean; boosters?: Partial<Record<YardBooster, number>> };
+/** 2.0 (t-98293568): the track pays for STARS (best per yard, 10 yards x 3 = 30 a week), not for replays. The last tier
+ *  is the grand prize. */
 export const YARD_TIERS: { need: number; reward: YardReward }[] = [
-  { need: 1, reward: { bolts: 60 } },
-  { need: 3, reward: { gems: 10 } },
-  { need: 5, reward: { crate: 'wood' } },
-  { need: 8, reward: { bolts: 200 } },
-  { need: 11, reward: { crate: 'iron' } },
-  { need: 14, reward: { gems: 30 } },
-  { need: 17, reward: { crate: 'iron' } },
-  { need: 20, reward: { crate: 'gold', epic: true } },
+  { need: 2, reward: { bolts: 60 } },
+  { need: 5, reward: { gems: 10, boosters: { drill: 1 } } },
+  { need: 8, reward: { crate: 'wood' } },
+  { need: 12, reward: { bolts: 200, boosters: { magnet: 1 } } },
+  { need: 15, reward: { crate: 'iron' } },
+  { need: 18, reward: { gems: 30, boosters: { well: 1 } } },
+  { need: 21, reward: { crate: 'iron' } },
+  { need: 25, reward: { crate: 'gold', epic: true } },
 ];
-/** Screwdrivers (one per yard attempt) the player earns. */
-export const SCREWDRIVERS = { levelWin: 1, bountyWin: 1, rushFight: 2, dailyBench: 1, start: 3 };
-/** Bolts for every cleared yard on top of the tiers. */
-export const yardBolts = (n: number) => 15 + 3 * Math.min(n, 20);

@@ -97,3 +97,28 @@ export function inspectMarks(s: GameState, idx: number): { marks: MarkLine[]; me
   const mergeNow = now.length ? `If you merge now: ${now.join('; ')}.` : marks.length ? 'If you merge now: nothing above is used up.' : null;
   return { marks, mergeNow };
 }
+
+// Screw Yard 2.0 (t-98293568): the same rule for the yard. Every marker the yard draws has a label, one sentence and
+// one hue per meaning; the first-time lessons are plain copy too (ScrewScene shows them in the coach bubble).
+export type YardMarkKey = 'fits' | 'hanging' | 'spare' | 'drill';
+export const YARD_MARKS: Record<YardMarkKey, { label: string; text: string; hue: number }> = {
+  fits: { label: 'TAP', text: 'This dock screw matches the open box: tap it to send it in.', hue: 0x8ef08a },
+  hanging: { label: 'HANGING', text: 'Held by one screw: the plate swings down and can cover or free screws below.', hue: 0xffcf33 },
+  spare: { label: '+WELL', text: 'A spare dock slot: a +Well booster opens it for this yard.', hue: 0x9aa4ad },
+  drill: { label: 'DRILL', text: 'Drill ready: tap any screw, even a covered one, to take it out.', hue: 0xff8a1f },
+};
+export const BOOSTER_COPY: Record<'drill' | 'magnet' | 'well', { name: string; text: string }> = {
+  drill: { name: 'DRILL', text: 'Take out any one screw, even a covered one.' },
+  magnet: { name: 'MAGNET', text: 'Fill the open box from the dock and the pile.' },
+  well: { name: '+WELL', text: 'One extra dock slot for this yard.' },
+};
+/** First-time yard lessons (ids live in meta.tips). Yards 1-3 teach box, dock and swing; boosters when first owned. */
+export const YARD_TIPS = {
+  yard_box: 'Take out a screw that nothing covers.\nIts colour matches the BOX? It goes in. 3 fill a box.',
+  yard_next: 'NEXT shows the two boxes coming after this one.\nFree their screws early!',
+  yard_dock: 'No box for that colour yet: it waits in the DOCK.\nNo slot left = yard lost. Fewer in the dock = more stars.',
+  yard_dockfit: 'Its box is here! TAP the dock screw to send it in.\nDock screws never jump in by themselves.',
+  yard_swing: 'A plate held by ONE screw swings down.\nIt can cover screws below, or uncover them.',
+  yard_boosters: 'BOOSTERS (earned, never bought):\nDRILL any screw · MAGNET fills the box · +WELL one more dock slot.',
+} as const;
+export type YardTipId = keyof typeof YARD_TIPS;

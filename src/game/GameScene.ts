@@ -41,7 +41,9 @@ import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, type PityState } from '../core/crates';
-import { SCREWDRIVERS, YARD_TIERS, yardBolts, type YardReward } from '../core/screw';
+import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
+import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts, type YardWeekRec } from '../core/yardWeek';
+import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import puzzleData from '../content/puzzles.json';
@@ -50,7 +52,7 @@ import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzl
 import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
 import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
-import type { YardData } from './ScrewScene';
+import type { YardData, YardResult } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 
 export const W = 720;
@@ -159,8 +161,10 @@ interface Meta {
   bossMastery?: Record<string, number>;
   /** r35 trophies on display beside the machine (max 4 boss ids; a trophy is won at TROPHY_AT mastery stars). */
   trophies?: string[];
-  /** r36 SCREW YARD weekly event: screwdrivers (one per attempt) and this week's progress. */
+  /** r36 screwdrivers (one per yard attempt). Unused since Screw Yard 2.0 (yards are free); kept so old saves load. */
   screwdrivers?: number;
+  /** Screw Yard 2.0 earned boosters (never sold). */
+  yardBoosters?: BoosterCounts;
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
   /** r42 Workshop Puzzles: daily streak + solved drills. */
@@ -173,7 +177,7 @@ interface Meta {
   endless?: { floor: number; best: number };
   /** r38 collection milestones claimed (index into COLLECTION_GOALS). */
   collClaimed?: number;
-  yard?: { week: number; clears: number; paid: number };
+  yard?: YardWeekRec;
   masteryPaid?: number;
   /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
   rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[] };
@@ -3604,7 +3608,6 @@ Now beat the real level.`, this.coachY());
         const stB = Math.max(0, got - prev) * rw.new_star_bolts;
         bolts += lvB + stB;
         parts.push(`${firstClear ? 'First clear' : 'Level'} +${lvB}`);
-        m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin; // r36 Screw Yard ticket
         // r40 Saga Mastery: contracts met in this win earn medals (+Bolts; every 10th a Wood crate, every 30th Iron, all = Gold)
         const medals = (m.sagaMedals ??= {});
         const doneHere = (medals[key] ??= []);
@@ -3629,7 +3632,6 @@ Now beat the real level.`, this.coachY());
           tlog.log('mastery_medal', { level: n, contract: ct.kind, total });
         });
         if (firstClear && n === YARD_UNLOCK) lines.push('NEW EVENT: SCREW YARD!  (EVENTS tab)');
-        else if (n > YARD_UNLOCK) lines.push(`+${SCREWDRIVERS.levelWin} screwdriver for the Screw Yard`);
         if (stB) parts.push(`Stars +${stB}`);
         if (firstClear && rw.free_jumpstart && !grants[`kit${n}`]) {
           grants[`kit${n}`] = true;
@@ -3915,7 +3917,6 @@ Now beat the real level.`, this.coachY());
     if (pay.daily && date) {
       (m.dailyPaid ??= {})[date] = true;
       m.kits = (m.kits ?? 0) + 1; // r15: the Daily bonus also grants one Jumpstart Kit
-      m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.dailyBench;
       m.gems = (m.gems ?? 0) + GEM_REWARDS.dailyBench; // r32 free Gems
     }
     if (pay.onboarding) m.onboarded = true;
@@ -4055,7 +4056,6 @@ Now beat the real level.`, this.coachY());
       rec.won.push(bt.slot);
       this.seasonEv('bountyWin');
       bolts += BOUNTY_BOLTS;
-      m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.bountyWin;
       this.giveCrate('wood'); // r32
       crate = true;
       if (rec.won.length === 3) m.gems = (m.gems ?? 0) + GEM_REWARDS.allBounties; // all three bounties today
@@ -4130,7 +4130,6 @@ Now beat the real level.`, this.coachY());
     const id = this.s.rush!.id;
     if (won) {
       run.times.push(this.s.elapsed);
-      m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.rushFight;
       r.stamps = { ...(r.stamps ?? {}), [id]: true };
       tlog.log('rush_fight_finish', { index: run.i, opponent: id, clear_time: +this.s.elapsed.toFixed(1) });
     }
@@ -4422,8 +4421,8 @@ Now beat the real level.`, this.coachY());
       const on = t === active;
       if (on) c.add(this.add.graphics().fillStyle(0xffcf33, 1).fillRoundedRect(x - 80, y - 40, 160, 80, 22));
       const lb = this.add.text(x, y, t.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: on ? '#2b1d2e' : '#fff0cf' }).setOrigin(0.5);
-      // r36: EVENTS gets a dot when a Screw Yard attempt is waiting and the week's track is not done
-      const yardReady = t === 'events' && this.currentLevel() - 1 >= YARD_UNLOCK && (this.meta.screwdrivers ?? SCREWDRIVERS.start) > 0 && this.yardWeek().clears < YARD_TIERS[YARD_TIERS.length - 1].need;
+      // r36: EVENTS gets a dot while the week's Screw Yard track is not done (2.0: yards are free, the track pays stars)
+      const yardReady = t === 'events' && this.currentLevel() - 1 >= YARD_UNLOCK && this.yardWeek().paid < YARD_TIERS.length;
       const collReady = t === 'units' && (() => { const gl = COLLECTION_GOALS[this.meta.collClaimed ?? 0]; if (!gl) return false; const p = this.collectionProgress(); return (gl.kind === 'own' ? p.own : p.levels) >= gl.n; })();
       // r43: UNITS also gets the dot while an owned unit has an unsolved drill
       const drillReady = t === 'units' && drillsPending((u) => this.ownsUnit(u), GameScene.PUZZLES.drills, this.puzzleRec().drills);
@@ -4730,16 +4729,27 @@ Now beat the real level.`, this.coachY());
     card(845, 240, 'BOSS RUSH', ['3 fights in a row  \u00b7  fresh boards', `This week: ${rw}/${RUSH_REWARDS[2]} Bolts${m.rush?.medal ? '  \u00b7  medal ✓' : ''}`], 0x8e58c9, !!rushOpen, 20, () => this.startRush());
     // r36 SCREW YARD weekly event (outside-core mini-game)
     const yd = this.yardWeek();
-    const tierNow = YARD_TIERS.filter((t) => yd.clears >= t.need).length;
-    card(1100, 230, 'SCREW YARD', [`TIER ${tierNow}/${YARD_TIERS.length}  ·  \u{1FA9B} ${m.screwdrivers ?? SCREWDRIVERS.start}  ·  ends in ${this.weekLeft()}`, 'Grand prize: Gold Crate + Epic Unit'], 0xe0a020, lv >= YARD_UNLOCK, YARD_UNLOCK, () => this.openYardEvent());
+    const tierNow = YARD_TIERS.filter((_, i) => tierReached(yd, i)).length;
+    card(1100, 230, 'SCREW YARD', [`TIER ${tierNow}/${YARD_TIERS.length}  ·  ★ ${yardStarTotal(yd)}/${YARD_COUNT * 3}  ·  ends in ${this.weekLeft()}`, 'Free to play  ·  Grand prize: Gold Crate + Epic'], 0xe0a020, lv >= YARD_UNLOCK, YARD_UNLOCK, () => this.openYardEvent());
     this.drawNav(c, 'events');
   }
 
-  /** r36: this week's Screw Yard record (a new week resets it). */
+  /** r36: this week's Screw Yard record (a new week resets it; a classic record moves to 2.0, see yardWeekRec). */
   yardWeek() {
     const m = this.meta;
-    if (!m.yard || m.yard.week !== weekId()) m.yard = { week: weekId(), clears: 0, paid: 0 };
+    m.yard = yardWeekRec(m.yard, weekId());
     return m.yard;
+  }
+
+  /** Screw Yard 2.0 boosters held (the starter kit is granted once). */
+  yardBoosters(): BoosterCounts {
+    const m = this.meta;
+    const grants = (m.grants ??= {});
+    if (!grants.yard2_boosters) {
+      grants.yard2_boosters = true;
+      m.yardBoosters = addBoosters(m.yardBoosters ?? {}, YARD_BOOSTER_START);
+    }
+    return (m.yardBoosters ??= {});
   }
 
   weekLeft() {
@@ -4749,90 +4759,136 @@ Now beat the real level.`, this.coachY());
   }
 
   rewardText(r: YardReward) {
-    return [r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : ''].filter(Boolean).join(' + ');
+    const bst = YARD_BOOSTERS.filter((k) => r.boosters?.[k]).map((k) => `${BOOSTER_COPY[k].name}${r.boosters![k]! > 1 ? ` x${r.boosters![k]}` : ''}`);
+    return [r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : '', ...bst].filter(Boolean).join(' + ');
   }
 
-  /** r36 Screw Yard event panel: the weekly tier track, grand prize, screwdrivers, PLAY. */
+  /** Screw Yard event panel (2.0): the star track + grand prize, the week's 10 yards with their stars, boosters, PLAY.
+   *  Free to play: the r36 screwdriver ticket is gone (the 10-yard ramp already caps the week; stars pay, not volume). */
   openYardEvent() {
     this.closeModal();
-    const m = this.meta;
     const yd = this.yardWeek();
+    const bst = this.yardBoosters();
     const PH = 1180;
     const c = this.sheet(PH);
     const top = H / 2 - PH / 2;
-    this.sheetTitle(c, top, 'SCREW YARD', `Clear junk piles to climb the tiers.  Event ends in ${this.weekLeft()}.`);
+    const total = yardStarTotal(yd);
+    this.sheetTitle(c, top, 'SCREW YARD', `Earn stars to climb the tiers.  Event ends in ${this.weekLeft()}.`);
     const rows = YARD_TIERS.length;
     YARD_TIERS.forEach((t, i) => {
-      const y = top + 200 + i * 84;
-      const done = yd.clears >= t.need;
+      const y = top + 196 + i * 66;
+      const done = tierReached(yd, i);
       const grand = i === rows - 1;
       const g = this.add.graphics();
-      g.fillStyle(grand ? 0xffcf33 : done ? 0x8ef08a : 0xfbe7c6, 1).fillRoundedRect(70, y - 35, W - 140, 70, 18);
-      g.lineStyle(4, 0x2b1d2e, grand ? 1 : 0.4).strokeRoundedRect(70, y - 35, W - 140, 70, 18);
+      g.fillStyle(grand ? 0xffcf33 : done ? 0x8ef08a : 0xfbe7c6, 1).fillRoundedRect(70, y - 29, W - 140, 58, 16);
+      g.lineStyle(4, 0x2b1d2e, grand ? 1 : 0.4).strokeRoundedRect(70, y - 29, W - 140, 58, 16);
       c.add(g);
-      c.add(this.add.text(100, y, `${done ? '✓' : t.need}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0, 0.5));
-      c.add(this.add.text(180, y, `${grand ? 'GRAND PRIZE: ' : ''}${this.rewardText(t.reward)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: grand ? '23px' : '26px', color: '#3b2533' }).setOrigin(0, 0.5));
+      c.add(this.add.text(96, y, done ? '✓' : `★${t.need}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0, 0.5));
+      c.add(this.add.text(186, y, `${grand ? 'GRAND PRIZE: ' : ''}${this.rewardText(t.reward)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: grand ? '22px' : '24px', color: '#3b2533' }).setOrigin(0, 0.5));
     });
-    const by = top + 200 + rows * 84 + 6;
-    c.add(this.add.text(W / 2, by, `Cleared this week: ${yd.clears}   ·   \u{1FA9B} screwdrivers: ${m.screwdrivers ?? SCREWDRIVERS.start}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, by + 52, 'Earn screwdrivers: win levels, Bounties,\nRush fights and the Daily.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
-    this.button(c, W / 2, top + PH - 170, 460, `PLAY YARD ${yd.clears + 1}  ·  \u{1FA9B}1`, 0x5fbf4a, () => this.startYard(), 0.95);
+    // the week's 10 yards: number + best stars; open ones can be replayed for more stars
+    const cy = top + 196 + rows * 66 + 40;
+    for (let n = 1; n <= YARD_COUNT; n++) {
+      const x = W / 2 + (n - (YARD_COUNT + 1) / 2) * 62;
+      const open = yardPlayable(yd, n);
+      const s = yd.stars?.[n] ?? 0;
+      const g = this.add.graphics();
+      g.fillStyle(s ? 0xffe9a8 : open ? 0xfbe7c6 : 0xcdbfa8, 1).fillRoundedRect(x - 28, cy - 34, 56, 76, 14).lineStyle(3, 0x2b1d2e, open ? 0.8 : 0.3).strokeRoundedRect(x - 28, cy - 34, 56, 76, 14);
+      c.add(g);
+      c.add(this.add.text(x, cy + 24, '★'.repeat(s) + '☆'.repeat(3 - s), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '17px', color: s ? '#c07a00' : '#8a7a6a' }).setOrigin(0.5));
+      const t = this.add.text(x, cy - 6, open ? String(n) : '\u{1F512}', { fontFamily: 'Lilita One, Arial Black', fontSize: open ? '30px' : '22px', color: '#3b2533' }).setOrigin(0.5);
+      c.add(t);
+      if (open) {
+        const hit = this.add.zone(x, cy + 4, 56, 76).setInteractive({ useHandCursor: true });
+        hit.on('pointerup', () => this.startYard(n));
+        c.add(hit);
+      }
+    }
+    const by = cy + 78;
+    c.add(this.add.text(W / 2, by, `★ ${total}/${YARD_COUNT * 3}  ·  ${YARD_BOOSTERS.map((k) => `${BOOSTER_COPY[k].name} ${bst[k] ?? 0}`).join('  ')}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a3a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, by + 44, 'Free to play. Stars: keep the dock nearly empty.\nBoosters are earned with 3 stars and tiers.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+    const nx = nextYard(yd);
+    this.button(c, W / 2, top + PH - 170, 460, `PLAY YARD ${nx}`, 0x5fbf4a, () => this.startYard(nx), 0.95);
     this.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => this.openTitle('events'), 0.75);
   }
 
-  startYard() {
+  startYard(n = nextYard(this.yardWeek())) {
     const m = this.meta;
-    const have = m.screwdrivers ?? SCREWDRIVERS.start;
-    if (have < 1) return this.showToast('NO SCREWDRIVERS: WIN A LEVEL TO EARN ONE');
-    m.screwdrivers = have - 1;
     const yd = this.yardWeek();
+    if (!yardPlayable(yd, n)) n = nextYard(yd);
+    const level = weekYard(n, yd.week);
+    this.yardBoosters();
     store(META_KEY, JSON.stringify(m));
-    const n = yd.clears + 1;
     tlog.log('yard_start', { week: yd.week, n });
     this.seasonEv('yardPlay');
     this.closeModal();
-    const data: YardData = { n, seed: (yd.week * 1000 + n) >>> 0, onEnd: (won) => this.endYard(n, won) }; // (this scene sleeps meanwhile: its own clock is stopped)
+    const data: YardData = {
+      n,
+      level,
+      tips: m.tips,
+      boosters: { ...this.yardBoosters() },
+      spend: (b: YardBooster) => {
+        const have = this.yardBoosters();
+        if (!have[b]) return false;
+        have[b]!--;
+        store(META_KEY, JSON.stringify(m));
+        tlog.log('yard_booster', { n, booster: b });
+        return true;
+      },
+      saveTips: () => store(META_KEY, JSON.stringify(m)),
+      onEnd: (r) => this.endYard(n, r),
+    }; // (this scene sleeps meanwhile: its own clock is stopped)
     this.scene.launch('yard', data);
     this.scene.sleep();
   }
 
-  endYard(n: number, won: boolean) {
+  endYard(n: number, r: YardResult) {
     this.scene.wake();
+    if (r.quit) return this.openYardEvent();
     const m = this.meta;
     const yd = this.yardWeek();
     const got: string[] = [];
-    if (won) {
-      yd.clears = Math.max(yd.clears, n);
-      const b = yardBolts(n);
-      m.bolts = (m.bolts ?? 0) + b;
-      got.push(`+${b} BOLTS`);
-      YARD_TIERS.forEach((t, i) => {
-        if (i < yd.paid || yd.clears < t.need) return;
-        yd.paid = i + 1;
-        const r = t.reward;
-        if (r.bolts) m.bolts = (m.bolts ?? 0) + r.bolts;
-        if (r.gems) m.gems = (m.gems ?? 0) + r.gems;
-        if (r.crate) this.giveCrate(r.crate);
-        if (r.epic) {
-          this.seasonBonus(BONUS_XP.yardGrand, 'SCREW YARD');
-          // the grand prize: a card of an epic unit (a missing one first)
-          const epics = UNITS.filter((u) => u.rarity === 'epic');
-          const miss = epics.filter((u) => !this.ownsUnit(u.id));
-          const u = (miss.length ? miss : epics)[(yd.week + n) % (miss.length || epics.length)];
-          this.applyCards([{ unit: u.id, count: 1, isNew: !this.ownsUnit(u.id) }]);
-          got.push(`EPIC: ${FAMILY_INFO[u.id as 'cannon'].name.toUpperCase()}`);
-        }
-        got.push(`TIER ${i + 1}: ${this.rewardText(r)}`);
-      });
+    const out = recordYard(yd, n, r.stars);
+    if (out.bolts) {
+      m.bolts = (m.bolts ?? 0) + out.bolts;
+      got.push(`+${out.gainedStars} NEW ★  ·  +${out.bolts} BOLTS`);
+    } else if (r.won) got.push('No new stars this time');
+    if (Object.keys(out.boosters).length) {
+      m.yardBoosters = addBoosters(this.yardBoosters(), out.boosters);
+      got.push(`3 STARS: +1 ${BOOSTER_COPY[Object.keys(out.boosters)[0] as YardBooster].name}`);
+    }
+    for (const i of out.tiers) {
+      const t = YARD_TIERS[i].reward;
+      if (t.bolts) m.bolts = (m.bolts ?? 0) + t.bolts;
+      if (t.gems) m.gems = (m.gems ?? 0) + t.gems;
+      if (t.crate) this.giveCrate(t.crate);
+      if (t.boosters) m.yardBoosters = addBoosters(this.yardBoosters(), t.boosters);
+      if (t.epic) {
+        this.seasonBonus(BONUS_XP.yardGrand, 'SCREW YARD');
+        // the grand prize: a card of an epic unit (a missing one first)
+        const epics = UNITS.filter((u) => u.rarity === 'epic');
+        const miss = epics.filter((u) => !this.ownsUnit(u.id));
+        const u = (miss.length ? miss : epics)[(yd.week + n) % (miss.length || epics.length)];
+        this.applyCards([{ unit: u.id, count: 1, isNew: !this.ownsUnit(u.id) }]);
+        got.push(`EPIC: ${FAMILY_INFO[u.id as 'cannon'].name.toUpperCase()}`);
+      }
+      got.push(`TIER ${i + 1}: ${this.rewardText(t)}`);
     }
     store(META_KEY, JSON.stringify(m));
-    tlog.log('yard_end', { n, won, clears: yd.clears });
-    const c = this.panel(620);
-    const top = H / 2 - 310;
-    c.add(this.add.text(W / 2, top + 70, won ? 'YARD CLEARED!' : 'TRAY FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 150, won ? got.join('\n') : 'Plan ahead: free the screws whose\ntoolbox is coming next.', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    this.button(c, W / 2, top + 470, 420, `${won ? 'NEXT YARD' : 'TRY AGAIN'}  ·  \u{1FA9B}1`, 0x5fbf4a, () => this.startYard(), 0.9);
-    this.button(c, W / 2, top + 560, 260, 'EVENT', 0x8a6a4a, () => this.openYardEvent(), 0.75);
+    tlog.log('yard_end', { n, won: r.won, stars: r.stars, peak: r.peak, clears: yd.clears });
+    const c = this.panel(660);
+    const top = H / 2 - 330;
+    c.add(this.add.text(W / 2, top + 64, r.won ? `YARD ${n} CLEARED!` : 'DOCK FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: r.won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    if (r.won) {
+      const g = this.add.graphics();
+      for (let k = 0; k < 3; k++) this.starShape(g, W / 2 + (k - 1) * 84, top + 150, 34, k < r.stars);
+      c.add(g);
+      c.add(this.add.text(W / 2, top + 206, `Most screws in the dock: ${r.peak}   ·   3★ at ${r.minPeak + 1} or less`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+    }
+    c.add(this.add.text(W / 2, top + 250, r.won ? got.join('\n') : 'Plan ahead: free the screws whose\nbox is coming NEXT, and keep dock slots free.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    const next = r.won && n < YARD_COUNT ? n + 1 : n;
+    this.button(c, W / 2, top + 510, 420, r.won && n < YARD_COUNT ? 'NEXT YARD' : r.won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.startYard(next), 0.9);
+    this.button(c, W / 2, top + 600, 260, 'EVENT', 0x8a6a4a, () => this.openYardEvent(), 0.75);
   }
 
   /** Five-point star outline / fill (unearned stars are outlines, never washed-out gold). */
@@ -5436,7 +5492,6 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.seasonEv('endlessFloor');
       if (this.s.stats.biggestChain >= 8) this.seasonEv('chain8');
       rec.floor = floor + 1;
-      m.screwdrivers = (m.screwdrivers ?? SCREWDRIVERS.start) + SCREWDRIVERS.levelWin;
       const toBlock = 10 - endlessPos(rec.floor) + 1;
       lines.push(endlessPos(rec.floor) === 10 ? 'Next: a BOSS floor!' : endlessPos(rec.floor) === 5 ? 'Next: a MINI-BOSS floor!' : `${toBlock} floor${toBlock > 1 ? 's' : ''} to the next boss`);
     }
