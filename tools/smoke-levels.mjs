@@ -15,8 +15,10 @@ const errors = [];
 let cur = 0;
 page.on('pageerror', (e) => errors.push(`L${cur} PAGEERROR ${e.message}\n${(e.stack ?? '').split('\n').slice(1, 6).join('\n')}`));
 page.on('console', (m) => m.type() === 'error' && errors.push(`L${cur} console ${m.text().slice(0, 160)}`));
-await page.goto(`${server.resolvedUrls.local[0]}?timer&reset`, { waitUntil: 'networkidle0' });
-await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
+// 'load' + polling for the scene, not networkidle0: a cold Vite dep pre-bundle on a busy machine can keep
+// the network busy past 30 s, and the scene check is what we actually need
+await page.goto(`${server.resolvedUrls.local[0]}?timer&reset`, { waitUntil: 'load', timeout: 120000 });
+await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 120000 });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 for (let n = from; n <= to; n++) {
   if (only && !only.includes(n)) continue;
