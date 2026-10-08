@@ -71,6 +71,16 @@ export const TUNING = {
    *  The merge itself always happens and always cascades; only the damage number changes. */
   optionA2: false,
   optA2: { chain: true, fatigue: true, chainMult: [0.6, 0.8, 1, 1.15, 1.3, 1.4], window: 1.5, minMult: 0.2, beat: 0 },
+  /** EXPERIMENT (t-2c7cbae7, Option A3), default OFF; wins over optionA2 when both are on. Spam pays through board
+   *  growth (every merge earns parts), so A3 gates the SUPPLY on a full board and keeps damage near-neutral:
+   *  Overdrive charges by chain size (optA.odChain); a player cascade of n activations deals chainMult[n-1];
+   *  a board holding more than gateAbove parts (grid + waiting + owed) pays a merge's reactive part(s) only when its
+   *  cascade activates at least gateChain gadgets (thinner boards always earn: no starving). Probe knob `beat`: earned
+   *  parts drip in at most one per beat s (0 = today's 0.35 s); a 2 s beat cut spam further but thinned the smart
+   *  player's board (trivial decisions 6% -> 44-49%), so it stays 0 in the presets. Optional `fatigue`
+   *  (A2 rule with window / minMult) shows a STEADY meter and dims the damage number. Merges are never blocked. */
+  optionA3: false,
+  optA3: { chainMult: [0.9, 1, 1, 1.05, 1.1, 1.15], gateChain: 2, gateAbove: 10, beat: 0, fatigue: false, window: 3, minMult: 0.2 },
 };
 
 export type Tuning = typeof TUNING;

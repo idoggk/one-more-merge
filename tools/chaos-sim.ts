@@ -7,16 +7,16 @@ import { LEVELS } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
 import { drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
-import { a2Tag, applyA2 } from './a2-flags';
+import { a2Tag, a3Tag, applyA2 } from './a2-flags';
 
 const args = process.argv.slice(2);
 const arg = (k: string) => (args.includes(k) ? args[args.indexOf(k) + 1] : undefined);
 const LV = (arg('--levels') ?? '3,5,9,13,17,22,25,31,45,55,61,66,71,76,30,40,50,60,70,80').split(',').map(Number);
 const N = Number(arg('--n')) || 24;
 if (args.includes('--optA')) TUNING.optionA = true;
-applyA2(args); // --optA2 [--a2 a|b|ab] [--a2beat S]
-console.log(`chaos-sim | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a2Tag()} | n ${N}`);
-const SUM: { gap: number; arr1: number; triv: number; trivR: number; noPair2: number }[] = [];
+applyA2(args); // --variant off|a2|a3|a3f, --optA2 [--a2 a|b|ab] [--a2beat S], --optA3 [--a3fatigue] (see a2-flags.ts)
+console.log(`chaos-sim | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a2Tag()} | optionA3 ${a3Tag()} | n ${N}`);
+const SUM: { gap: number; arr1: number; arr2: number; triv: number; trivR: number; noPair2: number }[] = [];
 
 type Opt = { f: number; t: number; raw: number; eff: number; count: number; rank: number };
 const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
@@ -125,10 +125,11 @@ for (const L of LV) {
   SUM.push({
     gap: (res['best 3.5s'].wins - res['rand 2.0s'].wins) / N,
     arr1: mean(res['rand 1.0s'].arrivals.flat()),
+    arr2: mean(res['best 2.0s'].arrivals.flat()),
     triv: mid(res['best 2.0s'].trivial),
     trivR: mid(res['rand 1.0s'].trivial),
     noPair2: mean(res['best 2.0s'].noPair.flat()),
   });
 }
 const avg = (k: keyof (typeof SUM)[number]) => mean(SUM.map((x) => x[k]).filter((x) => !Number.isNaN(x)));
-console.log(`\nSUMMARY (${SUM.length} levels, optionA ${TUNING.optionA ? 'ON' : 'OFF'}, optionA2 ${a2Tag()}): win gap best3.5-rand2 ${pct(avg('gap'))} | arrive/min @rand1.0s ${f(avg('arr1'), 1)} | mid-level trivial [best 2.0s] ${pct(avg('triv'))} [rand 1.0s] ${pct(avg('trivR'))} | noPair [best 2.0s] ${pct(avg('noPair2'))}`);
+console.log(`\nSUMMARY (${SUM.length} levels, optionA ${TUNING.optionA ? 'ON' : 'OFF'}, optionA2 ${a2Tag()}, optionA3 ${a3Tag()}): win gap best3.5-rand2 ${pct(avg('gap'))} | arrive/min @rand1.0s ${f(avg('arr1'), 1)} @best2.0s ${f(avg('arr2'), 1)} | mid-level trivial [best 2.0s] ${pct(avg('triv'))} [rand 1.0s] ${pct(avg('trivR'))} | noPair [best 2.0s] ${pct(avg('noPair2'))}`);

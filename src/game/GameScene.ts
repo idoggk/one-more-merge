@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
+import { applySpamVariant, SPAM_VARIANTS, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -8,8 +9,11 @@ import {
   legalPairs,
   newGame,
   newLevel,
+  odByChain,
   odNeeded,
   peekNext,
+  fatigueCfg,
+  supplyGated,
   mergeEarns,
   previewMerge,
   serialize,
@@ -244,6 +248,17 @@ const store = (k: string, v: string | null) => {
     /* storage unavailable */
   }
 };
+// t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
+const SPAM_KEY = 'omm_qa_spam_variant';
+const spamVariant = (): SpamVariant => {
+  try {
+    const v = localStorage.getItem(SPAM_KEY);
+    return SPAM_VARIANTS.some((x) => x.id === v) ? (v as SpamVariant) : 'off';
+  } catch {
+    return 'off';
+  }
+};
+applySpamVariant(spamVariant());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -434,6 +449,7 @@ export class GameScene extends Phaser.Scene {
     this.headerText = this.add.text(70, 27, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' });
     this.timerText = this.add.text(W - 28, 22, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '40px', color: '#3b2533' }).setOrigin(1, 0);
     this.odGauge = this.add.graphics();
+    this.steadyText = this.add.text(544, 72, 'STEADY', { fontFamily: 'Arial Black', fontSize: '14px', color: '#3b2533' }).setOrigin(0, 0.5).setVisible(false);
     if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
@@ -533,6 +549,7 @@ export class GameScene extends Phaser.Scene {
 
   streak = 0;
   lastMergeAt = -1e9;
+  steadyText!: Phaser.GameObjects.Text;
   /** Best rank created this run per family (merges + Kickback fuses) — the machine shown on the result screen. */
   runBest: Partial<Record<Family, number>> = {};
   noteRank(fam: Family, rank: number) {
@@ -1774,7 +1791,7 @@ Now beat the real level.`, this.coachY());
     if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase || this.realBoss) return; // r22: boss levels keep the stage clear (own explainers only)
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 5 && s.elapsed < 12) this.tip('delivery', 'NEXT brings another gadget.\nMatch its machine and number.', { x: BX + 150, y: TRAY_Y - 30 });
-    if (s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
+    if (!odByChain() && s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
     if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
     if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
     if (s.stage?.i === 1 && !s.goal) this.tip('next_machine', 'Machine 2! Your board stays.\nBeat every machine before the clock runs out.', { x: W - CLOCK_X, y: HP_Y });
@@ -1934,7 +1951,9 @@ Now beat the real level.`, this.coachY());
     this.scrapZone?.setVisible(!(s.level !== undefined && s.level < 4));
     // overdrive gauge
     const og = this.odGauge.clear();
-    const need = odNeeded(s);
+    // experiments charge Overdrive by chain links (12 to fill): the 6 pips show the fraction
+    const need = Math.min(6, odNeeded(s));
+    const charged = Math.floor((s.odCharge * need) / odNeeded(s));
     const gx = 384;
     this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo && !early).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
     const active = s.odLeft > 0;
@@ -1943,13 +1962,23 @@ Now beat the real level.`, this.coachY());
     this.gaugeImgs.forEach((g, i) => {
       const on = i < need && !demo && !early;
       g.setVisible(on).setPosition(gx + i * 26 + 11, 46);
-      if (on) g.setTexture(active ? (this.hasArt('gauge_lit') ? 'gauge_lit' : 'gauge_on') : i < s.odCharge ? 'gauge_on' : 'gauge_off').setDisplaySize(24, 34);
+      if (on) g.setTexture(active ? (this.hasArt('gauge_lit') ? 'gauge_lit' : 'gauge_on') : i < charged ? 'gauge_on' : 'gauge_off').setDisplaySize(24, 34);
     });
     for (let i = 0; i < (demo || gaugeArt || early ? 0 : need); i++) {
-      const filled = active || i < s.odCharge;
+      const filled = active || i < charged;
       og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx + i * 26, 30, 22, 30, 6);
       og.fillStyle(filled ? (active ? 0xff6a00 : 0xffcf33) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
     }
+    // EXPERIMENT spam fatigue (QA toggle): STEADY HAND bar under the gauge refills over the fatigue window after a merge;
+    // a merge made before it is full hits for less (its damage number is dimmed)
+    const fc = fatigueCfg();
+    const steadyOn = !!fc && !demo && !early && s.phase === 'playing' && !s.goal && !s.puzzle;
+    if (steadyOn) {
+      const p = Math.min(1, (s.elapsed - (s.lastMergeAt ?? -1e9)) / fc!.window);
+      og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx, 66, 152, 12, 6);
+      og.fillStyle(p >= 1 ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(gx + 2, 68, Math.max(4, 148 * p), 8, 4);
+    }
+    this.steadyText.setVisible(steadyOn);
     setMusicIntensity(active);
     const rb = this.realBoss;
     setMusicMode(!rb || s.phase !== 'playing' ? 'normal' : BOSSES[rb.def].mini ? 'mini' : rb.phaseShown >= 2 ? 'final' : 'boss');
@@ -1971,7 +2000,7 @@ Now beat the real level.`, this.coachY());
     ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
     // r38: reactive levels say what the next merge earns (the board only changes when you merge)
     const earn = mergeEarns(s);
-    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? `MERGE \u2192 +${earn}` : '');
+    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? (earn && supplyGated(s) ? `CHAIN \u2192 +${earn}` : `MERGE \u2192 +${earn}`) : '');
     this.pendingText.setColor(s.pending.length ? '#9e2416' : '#3b2533').setBackgroundColor(this.pendingText.text && !s.pending.length ? '#fbe7c6' : '').setPadding(this.pendingText.text && !s.pending.length ? 10 : 0, 4);
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(!tut && !s.puzzle && !(s.level !== undefined && s.level < 4));
@@ -2871,7 +2900,9 @@ Now beat the real level.`, this.coachY());
       if (hasMax) this.shake(80, 0.002);
       if (r.count >= 10) haptic(10);
       const huge = r.count >= 10;
-      if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}`, huge ? '#ffd24a' : '#fff0cf', 1500);
+      // EXPERIMENT spam fatigue: a hurried merge's number is dimmed and says how much of its hit landed
+      const tired = r.fatigue !== undefined && r.fatigue < 1 ? `  ·  RUSHED ${Math.round(r.fatigue * 100)}%` : '';
+      if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
       if (!kickback && r.count >= 3)
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
@@ -2883,7 +2914,7 @@ Now beat the real level.`, this.coachY());
       // damage number beside the opponent, never on its face
       const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
       if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
-      if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.target.y - 40, capped ? 'MAX' : fmt(r.total), huge ? '#ffcf33' : '#ffffff', huge ? 44 : 34, huge ? 200 : 0);
+      if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.target.y - 40, capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });
   }
 
@@ -5453,8 +5484,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** r33 QA panel: start over, jump to any level, give units / currency. */
   openQaTools(jump = this.currentLevel()) {
     this.closeModal();
-    const c = this.sheet(1060);
-    const top = H / 2 - 530;
+    const c = this.sheet(1180);
+    const top = H / 2 - 590;
     this.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
     const m = this.meta;
     const save = () => store(META_KEY, JSON.stringify(m));
@@ -5515,7 +5546,20 @@ Merge them into a RANK ${rank}!`, this.coachY());
       save();
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
     }, 0.8);
-    this.button(c, W / 2, top + 980, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
+    c.add(this.add.text(W / 2, top + 950, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const cur = spamVariant();
+    SPAM_VARIANTS.forEach((v, i) => {
+      const on = v.id === cur;
+      this.button(c, W / 2 + (i - 1.5) * 162, top + 1015, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(SPAM_KEY, v.id === 'off' ? null : v.id);
+        applySpamVariant(v.id);
+        tlog.log('qa_spam_variant', { variant: v.id });
+        this.showToast(v.id === 'off' ? 'SPAM TEST OFF (live game)' : `SPAM TEST ${v.label}  ·  START A LEVEL`);
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    this.button(c, W / 2, top + 1110, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */

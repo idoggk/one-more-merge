@@ -60,4 +60,6 @@ export interface CascadeResult {
   count: number;
   comboMult: number;
   total: number;
+  /** EXPERIMENT optionA2/A3 spam fatigue: damage share applied (< 1 only); the UI dims the number. */
+  fatigue?: number;
 }

@@ -407,7 +407,7 @@ function makeGadget(s: GameState, family: Family, rank: number): Gadget {
 }
 
 export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPeriodOverdrive : TUNING.cannonPeriod);
-const odByChain = () => TUNING.optionA || TUNING.optionA2;
+export const odByChain = () => TUNING.optionA || TUNING.optionA2 || TUNING.optionA3;
 export const odNeeded = (s: GameState) =>
   odByChain() ? Math.round(TUNING.optA.odChain * (s.perks.includes('juice') ? 5 / 6 : 1)) : s.perks.includes('juice') ? 5 : TUNING.overdriveMerges;
 const matchShare = () => (TUNING.optionA ? TUNING.optA.matchShare : TUNING.matchShare);
@@ -465,16 +465,31 @@ function reactEarnA(occ: number, chain: number): number {
   return occ < A.floorBelow ? Math.max(1, earned) : earned;
 }
 
-/** Option A2: spam-fatigue damage share for a merge made now (time since the previous player merge / window). */
-const fatigueMult = (s: GameState) => Math.min(1, Math.max(TUNING.optA2.minMult, (s.elapsed - (s.lastMergeAt ?? -1e9)) / TUNING.optA2.window));
+/** Option A2/A3: the spam-fatigue rule in force (A3 wins), or null. */
+export function fatigueCfg(): { window: number; minMult: number } | null {
+  if (TUNING.optionA3) return TUNING.optA3.fatigue ? TUNING.optA3 : null;
+  return TUNING.optionA2 && TUNING.optA2.fatigue ? TUNING.optA2 : null;
+}
 
-/** Option A2: scale a player cascade's damage by chain size and/or spam fatigue (in place; numbers shown match). */
+/** Option A2/A3: spam-fatigue damage share for a merge made now (time since the previous player merge / window). */
+export function fatigueMult(s: GameState): number {
+  const F = fatigueCfg();
+  return F ? Math.min(1, Math.max(F.minMult, (s.elapsed - (s.lastMergeAt ?? -1e9)) / F.window)) : 1;
+}
+
+/** Option A3: this board is full enough that a merge earns its part(s) only with a chain of optA3.gateChain+. */
+export const supplyGated = (s: GameState) =>
+  TUNING.optionA3 && !!s.reactive && s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0) > TUNING.optA3.gateAbove;
+
+/** Option A2/A3: scale a player cascade's damage by chain size and/or spam fatigue (in place; numbers shown match). */
 function scaleA2(s: GameState, r: CascadeResult): CascadeResult {
-  const A = TUNING.optA2;
-  if (!TUNING.optionA2 || s.phase !== 'playing' || s.goal || s.puzzle) return r;
+  if (!(TUNING.optionA2 || TUNING.optionA3) || s.phase !== 'playing' || s.goal || s.puzzle) return r;
+  const mult = TUNING.optionA3 ? TUNING.optA3.chainMult : TUNING.optA2.chain ? TUNING.optA2.chainMult : null;
   let k = 1;
-  if (A.chain) k *= A.chainMult[Math.min(r.count, A.chainMult.length) - 1];
-  if (A.fatigue) k *= fatigueMult(s);
+  if (mult) k *= mult[Math.min(r.count, mult.length) - 1];
+  const fm = fatigueMult(s);
+  if (fm < 1) r.fatigue = fm;
+  k *= fm;
   if (k === 1) return r;
   for (const a of r.activations) a.contribution = Math.round(a.contribution * k);
   r.total = Math.round(r.total * k);
@@ -650,9 +665,13 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   s.stats.merges++;
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
   const occNow = () => s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
+  // Option A3: on a full board the part(s) are paid after the cascade, only for a chain of gateChain+
+  let gatedEarn = 0;
   if (s.reactive && s.phase === 'playing' && !TUNING.optionA) {
     const occ = occNow();
-    s.owed = (s.owed ?? 0) + (occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0);
+    const earn = occ < REACT_TWO ? 2 : occ < REACT_CAP ? 1 : 0;
+    if (TUNING.optionA3 && occ > TUNING.optA3.gateAbove) gatedEarn = earn;
+    else s.owed = (s.owed ?? 0) + earn;
     // r38 (ChatGPT review): earned parts land after the merge's payoff, not during it
     s.supplyTimer = Math.max(s.supplyTimer, REACT_DELAY);
   }
@@ -677,7 +696,8 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   applyMoves(s, result);
   spendItems(s, result);
   scaleA2(s, result);
-  if (TUNING.optionA2 && TUNING.optA2.fatigue && s.phase === 'playing') s.lastMergeAt = s.elapsed;
+  if (fatigueCfg() && s.phase === 'playing') s.lastMergeAt = s.elapsed;
+  if (gatedEarn && result.count >= TUNING.optA3.gateChain) s.owed = (s.owed ?? 0) + gatedEarn;
   if (odByChain() && s.phase === 'playing') {
     // Option A: the chain, not the merge count, pays for parts and Overdrive (it starts after this cascade)
     if (TUNING.optionA && s.reactive) {
@@ -984,7 +1004,13 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
       if (s.supplyTimer <= 0 && s.pending.length < TUNING.maxPending) {
         s.owed!--;
         s.pending.push(generateShipment(s));
-        s.supplyTimer = TUNING.optionA ? TUNING.optA.beat : TUNING.optionA2 && TUNING.optA2.beat ? TUNING.optA2.beat : REACT_GAP;
+        s.supplyTimer = TUNING.optionA
+          ? TUNING.optA.beat
+          : TUNING.optionA3 && TUNING.optA3.beat
+            ? TUNING.optA3.beat
+            : TUNING.optionA2 && TUNING.optA2.beat
+              ? TUNING.optA2.beat
+              : REACT_GAP;
         admitPending(s, reserved, ev);
       }
     } else if (!s.pending.length && !legalPairs(s).length) {

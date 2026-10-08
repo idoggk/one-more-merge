@@ -6,11 +6,11 @@ import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
 import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
-import { a2Tag, applyA2 } from './a2-flags';
+import { a2Tag, a3Tag, applyA2 } from './a2-flags';
 
 const args = process.argv.slice(2);
 // experiments and the smart fit never write levels.json
-const dry = args.includes('--dry') || args.includes('--optA') || args.includes('--optA2') || args.includes('--smart');
+const dry = args.includes('--dry') || args.includes('--optA') || args.includes('--optA2') || args.includes('--optA3') || args.includes('--variant') || args.includes('--smart');
 const from = Number(args[args.indexOf('--from') + 1]) || 1;
 const to = Number(args[args.indexOf('--to') + 1]) || LEVELS.length;
 const N = Number(args[args.indexOf('--n') + 1]) || 40;
@@ -159,7 +159,7 @@ const avg = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
 const pct = (a: number[]) => `${(avg(a) * 100).toFixed(0)}%`;
 if (KS.length)
   console.log(
-    `\nSUMMARY ${SMART ? 'smart best@3.5' : `random @${EVERY}s`} | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a2Tag()} | ${KS.length} levels | HP multiplier geomean x${geo(KS).toFixed(3)}` +
+    `\nSUMMARY ${SMART ? 'smart best@3.5' : `random @${EVERY}s`} | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a2Tag()} | optionA3 ${a3Tag()} | ${KS.length} levels | HP multiplier geomean x${geo(KS).toFixed(3)}` +
       (GAPS.length ? ` | best@3.5 ${pct(GAPS.map((g) => g.best))} best@2 ${pct(GAPS.map((g) => g.b2))} rand@2 ${pct(GAPS.map((g) => g.r2))} rand@1 ${pct(GAPS.map((g) => g.r1))} gap ${pct(GAPS.map((g) => g.best - g.r2))}` : ''),
   );
 out.balance_status = `CALIBRATED_RANDOM_BOT_${EVERY}S (tools/sim-levels.ts)`;
