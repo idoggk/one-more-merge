@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { COLS } from '../src/content/tuning';
-import { BOSSES, type BossTarget } from '../src/core/boss';
+import { ATTACK_COPY, BOSSES, bossTick, castAttack, type BossAttack, type BossState, type BossTarget } from '../src/core/boss';
 import { drop, idxOf, legalPairs, newGame, newLevel, odNeeded, serialize, tick, type GameState } from '../src/core/game';
-import { ATTACK_TINT, hsl, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, type Meaning } from '../src/core/marks';
+import { ATTACK_TINT, bossTargetCells, CELL_COPY, hsl, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkKey, type Meaning } from '../src/core/marks';
+import { levelModifierState, remixTick, type RemixKind, type RemixState } from '../src/core/remix';
 import { LEVELS } from '../src/content/levels';
 import type { Family, Gadget } from '../src/core/types';
 
@@ -131,6 +132,78 @@ describe('board marks: inspect card lines', () => {
     s.remix = { kind: 'jam', next: 0, pending: null, lock: { cells: [0], until: s.elapsed + 3 } };
     expect(inspectMarks(s, 0).marks[0]).toMatchObject({ key: 'lock', label: 'LOCKED' });
     expect(MARK_MEANING.lock).toBe('locked');
+  });
+
+  // a board every attack picker can target: shooters, relays, pairs, empty cells beside machines, far-apart empties
+  const busyBoard = () => {
+    const s = board();
+    const put = (r: number, c: number, f: Family, rank = 1) => (s.grid[idxOf(r, c)] = g(f, rank));
+    put(1, 0, 'cannon'); put(1, 1, 'coil'); put(1, 2, 'bell', 2); put(1, 3, 'cannon', 2); put(1, 4, 'rocket');
+    put(2, 0, 'coil', 2); put(2, 1, 'cannon'); put(2, 3, 'bell'); put(2, 4, 'cannon', 3);
+    put(4, 0, 'cannon');
+    return s;
+  };
+  const ATTACKS = Object.keys(ATTACK_COPY) as BossAttack[];
+
+  it.each(ATTACKS)('boss %s: every cell it targets (warning and effect) has an inspect line', (atk) => {
+    const s = busyBoard();
+    const def = bossOf(atk);
+    expect(def).toBeGreaterThanOrEqual(0);
+    const b: BossState = { def, next: 0, phaseShown: 0, pending: null, active: null, mini: BOSSES[def].mini };
+    s.boss = b;
+    s.elapsed = 100;
+    bossTick(b, s.grid, s.elapsed, 100, 100, new Set());
+    expect(b.pending, 'the attack must fire on this board').toBeTruthy();
+    const warned = bossTargetCells(s.grid, b.pending!);
+    expect(warned.length).toBeGreaterThan(0);
+    for (const c of warned) expect(inspectMarks(s, c).marks.filter((m) => m.key === 'boss' && m.attack === atk), `warn cell ${c}`).toHaveLength(1);
+    s.elapsed = b.pending!.deadline;
+    bossTick(b, s.grid, s.elapsed, 100, 100, new Set());
+    if (b.active && castAttack(b, b.active) === atk)
+      for (const c of bossTargetCells(s.grid, b.active)) expect(inspectMarks(s, c).marks.some((m) => m.key === 'boss' && m.attack === atk), `active cell ${c}`).toBe(true);
+    for (const x of b.blocks ?? []) expect(inspectMarks(s, x.cell).marks[0]).toMatchObject({ key: 'junk', label: 'JUNK BLOCK' });
+  });
+
+  it('split marks the cells on both sides of the divider', () => {
+    const s = board();
+    s.grid[idxOf(0, 0)] = g('coil');
+    s.boss = { def: bossOf('split'), next: 0, phaseShown: 0, pending: null, active: { boundary: 1, until: s.elapsed + 3 } };
+    for (let r = 0; r < 6; r++) {
+      expect(inspectMarks(s, idxOf(r, 1)).marks[0]?.text).toContain('divider');
+      expect(inspectMarks(s, idxOf(r, 2)).marks[0]?.attack).toBe('split');
+      expect(inspectMarks(s, idxOf(r, 4)).marks).toHaveLength(0);
+    }
+  });
+
+  it.each(['vacuum', 'twins', 'piano', 'jam', 'gaps'] as RemixKind[])('remix %s: every warned cell and every locked cell has an inspect line', (kind) => {
+    const s = busyBoard();
+    const r: RemixState = kind === 'jam' || kind === 'gaps' ? levelModifierState(kind) : { kind, next: 0, pending: null, lock: null };
+    s.remix = r;
+    s.elapsed = 200;
+    remixTick(r, s.grid, s.elapsed, true, new Set());
+    expect(r.pending).toBeTruthy();
+    for (const c of r.pending!.cells) expect(inspectMarks(s, c).marks.filter((m) => m.key === 'remix' && m.attack === kind), `warn cell ${c}`).toHaveLength(1);
+    s.elapsed = r.pending!.deadline;
+    remixTick(r, s.grid, s.elapsed, true, new Set());
+    for (const c of r.lock?.cells ?? []) expect(inspectMarks(s, c).marks.some((m) => m.key === 'lock'), `lock cell ${c}`).toBe(true);
+    if (kind !== 'vacuum' && kind !== 'twins') expect(r.lock?.cells.length).toBeGreaterThan(0);
+  });
+
+  it('a blocked corner explains itself (and has no merge line)', () => {
+    const s = board();
+    s.masked = [idxOf(0, 0)];
+    expect(inspectMarks(s, idxOf(0, 0))).toEqual({ marks: [{ key: 'blocked', label: 'BLOCKED', text: CELL_COPY.blocked.text }], mergeNow: null });
+    expect(inspectMarks(s, idxOf(0, 1)).marks).toHaveLength(0);
+  });
+
+  it('a falling loose part marks its landing cell (and the machine it fuses into)', () => {
+    const s = board();
+    const m = g('cannon', 2);
+    s.grid[idxOf(3, 3)] = m;
+    s.drops = [{ t: 0.6, fuse: true, plan: { idx: idxOf(3, 3), land: idxOf(3, 2), id: m.id } }];
+    expect(inspectMarks(s, idxOf(3, 2)).marks[0]).toMatchObject({ key: 'kick', label: 'KICKBACK' });
+    expect(inspectMarks(s, idxOf(3, 3)).marks[0].text).toContain('free merge');
+    expect(MARK_MEANING.kick).toBe('kickback');
   });
 
   it('boss ransom follows the marked ids and explains the merge', () => {
@@ -262,6 +335,23 @@ describe('one colour per meaning (clarity pass 2)', () => {
   });
 
   it('every inspect mark kind maps to a meaning', () => {
-    for (const k of ['amp', 'prime', 'item', 'cap', 'boss', 'remix', 'lock'] as const) expect(PALETTE[MARK_MEANING[k]]).toBeDefined();
+    for (const k of Object.keys(MARK_MEANING) as MarkKey[]) expect(PALETTE[MARK_MEANING[k]]).toBeDefined();
+  });
+});
+
+describe('merge preview refresh', () => {
+  it('the preview fingerprint changes when passive fire uses a boost or Overdrive ends, and is stable otherwise', () => {
+    const s = board();
+    s.grid[0] = g('cannon', 2, { amp: 1.3 });
+    const a = previewSig(s);
+    expect(previewSig(s)).toBe(a);
+    s.grid[0]!.amp = undefined;
+    const b = previewSig(s);
+    expect(b).not.toBe(a);
+    s.odLeft = 2;
+    const c = previewSig(s);
+    s.odLeft = 0;
+    expect(c).not.toBe(b);
+    expect(previewSig(s)).toBe(b);
   });
 });

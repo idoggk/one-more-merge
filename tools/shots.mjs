@@ -335,6 +335,10 @@ const states = {
   marks_guide_amp: [(sc) => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.hardUnlocked = true; sc.meta.units = { ...(sc.meta.units ?? {}), amplifier: { level: 1, cards: 0 }, signal_beacon: { level: 1, cards: 0 }, battery: { level: 1, cards: 0 } }; sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'amplifier')); }, 350],
   marks_guide_battery: [(sc) => { sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'battery')); }, 350],
   marks_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks'))); }, 900],
+  marks2_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks2'))); }, 900],
+  overdrive_guide: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'overdrive'))); }, 900],
+  // clarity pass 3: a tap on a closed corner with a loose part about to land beside it
+  cell_card: [(sc) => { sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, tap_hint: true }; sc.startLevel(5); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = false; const e = sc.s.grid.map((x, i) => (x ? -1 : i)).filter((i) => i >= 0); sc.s.masked = [e[e.length - 1]]; sc.openCellCard(e[e.length - 1]); }, 500); }, 1500],
   intro_mid: [
     (sc) => {
       sc.closeModal();

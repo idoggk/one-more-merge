@@ -37,7 +37,7 @@ import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
-import { ATTACK_TINT, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, type MarkLine, type PreviewChip } from '../core/marks';
+import { ATTACK_TINT, CELL_COPY, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
@@ -239,7 +239,7 @@ const ATTACK_ICON: Record<BossAttack, string> = { clamp: 'btg_clamp', frost: 'bt
  *  TR = boss/remix countdown (its icon just below, right-middle), BL = rank, BR = max-rank crown. */
 const SLOT = { helper: { x: -38, y: -38 }, helper2: { x: -38, y: -2 }, item: { x: 0, y: -42 }, boss: { x: 38, y: -38 }, bossIcon: { x: 42, y: 2 }, rank: { x: -36, y: 36 }, crown: { x: 36, y: 40 } };
 // clarity pass 2: every mark colour comes from PALETTE in core/marks.ts (one hue per meaning)
-const AMP_COL = PALETTE.boost.hue, PRIME_COL = PALETTE.charge.hue, ITEM_COL = PALETTE.powerup.hue, ATTACK_COL = PALETTE.attack.hue, LOCK_COL = PALETTE.locked.hue;
+const AMP_COL = PALETTE.boost.hue, PRIME_COL = PALETTE.charge.hue, ITEM_COL = PALETTE.powerup.hue, ATTACK_COL = PALETTE.attack.hue, LOCK_COL = PALETTE.locked.hue, KICK_COL = PALETTE.kickback.hue, OD_COL = PALETTE.overdrive.hue;
 type Gfx = Phaser.GameObjects.Graphics;
 /** Battery CHARGED mark: green ring + lightning badge. k scales it (guide demos / legend / inspect icon). */
 function drawPrimeMark(g: Gfx, x: number, y: number, a: number, k = 1, slot = SLOT.helper, ring = true) {
@@ -658,7 +658,7 @@ export class GameScene extends Phaser.Scene {
 
   openInspect(idx: number) {
     const g = this.s.grid[idx];
-    if (!g) return;
+    if (!g) return this.openCellCard(idx);
     this.closeInspect();
     const info = FAMILY_INFO[g.family as keyof typeof FAMILY_INFO];
     if (!info) return;
@@ -738,6 +738,40 @@ export class GameScene extends Phaser.Scene {
     this.inspectC = c;
   }
 
+  /** Clarity pass 3: an empty cell that carries something (junk block, closed corner, boss / remix target, a falling
+   *  loose part) explains itself on tap with the same MARKS rows as the inspect card. Plain empty cells do nothing. */
+  openCellCard(idx: number) {
+    const { marks } = inspectMarks(this.s, idx);
+    if (!marks.length) return;
+    this.closeInspect();
+    sfx.click();
+    tlog.log('inspect_cell', { keys: marks.map((m) => m.key).join(',') });
+    this.paused = true;
+    const cw = W - 60, L = -cw / 2 + 30;
+    const rows = marks.map((m) => ({ m, t: this.add.text(0, 0, `${m.label}: ${m.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: cw - 110 }, lineSpacing: 2 }).setOrigin(0, 0.5) }));
+    const rowH = (t: Phaser.GameObjects.Text) => Math.max(48, t.height + 12);
+    const ch = 96 + rows.reduce((n, r) => n + rowH(r.t), 0) + 64;
+    const py = cellXY(idx).y;
+    // above the cell when it fits, else below it: never over the cell it is about
+    const cy = py - CELL / 2 - 8 - ch / 2 > STAGE_TOP ? py - CELL / 2 - 8 - ch / 2 : Math.min(H - ch / 2 - 10, py + CELL / 2 + 8 + ch / 2);
+    const c = this.add.container(W / 2, cy).setDepth(96);
+    c.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 26).fillStyle(0xfbe7c6, 1).fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw - 10, ch - 10, 22));
+    c.add(this.add.text(L, -ch / 2 + 48, 'THIS CELL', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0, 0.5));
+    let y = -ch / 2 + 90;
+    for (const { m, t } of rows) {
+      const h = rowH(t);
+      c.add(this.markIcon(m, L + 16, y + h / 2, 34));
+      c.add(t.setPosition(L + 44, y + h / 2));
+      y += h;
+    }
+    c.add(this.add.text(cw / 2 - 26, ch / 2 - 34, 'CLOSE', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: '#27a4c0', padding: { x: 14, y: 8 } }).setOrigin(1, 0.5));
+    c.setAlpha(0).setScale(0.92);
+    this.tweens.add({ targets: c, alpha: 1, scale: 1, duration: 160, ease: 'Back.Out' });
+    const { x: gx, y: gy } = cellXY(idx);
+    c.setData('ring', this.add.graphics().setDepth(95).lineStyle(10, 0x2b1d2e, 0.8).strokeCircle(gx, gy, 62).lineStyle(6, PALETTE.merge.hue, 1).strokeCircle(gx, gy, 62));
+    this.inspectC = c;
+  }
+
   closeInspect() {
     const c = this.inspectC;
     if (!c) return;
@@ -761,6 +795,14 @@ export class GameScene extends Phaser.Scene {
     }
     if (m.key === 'item' && m.item && this.textures.exists(`item_badge_${m.item}`)) return img(`item_badge_${m.item}`);
     if (m.key === 'cap' && this.hasArt('crown')) return img('crown');
+    if (m.key === 'junk' && this.hasArt('prop_junk_block')) return img('prop_junk_block');
+    if (m.key === 'blocked' || m.key === 'kick') {
+      // same shapes as the board: the closed corner's X, the loose part's landing ring
+      const g = this.add.graphics(), h = size / 2;
+      if (m.key === 'blocked') g.fillStyle(0x2b1d2e, 0.85).fillRoundedRect(x - h, y - h, size, size, 8).lineStyle(4, 0x8a6a4a, 1).lineBetween(x - h + 7, y - h + 7, x + h - 7, y + h - 7).lineBetween(x + h - 7, y - h + 7, x - h + 7, y + h - 7);
+      else g.fillStyle(KICK_COL, 0.25).fillCircle(x, y, h - 2).lineStyle(4, KICK_COL, 1).strokeCircle(x, y, h - 2);
+      return g;
+    }
     const remixIcon = { vacuum: 'tg_vacuum', twins: 'tg_twins' }[m.attack as string] ?? 'tg_piano';
     const key = m.key === 'boss' ? ATTACK_ICON[m.attack as BossAttack] : m.key === 'remix' || m.key === 'lock' ? remixIcon : '';
     if (key && this.hasArt(key)) return img(key);
@@ -850,7 +892,10 @@ export class GameScene extends Phaser.Scene {
         this.meta.tips[`new_${fam}`] = true;
         store(META_KEY, JSON.stringify(this.meta));
         this.openHowTo(pageIdx, undefined, true);
-      } else if (tdef.level >= 4 && !this.realBoss) this.explain('tap_hint', [{ text: 'Tip: TAP any machine to see what it does.\nAll machines: Pause > Machine guide.', spots: [] }]);
+      } else if (this.realBoss && !BOSSES[this.realBoss.def].mini)
+        // clarity pass 3: the two armor marks on a chapter boss's HP bar
+        this.explain('xb_armor', [{ text: 'The 2 marks on the boss HP bar\nare its ARMOR. Break one and\nits attacks get stronger.', spots: [{ x: W / 2 - 220 + 440 * 0.66, y: HP_Y, r: 44 }, { x: W / 2 - 220 + 440 * 0.33, y: HP_Y, r: 44 }] }]);
+      else if (tdef.level >= 4 && !this.realBoss) this.explain('tap_hint', [{ text: 'Tip: TAP any machine to see what it does.\nAll machines: Pause > Machine guide.', spots: [] }]);
       // r37: the first stage explains its HUD once (clock ring left, machine counter right), before anything moves
       if (this.s.stage && !this.meta.tips.stage_hud)
         this.explain('stage_hud', [
@@ -895,7 +940,7 @@ export class GameScene extends Phaser.Scene {
     const g = this.add.graphics();
     const cs = 38, gap = 6, x0 = -(5 * cs + 4 * gap) / 2, y0 = -(2 * cs + gap) / 2;
     const at = (cx: number, ry: number) => ({ x: x0 + cx * (cs + gap), y: y0 + ry * (cs + gap) });
-    const coral = 0xff684a;
+    const coral = ATTACK_COL;
     const hit = (cx: number, ry: number) =>
       atk === 'frost' || atk === 'rest' || atk === 'conveyor' ? ry === 0 : atk === 'hot' ? cx === 2 : atk === 'clamp' || atk === 'suction' ? cx === 1 && ry === 0
       : atk === 'bomb' ? cx === 2 && ry === 1 : atk === 'mirror' ? (cx === 0 && ry === 0) || (cx === 4 && ry === 1) : atk === 'blocks' ? (cx === 2 || cx === 4) && ry === 1
@@ -1195,6 +1240,8 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.itemLesson) return; // only the item may be used until it is applied
     const idx = this.cellAt(p.worldX, p.worldY);
+    // clarity pass 3: junk blocks, closed corners and marked empty cells explain themselves on tap
+    if (idx >= 0 && !this.s.grid[idx] && this.s.phase === 'playing') this.openCellCard(idx);
     if (idx < 0 || !this.s.grid[idx]) return;
     if (bossBlocked(this.s.boss).noDrag.has(idx)) {
       // r23: a clamped machine explains itself when touched
@@ -1654,8 +1701,12 @@ Now beat the real level.`, this.coachY());
    *  parts earned, Overdrive charge. Colours from PALETTE. Gone the moment the hold ends or leaves the match. */
   chipsC: Phaser.GameObjects.Container | null = null;
   chipKey = '';
+  /** Chips are keyed by the pair AND the state they read, so they never go stale while the hold stays on one match. */
+  chipKeyFor(src: number, hov: number) {
+    return src >= 0 && hov >= 0 ? `${src}>${hov}|${previewSig(this.s)}` : '';
+  }
   drawChips(src: number, hov: number) {
-    const key = src >= 0 && hov >= 0 ? `${src}>${hov}` : '';
+    const key = this.chipKeyFor(src, hov);
     if (key === this.chipKey) return;
     this.chipKey = key;
     this.chipsC?.destroy();
@@ -1664,12 +1715,13 @@ Now beat the real level.`, this.coachY());
     if (!pv) return;
     const { x: cx, y: cy } = cellXY(hov);
     const c = this.add.container(0, 0).setDepth(62);
-    const PAD = 10, GAP = 8, CH = 44, MAXW = W - 24;
+    // sub-labels at 26px (~14px on a phone; 22px read as ~12px)
+    const PAD = 10, GAP = 8, CH = 50, MAXW = W - 24;
     const built = pv.chips.map((ch: PreviewChip) => {
       const col = hex(PALETTE[ch.meaning].hue);
       const parts: Phaser.GameObjects.Text[] = [];
-      if (ch.text) parts.push(this.add.text(0, 0, ch.text, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: col }).setOrigin(0, 0.5));
-      if (ch.sub) parts.push(this.add.text(0, 0, ch.sub, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: col }).setOrigin(0, 0.5).setAlpha(ch.struck ? 0.75 : 1));
+      if (ch.text) parts.push(this.add.text(0, 0, ch.text, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: col }).setOrigin(0, 0.5));
+      if (ch.sub) parts.push(this.add.text(0, 0, ch.sub, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: col }).setOrigin(0, 0.5).setAlpha(ch.struck ? 0.8 : 1));
       const w = PAD * 2 + parts.reduce((n, t) => n + t.width, 0) + (parts.length - 1) * 6;
       return { ch, parts, w, hue: PALETTE[ch.meaning].hue };
     });
@@ -1723,6 +1775,8 @@ Now beat the real level.`, this.coachY());
         if (ev.length) this.handleEvents(ev);
         if (this.modal) break;
       }
+      // the held match's chips follow the live state (a boost spent by passive fire, Overdrive ending, a boss move)
+      if (this.chipKey && this.chipKey !== this.chipKeyFor(this.dragIdx, this.hoverIdx)) this.drawHeld();
       if (this.dragIdx >= 0 && this.moved && this.overScrapFlag) this.scrapHold += dms / 1000;
       if (this.s.phase === 'playing') this.idleTime += dms / 1000;
     }
@@ -1957,7 +2011,7 @@ Now beat the real level.`, this.coachY());
   explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]) {
     if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
     // r22 (ChatGPT): boss fights show only the boss-warning lesson; other lessons stay unseen until a normal level
-    if (this.realBoss && id !== 'x_boss' && !id.startsWith('xb_')) return;
+    if (this.realBoss && id !== 'x_boss' && id !== 'overdrive' && !id.startsWith('xb_')) return;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
@@ -2019,10 +2073,15 @@ Now beat the real level.`, this.coachY());
 
   checkTips() {
     const s = this.s;
-    if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase || this.realBoss) return; // r22: boss levels keep the stage clear (own explainers only)
+    if (s.phase !== 'playing' || this.coach.waitingTap || s.showcase) return;
+    // clarity pass 3: the Overdrive lesson also runs in boss levels and when chains (not merges) fill the meter
+    const odSoon = odByChain() ? s.odCharge >= odNeeded(s) * 0.7 : s.odCharge === odNeeded(s) - 1;
+    if (odSoon && s.odLeft <= 0 && !(s.level !== undefined && s.level < 3) && s.target >= 0)
+      this.tip('overdrive', `${odByChain() ? 'Chains fill' : 'One more merge fills'} the bolt meter (top):\nfull = OVERDRIVE, Cannons fire super fast\nfor a few seconds. Pause > Machine guide.`, { x: 384 + 70, y: 46 });
+    if (this.realBoss) return; // r22: boss levels keep the stage clear (own explainers only)
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 5 && s.elapsed < 12) this.tip('delivery', 'NEXT brings another gadget.\nMatch its machine and number.', { x: BX + 150, y: TRAY_Y - 30 });
-    if (!odByChain() && s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
+    if (s.elapsed > 3 && this.starChase?.visible && s.level !== undefined && s.level >= 2) this.tip('star_ticks', 'The gold ticks on the clock ring\nare the star times: win before\na tick passes to keep that star.', { x: CLOCK_X, y: HP_Y });
     if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
     if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
     // clarity pass 1: the first time a boost / charge / power-up sits on the board, point at it and say what it does
@@ -2204,7 +2263,9 @@ Now beat the real level.`, this.coachY());
     for (let i = 0; i < (demo || gaugeArt || early ? 0 : need); i++) {
       const filled = active || i < charged;
       og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx + i * 26, 30, 22, 30, 6);
-      og.fillStyle(filled ? (active ? PALETTE.overdrive.hue : 0xffcf33) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
+      // charged pips in the OVERDRIVE hue (gold is MAX only); while Overdrive runs they pulse toward white
+      const lit = active ? Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(OD_COL), Phaser.Display.Color.ValueToColor(0xffffff), 100, 50 + 50 * Math.sin(this.time.now / 90)) : null;
+      og.fillStyle(filled ? (lit ? Phaser.Display.Color.GetColor(lit.r, lit.g, lit.b) : OD_COL) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
     }
     // EXPERIMENT spam fatigue (QA toggle): STEADY HAND bar under the gauge refills over the fatigue window after a merge;
     // a merge made before it is full hits for less (its damage number is dimmed)
@@ -2285,7 +2346,8 @@ Now beat the real level.`, this.coachY());
           const land = cellXY(e.land);
           const fall = TUNING.kickbackFall * 1000;
           const mk = this.add.graphics().setDepth(47).setPosition(land.x, land.y);
-          const col = e.into >= 0 ? 0xffcf33 : 0xffffff;
+          // KICKBACK hue (PALETTE): one ring = lands in this cell; double ring = lands on its match and merges (fuse)
+          const col = KICK_COL, fuse = e.into >= 0;
           const o = { p: 0 };
           this.tweens.add({
             targets: o,
@@ -2294,6 +2356,7 @@ Now beat the real level.`, this.coachY());
             onUpdate: () => {
               const r = 52 - 14 * Math.abs(Math.sin(o.p * Math.PI * 3));
               mk.clear().lineStyle(6, col, 0.9).strokeCircle(0, 0, r).fillStyle(col, 0.18).fillCircle(0, 0, r);
+              if (fuse) mk.lineStyle(4, col, 0.9).strokeCircle(0, 0, r - 14);
             },
             onComplete: () => mk.destroy(),
           });
@@ -2329,26 +2392,28 @@ Now beat the real level.`, this.coachY());
           if (e.into >= 0) {
             const into = cellXY(e.into);
             spawn.set(e.gadget.id, land);
-            this.ring(into.x, into.y, 0xffcf33, 90, 14, 320);
+            this.ring(into.x, into.y, KICK_COL, 90, 14, 320);
             this.showEvent('KICKBACK!  A loose part upgraded yours', '#ffd24a', 1800);
           } else spawn.set(e.gadget.id, { x: land.x, y: land.y - 80 });
           const landedAt = e.into >= 0 ? e.into : e.idx;
           if (e.into >= 0) this.noteRank(e.gadget.family, e.gadget.rank);
           const fused = e.into >= 0;
           const tgtSpot = { x: this.target.x, y: this.target.y, r: 150 };
+          const hpSpot = { x: W / 2, y: HP_Y, r: 60 };
           const kc = events.find((x) => x.type === 'cascade' && x.kickback) as { result: CascadeResult } | undefined;
           const kChain = kc?.result.count ?? 1;
           this.time.delayedCall(520, () => {
             if (fused)
               this.explain('x_kick_fuse', [
-                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot] },
-                { text: kChain > 1 ? 'It matched this gadget and merged.\nThat free merge fired another chain!' : 'It matched this gadget and merged.\nThat free merge fired the new gadget!', spots: [cellXY(landedAt)] },
+                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot, hpSpot] },
+                { text: kChain > 1 ? 'A loose part fell. The DOUBLE ring showed\nit would land on its match: it merged,\nand that free merge fired another chain!' : 'A loose part fell. The DOUBLE ring showed\nit would land on its match: it merged,\nand that free merge fired the new gadget!', spots: [cellXY(landedAt)] },
               ]);
             else {
               const lg = this.s.grid[landedAt];
               const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
               this.explain('x_kick_plain', [
-                { text: 'Your big chain shook a part loose.\nIt landed in this cell.', spots: [cellXY(landedAt)] },
+                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot, hpSpot] },
+                { text: 'It shook a part loose.\nThe ring showed where it lands: this cell.\n(A DOUBLE ring = it lands on its match and merges.)', spots: [cellXY(landedAt)] },
                 { text: 'This one waits for you.\nMerge it with the same gadget\nand the same number!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
               ]);
             }
@@ -2423,8 +2488,8 @@ Now beat the real level.`, this.coachY());
               const p = cellXY(cell);
               const beam = this.add.graphics().setDepth(45);
               const sx = this.target.x, sy = this.target.y + 60;
-              beam.lineStyle(14, 0x2b1d2e, 0.5).lineBetween(sx, sy, p.x, p.y).lineStyle(8, 0xff684a, 0.95).lineBetween(sx, sy, p.x, p.y);
-              beam.fillStyle(0xff684a, 1).fillCircle(p.x, p.y, 16);
+              beam.lineStyle(14, 0x2b1d2e, 0.5).lineBetween(sx, sy, p.x, p.y).lineStyle(8, ATTACK_COL, 0.95).lineBetween(sx, sy, p.x, p.y);
+              beam.fillStyle(ATTACK_COL, 1).fillCircle(p.x, p.y, 16);
               beam.setAlpha(0);
               this.tweens.chain({ targets: beam, tweens: [{ alpha: 1, duration: 120 }, { alpha: 0, duration: 500, delay: 650 }], onComplete: () => beam.destroy() });
             }
@@ -2503,7 +2568,7 @@ Now beat the real level.`, this.coachY());
               const cp = cellXY(c0);
               if (e.attack === 'bomb') {
                 this.shake(140, 0.005);
-                this.ring(cp.x, cp.y, 0xff684a, 120, 16, 360);
+                this.ring(cp.x, cp.y, ATTACK_COL, 120, 16, 360);
                 this.chunks.explode(16, cp.x, cp.y);
               }
               this.floatText(cp.x, cp.y - 30, e.attack === 'bomb' ? (e.removedIds?.length ? 'BOOM!' : 'FIZZLE') : 'JUNK!', '#ffd2c8', 40, 300);
@@ -3073,8 +3138,8 @@ Now beat the real level.`, this.coachY());
         const im = this.add.image(x, y - 20, `item_${kind}`).setDepth(62);
         im.setScale(40 / Math.max(im.width, im.height));
         this.tweens.add({ targets: im, y: y - 90, scale: im.scale * 1.8, alpha: 0, duration: 650, ease: 'Quad.Out', onComplete: () => im.destroy() });
-        this.ring(x, y, 0xff9a3c, 70, 10, 320);
-        if (kind === 'overcharge') this.floatText(x + 40, y - 40, 'x2', '#ff9a3c', 34, 200);
+        this.ring(x, y, ITEM_COL, 70, 10, 320);
+        if (kind === 'overcharge') this.floatText(x + 40, y - 40, 'x2', hex(ITEM_COL), 34, 200);
         sfx.merge?.(4);
       });
       tlog.log('item_used', { kind });
@@ -6822,14 +6887,72 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges a shooter next to it (Cannon, Rocket, Mortar, Arc Welder): that shooter\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest shooter.', unlock: 17 },
     // clarity pass 1 legend: every mark drawn with the board's own code (see marksLegend)
     { key: 'marks', title: 'BOARD MARKS', role: 'SPECIAL', text: '', tryThis: 'Tap any machine to see its marks and what a merge does with them.', unlock: 0 },
+    // clarity pass 3: what empty cells, the HP bar, the clock ring and the bolt meter show
+    { key: 'marks2', title: 'CELLS & METERS', role: 'SPECIAL', text: '', tryThis: 'Tap a marked empty cell or a junk block to see what it does.', unlock: 0 },
+    { key: 'overdrive', title: 'OVERDRIVE', role: 'SPECIAL', text: 'Merges fill the bolt meter at the top (in some modes, chain links do). Full: OVERDRIVE! For a few seconds your Cannons fire super fast and the board glows orange. Then the meter starts again.', tryThis: 'When the meter is one short, save a big merge for it.', unlock: 0 },
   ];
 
   /** Board marks legend: a mini cell per mark, drawn with the same functions / art as the board, one sentence each. */
-  marksLegend(c: Phaser.GameObjects.Container, top: number) {
+  marksLegend(c: Phaser.GameObjects.Container, top: number, page2 = false) {
     // clarity pass 2: label, sentence and colour of every row come from PALETTE (core/marks.ts), same as the board
     const cs = 76, k = cs / CELL, x = 118;
     const P = PALETTE;
-    const rows: { label: string; text: string; fam: string; under?: boolean; draw: (g: Gfx, x: number, y: number) => Phaser.GameObjects.GameObject[] | void }[] = [
+    type Row = { label: string; text: string; fam: string; under?: boolean; draw: (g: Gfx, x: number, y: number) => Phaser.GameObjects.GameObject[] | void };
+    const box = (x: number, y: number) => ({ x0: x - cs / 2 + 4, y0: y - cs / 2 + 4, s: cs - 8 });
+    // page 2 (clarity pass 3): empty cells and HUD meters, drawn like the board / HUD draws them
+    const cells: Row[] = [
+      {
+        label: P.kickback.label, fam: '', text: P.kickback.text,
+        draw: (g, x, y) => {
+          g.lineStyle(5, KICK_COL, 0.9).strokeCircle(x - 14, y, 20).fillStyle(KICK_COL, 0.18).fillCircle(x - 14, y, 20);
+          g.lineStyle(5, KICK_COL, 0.9).strokeCircle(x + 16, y, 20).fillStyle(KICK_COL, 0.18).fillCircle(x + 16, y, 20).lineStyle(3, KICK_COL, 0.9).strokeCircle(x + 16, y, 12);
+        },
+      },
+      {
+        label: CELL_COPY.junk.label, fam: '', text: CELL_COPY.junk.text,
+        draw: (g, x, y) => {
+          const b = box(x, y);
+          g.lineStyle(4, ATTACK_COL, 0.9).beginPath().arc(x, y, b.s / 2 - 2, -Math.PI / 2, Math.PI * 0.9).strokePath();
+          if (!this.hasArt('prop_junk_block')) return void g.fillStyle(0x7a6a5a, 1).fillRoundedRect(b.x0 + 8, b.y0 + 8, b.s - 16, b.s - 16, 8);
+          return [this.fitVisible(this.add.image(x, y, 'prop_junk_block'), cs - 22)];
+        },
+      },
+      {
+        label: CELL_COPY.blocked.label, fam: '', text: CELL_COPY.blocked.text,
+        draw: (g, x, y) => {
+          const b = box(x, y);
+          g.fillStyle(0x2b1d2e, 0.72).fillRoundedRect(b.x0, b.y0, b.s, b.s, 14).lineStyle(5, 0x8a6a4a, 1).lineBetween(x - 18, y - 18, x + 18, y + 18).lineBetween(x + 18, y - 18, x - 18, y + 18);
+        },
+      },
+      {
+        label: CELL_COPY.divider.label, fam: '', text: CELL_COPY.divider.text,
+        draw: (g, x, y) => {
+          g.lineStyle(10, ATTACK_TINT.split, 1).lineBetween(x, y - cs / 2, x, y + cs / 2).lineStyle(3, ATTACK_COL, 1).lineBetween(x - 5, y - cs / 2, x - 5, y + cs / 2).lineBetween(x + 5, y - cs / 2, x + 5, y + cs / 2);
+        },
+      },
+      {
+        label: P.overdrive.label, fam: '', text: P.overdrive.text,
+        draw: (g, x, y) => {
+          for (let i = 0; i < 6; i++) g.fillStyle(0x2b1d2e, 1).fillRoundedRect(x - 36 + i * 12, y - 12, 11, 24, 3).fillStyle(i < 4 ? OD_COL : 0x7a6a6a, 1).fillRoundedRect(x - 35 + i * 12, y - 10, 9, 20, 2);
+        },
+      },
+      {
+        label: CELL_COPY.hpTicks.label, fam: '', text: CELL_COPY.hpTicks.text,
+        draw: (g, x, y) => {
+          g.fillStyle(0x2b1d2e, 1).fillRoundedRect(x - 36, y - 10, 72, 20, 10).fillStyle(0x5fd35f, 1).fillRoundedRect(x - 33, y - 7, 50, 14, 7);
+          for (const q of [0.25, 0.5, 0.75]) g.fillStyle(0x2b1d2e, 0.85).fillRect(x - 33 + 66 * q - 1.5, y - 9, 3, 18);
+        },
+      },
+      {
+        label: CELL_COPY.starTicks.label, fam: '', text: CELL_COPY.starTicks.text,
+        draw: (g, x, y) => {
+          g.fillStyle(0x2b1d2e, 1).fillCircle(x, y, 30).fillStyle(0xfff0cf, 1).fillCircle(x, y, 21);
+          g.lineStyle(6, 0x5fd35f, 1).beginPath().arc(x, y, 25, -Math.PI / 2, Math.PI * 0.9).strokePath();
+          for (const [a, live] of [[0.3, true], [-0.9, false]] as const) g.lineStyle(4, live ? 0xffcf33 : 0x8a7a5a, live ? 1 : 0.6).lineBetween(x + Math.cos(a) * 21, y + Math.sin(a) * 21, x + Math.cos(a) * 31, y + Math.sin(a) * 31);
+        },
+      },
+    ];
+    const rows: Row[] = page2 ? cells : [
       { label: P.boost.label, fam: 'cannon_2', text: P.boost.text, draw: (g, x, y) => drawAmpMark(g, x, y, 1, k) },
       { label: P.charge.label, fam: 'cannon_2', text: P.charge.text, draw: (g, x, y) => drawPrimeMark(g, x, y, 1, k) },
       {
@@ -6876,8 +6999,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       // boss tints sit under the machine (as on the board); helper marks sit over it
       const extra = boss ? r.draw(under, x, y) : undefined;
       c.add(under);
-      const key = this.textures.exists(r.fam) ? r.fam : 'cannon_1';
-      c.add(this.fitVisible(this.add.image(x, y, key), cs - 14));
+      if (r.fam) c.add(this.fitVisible(this.add.image(x, y, this.textures.exists(r.fam) ? r.fam : 'cannon_1'), cs - 14));
       const more = boss ? extra : r.draw(g, x, y);
       c.add(g);
       if (more) c.add(more);
@@ -6902,8 +7024,19 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, top + 108, open ? pg.title : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
     const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a', SPECIAL: '#e0a020' }[pg.role] ?? '#8a6a4a';
     c.add(this.add.text(W / 2, top + 160, pg.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: roleCol, padding: { x: 14, y: 4 } }).setOrigin(0.5));
-    if (open && pg.key === 'marks') {
-      this.marksLegend(c, top);
+    if (open && pg.key === 'overdrive') {
+      // the HUD bolt meter (4 of 6 charged) and the orange board glow it lights when full
+      const g = this.add.graphics();
+      const mx = W / 2 - 80, my = top + 250;
+      for (let i = 0; i < 6; i++) g.fillStyle(0x2b1d2e, 1).fillRoundedRect(mx + i * 28, my, 24, 34, 6).fillStyle(i < 4 ? OD_COL : 0x7a6a6a, 1).fillRoundedRect(mx + i * 28 + 3, my + 3, 18, 28, 4);
+      g.lineStyle(12, OD_COL, 0.6).strokeRoundedRect(W / 2 - 150, top + 320, 300, 200, 24).fillStyle(0xb98a5e, 0.35).fillRoundedRect(W / 2 - 138, top + 332, 276, 176, 18);
+      c.add(g);
+      if (this.hasArt('icon_bolt')) c.add(this.fitVisible(this.add.image(mx - 34, my + 17, 'icon_bolt'), 44));
+      for (let i = 0; i < 3; i++) if (this.textures.exists(`cannon_${i + 2}`)) c.add(this.fitVisible(this.add.image(W / 2 + (i - 1) * 86, top + 420, `cannon_${i + 2}`), 72));
+      c.add(this.add.text(W / 2, top + 560, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '25px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
+      c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    } else if (open && (pg.key === 'marks' || pg.key === 'marks2')) {
+      this.marksLegend(c, top, pg.key === 'marks2');
       c.add(this.add.text(W / 2, top + 762, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
     } else if (open && pg.key === 'items') {
       (['overcharge', 'spark', 'corner'] as const).forEach((k, i) => {
@@ -7157,6 +7290,12 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const gu = this.remixUnder.clear();
     for (const im of this.remixIcons) im.setVisible(false);
     this.remixText.setVisible(false);
+    // CORNERS modifiers: permanently blocked cells (drawn under boss telegraphs too: a tap on one explains it)
+    for (const c of this.s.masked ?? []) {
+      const { x, y } = cellXY(c);
+      g.fillStyle(0x2b1d2e, 0.72).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 18);
+      g.lineStyle(6, 0x8a6a4a, 1).lineBetween(x - 24, y - 24, x + 24, y + 24).lineBetween(x + 24, y - 24, x - 24, y + 24);
+    }
     // BOSS telegraph + active effect (r20): one icon + the exact shape; countdown bubble; no full-board wash
     const bs = this.s.boss;
     // r27 junk blocks: inert crates on the board with a shrinking 8 s ring
@@ -7241,7 +7380,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
         if (bomb) {
           bomb.setVisible(true).setPosition(x, y + Math.sin(this.time.now / 90) * 3);
           bomb.setScale(((CELL - 22) * (1 + 0.06 * Math.sin(this.time.now / 120))) / Math.max(bomb.width, bomb.height));
-        } else g.fillStyle(0x2b1d2e, 1).fillCircle(x, y, 30).fillStyle(0xff684a, 1).fillCircle(x, y - 30, 8);
+        } else g.fillStyle(0x2b1d2e, 1).fillCircle(x, y, 30).fillStyle(ATTACK_COL, 1).fillCircle(x, y - 30, 8);
       }
       if (tgt.boundary !== undefined) {
         const x = BX + (tgt.boundary + 1) * CELL;
@@ -7272,12 +7411,6 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const why = missed ? 'it missed! that cell is blocked' : ATTACK_COPY[atk].why;
       this.updateLane(warn ? `${what} IN ${left.toFixed(1)}s  \u00b7  ${why}` : `${what}  \u00b7  ${why}  \u00b7  ${left.toFixed(1)}s`, '#ffd2c8');
       return;
-    }
-    // CORNERS modifiers: permanently blocked cells
-    for (const c of this.s.masked ?? []) {
-      const { x, y } = cellXY(c);
-      g.fillStyle(0x2b1d2e, 0.72).fillRoundedRect(x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, CELL - 12, 18);
-      g.lineStyle(6, 0x8a6a4a, 1).lineBetween(x - 24, y - 24, x + 24, y + 24).lineBetween(x + 24, y - 24, x - 24, y + 24);
     }
     if (!r) {
       this.updateLane(null);

@@ -3,13 +3,14 @@
 import { COLS, TUNING } from '../content/tuning';
 import { ATTACK_COPY, castAttack, type BossAttack, type BossTarget } from './boss';
 import { canMerge, capOf, drop, odNeeded, type GameEvent, type GameState } from './game';
+import { PIANO_LOCK_S, type RemixKind } from './remix';
 import type { Gadget, Grid, ItemKind } from './types';
 
 // Clarity pass 2: ONE COLOUR PER MEANING. The single source for every on-board mark's hue, icon and one-line text;
 // the board, the inspect card, the guide legend and the merge-preview chips all read it. No two meanings share a hue
 // (tests/marks.test.ts checks the spacing). Machine family colours are identity, not marks, and live in perks.ts.
-export type Meaning = 'merge' | 'boost' | 'charge' | 'powerup' | 'max' | 'attack' | 'locked' | 'overdrive' | 'parts';
-export type MarkIcon = 'ring' | 'arrow' | 'bolt' | 'badge' | 'crown' | 'attack' | 'lock' | 'glow' | 'part';
+export type Meaning = 'merge' | 'boost' | 'charge' | 'powerup' | 'max' | 'attack' | 'locked' | 'overdrive' | 'parts' | 'kickback';
+export type MarkIcon = 'ring' | 'arrow' | 'bolt' | 'badge' | 'crown' | 'attack' | 'lock' | 'glow' | 'part' | 'drop';
 export const PALETTE: Record<Meaning, { label: string; hue: number; icon: MarkIcon; text: string; now?: string }> = {
   merge: { label: 'YOUR MERGE', hue: 0xffffff, icon: 'ring', text: 'White = your move: the part you hold, the parts it can merge with, and what that merge will fire.' },
   boost: { label: 'BOOSTED', hue: 0xd2b4ff, icon: 'arrow', text: 'Amplifier (x1.3) or Beacon (x1.15): its next hit is stronger. Used when it fires or merges.' },
@@ -20,7 +21,16 @@ export const PALETTE: Record<Meaning, { label: string; hue: number; icon: MarkIc
   locked: { label: 'LOCKED', hue: 0x4f6d8f, icon: 'lock', text: 'Locked or clamped: it cannot move or merge until the timer runs out.' },
   overdrive: { label: 'OVERDRIVE', hue: 0xff7200, icon: 'glow', text: 'Merges fill the Overdrive meter; full = Cannons fire fast for a few seconds.' },
   parts: { label: 'PARTS', hue: 0x3fd9a0, icon: 'part', text: 'New parts this merge earns; they drop in after the chain.' },
+  kickback: { label: 'KICKBACK', hue: 0x6f6cff, icon: 'drop', text: 'A panel broke: a loose part lands in the ring. Double ring: it lands on its match and merges.' },
 };
+/** Board cells and HUD meters (guide page 2): plain copy for things that are not a mark on a part. */
+export const CELL_COPY = {
+  junk: { label: 'JUNK BLOCK', text: 'Boss junk: no part can go here. Fire a machine next to it to clear it, or wait it out.' },
+  blocked: { label: 'BLOCKED', text: 'Closed for the whole level: no part can go here.' },
+  divider: { label: 'DIVIDER', text: 'A boss wall: relays cannot wake machines on the other side of it.' },
+  hpTicks: { label: 'HP BAR MARKS', text: 'Each 25% a panel breaks off (KICKBACK). Boss: 2 armor marks; attacks get stronger past each.' },
+  starTicks: { label: 'CLOCK TICKS', text: 'Gold ticks = star times. Win before a tick passes to keep that star; faded = missed.' },
+} as const;
 /** Boss attack tints (identity of each attack under the shared ATTACK frame + its icon). Kept off every other meaning's hue. */
 export const ATTACK_TINT: Record<BossAttack, number> = {
   clamp: PALETTE.locked.hue, frost: 0x3b8fd9, suction: 0x2e9e4a, hot: 0xe84a2c, rest: 0x34477a, split: 0x6e5a48, bomb: 0xc0392b, conveyor: 0x8a9a2f,
@@ -36,9 +46,17 @@ export function hsl(c: number): { h: number; s: number; l: number } {
 }
 export const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
-export type MarkKey = 'amp' | 'prime' | 'item' | 'cap' | 'boss' | 'remix' | 'lock';
+export type MarkKey = 'amp' | 'prime' | 'item' | 'cap' | 'boss' | 'remix' | 'lock' | 'junk' | 'blocked' | 'kick';
 /** Which meaning (colour) each inspect-card mark kind shows. Remix warnings are opponent attacks too. */
-export const MARK_MEANING: Record<MarkKey, Meaning> = { amp: 'boost', prime: 'charge', item: 'powerup', cap: 'max', boss: 'attack', remix: 'attack', lock: 'locked' };
+export const MARK_MEANING: Record<MarkKey, Meaning> = { amp: 'boost', prime: 'charge', item: 'powerup', cap: 'max', boss: 'attack', remix: 'attack', lock: 'locked', junk: 'attack', blocked: 'locked', kick: 'kickback' };
+/** Remix warnings by kind (opponents + level modifiers): inspect label and what happens to the marked cell. */
+export const REMIX_COPY: Record<RemixKind, { label: string; text: (left: string, lockS: number, full: boolean) => string }> = {
+  vacuum: { label: 'SUCTION', text: (l) => `In ${l}s this part gets sucked up. Move or merge it away to save it.` },
+  twins: { label: 'SHOVE', text: (l) => `In ${l}s this part gets shoved aside.` },
+  piano: { label: 'ROW LOCK', text: (l, n, full) => `In ${l}s this row locks for ${n}s: ${full ? 'this part cannot move or merge' : 'no part can land here'}.` },
+  jam: { label: 'JAM', text: (l, n) => `In ${l}s, if this cell is still empty, it jams for ${n}s: no part can land here.` },
+  gaps: { label: 'ROW GAPS', text: (l, n) => `In ${l}s, if this cell is still empty, it is blocked for ${n}s: no part can land here.` },
+};
 export interface MarkLine {
   key: MarkKey;
   /** Short caps label, e.g. BOOSTED. */
@@ -81,53 +99,75 @@ export function bossTargetCells(grid: Grid, t: BossTarget): number[] {
   if (t.cells) return t.cells;
   if (t.row !== undefined) return [0, 1, 2, 3, 4].map((c) => t.row! * COLS + c);
   if (t.col !== undefined) return grid.map((_, i) => i).filter((i) => i % COLS === t.col);
+  // split: the cells on both sides of the divider (it runs between column b and b+1)
+  if (t.boundary !== undefined) return grid.map((_, i) => i).filter((i) => i % COLS === t.boundary || i % COLS === t.boundary! + 1);
   return [];
 }
 
-/** Inspect card MARKS row: every state on the part in `idx`, plus what a merge right now does with them. */
+const secs = (x: number) => Math.max(0, x).toFixed(1);
+
+/** Inspect card MARKS row: every state on the part (or empty cell) in `idx`, plus what a merge right now does with them. */
 export function inspectMarks(s: GameState, idx: number): { marks: MarkLine[]; mergeNow: string | null } {
   const g = s.grid[idx];
   const marks: MarkLine[] = [];
   const now: string[] = [];
-  if (!g) return { marks, mergeNow: null };
-  if (g.amp) {
+  if (!g) {
+    // empty cells explain themselves too: closed corners, junk blocks, falling loose parts, boss / remix targets
+    if (s.masked?.includes(idx)) marks.push({ key: 'blocked', ...CELL_COPY.blocked });
+    const junk = s.boss?.blocks?.find((x) => x.cell === idx);
+    if (junk) marks.push({ key: 'junk', label: CELL_COPY.junk.label, attack: 'blocks', text: `${CELL_COPY.junk.text} (${secs(junk.until - s.elapsed)}s)` });
+  }
+  for (const d of s.drops ?? []) {
+    if (!d.plan) continue;
+    if (d.plan.land === idx && !g) marks.push({ key: 'kick', label: PALETTE.kickback.label, text: d.fuse ? `In ${secs(d.t)}s a loose part lands here and merges into the matching machine beside it.` : `In ${secs(d.t)}s a loose part from the monster lands here, next to its match: merge them.` });
+    else if (d.fuse && d.plan.idx === idx && g) marks.push({ key: 'kick', label: PALETTE.kickback.label, text: `In ${secs(d.t)}s a matching loose part lands on this machine: a free merge and chain.` });
+  }
+  if (g?.amp) {
     marks.push({ key: 'amp', label: PALETTE.boost.label, text: `Its next hit is ${fmtMult(g.amp)} (from an Amplifier or Signal Beacon).` });
     now.push(`${fmtMult(g.amp)} boost used on this merge`);
   }
-  if (g.primed) {
+  if (g?.primed) {
     const m = fmtMult(primeMult(s));
     marks.push({ key: 'prime', label: PALETTE.charge.label, text: `Its next chain shot is ${m} (from a Battery).` });
     now.push(`${m} charge used on this merge`);
   }
-  if (g.item) {
+  if (g?.item) {
     const it = ITEM_MARK[g.item.kind];
     marks.push({ key: 'item', label: it.name, text: `Power-up: ${it.does(g.item.charges)}`, item: g.item.kind });
     now.push(`${it.name} goes to the new machine and uses 1 of ${g.item.charges}`);
   }
-  const cap = capOf(s, g.family);
-  if (g.rank >= cap) {
+  const cap = g ? capOf(s, g.family) : Infinity;
+  if (g && g.rank >= cap) {
     const compact = canMerge(g, { ...g, id: -1 }, s);
     marks.push({ key: 'cap', label: PALETTE.max.label, text: compact ? `Rank ${cap} is the top: two of them merge into one rank ${cap}.` : `Rank ${cap} is the top: it can't merge any higher.` });
     if (!compact) now.push("it can't merge, it is already the top rank");
   }
   const b = s.boss;
   for (const [t, warn] of [[b?.active, false], [b?.pending, true]] as const) {
-    if (!b || !t || !bossTargetCells(s.grid, t).includes(idx)) continue;
+    if (!b || !t) continue;
+    const cells = bossTargetCells(s.grid, t);
+    if (!cells.includes(idx)) continue;
     const atk = castAttack(b, t);
     const c = ATTACK_COPY[atk];
-    const left = warn ? b.pending!.deadline - s.elapsed : b.active!.until - s.elapsed;
-    marks.push({ key: 'boss', label: c.what, attack: atk, text: warn ? `In ${Math.max(0, left).toFixed(1)}s: ${c.why}.` : `Now, ${Math.max(0, left).toFixed(1)}s left: ${c.why}.` });
+    const left = secs(warn ? b.pending!.deadline - s.elapsed : b.active!.until - s.elapsed);
+    // the second cell of a pull / bounce is where the machine lands; a split cell sits beside the divider
+    const why = (atk === 'pull' || atk === 'bounce') && t.cells?.[1] === idx ? 'the marked machine lands in this cell' : atk === 'split' ? 'relay links cannot cross the divider beside this cell' : c.why;
+    marks.push({ key: 'boss', label: c.what, attack: atk, text: warn ? `In ${left}s: ${why}.` : `Now, ${left}s left: ${why}.` });
+    if (!g) continue;
     if (atk === 'tow' && !warn) now.push('the tow bar lets go');
     if (atk === 'ransom' && warn) now.push('the ransom mark moves to the new machine, and it wakes (1 of 2)');
     if (atk === 'clamp' && !warn) now.push('blocked: a clamped machine cannot move or merge');
   }
   const r = s.remix;
-  if (r?.pending?.cells.includes(idx) && (r.kind === 'vacuum' || r.kind === 'twins')) {
-    const left = Math.max(0, r.pending.deadline - s.elapsed).toFixed(1);
-    marks.push({ key: 'remix', label: r.kind === 'vacuum' ? 'SUCTION' : 'SHOVE', attack: r.kind, text: r.kind === 'vacuum' ? `In ${left}s this part gets sucked up. Move or merge it away to save it.` : `In ${left}s this part gets shoved aside.` });
+  if (r?.pending?.cells.includes(idx)) {
+    const rc = REMIX_COPY[r.kind];
+    marks.push({ key: 'remix', label: rc.label, attack: r.kind, text: rc.text(secs(r.pending.deadline - s.elapsed), r.lockS ?? PIANO_LOCK_S, !!g) });
   }
-  if (r?.lock?.cells.includes(idx)) marks.push({ key: 'lock', label: PALETTE.locked.label, attack: r.kind, text: `Locked for ${Math.max(0, r.lock.until - s.elapsed).toFixed(1)}s: it cannot move or merge.` });
-  const mergeNow = now.length ? `If you merge now: ${now.join('; ')}.` : marks.length ? 'If you merge now: nothing above is used up.' : null;
+  if (r?.lock?.cells.includes(idx)) {
+    const left = secs(r.lock.until - s.elapsed);
+    marks.push({ key: 'lock', label: PALETTE.locked.label, attack: r.kind, text: g ? `Locked for ${left}s: it cannot move or merge.` : `Blocked for ${left}s: no part can land here.` });
+  }
+  const mergeNow = !g ? null : now.length ? `If you merge now: ${now.join('; ')}.` : marks.length ? 'If you merge now: nothing above is used up.' : null;
   return { marks, mergeNow };
 }
 
@@ -188,6 +228,14 @@ export function mergePreview(s: GameState, from: number, to: number): { count: n
     else out.push({ ...ch, n: 1 });
   }
   return { count: res.count, chips: out.map(({ n, ...ch }) => (n > 1 ? { ...ch, sub: `${ch.sub ?? ''} ×${n}`.trim() } : ch)) };
+}
+
+/** Cheap fingerprint of everything mergePreview reads that can change while a held part hovers one match (passive
+ *  fire using a boost, Overdrive charge / end, boss and remix moves, parts owed): the scene redraws the chips when it changes. */
+export function previewSig(s: GameState): string {
+  const cells = s.grid.map((g) => (g ? `${g.id}.${g.rank}.${g.amp ?? ''}.${g.primed ? 1 : ''}.${g.item ? g.item.charges : ''}` : '')).join(',');
+  const b = s.boss, r = s.remix;
+  return `${cells}|${s.odCharge}.${s.odLeft > 0 ? 1 : 0}.${s.owed ?? 0}.${s.perks.length}|${b?.pending?.deadline ?? ''}.${b?.active?.until ?? ''}.${b?.blocks?.length ?? 0}|${r?.lock?.until ?? ''}`;
 }
 
 // Screw Yard 2.0 (t-98293568): the same rule for the yard. Every marker the yard draws has a label, one sentence and
