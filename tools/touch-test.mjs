@@ -528,6 +528,28 @@ await fingerPath([await cellScreen(27), sf.scrap, { x: sf.scrap.x, y: rect.botto
 st = await state();
 check('inset: SCRAP overshoot below the canvas still scraps', !st.cells.includes('b1') && st.live === 1 && clean(st), { st, rect });
 
+// 20) home tab switches leak nothing (phone perf): scene input listeners and display-list objects stay flat over 20 switches
+const homeLeak = await page.evaluate(async () => {
+  const sc = window.__omm.game.scene.getScene('game');
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  const snap = () => ({ listeners: sc.input.eventNames().reduce((n, e) => n + sc.input.listenerCount(e), 0), objects: sc.children.list.length });
+  sc.coach.clear();
+  sc.openTitle('road');
+  await pause(400);
+  const before = snap();
+  const tabs = ['machine', 'road', 'events', 'road', 'workshop'];
+  for (let k = 0; k < 20; k++) {
+    const t = tabs[k % tabs.length];
+    if (t === 'workshop') sc.openWorkshop();
+    else sc.openTitle(t);
+    await pause(60);
+  }
+  sc.openTitle('road');
+  await pause(400);
+  return { before, after: snap(), road: sc.homeTab === 'road' && sc.hasArt('node_normal') };
+});
+check('20 home tab switches leak no listeners or objects', homeLeak.road && homeLeak.after.listeners === homeLeak.before.listeners && homeLeak.after.objects === homeLeak.before.objects, homeLeak);
+
 check('no page errors', !pageErrors.length, pageErrors);
 await browser.close();
 await server.close();
