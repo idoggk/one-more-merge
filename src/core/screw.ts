@@ -9,6 +9,27 @@ import { Rng } from './rng';
 export const TRAY_CAP = 5;
 export const BOX_SIZE = 3;
 export const OPEN_BOXES = 2;
+
+/** Screw Yard 2.0 (t-11ac42f6): the rule switches. CLASSIC_RULES reproduces the r36 yard exactly (2 open boxes, the
+ *  5-well tray whose 5th well loses, free auto-pull, no swing); YARD_RULES_2 is the faithful screw-sort: 1 active box with
+ *  the next 2 colours shown, a 4-slot dock with no free auto-pull (tap a dock screw to send it to the box) and swinging
+ *  plates. A level without `rules` plays CLASSIC (today's ScrewScene); the 2.0 tools default to YARD_RULES_2. */
+export interface YardRules {
+  /** Open toolboxes at once. */
+  boxes: number;
+  boxSize: number;
+  /** Dock / tray slots a screw may wait in; a screw that finds none loses the yard. */
+  dock: number;
+  /** Boxes pull matching dock screws by themselves (classic); off = the player taps the dock screw (tapDock). */
+  autoPull: boolean;
+  /** Upcoming box colours shown (information only; the greedy bot sees just these). */
+  preview: number;
+  /** A plate held by one screw swings down around it (swingPose). */
+  swing: boolean;
+}
+export const CLASSIC_RULES: YardRules = { boxes: OPEN_BOXES, boxSize: BOX_SIZE, dock: TRAY_CAP - 1, autoPull: true, preview: 0, swing: false };
+export const YARD_RULES_2: YardRules = { boxes: 1, boxSize: BOX_SIZE, dock: 4, autoPull: false, preview: 2, swing: true };
+export const DEFAULT_YARD_RULES = YARD_RULES_2;
 /** Board area the plates live in (centre-origin design units). */
 export const YARD_W = 600;
 export const YARD_H = 640;
@@ -52,6 +73,8 @@ export interface YardLevel {
   screws: Screw[];
   /** Toolbox colours in arrival order (one per BOX_SIZE screws). */
   queue: number[];
+  /** Missing = CLASSIC_RULES. */
+  rules?: YardRules;
 }
 export interface Box {
   color: number;
@@ -59,6 +82,7 @@ export interface Box {
 }
 export interface YardState {
   lvl: YardLevel;
+  rules: YardRules;
   removed: boolean[];
   gone: boolean[];
   boxes: (Box | null)[];
@@ -78,43 +102,79 @@ export interface TapResult {
   /** Tray screws (by tray index before the pull) that jumped into a box. */
   pulls: { color: number; slot: number }[];
   fell: number[];
+  /** Plates this tap left hanging on one screw (they swing, see platePose). */
+  swung: number[];
 }
 
+export interface Pose {
+  x: number;
+  y: number;
+  angle: number;
+}
 /** Is point (px, py) inside plate p (with a margin = screw radius, so a partly covered screw counts as covered)? */
-function covers(p: Plate, px: number, py: number, margin = SCREW_R) {
+export function covers(p: Pose & { len: number; thick: number }, px: number, py: number, margin = SCREW_R) {
   const dx = px - p.x, dy = py - p.y;
   const c = Math.cos(-p.angle), s = Math.sin(-p.angle);
   const lx = dx * c - dy * s, ly = dx * s + dy * c;
   return Math.abs(lx) <= p.len / 2 + margin && Math.abs(ly) <= p.thick / 2 + margin;
 }
 
-export function blockedBy(lvl: YardLevel, gone: boolean[], id: number): number | null {
+/** 2.0 swinging plate: the pose a plate hangs in when `pivot` is its only screw left. It turns around that screw until
+ *  its centre sits straight below it (y grows downwards); a plate pinned through its centre hole stays put. No physics:
+ *  a pure function of the geometry, so the solver can precompute it. */
+export function swingPose(p: Plate, pivot: Screw): Pose {
+  const dx = p.x - pivot.x, dy = p.y - pivot.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1) return { x: p.x, y: p.y, angle: p.angle };
+  return { x: pivot.x, y: pivot.y + d, angle: p.angle + Math.PI / 2 - Math.atan2(dy, dx) };
+}
+
+/** Where plate `pid` is now: as laid, or swung when swing is on and exactly one of its (several) screws is left. */
+export function platePose(lvl: YardLevel, removed: boolean[] | undefined, pid: number, swing: boolean): Pose {
+  const p = lvl.plates[pid];
+  if (swing && removed && p.screws.length > 1) {
+    const left = p.screws.filter((s) => !removed[s]);
+    if (left.length === 1) return swingPose(p, lvl.screws[left[0]]);
+  }
+  return { x: p.x, y: p.y, angle: p.angle };
+}
+
+/** The topmost plate covering screw `id`, or null. Pass `removed` and swing = true to use swung poses (2.0). */
+export function blockedBy(lvl: YardLevel, gone: boolean[], id: number, removed?: boolean[], swing = false): number | null {
   const sc = lvl.screws[id];
   const z = lvl.plates[sc.plate].z;
   let top: Plate | null = null;
-  for (const p of lvl.plates) if (!gone[p.id] && p.z > z && covers(p, sc.x, sc.y) && (!top || p.z > top.z)) top = p;
+  for (const p of lvl.plates) {
+    if (gone[p.id] || p.z <= z || (top && p.z <= top.z)) continue;
+    const pose = swing ? platePose(lvl, removed, p.id, true) : p;
+    if (covers({ ...pose, len: p.len, thick: p.thick }, sc.x, sc.y)) top = p;
+  }
   return top ? top.id : null;
 }
 
-export function newYard(lvl: YardLevel): YardState {
-  const st: YardState = { lvl, removed: lvl.screws.map(() => false), gone: lvl.plates.map(() => false), boxes: [], qi: 0, tray: [], won: false, lost: false, moves: 0 };
-  for (let k = 0; k < OPEN_BOXES; k++) st.boxes.push(st.qi < lvl.queue.length ? { color: lvl.queue[st.qi++], n: 0 } : null);
+export function newYard(lvl: YardLevel, rules: YardRules = lvl.rules ?? CLASSIC_RULES): YardState {
+  const st: YardState = { lvl, rules, removed: lvl.screws.map(() => false), gone: lvl.plates.map(() => false), boxes: [], qi: 0, tray: [], won: false, lost: false, moves: 0 };
+  for (let k = 0; k < rules.boxes; k++) st.boxes.push(st.qi < lvl.queue.length ? { color: lvl.queue[st.qi++], n: 0 } : null);
   return st;
 }
 
-export const removable = (st: YardState, id: number) => !st.removed[id] && blockedBy(st.lvl, st.gone, id) === null;
+export const removable = (st: YardState, id: number) => !st.removed[id] && blockedBy(st.lvl, st.gone, id, st.removed, st.rules.swing) === null;
+/** The next box colours shown to the player. */
+export const previewColors = (st: YardState) => st.lvl.queue.slice(st.qi, st.qi + st.rules.preview);
+/** The open box (slot) a screw of this colour goes into, or -1. */
+export const fitSlot = (st: YardState, color: number) => st.boxes.findIndex((b) => b && b.color === color && b.n < st.rules.boxSize);
 
 /** Take a screw out. Mutates st. */
 export function tapScrew(st: YardState, id: number): TapResult {
-  const res: TapResult = { ok: false, left: [], pulls: [], fell: [] };
+  const res: TapResult = { ok: false, left: [], pulls: [], fell: [], swung: [] };
   if (st.won || st.lost) return { ...res, reason: 'over' };
   if (st.removed[id]) return { ...res, reason: 'removed' };
-  if (blockedBy(st.lvl, st.gone, id) !== null) return { ...res, reason: 'blocked' };
+  if (!removable(st, id)) return { ...res, reason: 'blocked' };
   const sc = st.lvl.screws[id];
   st.removed[id] = true;
   st.moves++;
   res.ok = true;
-  const slot = st.boxes.findIndex((b) => b && b.color === sc.color && b.n < BOX_SIZE);
+  const slot = fitSlot(st, sc.color);
   if (slot >= 0) {
     st.boxes[slot]!.n++;
     res.to = 'box';
@@ -126,30 +186,54 @@ export function tapScrew(st: YardState, id: number): TapResult {
   settle(st, res);
   // the plate falls when its last screw is out
   const p = st.lvl.plates[sc.plate];
-  if (p.screws.every((s) => st.removed[s])) {
+  const left = p.screws.filter((s) => !st.removed[s]).length;
+  if (!left) {
     st.gone[p.id] = true;
     res.fell.push(p.id);
-  }
-  if (st.removed.every(Boolean) && !st.tray.length) st.won = true;
-  else if (st.tray.length >= TRAY_CAP) st.lost = true;
+  } else if (left === 1 && st.rules.swing) res.swung.push(p.id);
+  endCheck(st);
   return res;
 }
 
-/** Full boxes leave, the next colours roll in and pull matching tray screws (cascading). */
+/** 2.0, no free auto-pull: tap dock screw `ti` to send it into the open box of its colour. Mutates st. */
+export function tapDock(st: YardState, ti: number): TapResult {
+  const res: TapResult = { ok: false, left: [], pulls: [], fell: [], swung: [] };
+  if (st.won || st.lost) return { ...res, reason: 'over' };
+  const slot = ti >= 0 && ti < st.tray.length ? fitSlot(st, st.tray[ti]) : -1;
+  if (slot < 0) return { ...res, reason: 'blocked' };
+  st.tray.splice(ti, 1);
+  st.boxes[slot]!.n++;
+  st.moves++;
+  res.ok = true;
+  res.to = 'box';
+  res.box = slot;
+  settle(st, res);
+  endCheck(st);
+  return res;
+}
+
+/** Won when every screw is out and the dock is empty; lost when a screw found no dock slot. */
+function endCheck(st: YardState) {
+  if (st.removed.every(Boolean) && !st.tray.length) st.won = true;
+  else if (st.tray.length > st.rules.dock) st.lost = true;
+}
+
+/** Full boxes leave, the next colours roll in and (with autoPull) pull matching tray screws (cascading). */
 function settle(st: YardState, res: TapResult) {
   for (let guard = 0; guard < 64; guard++) {
-    const full = st.boxes.findIndex((b) => b && b.n >= BOX_SIZE);
+    const full = st.boxes.findIndex((b) => b && b.n >= st.rules.boxSize);
     if (full >= 0) {
       res.left.push({ slot: full, color: st.boxes[full]!.color });
       st.boxes[full] = st.qi < st.lvl.queue.length ? { color: st.lvl.queue[st.qi++], n: 0 } : null;
       continue;
     }
+    if (!st.rules.autoPull) return;
     let pulled = false;
     for (let s = 0; s < st.boxes.length; s++) {
       const b = st.boxes[s];
       if (!b) continue;
       const ti = st.tray.indexOf(b.color);
-      if (ti >= 0 && b.n < BOX_SIZE) {
+      if (ti >= 0 && b.n < st.rules.boxSize) {
         st.tray.splice(ti, 1);
         b.n++;
         res.pulls.push({ color: b.color, slot: s });
