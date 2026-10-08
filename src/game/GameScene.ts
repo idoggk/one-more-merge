@@ -36,6 +36,7 @@ import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits, type ItemKind } from '../core/types';
+import { inspectMarks, markTip, type MarkLine } from '../core/marks';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
@@ -228,7 +229,45 @@ function dailySeed(date: string) {
 const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
 /** Telegraph icon per attack (v17 boss icons + v19 mini-boss icons). */
 const ATTACK_ICON: Record<BossAttack, string> = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split', bomb: 'btg_bomb', conveyor: 'btg_conveyor', mirror: 'btg_mirror', blocks: 'btg_blocks', pull: 'btg_pull', bounce: 'btg_bounce', slick: 'btg_slick', portals: 'btg_portals', tow: 'btg_tow', ransom: 'btg_ransom' };
-const warnColor = (atk: string) => ({ clamp: 0x8e58c9, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 })[atk] ?? 0xff684a;
+const warnColor = (atk: string) => ({ clamp: 0x5d6d7e, frost: 0x6fd3ff, suction: 0xf05c45, hot: 0xff8a3c, rest: 0x9a8a9a, split: 0xffcf33 })[atk] ?? 0xff684a;
+/** Clarity pass 1: an active boss effect fills its cells with its own tint (was one shared plum for every attack). Lavender stays the Amplifier mark's. */
+const ATTACK_TINT: Record<BossAttack, number> = { clamp: 0x5d6d7e, frost: 0x3b8fd9, suction: 0x2e9e6b, hot: 0xe8622c, rest: 0x34477a, split: 0x8a5a2b, bomb: 0xc0392b, conveyor: 0x9a7b2f, mirror: 0x1fa5a0, blocks: 0x7a6a5a, pull: 0x2f7fa8, bounce: 0x5aa02c, slick: 0x1f8fa8, portals: 0x2ecbe6, tow: 0xb08a2a, ransom: 0xe0902a };
+/** Clarity pass 1: fixed badge slots, offsets from a cell's centre, so marks never sit on each other.
+ *  TL = helper mark (Amplifier/Beacon boost, Battery charge; a second one drops to left-middle), top-centre = power-up,
+ *  TR = boss/remix countdown (its icon just below, right-middle), BL = rank, BR = max-rank crown. */
+const SLOT = { helper: { x: -38, y: -38 }, helper2: { x: -38, y: -2 }, item: { x: 0, y: -42 }, boss: { x: 38, y: -38 }, bossIcon: { x: 42, y: 2 }, rank: { x: -36, y: 36 }, crown: { x: 36, y: 40 } };
+const AMP_COL = 0xd2b4ff, PRIME_COL = 0x9be05a;
+type Gfx = Phaser.GameObjects.Graphics;
+/** Battery CHARGED mark: green ring + lightning badge. k scales it (guide demos / legend / inspect icon). */
+function drawPrimeMark(g: Gfx, x: number, y: number, a: number, k = 1, slot = SLOT.helper, ring = true) {
+  const h = 54 * k;
+  if (ring) g.lineStyle(5 * k, PRIME_COL, a).strokeRoundedRect(x - h, y - h, 2 * h, 2 * h, 22 * k);
+  const bx = x + slot.x * k, by = y + slot.y * k;
+  g.fillStyle(0x2b1d2e, 1).fillCircle(bx, by, 15 * k).fillStyle(PRIME_COL, 1).fillCircle(bx, by, 12 * k);
+  g.fillStyle(0x2b1d2e, 1).fillTriangle(bx + 2 * k, by - 10 * k, bx - 6 * k, by + 2 * k, bx + k, by + 2 * k).fillTriangle(bx - k, by - 2 * k, bx + 6 * k, by - 2 * k, bx - 2 * k, by + 10 * k);
+}
+/** Amplifier / Signal Beacon BOOSTED mark: lavender ring + up-arrow badge. */
+function drawAmpMark(g: Gfx, x: number, y: number, a: number, k = 1, slot = SLOT.helper, ring = true) {
+  const h = 49 * k;
+  if (ring) g.lineStyle(5 * k, AMP_COL, a).strokeRoundedRect(x - h, y - h, 2 * h, 2 * h, 20 * k);
+  const bx = x + slot.x * k, by = y + slot.y * k;
+  g.fillStyle(0x2b1d2e, 1).fillCircle(bx, by, 15 * k).fillStyle(AMP_COL, 1).fillCircle(bx, by, 12 * k);
+  g.fillStyle(0x2b1d2e, 1).fillTriangle(bx, by - 9 * k, bx - 8 * k, by + k, bx + 8 * k, by + k).fillRect(bx - 3 * k, by, 6 * k, 9 * k);
+}
+/** Boss telegraph on a cell: dashed coral boundary (warning) or the attack's tinted fill (active). */
+function drawBossCell(g: Gfx, x0: number, y0: number, sz: number, warn: boolean, pulse: number, tint: number) {
+  const coral = 0xff684a;
+  if (warn) {
+    g.lineStyle(5, coral, pulse);
+    for (let d = 0; d < sz; d += 22) {
+      g.lineBetween(x0 + d, y0, Math.min(x0 + d + 12, x0 + sz), y0).lineBetween(x0 + d, y0 + sz, Math.min(x0 + d + 12, x0 + sz), y0 + sz);
+      g.lineBetween(x0, y0 + d, x0, Math.min(y0 + d + 12, y0 + sz)).lineBetween(x0 + sz, y0 + d, x0 + sz, Math.min(y0 + d + 12, y0 + sz));
+    }
+  } else {
+    g.fillStyle(tint, 0.55).fillRoundedRect(x0, y0, sz, sz, 16);
+    g.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
+  }
+}
 const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
 const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
 const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
@@ -604,12 +643,35 @@ export class GameScene extends Phaser.Scene {
     sfx.click();
     tlog.log('inspect', { fam: g.family, rank: g.rank });
     this.paused = true;
-    const cw = W - 60, ch = 330;
-    const cy = Math.max(STAGE_TOP + ch / 2 + 6, HP_Y - ch / 2 - 10);
+    const cw = W - 60, ch0 = 330;
+    const L = -cw / 2 + 30;
+    // clarity pass 1: MARKS row (every state on this part, icon + one sentence) and what a merge right now does with them
+    const { marks, mergeNow } = inspectMarks(this.s, idx);
+    const markRows = marks.map((m) => ({ m, t: this.add.text(0, 0, `${m.label}: ${m.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', wordWrap: { width: cw - 110 }, lineSpacing: 2 }).setOrigin(0, 0.5) }));
+    const nowT = mergeNow ? this.add.text(0, 0, mergeNow, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#b06a1a', wordWrap: { width: cw - 210 }, lineSpacing: 2 }).setOrigin(0, 0.5) : null;
+    const rowH = (t: Phaser.GameObjects.Text) => Math.max(40, t.height + 8);
+    const extra = marks.length ? 30 + markRows.reduce((n, r) => n + rowH(r.t), 0) + Math.max(56, (nowT?.height ?? 0) + 20) : 0;
+    const ch = ch0 + extra;
+    let cy = Math.max(STAGE_TOP + ch / 2 + 6, HP_Y - ch / 2 - 10);
+    // a taller card must not hide the part it is about: drop it below that part instead
+    const py = cellXY(idx).y;
+    if (cy + ch / 2 > py - CELL / 2) cy = Math.min(H - ch / 2 - 10, py + CELL / 2 + 8 + ch / 2);
     const c = this.add.container(W / 2, cy).setDepth(96);
     const bg = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 26).fillStyle(0xfbe7c6, 1).fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw - 10, ch - 10, 22);
     c.add(bg);
-    const L = -cw / 2 + 30;
+    if (marks.length) {
+      let y = -ch / 2 + ch0 - 14;
+      c.add(this.add.graphics().lineStyle(2, 0xd8b88a, 1).lineBetween(L, y, cw / 2 - 30, y));
+      c.add(this.add.text(L, y + 16, 'MARKS', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0, 0.5));
+      y += 30;
+      for (const { m, t } of markRows) {
+        const h = rowH(t);
+        c.add(this.markIcon(m, L + 16, y + h / 2, 34));
+        c.add(t.setPosition(L + 44, y + h / 2));
+        y += h;
+      }
+      if (nowT) c.add(nowT.setOrigin(0, 1).setPosition(L, ch / 2 - 14));
+    }
     const role = info.role.toLowerCase();
     if (this.hasArt(`role_${role}`)) {
       const ic = this.add.image(L + 30, -ch / 2 + 50, `role_${role}`);
@@ -622,8 +684,8 @@ export class GameScene extends Phaser.Scene {
     c.add(this.add.text(L, -ch / 2 + 92, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: textW }, lineSpacing: 4 }));
     const raw = rawDamage(g.family, g.rank);
     const dmg = g.family === 'cannon' ? `Auto shot ${Math.round(raw * TUNING.passiveMult)}  ·  Chain shot ${Math.round(raw)}` : raw > 0 ? `Hits for ${Math.round(raw)} in a chain` : 'No damage: it helps the others';
-    c.add(this.add.text(L, ch / 2 - 96, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
-    c.add(this.add.text(L, ch / 2 - 56, `Try: ${info.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '21px', color: '#7a5a4a', wordWrap: { width: cw - 70 } }));
+    c.add(this.add.text(L, -ch / 2 + ch0 - 96, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
+    c.add(this.add.text(L, -ch / 2 + ch0 - 56, `Try: ${info.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '21px', color: '#7a5a4a', wordWrap: { width: cw - 70 } }));
     // reach diagram: 5x5 mini board centred on this gadget
     const mc = 30, ox = cw / 2 - 30 - mc * 5, oy = -ch / 2 + 86;
     const dg = this.add.graphics();
@@ -658,6 +720,27 @@ export class GameScene extends Phaser.Scene {
     (c.getData('ring') as Phaser.GameObjects.Graphics | undefined)?.destroy();
     this.tweens.add({ targets: c, alpha: 0, duration: 120, onComplete: () => c.destroy() });
     if (!this.explaining && !this.introActive) this.paused = false;
+  }
+
+  /** Small icon for a board mark, drawn with the same code / art as on the board (inspect card rows). */
+  markIcon(m: MarkLine, x: number, y: number, size: number): Phaser.GameObjects.GameObject {
+    const img = (key: string) => {
+      const im = this.add.image(x, y, key);
+      return im.setScale(size / Math.max(im.width, im.height));
+    };
+    const k = size / 30, centre = { x: 0, y: 0 };
+    if (m.key === 'amp' || m.key === 'prime') {
+      const g = this.add.graphics();
+      (m.key === 'amp' ? drawAmpMark : drawPrimeMark)(g, x, y, 1, k, centre, false);
+      return g;
+    }
+    if (m.key === 'item' && m.item && this.textures.exists(`item_badge_${m.item}`)) return img(`item_badge_${m.item}`);
+    if (m.key === 'cap' && this.hasArt('crown')) return img('crown');
+    const remixIcon = { vacuum: 'tg_vacuum', twins: 'tg_twins' }[m.attack as string] ?? 'tg_piano';
+    const key = m.key === 'boss' ? ATTACK_ICON[m.attack as BossAttack] : m.key === 'remix' ? remixIcon : '';
+    if (key && this.hasArt(key)) return img(key);
+    const col = m.key === 'boss' ? ATTACK_TINT[m.attack as BossAttack] : m.key === 'cap' ? 0xffcf33 : m.key === 'item' ? 0xff9a3c : 0x4f6d8f;
+    return this.add.graphics().fillStyle(0x2b1d2e, 1).fillCircle(x, y, size / 2).fillStyle(col, 1).fillCircle(x, y, size / 2 - 4);
   }
 
   // ---------- level entry (playtest: "it just pops into a level") ----------
@@ -838,28 +921,29 @@ export class GameScene extends Phaser.Scene {
     this.fitSprite(img);
     const badge = this.add.graphics();
     const col = FAMILY_INFO[g.family].color;
-    // big rank badge (playtest: ranks were hard to tell apart)
-    const BXY = 36;
-    const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(BXY, BXY, `badge_${g.family}`).setDisplaySize(58, 58) : null;
-    if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BXY, BXY, 26).fillStyle(col, 1).fillCircle(BXY, BXY, 21);
+    // big rank badge (playtest: ranks were hard to tell apart), bottom-left slot
+    const BX0 = SLOT.rank.x, BY0 = SLOT.rank.y;
+    const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(BX0, BY0, `badge_${g.family}`).setDisplaySize(58, 58) : null;
+    if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BX0, BY0, 26).fillStyle(col, 1).fillCircle(BX0, BY0, 21);
     const label = String(g.rank); // r17: the numeral always shows; the crown alone marks the cap
-    let t = this.add.text(BXY, BXY - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
+    let t = this.add.text(BX0, BY0 - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
     let parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
     const dice = `dice_${g.rank}`;
     if (this.hasArt(dice)) {
-      // ChatGPT round 8: neutral bottom-right plate, numeral left + standard dice pips right (same for every family)
+      // ChatGPT round 8: neutral plate, numeral left + standard dice pips right (same for every family); bottom-left slot (clarity pass 1)
       t.destroy();
       badgeArt?.destroy();
       badge.clear();
-      const plate = this.add.image(26, 48, dice);
+      const PX = -26;
+      const plate = this.add.image(PX, 48, dice);
       plate.setScale(78 / plate.width);
-      t = this.add.text(26 - 39 + 18, 46, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '35px', color: '#2a2233' }).setOrigin(0.5);
+      t = this.add.text(PX - 39 + 18, 46, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '35px', color: '#2a2233' }).setOrigin(0.5);
       parts = [img, plate, t];
     }
     t.setName('rank');
     if (g.rank >= capOf(this.s, g.family) && this.hasArt('crown')) {
-      const cr = this.add.image(-30, -42, 'crown');
-      cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(-15);
+      const cr = this.add.image(SLOT.crown.x, SLOT.crown.y, 'crown');
+      cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(15);
       parts.push(cr);
     }
     c.add(parts);
@@ -1538,23 +1622,13 @@ Now beat the real level.`, this.coachY());
     }
     if (!this.primeG) this.primeG = this.add.graphics().setDepth(11);
     this.primeG.clear();
+    // helper marks share the top-left slot: Amplifier / Beacon boost (lavender ring + up-arrow) first, Battery charge
+    // (green ring + bolt) below it when both are on; each stays until the machine fires (the model clears it on use)
     this.s.grid.forEach((g, idx) => {
-      if (!g?.primed) return;
+      if (!g?.primed && !g?.amp) return;
       const { x, y } = cellXY(idx);
-      const a = 0.6 + 0.4 * Math.sin(t * 6);
-      this.primeG.lineStyle(5, 0x9be05a, a).strokeRoundedRect(x - 54, y - 54, 108, 108, 22);
-      // little lightning bolt badge, top-right
-      this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x + 38, y - 38, 15).fillStyle(0x9be05a, 1).fillCircle(x + 38, y - 38, 12);
-      this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x + 40, y - 48, x + 32, y - 36, x + 39, y - 36).fillTriangle(x + 37, y - 40, x + 44, y - 40, x + 36, y - 28);
-    });
-    // Amplifier / Signal Beacon mark: violet ring + up-arrow badge (top-left) until the marked machine fires (g.amp is cleared on use)
-    this.s.grid.forEach((g, idx) => {
-      if (!g?.amp) return;
-      const { x, y } = cellXY(idx);
-      const a = 0.6 + 0.4 * Math.sin(t * 6 + 1.5);
-      this.primeG.lineStyle(5, 0xd2b4ff, a).strokeRoundedRect(x - 49, y - 49, 98, 98, 20);
-      this.primeG.fillStyle(0x2b1d2e, 1).fillCircle(x - 38, y - 38, 15).fillStyle(0xd2b4ff, 1).fillCircle(x - 38, y - 38, 12);
-      this.primeG.fillStyle(0x2b1d2e, 1).fillTriangle(x - 38, y - 47, x - 46, y - 37, x - 30, y - 37).fillRect(x - 41, y - 38, 6, 9);
+      if (g.amp) drawAmpMark(this.primeG, x, y, 0.6 + 0.4 * Math.sin(t * 6 + 1.5));
+      if (g.primed) drawPrimeMark(this.primeG, x, y, 0.6 + 0.4 * Math.sin(t * 6), 1, g.amp ? SLOT.helper2 : SLOT.helper);
     });
     // idle life (ChatGPT r10 #8): only two gadgets act at once, each for ~420ms, on a 1800-2600ms cosmetic beat
     const now = this.time.now;
@@ -1810,6 +1884,9 @@ Now beat the real level.`, this.coachY());
     if (!odByChain() && s.odCharge === odNeeded(s) - 1 && s.odLeft <= 0) this.tip('overdrive', 'One more merge fills the bolt meter:\nOVERDRIVE, cannons fire super fast!');
     if (occ >= 23) this.tip('full', 'Board filling up! Merge pairs,\nor drag junk onto SCRAP.', { x: SCRAP_X, y: TRAY_Y - 30 });
     if (s.timeLeft < 30 && s.target >= 0) this.tip('clock', '30 seconds left!\nGo for the biggest chains you can.');
+    // clarity pass 1: the first time a boost / charge / power-up sits on the board, point at it and say what it does
+    const mt = markTip(s.grid, this.meta.tips, s);
+    if (mt) this.tip(mt.id, mt.text, cellXY(mt.idx));
     if (s.stage?.i === 1 && !s.goal) this.tip('next_machine', 'Machine 2! Your board stays.\nBeat every machine before the clock runs out.', { x: W - CLOCK_X, y: HP_Y });
   }
 
@@ -2514,7 +2591,7 @@ Now beat the real level.`, this.coachY());
           g.lineStyle(6, ic, 0.6 + 0.4 * Math.sin(this.time.now / 150)).strokeRoundedRect(cx - CELL / 2 + 5, cy - CELL / 2 + 5, CELL - 10, CELL - 10, 16);
         });
     }
-    // owner badges (upper-left, clear of the rank plate) + pips for OVERCHARGE
+    // owner badges (top-centre slot, clear of the helper marks and the rank plate) + pips for OVERCHARGE
     const seen = new Set<number>();
     for (const x of s.grid) {
       if (!x?.item) continue;
@@ -2534,7 +2611,7 @@ Now beat the real level.`, this.coachY());
         b.setScale(0.2);
         this.tweens.add({ targets: b, scale: 1, duration: 180, ease: 'Back.Out' });
       }
-      b.setPosition(v.x - CELL / 2 + 22, v.y - CELL / 2 + 20).setVisible(v.visible);
+      b.setPosition(v.x + SLOT.item.x, v.y + SLOT.item.y).setVisible(v.visible);
       const pg = b.getByName('pips') as Phaser.GameObjects.Graphics;
       pg.clear();
       if (x.item.kind === 'overcharge') for (let k = 0; k < x.item.charges; k++) pg.fillStyle(0x2b1d2e, 1).fillCircle(-8 + k * 16, 26, 7).fillStyle(0xffcf33, 1).fillCircle(-8 + k * 16, 26, 5);
@@ -6516,7 +6593,62 @@ Merge them into a RANK ${rank}!`, this.coachY());
     { key: 'signal_beacon', title: 'SIGNAL BEACON', role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere on the board: their next hits are x1.15.', tryThis: 'Fire it early in a chain.', unlock: 999 },
     { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Get halfway through a level and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
     { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges a shooter next to it (Cannon, Rocket, Mortar, Arc Welder): that shooter\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest shooter.', unlock: 17 },
+    // clarity pass 1 legend: every mark drawn with the board's own code (see marksLegend)
+    { key: 'marks', title: 'BOARD MARKS', role: 'SPECIAL', text: '', tryThis: 'Tap any machine to see its marks and what a merge does with them.', unlock: 0 },
   ];
+
+  /** Board marks legend: a mini cell per mark, drawn with the same functions / art as the board, one sentence each. */
+  marksLegend(c: Phaser.GameObjects.Container, top: number) {
+    const cs = 84, k = cs / CELL, x = 118;
+    const rows: { label: string; text: string; fam: string; draw: (g: Gfx, x: number, y: number) => Phaser.GameObjects.GameObject[] | void }[] = [
+      { label: 'BOOSTED', fam: 'cannon_2', text: 'Amplifier (x1.3) or Beacon (x1.15): its next hit is stronger. Used when it fires, a merge too.', draw: (g, x, y) => drawAmpMark(g, x, y, 1, k) },
+      { label: 'CHARGED', fam: 'cannon_2', text: 'From a Battery: this shooter\'s next chain shot is x1.5. Used when it fires, a merge too.', draw: (g, x, y) => drawPrimeMark(g, x, y, 1, k) },
+      {
+        label: 'POWER-UP', fam: 'cannon_2', text: 'A power-up from your tray. The dots are uses left; it moves with the machine when you merge.',
+        draw: (g, x, y) => {
+          const bx = x + SLOT.item.x * k, by = y + SLOT.item.y * k;
+          for (let n = 0; n < 2; n++) g.fillStyle(0x2b1d2e, 1).fillCircle(bx - 8 * k + n * 16 * k, by + 26 * k, 7 * k).fillStyle(0xffcf33, 1).fillCircle(bx - 8 * k + n * 16 * k, by + 26 * k, 5 * k);
+          if (!this.textures.exists('item_badge_overcharge')) return;
+          const im = this.add.image(bx, by, 'item_badge_overcharge');
+          return [im.setScale((40 * k) / Math.max(im.width, im.height))];
+        },
+      },
+      {
+        label: 'MAX', fam: 'cannon_6', text: 'Top rank: it can\'t merge any higher. In levels, two MAX parts squash into one.',
+        draw: (_g, x, y) => {
+          if (!this.hasArt('crown')) return;
+          const im = this.add.image(x + SLOT.crown.x * k, y + SLOT.crown.y * k, 'crown');
+          return [im.setScale(Math.min((48 * k) / im.width, (48 * k) / im.height)).setAngle(15)];
+        },
+      },
+      { label: 'BOSS WARNING', fam: 'coil_2', text: 'A boss attack lands here when the countdown ends. Move or merge the machine first.', draw: (g, x, y) => drawBossCell(g, x - cs / 2 + 4, y - cs / 2 + 4, cs - 8, true, 1, 0) },
+      {
+        label: 'BOSS EFFECT', fam: 'coil_2', text: 'An attack is on this cell now. Each attack has its own colour and icon: tap the machine to read it.',
+        draw: (g, x, y) => {
+          drawBossCell(g, x - cs / 2 + 4, y - cs / 2 + 4, cs - 8, false, 1, ATTACK_TINT.clamp);
+          if (!this.hasArt(ATTACK_ICON.clamp)) return;
+          const im = this.add.image(x + SLOT.bossIcon.x * k, y + SLOT.bossIcon.y * k, ATTACK_ICON.clamp);
+          return [im.setScale((44 * k) / Math.max(im.width, im.height))];
+        },
+      },
+    ];
+    rows.forEach((r, i) => {
+      const y = top + 226 + i * 90;
+      const under = this.add.graphics().fillStyle(0xb98a5e, 0.35).fillRoundedRect(x - cs / 2 + 4, y - cs / 2 + 4, cs - 8, cs - 8, 14);
+      const boss = r.label.startsWith('BOSS');
+      const g = this.add.graphics();
+      // boss tints sit under the machine (as on the board); helper marks sit over it
+      const extra = boss ? r.draw(under, x, y) : undefined;
+      c.add(under);
+      const key = this.textures.exists(r.fam) ? r.fam : 'cannon_1';
+      c.add(this.fitVisible(this.add.image(x, y, key), cs - 14));
+      const more = boss ? extra : r.draw(g, x, y);
+      c.add(g);
+      if (more) c.add(more);
+      c.add(this.add.text(x + 64, y - 30, r.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a' }).setOrigin(0, 0.5));
+      c.add(this.add.text(x + 64, y - 14, r.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: '#3b2533', wordWrap: { width: W - x - 64 - 70 }, lineSpacing: 1 }).setOrigin(0, 0));
+    });
+  }
 
   guideUnlocked(unlock: number) {
     return unlock <= 1 || this.currentLevel() >= unlock || !!this.meta.hardUnlocked;
@@ -6534,7 +6666,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, top + 108, open ? pg.title : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
     const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a', SPECIAL: '#e0a020' }[pg.role] ?? '#8a6a4a';
     c.add(this.add.text(W / 2, top + 160, pg.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: roleCol, padding: { x: 14, y: 4 } }).setOrigin(0.5));
-    if (open && pg.key === 'items') {
+    if (open && pg.key === 'marks') {
+      this.marksLegend(c, top);
+      c.add(this.add.text(W / 2, top + 762, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    } else if (open && pg.key === 'items') {
       (['overcharge', 'spark', 'corner'] as const).forEach((k, i) => {
         const im = this.add.image(W / 2 + (i - 1) * 150, top + 330, `item_${k}`);
         im.setScale(110 / Math.max(im.width, im.height));
@@ -6575,7 +6710,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const ox = cx - (COLS_D * cs) / 2 + cs / 2, oy = cy - (ROWS_D * cs) / 2 + cs / 2 + 40;
     const at = (r: number, k: number) => ({ x: ox + k * cs, y: oy + r * cs });
     // [family, row, col]; links: [fromPiece, toPiece, depth]; merge: piece slides onto piece at depth 0; slide: piece moves to [r,c]
-    type Demo = { pieces: [string, number, number][]; links: [number, number, number][]; merge?: [number, number]; slide?: [number, number, number, number]; big?: number[]; charged?: number };
+    // charged: piece carrying a mark (drawn with the board's own mark code: Battery 'prime' or Amplifier/Beacon 'amp'), spent when it fires
+    type Demo = { pieces: [string, number, number][]; links: [number, number, number][]; merge?: [number, number]; slide?: [number, number, number, number]; big?: number[]; charged?: number; mark?: 'prime' | 'amp' };
     const D: Record<string, Demo> = {
       chain: { pieces: [['coil', 1, 0], ['coil', 1, 1], ['cannon', 1, 3], ['bell', 0, 1], ['cannon', 0, 4], ['cannon', 2, 4]], merge: [0, 1], links: [[1, 2, 1], [1, 3, 1], [3, 4, 2]] },
       cannon: { pieces: [['cannon', 1, 1], ['cannon', 1, 2], ['cannon', 0, 4]], merge: [0, 1], links: [] },
@@ -6583,14 +6719,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
       bell: { pieces: [['bell', 1, 2], ['cannon', 1, 0], ['coil', 1, 4], ['cannon', 1, 3], ['cannon', 0, 2], ['cannon', 2, 1]], links: [[0, 1, 1], [0, 2, 1], [0, 3, 1]] },
       rocket: { pieces: [['coil', 1, 1], ['rocket', 1, 3], ['rocket', 0, 4]], links: [[0, 1, 1]], big: [1] },
       magnet: { pieces: [['magnet', 1, 1], ['cannon', 1, 4], ['cannon', 0, 0]], links: [], slide: [1, 1, 2, 1] },
-      battery: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['battery', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, big: [1] },
+      battery: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['battery', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, mark: 'prime', big: [1] },
       fan: { pieces: [['fan', 1, 1], ['cannon', 1, 2], ['coil', 0, 4]], links: [], slide: [1, 1, 3, 1] },
       horn: { pieces: [['horn', 1, 2], ['cannon', 0, 2], ['cannon', 2, 2], ['cannon', 1, 0]], links: [[0, 1, 1], [0, 2, 1]] },
       fuse_box: { pieces: [['fuse_box', 1, 2], ['cannon', 0, 1], ['cannon', 2, 3], ['cannon', 1, 3]], links: [[0, 1, 1], [0, 2, 1]] },
       mortar: { pieces: [['coil', 1, 0], ['bell', 1, 2], ['mortar', 1, 4]], links: [[0, 1, 1], [1, 2, 2]], big: [2] },
       arc_welder: { pieces: [['coil', 1, 1], ['arc_welder', 1, 3], ['cannon', 0, 4]], links: [[0, 1, 1], [1, 2, 2]] },
-      amplifier: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['amplifier', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, big: [1] },
-      signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, big: [1] },
+      amplifier: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['amplifier', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
+      signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();
@@ -6614,18 +6750,22 @@ Merge them into a RANK ${rank}!`, this.coachY());
     });
     const fx = this.add.graphics();
     c.add(fx);
-    if (d.charged !== undefined) {
-      const p = imgs[d.charged];
-      fx.lineStyle(5, 0x7ccf2e, 1).strokeCircle(p.x, p.y, cs / 2 - 4);
-    }
     const isShooter = (f: string) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder';
     const base = d.pieces.map(([, r, k]) => at(r, k));
+    const drawMark = () => {
+      fx.clear();
+      if (d.charged === undefined) return;
+      const p = base[d.charged];
+      (d.mark === 'amp' ? drawAmpMark : drawPrimeMark)(fx, p.x, p.y, 1, cs / CELL);
+    };
+    drawMark();
     const timers: Phaser.Time.TimerEvent[] = [];
     const STEP = 420;
     const play = () => {
       if (!c.active) return;
       // reset
       imgs.forEach((im, i) => im.setPosition(base[i].x, base[i].y).setAlpha(1).setTint(0xffffff));
+      drawMark();
       const zap = this.add.graphics();
       c.add(zap);
       const fire = (i: number, depth: number) => {
@@ -6634,6 +6774,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
             if (!c.active) return;
             const im = imgs[i];
             this.tweens.add({ targets: im, scale: im.scale * 1.22, duration: 110, yoyo: true });
+            if (i === d.charged) fx.clear(); // the mark is spent on this shot
             if (isShooter(d.pieces[i][0])) {
               const big = d.big?.includes(i);
               const b = this.add.circle(im.x, im.y, big ? 16 : 10, big ? 0xff8a3c : 0xffcf33);
@@ -6803,23 +6944,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const pulse = warn ? 0.55 + 0.45 * Math.abs(Math.sin(this.time.now / 250)) : 0.9;
       const byIds = tgt.ids ? tgt.ids.map((id) => this.s.grid.findIndex((g) => g?.id === id)).filter((i) => i >= 0) : null;
       const cellsOf = (): number[] => (byIds ? byIds : tgt.cells ? tgt.cells : tgt.row !== undefined ? [0, 1, 2, 3, 4].map((c) => tgt.row! * COLS + c) : tgt.col !== undefined ? [0, 1, 2, 3, 4, 5].map((r) => r * COLS + tgt.col!) : []);
-      const coral = 0xff684a, plum = 0x6a3a8a;
+      const coral = 0xff684a, tint = ATTACK_TINT[atk];
       const terrain = !warn && (atk === 'slick' || atk === 'portals' || atk === 'tow');
       if (terrain) this.drawTerrain(atk, tgt, byIds ?? [], g);
       for (const c of terrain ? [] : cellsOf()) {
         const { x, y } = cellXY(c);
-        const x0 = x - CELL / 2 + 6, y0 = y - CELL / 2 + 6, sz = CELL - 12;
-        if (warn) {
-          // dashed coral boundary, pulsing 2 Hz
-          gu.lineStyle(5, coral, pulse);
-          for (let d = 0; d < sz; d += 22) {
-            gu.lineBetween(x0 + d, y0, Math.min(x0 + d + 12, x0 + sz), y0).lineBetween(x0 + d, y0 + sz, Math.min(x0 + d + 12, x0 + sz), y0 + sz);
-            gu.lineBetween(x0, y0 + d, x0, Math.min(y0 + d + 12, y0 + sz)).lineBetween(x0 + sz, y0 + d, x0 + sz, Math.min(y0 + d + 12, y0 + sz));
-          }
-        } else {
-          gu.fillStyle(plum, 0.55).fillRoundedRect(x0, y0, sz, sz, 16);
-          gu.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
-        }
+        // warning: dashed coral boundary, pulsing 2 Hz; active: the attack's own tint (clarity pass 1)
+        drawBossCell(gu, x - CELL / 2 + 6, y - CELL / 2 + 6, CELL - 12, warn, pulse, tint);
         void col;
       }
       // r27 movement previews: where things will go
@@ -6840,7 +6971,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
         else {
           // r30: ransom clocks on both machines + a dashed tether: "wake these two together"
           const late = (bs.pending?.deadline ?? 0) - this.s.elapsed < 0.75;
-          const rc = late ? 0xff4b3e : 0x9a63ff;
+          const rc = late ? 0xff4b3e : ATTACK_TINT.ransom; // amber, not the Amplifier's purple
           const rp = late ? 0.5 + 0.5 * Math.abs(Math.sin(this.time.now / 40)) : 1;
           for (const q of [a1, a2]) g.lineStyle(5, rc, rp).strokeRoundedRect(q.x - CELL / 2 + 5, q.y - CELL / 2 + 5, CELL - 10, CELL - 10, 14);
           const steps = 10;
@@ -6865,8 +6996,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
         g.lineStyle(5, 0xffd2c8, pulse).strokeCircle(d.x, d.y, CELL / 2 - 14);
       }
       if (warn && atk === 'mirror' && tgt.cells) {
-        arrow(tgt.cells[0], tgt.cells[1], 0xd9c2ff);
-        arrow(tgt.cells[1], tgt.cells[0], 0xd9c2ff);
+        arrow(tgt.cells[0], tgt.cells[1], 0x7ff0e0); // mint (was lavender, too close to the Amplifier mark)
+        arrow(tgt.cells[1], tgt.cells[0], 0x7ff0e0);
       }
       if (warn && atk === 'conveyor' && tgt.row !== undefined) for (let c = 0; c < COLS - 1; c++) arrow(tgt.row * COLS + c, tgt.row * COLS + c + 1);
       if (warn && atk === 'bomb' && tgt.cells) {
@@ -6883,7 +7014,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
         if (warn) {
           g.lineStyle(5, coral, pulse);
           for (let yy = BY - 8; yy < BY + CELL * ROWS + 8; yy += 26) g.lineBetween(x, yy, x, Math.min(yy + 14, BY + CELL * ROWS + 8));
-        } else g.lineStyle(14, plum, 1).lineBetween(x, BY - 8, x, BY + CELL * ROWS + 8).lineStyle(4, coral, 1).lineBetween(x - 7, BY - 8, x - 7, BY + CELL * ROWS + 8).lineBetween(x + 7, BY - 8, x + 7, BY + CELL * ROWS + 8);
+        } else g.lineStyle(14, tint, 1).lineBetween(x, BY - 8, x, BY + CELL * ROWS + 8).lineStyle(4, coral, 1).lineBetween(x - 7, BY - 8, x - 7, BY + CELL * ROWS + 8).lineBetween(x + 7, BY - 8, x + 7, BY + CELL * ROWS + 8);
       }
       const anchor = cellsOf()[0] ?? (tgt.boundary !== undefined ? tgt.boundary : 0);
       const ac = tgt.boundary !== undefined ? { x: BX + (tgt.boundary + 1) * CELL + CELL / 2 - 18, y: BY + CELL / 2 - 10 } : cellXY(anchor);
@@ -6895,11 +7026,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
         }
         // r23: an active clamp physically sits ON the machine (big, centred); otherwise a corner badge
         const onIt = !warn && atk === 'clamp';
-        im.setVisible(true).setPosition(onIt ? ac.x + 10 : ac.x - CELL / 2 + 18, onIt ? ac.y - 14 : ac.y - CELL / 2 + 18);
+        // clarity pass 1: corner badge in the boss column (right-middle), under the TR countdown, clear of the helper marks
+        im.setVisible(true).setPosition(onIt ? ac.x + 10 : tgt.boundary !== undefined ? ac.x - CELL / 2 + 18 : ac.x + SLOT.bossIcon.x, onIt ? ac.y - 14 : tgt.boundary !== undefined ? ac.y - CELL / 2 + 18 : ac.y + SLOT.bossIcon.y);
         im.setScale((onIt ? CELL * 0.6 : 44) / Math.max(im.width, im.height));
       }
       const left = warn ? Math.max(0, (bs.pending!.deadline - this.s.elapsed)) : Math.max(0, bs.active!.until - this.s.elapsed);
-      this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + CELL / 2 - 24, ac.y - CELL / 2 + 20).setFontSize(26).setVisible(true);
+      // TR slot; kept clear of the top-centre power-up badge
+      this.remixText.setText(warn ? String(Math.ceil(left)) : left.toFixed(1)).setPosition(ac.x + SLOT.boss.x + 6, ac.y - CELL / 2 + 20).setFontSize(warn ? 26 : 22).setVisible(true);
       const what = ATTACK_COPY[atk].what;
       const missed = !warn && atk === 'clamp' && cellsOf().every((c) => !this.s.grid[c]);
       const why = missed ? 'it missed! that cell is blocked' : ATTACK_COPY[atk].why;
@@ -6939,9 +7072,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (this.hasArt('ui_bubble')) icon('ui_bubble', bx, by - 4, 50, 0, 1, 48);
       else g.fillStyle(0xfff0cf, 1).fillCircle(bx, by, 22).lineStyle(4, 0x2a2233, 1).strokeCircle(bx, by, 22);
       this.remixText.setText(String(secs)).setPosition(bx, by - 8).setFontSize(26).setVisible(true);
-      if (sideIcon) icon(sideIcon, x - HALF + 10, y - HALF + 10, 38, 0, 0.95, 48);
+      if (sideIcon) icon(sideIcon, x + SLOT.bossIcon.x, y + SLOT.bossIcon.y + 6, 38, 0, 0.95, 48);
     };    const coral = 0xf05c45;
-    const purple = 0x8e58c9;
+    const purple = 0x4f6d8f; // remix locks: slate blue since clarity pass 1 (purple reads as the Amplifier mark)
     let lane: string | null = null;
     if (r.pending) {
       const left = Math.max(0, r.pending.deadline - this.s.elapsed);

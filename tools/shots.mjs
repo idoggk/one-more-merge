@@ -307,6 +307,33 @@ const states = {
     },
     500,
   ],
+  // clarity pass 1: board marks (amp + item on one cannon, prime on another), their inspect card, guide + legend
+  marks_board: [
+    (sc) => {
+      clearInterval(window.__bot);
+      sc.closeModal();
+      sc.coach.clear();
+      sc.explaining = false;
+      sc.explainQueue = [];
+      sc.meta.tips = new Proxy({}, { get: () => true, set: () => true });
+      sc.retry(false, -1);
+      sc.finishIntro(true);
+      const s = sc.s;
+      const mk = (f, r, x = {}) => ({ id: s.nextId++, family: f, rank: r, cd: 30, ...x });
+      s.grid.fill(null);
+      Object.assign(s.grid, { 12: mk('cannon', 3, { amp: 1.3, item: { kind: 'overcharge', charges: 2 } }), 13: mk('amplifier', 1), 17: mk('cannon', 2, { primed: true, amp: 1.15 }), 16: mk('battery', 1), 7: mk('coil', 2), 22: mk('bell', 1) });
+      sc.reconcile(true);
+    },
+    900,
+  ],
+  marks_inspect: [(sc) => sc.openInspect(12), 600],
+  marks_tip: [(sc) => { sc.closeInspect?.(); sc.meta.tips = { delivery: true, overdrive: true, full: true, clock: true, next: true, next_machine: true, tap_hint: true }; sc.paused = false; }, 1400],
+  marks_boss_hot: [(sc) => { sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); const s = sc.s; s.boss = { def: 3, next: 99, phaseShown: 0, pending: null, active: { col: 2, until: s.elapsed + 30 } }; sc.paused = true; }, 600],
+  marks_boss_inspect: [(sc) => { sc.openInspect(17); }, 600],
+  marks_boss_clamp: [(sc) => { sc.closeInspect(); const s = sc.s; s.boss = { def: 0, next: 99, phaseShown: 0, pending: null, active: { cells: [12], until: s.elapsed + 30 } }; sc.paused = true; }, 600],
+  marks_guide_amp: [(sc) => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.hardUnlocked = true; sc.meta.units = { ...(sc.meta.units ?? {}), amplifier: { level: 1, cards: 0 }, signal_beacon: { level: 1, cards: 0 }, battery: { level: 1, cards: 0 } }; sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'amplifier')); }, 350],
+  marks_guide_battery: [(sc) => { sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'battery')); }, 350],
+  marks_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks'))); }, 900],
   intro_mid: [
     (sc) => {
       sc.closeModal();

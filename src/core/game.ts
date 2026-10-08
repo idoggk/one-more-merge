@@ -1161,6 +1161,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.stats.kickFuses++;
     const g = makeGadget(s, old.family, old.rank + 1);
     if (old.primed) g.primed = true;
+    if (old.amp) g.amp = old.amp; // amp mark survives the fuse, as on a merge
     if (old.item) g.item = { ...old.item };
     if (g.family === 'cannon') g.cd = cannonPeriod(s);
     s.grid[pick.idx] = g;
