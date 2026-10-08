@@ -454,15 +454,20 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointermove', this.onMove, this);
     this.input.on('pointerup', this.onUp, this);
     this.input.on('pointerupoutside', this.onUp, this);
-    this.input.on('gameout', () => this.cancelDrag());
+    // no cancel on 'gameout': a finger that slides off the canvas (safe-area insets, a scrap overshoot) and comes back,
+    // or lets go out there, still lands where its piece was last shown
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         stopMusic();
         this.save();
         this.cancelDrag();
       }
+      this.freeStalePointers(); // a touch held while the app went away never gets its touchend
       this.acc = 0;
     });
+    // a touch whose touchend never came would keep Phaser's only touch slot busy and every later touch would be
+    // ignored: free it before Phaser sees the next touchstart (window capture runs before the canvas listener)
+    window.addEventListener('touchstart', (e) => this.freeStalePointers(new Set(Array.from(e.touches, (t) => t.identifier))), { capture: true, passive: true });
   }
 
   // ---------- setup ----------
@@ -1090,8 +1095,14 @@ export class GameScene extends Phaser.Scene {
     return best;
   }
 
+  /** Open to the right and below: nothing lies past the zone there, so an overshoot (even off the canvas) still scraps. */
   overScrap(x: number, y: number) {
-    return Math.abs(x - SCRAP_X) < 70 && Math.abs(y - TRAY_Y) < 50;
+    return x - SCRAP_X > -70 && y - TRAY_Y > -50;
+  }
+  /** The SCRAP zone is on screen (not in levels 1-3, puzzles or the tutorial). */
+  scrapShown() {
+    const s = this.s;
+    return s.phase !== 'tutorial' && !s.puzzle && !(s.level !== undefined && s.level < 4);
   }
   /** r28: the cast character drawn for a level (only when its art exists). */
   castOf(level?: number) {
@@ -1171,7 +1182,10 @@ export class GameScene extends Phaser.Scene {
     if (bossBlocked(this.s.boss).noDrag.has(idx)) {
       // r23: a clamped machine explains itself when touched
       const v = this.views.get(this.s.grid[idx]!.id);
-      if (v) this.tweens.add({ targets: v, x: v.x + 8, duration: 50, yoyo: true, repeat: 3 });
+      if (v) {
+        const c = this.restPart(v, idx);
+        this.tweens.add({ targets: v, x: c.x + 8, duration: 50, yoyo: true, repeat: 3 });
+      }
       sfx.invalid();
       const left = Math.max(0, (this.s.boss!.active!.until ?? 0) - this.s.elapsed);
       const cp = cellXY(idx);
@@ -1216,15 +1230,23 @@ export class GameScene extends Phaser.Scene {
       this.hoverIdx = h;
       this.drawHeld();
     }
-    if (this.heldOverScrap(p) !== (this.scrapHold > 0 || this.overScrapFlag)) {
-      this.overScrapFlag = this.heldOverScrap(p);
+    const over = this.heldOverScrap(p);
+    if (over !== (this.scrapHold > 0 || this.overScrapFlag)) {
+      this.overScrapFlag = over;
       this.scrapHold = 0;
     }
   }
   /** SCRAP test for a held piece: the zone keeps its place relative to the PIECE whatever the lift, so a higher
-   *  touch lift never turns a drop on the bottom-right cell into a scrap. */
+   *  touch lift never turns a drop on the bottom-right cell into a scrap. Only where the zone is shown, and a
+   *  highlighted merge always wins over it. */
   heldOverScrap(p: Phaser.Input.Pointer) {
-    return this.overScrap(p.worldX, p.worldY - (this.lift - DRAG_LIFT));
+    return this.scrapShown() && !this.mergeHighlighted() && this.overScrap(p.worldX, p.worldY - (this.lift - DRAG_LIFT));
+  }
+  /** The held piece is over a cell it can merge with (that cell wears the merge highlight). */
+  mergeHighlighted() {
+    const a = this.dragIdx >= 0 ? this.s.grid[this.dragIdx] : null;
+    const b = this.hoverIdx >= 0 && this.hoverIdx !== this.dragIdx ? this.s.grid[this.hoverIdx] : null;
+    return !!a && !!b && canMerge(a, b, this.s);
   }
   overScrapFlag = false;
   dragShadow?: Phaser.GameObjects.Ellipse;
@@ -1277,13 +1299,16 @@ export class GameScene extends Phaser.Scene {
     const dest = this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX, p.worldY - this.lift);
     const ga = this.s.grid[from], gb = dest >= 0 ? this.s.grid[dest] : null;
     tlog.log('drag_end', { from, to: dest, highlighted: this.hoverIdx, legal: !!(ga && gb && canMerge(ga, gb, this.s)), kind: !gb ? 'move' : ga && canMerge(ga, gb, this.s) ? 'merge' : 'mismatch', ms: Math.round(this.time.now - this.liftAt) });
+    // SCRAP as last shown (the release may come from off the canvas), never over a merge
+    const merge = dest !== from && !!ga && !!gb && canMerge(ga, gb, this.s);
+    const scrap = this.s.phase === 'playing' && !merge && (this.overScrapFlag || this.heldOverScrap(p));
     this.dragShadow?.setVisible(false);
     view?.setAngle(0);
     this.dragIdx = -1;
     this.hoverIdx = -1;
     this.dragView = null; // must be cleared BEFORE commitDrop so reconcile() animates this piece into its new cell
     if (view) view.setDepth(10);
-    if (this.heldOverScrap(p) && this.s.phase === 'playing') {
+    if (scrap) {
       const g = this.s.grid[from];
       const needsHold = g && g.rank >= 3;
       if (!needsHold || this.scrapHold >= 0.25) this.doScrap(from, id);
@@ -1314,6 +1339,7 @@ export class GameScene extends Phaser.Scene {
    *  the held part is one of them. Call it BEFORE animating a removed sprite away. The finger then holds nothing,
    *  and its release is a no-op. */
   cancelDrag(ids?: readonly number[]) {
+    if (!ids) this.itemDrag = null; // a held power-up is dropped too (it is never on the board, so `ids` never name it)
     if (ids && (this.dragIdx < 0 || !ids.includes(this.dragId))) return;
     if (this.dragIdx >= 0) this.snapBack(this.dragView, this.dragIdx);
     this.dragShadow?.setVisible(false);
@@ -1324,6 +1350,33 @@ export class GameScene extends Phaser.Scene {
     this.overScrapFlag = false;
     this.scrapHold = 0;
     this.drawHeld();
+  }
+
+  /** Frees every touch pointer not in `live` (Phaser has one touch slot; a lost touchend would hold it forever) and
+   *  drops whatever that touch was holding. */
+  freeStalePointers(live: ReadonlySet<number> = new Set()) {
+    let freed = false;
+    for (const p of this.input.manager.pointers)
+      if (p.id > 0 && p.active && !live.has(p.identifier)) {
+        p.reset();
+        freed = true;
+      }
+    if (freed) this.cancelDrag();
+  }
+  /** Stops a part's tweens and puts it back to rest on `idx`'s cell; a shake started from there always ends there. */
+  restPart(v: GadgetView, idx: number) {
+    const c = cellXY(idx);
+    this.tweens.killTweensOf(v);
+    v.setPosition(c.x, c.y).setScale(1).setAngle(0);
+    return c;
+  }
+  /** Pulses a part's rank label from its rest size: a repeat restarts the pulse instead of stacking on a half-grown label. */
+  pulseRank(id: number, scale: number, duration: number, repeat = 0, ease = 'Linear') {
+    const rv = this.views.get(id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
+    if (!rv) return;
+    this.tweens.killTweensOf(rv);
+    rv.setScale(1);
+    this.tweens.add({ targets: rv, scale, duration, yoyo: true, repeat, ease });
   }
 
   /** Finger is on a part (held or about to drag) or on the power-up. */
@@ -1355,13 +1408,10 @@ export class GameScene extends Phaser.Scene {
       tlog.log('mismatch_bounce', { a: `${a.family}${a.rank}`, b: `${b.family}${b.rank}` });
       const msg = a.family === b.family ? `Rank ${a.rank} ≠ Rank ${b.rank}: merge the SAME number` : 'Merge the SAME gadget with the SAME number';
       this.showEvent(msg, '#ffd2c8', 1600);
-      for (const g of a.family === b.family ? [a, b] : []) {
-        const rv = this.views.get(g.id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
-        if (rv) this.tweens.add({ targets: rv, scale: 1.5, duration: 140, yoyo: true, repeat: 1 });
-      }
+      for (const g of a.family === b.family ? [a, b] : []) this.pulseRank(g.id, 1.5, 140, 1);
       const bv = this.views.get(b.id);
       if (bv && !REDUCED_MOTION) {
-        const c = cellXY(to);
+        const c = this.restPart(bv, to);
         this.tweens.chain({ targets: bv, tweens: [{ x: c.x + 4, duration: 45 }, { x: c.x - 4, duration: 45 }, { x: c.x, duration: 45 }] });
       }
       return false;
@@ -1425,8 +1475,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(120, () => {
           sfx.rankUp(ng.rank);
           if (ng.rank >= capOf(this.s, ng.family)) this.floatText(x, y - 64, 'MAX!', '#ffcf33', 30, 200);
-          const rv = this.views.get(ng.id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
-          if (rv) this.tweens.add({ targets: rv, scale: 1.5, duration: 90, yoyo: true, ease: 'Quad.Out' });
+          this.pulseRank(ng.id, 1.5, 90, 0, 'Quad.Out');
           this.ring(x, y, FAMILY_INFO[ng.family].color, 110, 16, 420);
         });
       }
@@ -1451,10 +1500,7 @@ Now beat the real level.`, this.coachY());
       if (a && b && a.family === b.family && a.rank !== b.rank) {
         this.showEvent(`Swapped. Merging needs the SAME number (${a.rank} ≠ ${b.rank})`, '#ffd2c8', 2600);
         tlog.log('rank_mismatch', { fam: a.family, a: a.rank, b: b.rank });
-        for (const id of [a.id, b.id]) {
-          const rv = this.views.get(id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
-          if (rv) this.tweens.add({ targets: rv, scale: 1.6, duration: 160, yoyo: true, repeat: 2 });
-        }
+        for (const id of [a.id, b.id]) this.pulseRank(id, 1.6, 160, 2);
       } else if (a && b && a.family !== b.family) this.showEvent('Swapped. Merge two of the SAME gadget', '#fff0cf', 1600);
       tlog.log('move', { swap: !!b });
       this.reconcile();
@@ -1650,7 +1696,7 @@ Now beat the real level.`, this.coachY());
       if (this.dragIdx >= 0 && this.moved && this.overScrapFlag) this.scrapHold += dms / 1000;
       if (this.s.phase === 'playing') this.idleTime += dms / 1000;
     }
-    if (this.dragIdx >= 0 && !this.input.activePointer.isDown) this.onUp(this.input.activePointer); // (onUp cancels on touchcancel)
+    if ((this.dragIdx >= 0 || this.itemDrag) && !this.input.activePointer.isDown) this.onUp(this.input.activePointer); // (onUp cancels on touchcancel)
     else if (this.dragIdx >= 0 && this.moved && this.time.now - this.liftAt < 120) this.placeDrag(this.input.activePointer);
     if (this.heldQueue.length && !this.holding() && !this.modal) {
       const q = this.heldQueue;
@@ -1853,10 +1899,7 @@ Now beat the real level.`, this.coachY());
     const a = this.s.grid[from], b = this.s.grid[to];
     if (this.s.phase !== 'tutorial' || !a || !b || a.family !== b.family || a.rank === b.rank) return false;
     sfx.invalid();
-    for (const id of [a.id, b.id]) {
-      const rv = this.views.get(id)?.getByName('rank') as Phaser.GameObjects.Text | undefined;
-      if (rv) this.tweens.add({ targets: rv, scale: 1.7, duration: 150, yoyo: true, repeat: 2 });
-    }
+    for (const id of [a.id, b.id]) this.pulseRank(id, 1.7, 150, 2);
     this.showEvent(`Rank ${a.rank} ≠ Rank ${b.rank}: no merge`, '#ffd2c8', 2200);
     if (step?.kind === 'mismatch') {
       this.coach.clear();
@@ -2112,7 +2155,7 @@ Now beat the real level.`, this.coachY());
 
     // r18 progressive reveal: overdrive from level 3, scrap from level 4
     const early = s.level !== undefined && s.level < 3;
-    this.scrapZone?.setVisible(!(s.level !== undefined && s.level < 4));
+    this.scrapZone?.setVisible(this.scrapShown());
     // overdrive gauge
     const og = this.odGauge.clear();
     // experiments charge Overdrive by chain links (12 to fill): the 6 pips show the fraction
@@ -2167,7 +2210,7 @@ Now beat the real level.`, this.coachY());
     this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? (earn && supplyGated(s) ? `CHAIN \u2192 +${earn}` : `MERGE \u2192 +${earn}`) : '');
     this.pendingText.setColor(s.pending.length ? '#9e2416' : '#3b2533').setBackgroundColor(this.pendingText.text && !s.pending.length ? '#fbe7c6' : '').setPadding(this.pendingText.text && !s.pending.length ? 10 : 0, 4);
     const tut = s.phase === 'tutorial';
-    this.scrapZone.setVisible(!tut && !s.puzzle && !(s.level !== undefined && s.level < 4));
+    this.scrapZone.setVisible(this.scrapShown());
     this.trayPlate?.setVisible(!tut && !s.puzzle);
     for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut && !s.puzzle);
     this.hintBtn?.setVisible(!!s.puzzle && s.phase === 'playing');
