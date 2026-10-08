@@ -2,10 +2,43 @@
 // copy for every state a part on the board can carry. Pure: the scene draws it (NEW tips, inspect card, guide legend).
 import { COLS, TUNING } from '../content/tuning';
 import { ATTACK_COPY, castAttack, type BossAttack, type BossTarget } from './boss';
-import { canMerge, capOf, type GameState } from './game';
+import { canMerge, capOf, drop, odNeeded, type GameEvent, type GameState } from './game';
 import type { Gadget, Grid, ItemKind } from './types';
 
-export type MarkKey = 'amp' | 'prime' | 'item' | 'cap' | 'boss' | 'remix';
+// Clarity pass 2: ONE COLOUR PER MEANING. The single source for every on-board mark's hue, icon and one-line text;
+// the board, the inspect card, the guide legend and the merge-preview chips all read it. No two meanings share a hue
+// (tests/marks.test.ts checks the spacing). Machine family colours are identity, not marks, and live in perks.ts.
+export type Meaning = 'merge' | 'boost' | 'charge' | 'powerup' | 'max' | 'attack' | 'locked' | 'overdrive' | 'parts';
+export type MarkIcon = 'ring' | 'arrow' | 'bolt' | 'badge' | 'crown' | 'attack' | 'lock' | 'glow' | 'part';
+export const PALETTE: Record<Meaning, { label: string; hue: number; icon: MarkIcon; text: string; now?: string }> = {
+  merge: { label: 'YOUR MERGE', hue: 0xffffff, icon: 'ring', text: 'White = your move: the part you hold, the parts it can merge with, and what that merge will fire.' },
+  boost: { label: 'BOOSTED', hue: 0xd2b4ff, icon: 'arrow', text: 'Amplifier (x1.3) or Beacon (x1.15): its next hit is stronger. Used when it fires or merges.' },
+  charge: { label: 'CHARGED', hue: 0x9be05a, icon: 'bolt', text: "From a Battery: this shooter's next chain shot is x1.5. Used when it fires or merges." },
+  powerup: { label: 'POWER-UP', hue: 0xff4fd8, icon: 'badge', text: 'From your tray. The dots are uses left. It moves to the new machine when you merge.' },
+  max: { label: 'MAX', hue: 0xffcf33, icon: 'crown', text: "Top rank: it can't merge any higher. In levels, two MAX parts squash into one." },
+  attack: { label: 'ATTACK', hue: 0xff684a, icon: 'attack', text: 'Dashed: a boss attack lands here when the countdown ends. Move or merge the machine first.', now: 'Filled: an attack is on now. Each one has its own tint and icon: tap the machine to read it.' },
+  locked: { label: 'LOCKED', hue: 0x4f6d8f, icon: 'lock', text: 'Locked or clamped: it cannot move or merge until the timer runs out.' },
+  overdrive: { label: 'OVERDRIVE', hue: 0xff7200, icon: 'glow', text: 'Merges fill the Overdrive meter; full = Cannons fire fast for a few seconds.' },
+  parts: { label: 'PARTS', hue: 0x3fd9a0, icon: 'part', text: 'New parts this merge earns; they drop in after the chain.' },
+};
+/** Boss attack tints (identity of each attack under the shared ATTACK frame + its icon). Kept off every other meaning's hue. */
+export const ATTACK_TINT: Record<BossAttack, number> = {
+  clamp: PALETTE.locked.hue, frost: 0x3b8fd9, suction: 0x2e9e4a, hot: 0xe84a2c, rest: 0x34477a, split: 0x6e5a48, bomb: 0xc0392b, conveyor: 0x8a9a2f,
+  mirror: 0x1fa5a0, blocks: 0x7a6a5a, pull: 0x2f7fa8, bounce: 0x38a03a, slick: 0x1f8fa8, portals: 0x2ecbe6, tow: 0x8a7656, ransom: 0xe0507a,
+};
+/** Hue in degrees and HSL saturation / lightness (0..1) of a 0xRRGGBB colour. */
+export function hsl(c: number): { h: number; s: number; l: number } {
+  const r = ((c >> 16) & 255) / 255, g = ((c >> 8) & 255) / 255, b = (c & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  const h = d === 0 ? 0 : mx === r ? 60 * (((g - b) / d + 6) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  return { h, s, l };
+}
+export const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+
+export type MarkKey = 'amp' | 'prime' | 'item' | 'cap' | 'boss' | 'remix' | 'lock';
+/** Which meaning (colour) each inspect-card mark kind shows. Remix warnings are opponent attacks too. */
+export const MARK_MEANING: Record<MarkKey, Meaning> = { amp: 'boost', prime: 'charge', item: 'powerup', cap: 'max', boss: 'attack', remix: 'attack', lock: 'locked' };
 export interface MarkLine {
   key: MarkKey;
   /** Short caps label, e.g. BOOSTED. */
@@ -34,8 +67,8 @@ export const ITEM_MARK: Record<ItemKind, { name: string; does: (n: number) => st
 export function markTip(grid: Grid, seen: Record<string, boolean>, s: Pick<GameState, 'unitLevel'> = {}): { id: string; idx: number; text: string } | null {
   const find = (p: (g: Gadget) => boolean) => grid.findIndex((g) => !!g && p(g));
   const tips: { id: string; idx: number; text: (g: Gadget) => string }[] = [
-    { id: 'mark_amp', idx: find((g) => !!g.amp), text: (g) => `BOOSTED: this machine's next hit is ${fmtMult(g.amp!)}.\nMerge or chain it to use the boost.` },
-    { id: 'mark_prime', idx: find((g) => !!g.primed), text: () => `CHARGED: this shooter's next chain shot is ${fmtMult(primeMult(s))}.\nMerge or chain it to use the charge.` },
+    { id: 'mark_amp', idx: find((g) => !!g.amp), text: (g) => `${PALETTE.boost.label}: this machine's next hit is ${fmtMult(g.amp!)}.\nMerge or chain it to use the boost.` },
+    { id: 'mark_prime', idx: find((g) => !!g.primed), text: () => `${PALETTE.charge.label}: this shooter's next chain shot is ${fmtMult(primeMult(s))}.\nMerge or chain it to use the charge.` },
     { id: 'mark_item', idx: find((g) => !!g.item), text: (g) => `POWER-UP ${ITEM_MARK[g.item!.kind].name}: ${ITEM_MARK[g.item!.kind].does(g.item!.charges)}\nThe dots show uses left.` },
   ];
   for (const t of tips) if (t.idx >= 0 && !seen[t.id]) return { id: t.id, idx: t.idx, text: t.text(grid[t.idx]!) };
@@ -58,12 +91,12 @@ export function inspectMarks(s: GameState, idx: number): { marks: MarkLine[]; me
   const now: string[] = [];
   if (!g) return { marks, mergeNow: null };
   if (g.amp) {
-    marks.push({ key: 'amp', label: 'BOOSTED', text: `Its next hit is ${fmtMult(g.amp)} (from an Amplifier or Signal Beacon).` });
+    marks.push({ key: 'amp', label: PALETTE.boost.label, text: `Its next hit is ${fmtMult(g.amp)} (from an Amplifier or Signal Beacon).` });
     now.push(`${fmtMult(g.amp)} boost used on this merge`);
   }
   if (g.primed) {
     const m = fmtMult(primeMult(s));
-    marks.push({ key: 'prime', label: 'CHARGED', text: `Its next chain shot is ${m} (from a Battery).` });
+    marks.push({ key: 'prime', label: PALETTE.charge.label, text: `Its next chain shot is ${m} (from a Battery).` });
     now.push(`${m} charge used on this merge`);
   }
   if (g.item) {
@@ -74,7 +107,7 @@ export function inspectMarks(s: GameState, idx: number): { marks: MarkLine[]; me
   const cap = capOf(s, g.family);
   if (g.rank >= cap) {
     const compact = canMerge(g, { ...g, id: -1 }, s);
-    marks.push({ key: 'cap', label: 'MAX', text: compact ? `Rank ${cap} is the top: two of them merge into one rank ${cap}.` : `Rank ${cap} is the top: it can't merge any higher.` });
+    marks.push({ key: 'cap', label: PALETTE.max.label, text: compact ? `Rank ${cap} is the top: two of them merge into one rank ${cap}.` : `Rank ${cap} is the top: it can't merge any higher.` });
     if (!compact) now.push("it can't merge, it is already the top rank");
   }
   const b = s.boss;
@@ -93,9 +126,68 @@ export function inspectMarks(s: GameState, idx: number): { marks: MarkLine[]; me
     const left = Math.max(0, r.pending.deadline - s.elapsed).toFixed(1);
     marks.push({ key: 'remix', label: r.kind === 'vacuum' ? 'SUCTION' : 'SHOVE', attack: r.kind, text: r.kind === 'vacuum' ? `In ${left}s this part gets sucked up. Move or merge it away to save it.` : `In ${left}s this part gets shoved aside.` });
   }
-  if (r?.lock?.cells.includes(idx)) marks.push({ key: 'remix', label: 'LOCKED', attack: r.kind, text: `Locked for ${Math.max(0, r.lock.until - s.elapsed).toFixed(1)}s: it cannot move or merge.` });
+  if (r?.lock?.cells.includes(idx)) marks.push({ key: 'lock', label: PALETTE.locked.label, attack: r.kind, text: `Locked for ${Math.max(0, r.lock.until - s.elapsed).toFixed(1)}s: it cannot move or merge.` });
   const mergeNow = now.length ? `If you merge now: ${now.join('; ')}.` : marks.length ? 'If you merge now: nothing above is used up.' : null;
   return { marks, mergeNow };
+}
+
+/** One merge-preview chip: `text` big in the meaning's colour, then `sub`; `struck` = that mark is USED UP by this merge. */
+export interface PreviewChip {
+  meaning: Meaning;
+  text: string;
+  sub?: string;
+  struck?: boolean;
+}
+
+/**
+ * Clarity pass 2 merge preview (shown while a held part hovers a match): what THIS merge does, in short words.
+ * Plays the real `drop` on a throwaway copy of the state, so every chip is exactly what the merge would do
+ * (multipliers used, marks used up, marks placed, parts earned, Overdrive charge). Never mutates `s`.
+ */
+export function mergePreview(s: GameState, from: number, to: number): { count: number; chips: PreviewChip[] } | null {
+  const a = s.grid[from], b = s.grid[to];
+  if (!a || !b || from === to || !canMerge(a, b, s)) return null;
+  const c = JSON.parse(JSON.stringify(s)) as GameState;
+  const r = drop(c, from, to, a.id);
+  const ev = r.events.find((e): e is Extract<GameEvent, { type: 'cascade' }> => e.type === 'cascade' && !e.kickback);
+  if (!r.ok || !ev) return null;
+  const res = ev.result;
+  const merged = s.nextId; // the merged part takes the next id; marks on a and b move onto it
+  const pre = new Map(s.grid.filter((g): g is Gadget => !!g).map((g) => [g.id, g]));
+  const before = (id: number) => (id === merged ? { amp: Math.max(a.amp ?? 0, b.amp ?? 0) || undefined, primed: !!(a.primed || b.primed), item: b.item ?? a.item } : pre.get(id));
+  const chips: PreviewChip[] = [{ meaning: 'merge', text: `CHAIN ${res.count}` }];
+  const placed = new Map((res.amps ?? []).map((m) => [m.id, m.mult]));
+  for (const id of res.ampsUsed ?? []) {
+    const had = before(id)?.amp;
+    chips.push({ meaning: 'boost', text: fmtMult(Math.max(had ?? 0, placed.get(id) ?? 0)), sub: 'BOOST', struck: !!had });
+  }
+  for (const id of res.discharged) chips.push({ meaning: 'charge', text: fmtMult(primeMult(s)), sub: 'CHARGE', struck: !!before(id)?.primed });
+  for (const id of res.itemUsed ?? []) {
+    const it = before(id)?.item;
+    if (!it) continue;
+    const left = it.charges - 1, name = ITEM_MARK[it.kind].name;
+    chips.push({ meaning: 'powerup', text: it.kind === 'overcharge' ? 'x2' : '+WAKE', sub: left > 0 ? `${name} ${left} LEFT` : name, struck: left <= 0 });
+  }
+  // two marks of a kind on the merging pair: only one moves onto the new part, the other is lost
+  if (a.amp && b.amp) chips.push({ meaning: 'boost', text: '', sub: 'BOOST', struck: true });
+  if (a.primed && b.primed) chips.push({ meaning: 'charge', text: '', sub: 'CHARGE', struck: true });
+  if (a.item && b.item) chips.push({ meaning: 'powerup', text: '', sub: ITEM_MARK[a.item.kind].name, struck: true });
+  const newAmps = (res.amps ?? []).filter((m) => !m.spent).length;
+  if (newAmps) chips.push({ meaning: 'boost', text: `+${newAmps}`, sub: 'BOOST' });
+  const newPrimes = res.primes.filter((id) => !res.discharged.includes(id)).length;
+  if (newPrimes) chips.push({ meaning: 'charge', text: `+${newPrimes}`, sub: 'CHARGE' });
+  const parts = (c.owed ?? 0) - (s.owed ?? 0);
+  if (parts > 0) chips.push({ meaning: 'parts', text: `+${parts}`, sub: parts === 1 ? 'PART' : 'PARTS' });
+  if (ev.overdriveStart) chips.push({ meaning: 'overdrive', text: 'OVERDRIVE!' });
+  else if (c.odCharge > s.odCharge) chips.push({ meaning: 'overdrive', text: `+${c.odCharge - s.odCharge}`, sub: `OVERDRIVE ${c.odCharge}/${odNeeded(c)}` });
+  // identical chips fold into one ("BOOST x2") so a big chain stays a short row
+  const out: (PreviewChip & { n: number })[] = [];
+  for (const ch of chips) {
+    const same = out.find((o) => o.meaning === ch.meaning && o.text === ch.text && o.sub === ch.sub && !!o.struck === !!ch.struck);
+    if (same) same.n++;
+    else out.push({ ...ch, n: 1 });
+  }
+  return { count: res.count, chips: out.map(({ n, ...ch }) => (n > 1 ? { ...ch, sub: `${ch.sub ?? ''} ×${n}`.trim() } : ch)) };
 }
 
 // Screw Yard 2.0 (t-98293568): the same rule for the yard. Every marker the yard draws has a label, one sentence and
