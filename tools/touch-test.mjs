@@ -45,9 +45,17 @@ async function touchDrag(from, to) {
   await wait(60);
   await page.touchscreen.touchEnd();
 }
-/** Plays the tutorial by touch as the coach asks (drag the shown pair, tap GOT IT); `wrongAt`: at that mismatch step, merge a pair instead. */
-async function playTutorial(wrongAt = -1) {
-  let wrong = false;
+/** Any same-family same-rank pair on the board (a legal merge), or null. */
+const anyPair = () =>
+  page.evaluate(() => {
+    const g = window.__omm.game.scene.getScene('game').s.grid;
+    for (let i = 0; i < g.length; i++) for (let j = 0; j < g.length; j++) if (i !== j && g[i] && g[j] && g[i].family === g[j].family && g[i].rank === g[j].rank) return [i, j];
+    return null;
+  });
+/** Plays the tutorial by touch as the coach asks (drag the shown pair, tap GOT IT); `wrongAt`: at that mismatch step, merge a pair instead;
+ *  `doubleAt`: at that step, make a second merge right after the asked one (before its GOT IT shows). */
+async function playTutorial(wrongAt = -1, doubleAt = -1) {
+  let wrong = false, doubled = false;
   for (let guard = 0; guard < 30; guard++) {
     const t = await tut();
     if (t.phase !== 'tutorial') {
@@ -74,6 +82,11 @@ async function playTutorial(wrongAt = -1) {
       });
     }
     await touchDrag(a, b);
+    if (t.step === doubleAt && !doubled) {
+      doubled = true;
+      const p = await anyPair();
+      if (p) await touchDrag(p[0], p[1]);
+    }
     await wait(1800);
   }
   return tut();
@@ -81,8 +94,13 @@ async function playTutorial(wrongAt = -1) {
 await wait(800);
 let t0 = await tut();
 const t0Tap = await cellScreen(t0.pair?.[0] ?? 0);
-await page.touchscreen.tap(t0Tap.x, t0Tap.y); // a tap is not a drag: nothing breaks, the coach still waits
+await page.touchscreen.tap(t0Tap.x, t0Tap.y); // a tap is not a drag: nothing breaks, the coach says to drag
 await wait(300);
+const tapMsg = await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  return { text: sc.laneMsg.text, live: sc.time.now < sc.laneMsg.until };
+});
+check('tutorial tap says to drag', tapMsg.text === 'DRAG it onto its match!' && tapMsg.live, tapMsg);
 const tEnd = await playTutorial();
 check('fresh player: warm-up starts short and finishes by touch', t0.phase === 'tutorial' && t0.short && tEnd.phase === 'playing' && tEnd.done && tEnd.merges === 0, { t0, tEnd });
 check('iOS haptic switch never takes focus', tEnd.focus === 'BODY' || tEnd.focus === 'CANVAS', tEnd);
@@ -95,6 +113,15 @@ await page.evaluate(() => {
 await wait(800);
 const tFull = await playTutorial(3);
 check('full tutorial: a merge in the mismatch step does not stall it', tFull.phase === 'playing', tFull);
+// full tutorial: two quick merges at the bell step (the 2nd lands in the mismatch step before GOT IT shows) must not lock input
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  while (sc.explaining) sc.nextExplain();
+  sc.startTutorial();
+});
+await wait(800);
+const tDouble = await playTutorial(-1, 2);
+check('full tutorial: two quick merges into the mismatch step do not lock input', tDouble.phase === 'playing', tDouble);
 // a warm-up saved mid-way and reloaded stays the one-merge warm-up
 await page.evaluate(() => {
   const sc = window.__omm.game.scene.getScene('game');

@@ -1630,6 +1630,7 @@ Now beat the real level.`, this.coachY());
     const steps = this.tutorialShort ? GameScene.TUTORIAL.slice(0, 1) : GameScene.TUTORIAL;
     const step = steps[this.tutorialStep];
     this.coach.clear();
+    this.tutorialWaiting = false; // the coach shows no GOT IT now: input must never stay gated on a hidden one
     if (!step) {
       // script done: the real run starts on the board they just built
       const ev = recordCommand(this.runLog, this.s, { k: 'tutorial' }).events;
@@ -1660,9 +1661,11 @@ Now beat the real level.`, this.coachY());
   onTutorialMerge() {
     const step = GameScene.TUTORIAL[this.tutorialStep];
     if (step?.kind === 'mismatch') {
-      // a merge during the mismatch step can use up its pair: re-pick one (or skip the step) so the script never stalls
+      // a merge during the mismatch step can use up its pair: re-pick one (or skip the step) so the script never stalls.
+      // If the previous step's GOT IT is up (or about to be), leave it: its onNext re-runs this step anyway.
+      if (this.tutorialWaiting) return;
       this.coach.clear();
-      this.time.delayedCall(1200, () => GameScene.TUTORIAL[this.tutorialStep] === step && this.runTutorial());
+      this.time.delayedCall(1200, () => GameScene.TUTORIAL[this.tutorialStep] === step && !this.tutorialWaiting && this.runTutorial());
       return;
     }
     if (!step || step.kind !== 'merge') return;
