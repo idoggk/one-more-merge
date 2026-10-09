@@ -1,4 +1,5 @@
 import type { Family, ItemKind } from '../core/types';
+import { liveCopy } from './perks';
 
 // Static text tables shown by GameScene (moved out of GameScene.ts; GameScene re-exposes them as statics).
 
@@ -36,7 +37,8 @@ export const CHALLENGES: { toy: Family; text: string }[] = [
 /** Chapter collection identity (r17): the medal portrait for chapters 1-6. */
 export const CHAPTER_MONSTER = [0, 1, 3, 4, 5, 2];
 
-export const GUIDE: { key: string; title: string; role: string; text: string; tryThis: string; unlock: number }[] = [
+type GuideRow = { key: string; title: string; role: string; text: string; tryThis: string; unlock: number };
+const GUIDE_TODAY: GuideRow[] = [
   { key: 'chain', title: 'HOW CHAINS WORK', role: 'THE RULE', text: 'Merge two SAME machines with the SAME number. The new machine fires and wakes OTHER machines in its reach. Every machine that fires hits the monster.', tryThis: 'Bigger chain = bigger hit. Build machines next to each other.', unlock: 0 },
   { key: 'cannon', title: 'CANNON', role: 'SHOOTER', text: 'Shoots by itself, weakly. When a merge or a chain wakes it, it fires a FULL shot. It wakes nobody.', tryThis: 'Park Cannons where Coils and Bells can reach them.', unlock: 0 },
   { key: 'coil', title: 'COIL', role: 'RELAY', text: 'Zaps up to 2 cells away: up, down, left, right. Wakes every OTHER kind of machine it reaches.', tryThis: 'Put Cannons inside its cross.', unlock: 0 },
@@ -58,3 +60,5 @@ export const GUIDE: { key: string; title: string; role: string; text: string; tr
   { key: 'marks2', title: 'CELLS & METERS', role: 'SPECIAL', text: '', tryThis: 'Tap a marked empty cell or a junk block to see what it does.', unlock: 0 },
   { key: 'overdrive', title: 'OVERDRIVE', role: 'SPECIAL', text: 'Merges fill the bolt meter at the top (in some modes, chain links do). Full: OVERDRIVE! For a few seconds your Cannons fire super fast, every chain hits x1.5 and the board glows orange. Then the meter starts again.', tryThis: 'When the meter is one short, save a big merge for it.', unlock: 0 },
 ];
+/** Guide pages; unit pages follow the QA UNITS experiment (perks.ts unitsCopy). */
+export const GUIDE: GuideRow[] = GUIDE_TODAY.map((g) => liveCopy(g.key, g));
