@@ -93,6 +93,8 @@ export interface Meta {
   remixBest: Record<string, number>;
   /** First-time contextual tips already shown. */
   tips: Record<string, boolean>;
+  /** t-0a294f99: tips that did not fit a level's tip budget, waiting for a later level (see tips.ts). */
+  tipQueue?: string[];
   /** Bolts wallet (the only spendable resource; cosmetics only). */
   bolts?: number;
   owned?: string[];
