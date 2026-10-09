@@ -1,0 +1,205 @@
+// SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
+// three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
+// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner]
+import { LEVELS, type LevelDef } from '../src/content/levels';
+import { levelMult, unitDef } from '../src/content/units';
+import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
+import { Rng } from '../src/core/rng';
+import { FAMILIES, isRelay, type CascadeResult, type Family } from '../src/core/types';
+
+const args = process.argv.slice(2);
+const opt = (k: string, d: number) => (args.includes(k) ? Number(args[args.indexOf(k) + 1]) : d);
+const FROM = opt('--from', 21);
+const TO = opt('--to', 80);
+const STEP = opt('--step', 3);
+const N = opt('--n', 20);
+const EVERY = opt('--every', 3.5);
+const LVL = args.includes('--lvl') ? opt('--lvl', 1) : 0;
+const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : '';
+
+type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
+const SQUADS: Squad[] = [
+  { key: 'BASE', shooter: 'cannon', relays: ['coil', 'bell'] },
+  ...(['rocket', 'mortar', 'arc_welder'] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ['coil', 'bell'] as [Family, Family] })),
+  // BELL+COIL / BELL+HORN put Coil (or Horn) in relay B: separates the unit from relay A's extra bag tokens and layout
+  ...([['coil', 'horn'], ['coil', 'fuse_box'], ['horn', 'bell'], ['fuse_box', 'bell'], ['horn', 'fuse_box'], ['bell', 'coil'], ['bell', 'horn']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+  ...(['magnet', 'battery', 'fan', 'amplifier', 'signal_beacon'] as Family[]).map((h) => ({ key: `+${h.toUpperCase()}`, shooter: 'cannon' as Family, relays: ['coil', 'bell'] as [Family, Family], helper: h })),
+];
+
+type Bot = { name: string; pick: (s: GameState, rng: Rng) => [number, number] | null };
+const bothWays = (s: GameState) => legalPairs(s).flatMap(([a, b]) => [[a, b], [b, a]] as [number, number][]);
+const bestNow = (s: GameState) => bothWays(s).reduce((m, [f, t]) => Math.max(m, previewMerge(s, f, t)!.total), 0);
+const ALL_BOTS: Bot[] = [
+  {
+    name: 'random',
+    pick: (s, rng) => {
+      const p = legalPairs(s);
+      if (!p.length) return null;
+      const [a, b] = p[rng.int(p.length)];
+      return rng.next() < 0.5 ? [a, b] : [b, a];
+    },
+  },
+  {
+    name: 'smart',
+    pick: (s) => {
+      let best: [number, number] | null = null, bd = -1;
+      for (const [a, b] of legalPairs(s))
+        for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
+          const d = previewMerge(s, f, t)!.total;
+          if (d > bd) [bd, best] = [d, [f, t]];
+        }
+      return best;
+    },
+  },
+  {
+    // 2-ply: this cascade + 0.5 x the best cascade on the board it leaves (setup helpers can score here);
+    // the lookahead runs on a JSON copy, ignores supply arriving in between, and never touches the real state
+    name: 'planner',
+    pick: (s) => {
+      let best: [number, number] | null = null, bd = -1;
+      for (const [f, t] of bothWays(s)) {
+        const now = previewMerge(s, f, t)!.total;
+        const c = JSON.parse(JSON.stringify(s)) as GameState;
+        drop(c, f, t, c.grid[f]!.id);
+        const d = now + 0.5 * bestNow(c);
+        if (d > bd) [bd, best] = [d, [f, t]];
+      }
+      return best;
+    },
+  },
+];
+// --bots random,smart,planner (default: all three)
+const BOTS = args.includes('--bots') ? ALL_BOTS.filter((b) => args[args.indexOf('--bots') + 1].split(',').includes(b.name)) : ALL_BOTS;
+
+interface Run {
+  won: boolean;
+  clock: number; // elapsed / level clock (1 on a loss)
+  chains: number[]; // player-rooted cascade sizes
+  dmgFam: Partial<Record<Family, number>>; // cascade damage split by activation contribution
+  passive: number;
+  deep: number; // damage from depth >= 3 activations
+  total: number;
+  acts: number;
+  relayFires: Partial<Record<Family, number>>;
+  relayWakes: Partial<Record<Family, number>>;
+  moves: number;
+  primes: number;
+  primesUsed: number;
+  marks: number;
+  marksUsed: number;
+  arcs: number;
+  arcToWelder: number;
+}
+
+function absorb(r: Run, c: CascadeResult, player: boolean) {
+  if (player) r.chains.push(c.count);
+  r.acts += c.count;
+  const sum = c.activations.reduce((m, a) => m + a.contribution, 0) || 1;
+  for (const a of c.activations) {
+    const d = (c.total * a.contribution) / sum;
+    r.dmgFam[a.family] = (r.dmgFam[a.family] ?? 0) + d;
+    if (a.depth >= 3) r.deep += d;
+    r.total += d;
+    if (isRelay(a.family)) {
+      r.relayFires[a.family] = (r.relayFires[a.family] ?? 0) + 1;
+      r.relayWakes[a.family] = (r.relayWakes[a.family] ?? 0) + c.activations.filter((x) => x.parent === a.idx && x.idx !== a.idx).length;
+    }
+  }
+  for (const e of c.edges)
+    if (e.kind === 'arc') {
+      r.arcs++;
+      if (c.activations.find((x) => x.idx === e.to)?.family === 'arc_welder') r.arcToWelder++;
+    }
+  r.moves += c.moves.length;
+  r.primes += c.primes.length;
+  r.primesUsed += c.discharged.length;
+  r.marks += c.amps?.length ?? 0;
+  r.marksUsed += c.ampsUsed?.length ?? 0;
+}
+
+function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
+  const s = newLevel(def, { shooter: sq.shooter, relays: sq.relays, toys: sq.helper ? [sq.helper] : [] });
+  if (LVL) {
+    s.unitMult = Object.fromEntries(FAMILIES.map((f) => [f, levelMult(unitDef(f), LVL)]));
+    s.unitLevel = Object.fromEntries(FAMILIES.map((f) => [f, LVL]));
+  }
+  const r: Run = { won: false, clock: 1, chains: [], dmgFam: {}, passive: 0, deep: 0, total: 0, acts: 0, relayFires: {}, relayWakes: {}, moves: 0, primes: 0, primesUsed: 0, marks: 0, marksUsed: 0, arcs: 0, arcToWelder: 0 };
+  const see = (ev: GameEvent[], player: boolean) => {
+    for (const e of ev) {
+      if (e.type === 'cascade') absorb(r, e.result, player && !e.kickback);
+      else if (e.type === 'shot') {
+        r.passive += e.damage;
+        r.total += e.damage;
+      }
+    }
+  };
+  const rng = new Rng(seed);
+  let next = EVERY;
+  while (s.phase === 'playing' || s.phase === 'choice') {
+    if (s.phase === 'choice') {
+      choosePerk(s, s.offer[0]);
+      continue;
+    }
+    if (s.elapsed >= next) {
+      next += EVERY;
+      const m = bot.pick(s, rng);
+      if (m) see(drop(s, m[0], m[1], s.grid[m[0]]!.id).events, true);
+    }
+    see(tick(s), false);
+  }
+  r.won = s.phase === 'won';
+  if (r.won) r.clock = s.elapsed / (s.levelTime ?? s.elapsed);
+  return r;
+}
+
+const q = (a: number[], p: number) => (a.length ? [...a].sort((x, y) => x - y)[Math.min(a.length - 1, Math.floor(a.length * p))] : NaN);
+const pct = (x: number) => (Number.isFinite(x) ? (x * 100).toFixed(1) : '  -').padStart(5);
+
+// same levels for every squad: skip teach levels, goal-only levels and levels that force their own shooter
+const defs = LEVELS.filter((d) => d.level >= FROM && d.level <= TO && (d.level - FROM) % STEP === 0 && !d.teach && !(d.goal && !d.waves) && !d.shooter);
+console.log(`squad-swap: levels ${defs.map((d) => d.level).join(',')}  n=${N}/level  every ${EVERY}s  unit level ${LVL || 'unset'}`);
+
+interface Agg { win: number; clr: number; clrAll: number; chainMed: number; chainP90: number; share: Partial<Record<Family, number>>; passive: number; deep: number; acts: number; wakes: Partial<Record<Family, number>>; helper: string }
+const results = new Map<string, Agg>();
+for (const sq of SQUADS) {
+  // --only KEY[,KEY...]: substring match on the squad key (BASE always runs: it is the reference)
+  if (ONLY && sq.key !== 'BASE' && !ONLY.toUpperCase().split(',').some((k) => sq.key.includes(k))) continue;
+  for (const bot of BOTS) {
+    const runs: Run[] = [];
+    // the smart bot is deterministic: vary the level's supply seed per run (same seeds for every squad, so runs pair up)
+    for (const def of defs) for (let k = 1; k <= N; k++) runs.push(play({ ...def, seed: (def.seed + k * 7919) >>> 0 }, sq, bot, def.seed * 31 + k));
+    const wins = runs.filter((r) => r.won);
+    const sumOf = (f: (r: Run) => number) => runs.reduce((m, r) => m + f(r), 0);
+    const total = sumOf((r) => r.total) || 1;
+    const fams = [sq.shooter, ...sq.relays, ...(sq.helper ? [sq.helper] : [])];
+    const share: Partial<Record<Family, number>> = {};
+    for (const f of fams) share[f] = sumOf((r) => r.dmgFam[f] ?? 0) / total;
+    const other = sumOf((r) => Object.entries(r.dmgFam).reduce((m, [f, d]) => m + (fams.includes(f as Family) ? 0 : d!), 0)) / total;
+    const wakes: Partial<Record<Family, number>> = {};
+    for (const f of sq.relays) wakes[f] = sumOf((r) => r.relayWakes[f] ?? 0) / Math.max(1, sumOf((r) => r.relayFires[f] ?? 0));
+    const chains = runs.flatMap((r) => r.chains);
+    const per = (f: (r: Run) => number) => (sumOf(f) / runs.length).toFixed(1);
+    let helper = '';
+    if (sq.helper) helper = `  moves ${per((r) => r.moves)}  primes ${per((r) => r.primes)}/${per((r) => r.primesUsed)}  marks ${per((r) => r.marks)}/${per((r) => r.marksUsed)}`;
+    if (sq.shooter === 'arc_welder') helper += `  arcs ${per((r) => r.arcs)}  arc->welder ${pct(sumOf((r) => r.arcToWelder) / Math.max(1, sumOf((r) => r.arcs)))}%`;
+    const a: Agg = {
+      win: wins.length / runs.length,
+      clr: q(wins.map((r) => r.clock), 0.5),
+      clrAll: q(runs.map((r) => r.clock), 0.5),
+      chainMed: q(chains, 0.5),
+      chainP90: q(chains, 0.9),
+      share,
+      passive: sumOf((r) => r.passive) / total,
+      deep: sumOf((r) => r.deep) / total,
+      acts: sumOf((r) => r.acts) / runs.length,
+      wakes,
+      helper,
+    };
+    results.set(`${sq.key}|${bot.name}`, a);
+    const b = results.get(`BASE|${bot.name}`)!;
+    const dWin = (a.win - b.win) * 100, dClr = ((a.clr - b.clr) / b.clr) * 100;
+    console.log(
+      `${sq.key.padEnd(16)} ${bot.name.padEnd(6)} win ${pct(a.win)}% (${dWin >= 0 ? '+' : ''}${dWin.toFixed(1)})  clr ${pct(a.clr)}% (${dClr >= 0 ? '+' : ''}${dClr.toFixed(1)}%) all ${pct(a.clrAll)}%  chain ${a.chainMed}/${a.chainP90}  dmg ${fams.map((f) => `${f} ${pct(share[f]!)}`).join(' ')} oth ${pct(other)}  passive ${pct(a.passive)}  d3+ ${pct(a.deep)}  acts ${a.acts.toFixed(0)}  wakes ${sq.relays.map((f) => `${f} ${a.wakes[f]!.toFixed(2)}`).join(' ')}${helper}`,
+    );
+  }
+}

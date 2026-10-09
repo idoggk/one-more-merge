@@ -3,3 +3,4 @@ dist
 *.log
 art_inbox
 screenshots
+.squad-out
