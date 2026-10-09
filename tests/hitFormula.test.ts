@@ -6,6 +6,7 @@ import { drop, idxOf, legalPairs, newGame, newLevel, serialize, type GameState }
 import { fmtFactor, fmtHit, formulaTokens, hitFormula, type HitFormula } from '../src/core/hitFormula';
 import { PALETTE } from '../src/core/marks';
 import { Rng } from '../src/core/rng';
+import { applyMergeRule } from '../src/core/sandwich';
 import { FAMILIES, type Family, type Gadget } from '../src/core/types';
 
 let id = 7000;
@@ -40,7 +41,10 @@ const checkMath = (f: HitFormula, real: number) => {
   expect(f.damage).toBe(real);
 };
 
-afterEach(() => applySpamVariant('off'));
+afterEach(() => {
+  applySpamVariant('off');
+  applyMergeRule('today');
+});
 
 describe('hit formula strip (rival study #3)', () => {
   it('no match, no formula; the formula never mutates the state', () => {
@@ -222,6 +226,24 @@ describe('hit formula strip (rival study #3)', () => {
     expect(tail[0]).toMatchObject({ struck: true });
     expect(tail[1]).toMatchObject({ text: 'MAX HIT', hue: PALETTE.max.hue });
     expect(tail[2]).toMatchObject({ text: '35', hue: PALETTE.max.hue, role: 'result' });
+  });
+
+  it('sandwich merge rule prototype: an absorbed neighbour boost and charge are named and the numbers still match', () => {
+    for (const rule of ['sandwich2', 'sandwichBonus'] as const) {
+      applyMergeRule(rule);
+      const s = level();
+      s.grid[idxOf(2, 2)] = g('cannon', 1);
+      s.grid[idxOf(0, 0)] = g('cannon', 1);
+      s.grid[idxOf(1, 2)] = g('cannon', 1, { amp: 1.3, primed: true });
+      s.grid[idxOf(3, 2)] = g('cannon', 1);
+      s.grid[idxOf(2, 1)] = g('coil', 2);
+      const c = JSON.parse(JSON.stringify(s)) as GameState;
+      expect(drop(c, idxOf(0, 0), idxOf(2, 2), c.grid[idxOf(0, 0)]!.id).events.some((e) => e.type === 'sandwich')).toBe(true);
+      expect(c.grid[idxOf(1, 2)]).toBeNull(); // the marked neighbour was absorbed: its marks ride on the merged part
+      const f = hitFormula(s, idxOf(0, 0), idxOf(2, 2))!;
+      expect(f.terms.map((t) => t.key)).toEqual(expect.arrayContaining(['boost', 'charge']));
+      checkMath(f, realDamage(s, idxOf(0, 0), idxOf(2, 2)));
+    }
   });
 
   it('factors print without the x and at most two decimals', () => {

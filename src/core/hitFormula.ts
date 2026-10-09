@@ -3,7 +3,7 @@
 // formula counts up link by link. Pure: plays the real `drop` on a throwaway copy (like mergePreview), so every
 // number is exactly what the merge deals. Never mutates the state passed in.
 import { TUNING } from '../content/tuning';
-import { a2Scale, canMerge, drop, odByChain, shieldMult, type GameEvent, type GameState } from './game';
+import { a2Scale, canMerge, drop, odByChain, sandwichFor, shieldMult, type GameEvent, type GameState } from './game';
 import { ITEM_MARK, PALETTE, primeMult, type Meaning } from './marks';
 import { isShooter, type CascadeResult, type Gadget } from './types';
 
@@ -57,10 +57,15 @@ export function hitFormula(s: GameState, from: number, to: number): HitFormula |
   if (!r.ok || !ev) return null;
   const res = ev.result;
   // marks as they stood before the cascade: the merged part (next id) carries the pair's marks
+  // (a TUNING.mergeRule sandwich folds the absorbed parts' marks in too, as merge() does)
   const merged = s.nextId;
   const pre = new Map(s.grid.filter((g): g is Gadget => !!g).map((g) => [g.id, g]));
+  const eaten = (sandwichFor(s, from, to)?.cells ?? []).map((i) => s.grid[i]!).filter(Boolean);
+  const parts = [a, b, ...eaten];
   const before = (id: number): Pick<Gadget, 'amp' | 'primed' | 'item'> | undefined =>
-    id === merged ? { amp: Math.max(a.amp ?? 0, b.amp ?? 0) || undefined, primed: !!(a.primed || b.primed), item: b.item ?? a.item } : pre.get(id);
+    id === merged
+      ? { amp: Math.max(...parts.map((p) => p.amp ?? 0)) || undefined, primed: parts.some((p) => p.primed), item: b.item ?? a.item ?? eaten.find((p) => p.item)?.item }
+      : pre.get(id);
   const placed = new Map<number, number>();
   for (const m of res.amps ?? []) placed.set(m.id, Math.max(placed.get(m.id) ?? 0, m.mult));
   const ampUsed = new Set(res.ampsUsed ?? []);
