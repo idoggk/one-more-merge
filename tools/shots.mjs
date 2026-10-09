@@ -337,7 +337,7 @@ const states = {
   marks_boss_hot: [(sc) => { sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); const s = sc.s; s.boss = { def: 3, next: 99, phaseShown: 0, pending: null, active: { col: 2, until: s.elapsed + 30 } }; sc.paused = true; }, 600],
   marks_boss_inspect: [(sc) => { sc.openInspect(17); }, 600],
   marks_boss_clamp: [(sc) => { sc.closeInspect(); const s = sc.s; s.boss = { def: 0, next: 99, phaseShown: 0, pending: null, active: { cells: [12], until: s.elapsed + 30 } }; sc.paused = true; }, 600],
-  marks_guide_amp: [(sc) => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.hardUnlocked = true; sc.meta.units = { ...(sc.meta.units ?? {}), amplifier: { level: 1, cards: 0 }, signal_beacon: { level: 1, cards: 0 }, battery: { level: 1, cards: 0 } }; sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'amplifier')); }, 350],
+  marks_guide_amp: [(sc) => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.hardUnlocked = true; sc.meta.units = { ...(sc.meta.units ?? {}), amplifier: { level: 1, cards: 0 }, signal_beacon: { level: 1, cards: 0 }, battery: { level: 1, cards: 0 } }; sc.openHowTo(sc.guidePages().findIndex((p) => p.key === 'amplifier')); }, 350],
   marks_guide_battery: [(sc) => { sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'battery')); }, 350],
   marks_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks'))); }, 900],
   marks2_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks2'))); }, 900],
