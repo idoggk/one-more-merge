@@ -381,7 +381,8 @@ function spendItems(s: GameState, r: CascadeResult) {
 }
 
 /** Shield multiplier on all damage while closed (r23). */
-const shieldMult = (s: GameState) => (s.shieldUntil !== undefined && s.elapsed >= s.shieldUntil ? 0.75 : 1);
+/** r23 chain shield: past its open window, hits land at x0.75 (exported for the hit-formula strip). */
+export const shieldMult = (s: GameState) => (s.shieldUntil !== undefined && s.elapsed >= s.shieldUntil ? 0.75 : 1);
 
 /** r23 goal check after a PLAYER merge (starters, deliveries and kickback fuses never count). */
 function checkGoal(s: GameState, ev: GameEvent[], rank: number, chain: number, idx: number) {
@@ -484,15 +485,18 @@ export function fatigueMult(s: GameState): number {
 export const supplyGated = (s: GameState) =>
   TUNING.optionA3 && !!s.reactive && s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0) > TUNING.optA3.gateAbove;
 
+/** Option A2/A3: the two damage factors scaleA2 applies to a player cascade of `count` (1 = none). */
+export function a2Scale(s: GameState, count: number): { chain: number; fatigue: number } {
+  if (!(TUNING.optionA2 || TUNING.optionA3) || s.phase !== 'playing' || s.goal || s.puzzle) return { chain: 1, fatigue: 1 };
+  const mult = TUNING.optionA3 ? TUNING.optA3.chainMult : TUNING.optA2.chain ? TUNING.optA2.chainMult : null;
+  return { chain: mult ? mult[Math.min(count, mult.length) - 1] : 1, fatigue: fatigueMult(s) };
+}
+
 /** Option A2/A3: scale a player cascade's damage by chain size and/or spam fatigue (in place; numbers shown match). */
 function scaleA2(s: GameState, r: CascadeResult): CascadeResult {
-  if (!(TUNING.optionA2 || TUNING.optionA3) || s.phase !== 'playing' || s.goal || s.puzzle) return r;
-  const mult = TUNING.optionA3 ? TUNING.optA3.chainMult : TUNING.optA2.chain ? TUNING.optA2.chainMult : null;
-  let k = 1;
-  if (mult) k *= mult[Math.min(r.count, mult.length) - 1];
-  const fm = fatigueMult(s);
+  const { chain, fatigue: fm } = a2Scale(s, r.count);
   if (fm < 1) r.fatigue = fm;
-  k *= fm;
+  const k = chain * fm;
   if (k === 1) return r;
   for (const a of r.activations) a.contribution = Math.round(a.contribution * k);
   r.total = Math.round(r.total * k);

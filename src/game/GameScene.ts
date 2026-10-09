@@ -63,6 +63,8 @@ import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '.
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
 import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
+import { FormulaStrip } from './formulaStrip';
+import { hitFormula, type HitFormula } from '../core/hitFormula';
 import { bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
 import { PartReact } from './fx/partReact';
 import { fitLine, soCloseText } from './fx/soClose';
@@ -458,6 +460,7 @@ export class GameScene extends Phaser.Scene {
     this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
     this.laneBg.setDepth(20).setAlpha(0);
     this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
+    this.formula = new FormulaStrip(this, W / 2, () => EVENT_Y, () => HP_Y - 50, REDUCED_MOTION);
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -1445,8 +1448,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.pulledMerge = merging && (this.pulledIds.has(a!.id) || this.pulledIds.has(b!.id));
     const prevBest = this.s.stats.bestRank;
+    // the hit formula is read before the drop changes the board; playCascade() plays it as the chain ribbon
+    this.pendingFormula = merging ? hitFormula(this.s, from, to) : null;
     const res = recordCommand(this.runLog, this.s, { k: 'drop', from, to, id });
     if (!res.ok) {
+      this.pendingFormula = null;
       tlog.log('invalid');
       return false;
     }
@@ -1534,6 +1540,7 @@ Now beat the real level.`, this.coachY());
       this.reconcile();
     }
     this.handleEvents(res.events);
+    this.pendingFormula = null;
     this.save();
     return true;
   }
@@ -1673,6 +1680,7 @@ Now beat the real level.`, this.coachY());
     const key = this.chipKeyFor(src, hov);
     if (key === this.chipKey) return;
     this.chipKey = key;
+    this.formula.show(key ? () => hitFormula(this.s, src, hov) : null);
     this.chipsC?.destroy();
     this.chipsC = null;
     const pv = key ? mergePreview(this.s, src, hov) : null;
@@ -3066,8 +3074,14 @@ Now beat the real level.`, this.coachY());
     });
   }
 
+  formula!: FormulaStrip;
+  pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
+    // rival study #3: a player merge's chain ribbon is its hit formula, counted up link by link
+    const hf = !kickback && this.pendingFormula?.machines === r.count ? this.pendingFormula : null;
+    this.pendingFormula = null;
+    const ribbon = !!hf && (hf.machines > 1 || hf.terms.length > 0 || hf.cap !== null);
     const sig = r.edges.filter((e) => e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime').map((e) => e.kind);
     if (sig.length) tlog.log('max_signature', { kinds: sig, chain: r.count });
     const maxDepth = Math.max(...r.activations.map((a) => a.depth));
@@ -3124,7 +3138,7 @@ Now beat the real level.`, this.coachY());
 
     // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
     // live chain counter in the lane: counts up beat by beat, then the final line lands on the hit
-    if (r.count > 2) {
+    if (r.count > 2 && !ribbon) {
       let soFar = 0;
       for (let d = 0; d <= maxDepth; d++) {
         soFar += r.activations.filter((a) => a.depth === d).length;
@@ -3177,6 +3191,7 @@ Now beat the real level.`, this.coachY());
       this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
     });
     const end = windup + maxDepth * step + 260 + chainHoldMs(r.count);
+    if (ribbon) this.formula.play(hf!, r.activations.map((a) => windup + a.depth * step), end);
     this.time.delayedCall(end, () => {
       this.hitTarget(true, r.count >= 10 ? 1 : 0);
       bigFinish(this, r.count);
@@ -3191,7 +3206,7 @@ Now beat the real level.`, this.coachY());
       const huge = r.count >= 10;
       // EXPERIMENT spam fatigue: a hurried merge's number is dimmed and says how much of its hit landed
       const tired = r.fatigue !== undefined && r.fatigue < 1 ? `  ·  RUSHED ${Math.round(r.fatigue * 100)}%` : '';
-      if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
+      if (r.count > 1 && !ribbon) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
       if (!kickback && r.count >= 3)
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
@@ -3202,7 +3217,7 @@ Now beat the real level.`, this.coachY());
         );
       // damage number beside the opponent, never on its face
       const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
-      if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
+      if (capped && !ribbon) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
       if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.stageFloatY(this.target.y - 40), capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });
   }
