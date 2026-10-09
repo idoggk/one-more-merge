@@ -58,6 +58,7 @@ import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_T
 import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
 import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
+import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 export { localDate };
 
 export const W = 720;
@@ -1169,6 +1170,7 @@ export class GameScene extends Phaser.Scene {
       this.moved = true;
       this.lift = p.wasTouch ? DRAG_LIFT_TOUCH : DRAG_LIFT;
       sfx.pickup();
+      haptic(5); // light lift tick
       this.dragView.setDepth(55).setVisible(true);
       this.tweens.killTweensOf(this.dragView);
       this.tweens.add({ targets: this.dragView, scale: 1.08, duration: 75, ease: 'Cubic.Out' });
@@ -1273,19 +1275,50 @@ export class GameScene extends Phaser.Scene {
     this.hoverIdx = -1;
     this.dragView = null; // must be cleared BEFORE commitDrop so reconcile() animates this piece into its new cell
     if (view) view.setDepth(10);
-    if (scrap) {
-      const g = this.s.grid[from];
-      const needsHold = g && g.rank >= 3;
-      if (!needsHold || this.scrapHold >= 0.25) this.doScrap(from, id);
-      else this.snapBack(view, from);
-    } else if (dest >= 0 && dest !== from) {
-      if (!this.commitDrop(from, dest, id)) this.snapBack(view, from);
-    } else this.snapBack(view, from);
+    const plan = planDrop({ from, dest, scrap, rank: ga?.rank ?? 0, scrapHold: this.scrapHold });
+    if (plan.k === 'scrap') this.doScrap(from, id);
+    else if (plan.k === 'commit') {
+      if (!this.commitDrop(from, dest, id)) this.rejectDrop(view, from, 'refused');
+    } else this.rejectDrop(view, from, plan.why);
     this.reconcile(); // belt and braces: every sprite returns to its model cell
     this.scrapHold = 0;
     this.overScrapFlag = false;
     this.drawHeld();
   }
+
+  /** The ONE path for a drop that does nothing (off the board, back on its own cell, an early SCRAP, or a target the
+   *  game refused): the part snaps home with a soft 'nope', a light haptic (we are still inside the finger-up handler,
+   *  where iOS allows it), and a short rate-limited hint by the part. `refused` targets explain themselves already. */
+  rejectDrop(view: GadgetView | null, from: number, why: DropReject) {
+    this.snapBack(view, from);
+    sfx.nope();
+    haptic(8);
+    this.dropRejects++;
+    tlog.log('drop_reject', { why });
+    const text = DROP_HINT[why];
+    if (!text || !this.hintGate.allow(text, this.time.now)) return;
+    const real = view ? this.s.grid.findIndex((g) => g?.id === view.gid) : from;
+    const { x, y } = cellXY(real >= 0 ? real : from);
+    this.dropHint(x, y - 72, text);
+  }
+  /** Reject drops seen (read by tools/touch-test.mjs). */
+  dropRejects = 0;
+  hintGate = new HintGate();
+  /** Small hint above a cell; reduced motion: it fades in place instead of popping and drifting. */
+  dropHint(x: number, y: number, text: string) {
+    const t = this.add.text(x, y, text, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center' }).setOrigin(0.5).setDepth(70);
+    t.setX(Phaser.Math.Clamp(x, t.width / 2 + 8, W - t.width / 2 - 8));
+    this.lastDropHint = text;
+    if (REDUCED_MOTION) {
+      t.setAlpha(0);
+      this.tweens.chain({ targets: t, tweens: [{ alpha: 1, duration: 120 }, { alpha: 0, delay: 900, duration: 300 }], onComplete: () => t.destroy() });
+    } else {
+      t.setScale(0.6);
+      this.tweens.add({ targets: t, scale: 1, duration: 140, ease: 'Back.Out' });
+      this.tweens.add({ targets: t, y: y - 24, alpha: 0, delay: 900, duration: 350, ease: 'Quad.In', onComplete: () => t.destroy() });
+    }
+  }
+  lastDropHint = '';
 
   snapBack(view: GadgetView | null, idx: number) {
     this.dragShadow?.setVisible(false);
@@ -1359,10 +1392,7 @@ export class GameScene extends Phaser.Scene {
 
   commitDrop(from: number, to: number, id: number): boolean {
     if (this.guided) {
-      if (from !== this.guided.from || to !== this.guided.to) {
-        sfx.invalid();
-        return false;
-      }
+      if (from !== this.guided.from || to !== this.guided.to) return false; // rejectDrop() plays the 'nope'
       this.endGuidedDodge();
     }
     const a = this.s.grid[from];
@@ -1371,7 +1401,6 @@ export class GameScene extends Phaser.Scene {
     const merging = canMerge(a, b, this.s);
     // ChatGPT r13: an occupied mismatch BOUNCES (silent swaps punished the exact mistake Ido reported). Swapping is opt-in.
     if (a && b && !merging && !this.meta.swapMismatch) {
-      sfx.invalid();
       tlog.log('mismatch_bounce', { a: `${a.family}${a.rank}`, b: `${b.family}${b.rank}` });
       const msg = a.family === b.family ? `Rank ${a.rank} ≠ Rank ${b.rank}: merge the SAME number` : 'Merge the SAME gadget with the SAME number';
       this.showEvent(msg, '#ffd2c8', 1600);
@@ -1387,7 +1416,6 @@ export class GameScene extends Phaser.Scene {
     const prevBest = this.s.stats.bestRank;
     const res = recordCommand(this.runLog, this.s, { k: 'drop', from, to, id });
     if (!res.ok) {
-      sfx.invalid();
       tlog.log('invalid');
       return false;
     }
@@ -1883,7 +1911,6 @@ Now beat the real level.`, this.coachY());
     const step = GameScene.TUTORIAL[this.tutorialStep];
     const a = this.s.grid[from], b = this.s.grid[to];
     if (this.s.phase !== 'tutorial' || !a || !b || a.family !== b.family || a.rank === b.rank) return false;
-    sfx.invalid();
     for (const id of [a.id, b.id]) this.pulseRank(id, 1.7, 150, 2);
     this.showEvent(`Rank ${a.rank} ≠ Rank ${b.rank}: no merge`, '#ffd2c8', 2200);
     if (step?.kind === 'mismatch') {

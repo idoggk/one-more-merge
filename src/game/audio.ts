@@ -165,6 +165,11 @@ export const sfx = {
   },
   drop: () => tone(300, 0.06, 'triangle', 0.12),
   invalid: () => tone(180, 0.12, 'square', 0.05, 0, 120),
+  /** reject_drop: a soft two-step 'nope' (rounded, quiet, falling); never a buzzer. */
+  nope: () => {
+    tone(330, 0.07, 'triangle', 0.05, 0, 290);
+    tone(250, 0.09, 'triangle', 0.045, 0.075, 210);
+  },
   /** merge_rank_up: click + bright upward bloop; higher ranks add fullness, not endless pitch. */
   merge: (rank: number) => {
     bandNoise(0.025, 0.3, 0, 3000);
