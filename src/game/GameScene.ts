@@ -5159,7 +5159,7 @@ Now beat the real level.`, this.coachY());
     c.add(this.add.text(W / 2, by, `★ ${total}/${YARD_COUNT * 3}  ·  ${YARD_BOOSTERS.map((k) => `${BOOSTER_COPY[k].name} ${bst[k] ?? 0}`).join('  ')}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a3a' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, by + 44, 'Free to play. Stars: keep the dock nearly empty.\nBoosters are earned with 3 stars and tiers.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
     const nx = nextYard(yd);
-    this.button(c, W / 2, top + PH - 170, 460, `PLAY YARD ${nx}`, 0x5fbf4a, () => this.startYard(nx), 0.95);
+    this.button(c, W / 2, top + PH - 170, 460, qaYardObject() ? `PLAY ${CRATE.name}` : `PLAY YARD ${nx}`, 0x5fbf4a, () => this.startYard(nx), 0.95);
     this.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => this.openTitle('events'), 0.75);
   }
 

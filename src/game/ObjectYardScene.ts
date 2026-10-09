@@ -3,30 +3,24 @@
 // meanwhile); calls onEnd(result) and stops itself.
 // Drawing: no 3D engine. Each block is a unit cube rotated about the vertical axis (the snapped view, tweened while
 // turning) plus a fixed camera yaw / pitch, projected orthographically and painted back to front, so the front, the
-// top and a sliver of the next side show. Screws on the faces that look at the camera (and tops) are bright when they
-// can come out; covered or turned-away ones are dimmed.
+// top and a sliver of the next side show. The projection, the painted faces and the tap test live in the model
+// (screwObject.ts "the screen"), so a screw is bright exactly when a tap on it takes it, and the solver agrees.
 import Phaser from 'phaser';
 import { BOX_SIZE } from '../core/screw';
-import { FACE_DIR, HELPERS, newObject, previewColors, reachable, tapRow, tapScrew, useBroom, useDrill, useHammer, VIEW_NAMES, type Face, type Helper, type ObjectDef, type ObjectState, type ObjTap, type View } from '../core/screwObject';
+import { blockFaces, blockPos, faceUnder, HELPERS, newObject, previewColors, projectPt, reachable, SCREW_OUT, SCREW_R, screenPick, screwSpot3, shownFaces, tapRow, tapScrew, turnDir, useBroom, useDrill, useHammer, VIEW_NAMES, type Helper, type ObjectDef, type ObjectState, type ObjTap, type ShownFace, type V3, type View } from '../core/screwObject';
 import { H, RS, W } from './GameScene';
 import { SCREW_COLORS } from './ScrewScene';
 import { sfx } from './audio';
 
 const INK = 0x2b1d2e;
 const WOOD = [0xc98d4e, 0xb47838];
-/** Camera: a little yaw so the next side shows (turn hint), and a pitch so the tops show. */
-const YAW = (-24 * Math.PI) / 180;
-const PITCH = (28 * Math.PI) / 180;
 const LIGHT = norm([-0.45, 0.8, 0.55]);
-const SCREW_R = 0.17;
 const TURN_MS = 260;
 
-type V3 = [number, number, number];
 function norm(v: V3): V3 {
   const l = Math.hypot(...v);
   return [v[0] / l, v[1] / l, v[2] / l];
 }
-const ALL_FACES: { face: Face | 'bottom'; n: V3 }[] = [...(Object.entries(FACE_DIR) as [Face, V3][]).map(([face, n]) => ({ face, n })), { face: 'bottom', n: [0, -1, 0] }];
 
 export interface ObjectYardResult {
   won: boolean;
@@ -37,11 +31,6 @@ export interface ObjectYardResult {
 export interface ObjectYardData {
   lvl: ObjectDef;
   onEnd: (r: ObjectYardResult) => void;
-}
-
-interface Drawn {
-  block: number;
-  pts: Phaser.Math.Vector2[];
 }
 
 export class ObjectYardScene extends Phaser.Scene {
@@ -61,8 +50,6 @@ export class ObjectYardScene extends Phaser.Scene {
   S = 140;
   cx = W / 2;
   cy = 800;
-  /** Last drawn faces, back to front (hit tests walk it backwards). */
-  drawn: Drawn[] = [];
   down = { x: 0, y: 0, t: 0, on: false };
 
   constructor() {
@@ -76,7 +63,6 @@ export class ObjectYardScene extends Phaser.Scene {
     this.turning = false;
     this.ended = false;
     this.hammerArmed = false;
-    this.drawn = [];
   }
 
   create() {
@@ -130,57 +116,26 @@ export class ObjectYardScene extends Phaser.Scene {
 
   // ---- projection ----
   /** Object space (block units, centred) -> screen point + depth (larger = nearer the camera), at turn `t`. */
+  /** Object space (block units, centred) -> screen point + depth (larger = nearer the camera), at turn `t`. */
   project(p: V3, t = this.turn) {
-    // view v shows face VIEW_FACE[v]: turning by -90° per view brings +x (right) to the camera's +z
-    const a = (-t * Math.PI) / 2 + YAW;
-    const c = Math.cos(a), s = Math.sin(a);
-    const x = p[0] * c + p[2] * s, z = -p[0] * s + p[2] * c, y = p[1];
-    return { x: this.cx + x * this.S, y: this.cy + (-y * Math.cos(PITCH) + z * Math.sin(PITCH)) * this.S, d: z * Math.cos(PITCH) + y * Math.sin(PITCH) };
+    const s = projectPt(p, t);
+    return { x: this.cx + s.x * this.S, y: this.cy + s.y * this.S, d: s.d };
   }
-  /** A direction turned like the object (for facing + light). */
-  dir(n: V3, t = this.turn): V3 {
-    const a = (-t * Math.PI) / 2 + YAW;
-    const c = Math.cos(a), s = Math.sin(a);
-    return [n[0] * c + n[2] * s, n[1], -n[0] * s + n[2] * c];
-  }
-  /** How much a face looks at the camera (>0 = visible). */
-  facingAmount(n: V3, t = this.turn) {
-    const r = this.dir(n, t);
-    return r[1] * Math.sin(PITCH) + r[2] * Math.cos(PITCH);
-  }
-  centre(): V3 {
-    const bs = this.st.lvl.blocks;
-    const mid = (k: 'x' | 'y' | 'z') => (Math.min(...bs.map((b) => b[k])) + Math.max(...bs.map((b) => b[k]))) / 2;
-    return [mid('x'), mid('y'), mid('z')];
-  }
-  /** Block centre in centred object space. */
   bpos(bid: number): V3 {
-    const b = this.st.lvl.blocks[bid];
-    const c = this.centre();
-    return [b.x - c[0], b.y - c[1], b.z - c[2]];
+    return blockPos(this.st.lvl, bid);
   }
-  /** The 4 corners of a unit face around block centre `p` with outward normal n. */
-  faceCorners(p: V3, n: V3): V3[] {
-    const u: V3 = n[1] !== 0 ? [1, 0, 0] : [-n[2], 0, n[0]];
-    const v: V3 = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
-    const f: V3 = [p[0] + n[0] / 2, p[1] + n[1] / 2, p[2] + n[2] / 2];
-    return [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => [f[0] + (u[0] * a + v[0] * b) / 2, f[1] + (u[1] * a + v[1] * b) / 2, f[2] + (u[2] * a + v[2] * b) / 2] as V3);
+  /** Screen -> the model's screen units. */
+  toUnits(x: number, y: number) {
+    return { x: (x - this.cx) / this.S, y: (y - this.cy) / this.S };
   }
 
-  /** Paint one block (its visible outside faces + their screws) into g. `alone`: draw every face (a falling block). */
-  paintBlock(g: Phaser.GameObjects.Graphics, bid: number, off = { x: 0, y: 0 }, alone = false, drawn?: Drawn[]) {
+  /** Paint faces (the model's shownFaces / blockFaces) and their screws into g. */
+  paintFaces(g: Phaser.GameObjects.Graphics, faces: ShownFace[], off = { x: 0, y: 0 }) {
     const st = this.st;
-    const b = st.lvl.blocks[bid];
-    const p = this.bpos(bid);
-    for (const { face, n } of ALL_FACES) {
-      const k = this.facingAmount(n);
-      if (k <= 0.01) continue;
-      if (!alone && this.blockAtOn(b.x + n[0], b.y + n[1], b.z + n[2])) continue; // inside face
-      const pts = this.faceCorners(p, n).map((q) => {
-        const s = this.project(q);
-        return new Phaser.Math.Vector2(s.x + off.x, s.y + off.y);
-      });
-      const r = this.dir(n);
+    for (const { block: bid, face, n, k, pts: q } of faces) {
+      const b = st.lvl.blocks[bid];
+      const pts = q.map((s) => new Phaser.Math.Vector2(this.cx + s.x * this.S + off.x, this.cy + s.y * this.S + off.y));
+      const r = turnDir(n, this.turn);
       const lit = Math.max(0, r[0] * LIGHT[0] + r[1] * LIGHT[1] + r[2] * LIGHT[2]);
       const base = Phaser.Display.Color.IntegerToColor(WOOD[b.tint % WOOD.length]);
       const f = 0.55 + 0.55 * lit;
@@ -189,22 +144,18 @@ export class ObjectYardScene extends Phaser.Scene {
       g.lineStyle(2, INK, 0.18);
       for (const t of [1 / 3, 2 / 3]) g.lineBetween(Phaser.Math.Linear(pts[0].x, pts[3].x, t), Phaser.Math.Linear(pts[0].y, pts[3].y, t), Phaser.Math.Linear(pts[1].x, pts[2].x, t), Phaser.Math.Linear(pts[1].y, pts[2].y, t));
       g.lineStyle(4, INK, 0.85).strokePoints(pts, true);
-      drawn?.push({ block: bid, pts });
       if (face === 'bottom') continue;
-      for (const sid of b.screws) if (!st.removed[sid] && st.lvl.screws[sid].face === face) this.paintScrew(g, sid, p, n, k, off);
+      for (const sid of b.screws) if (!st.removed[sid] && st.lvl.screws[sid].face === face) this.paintScrew(g, sid, this.bpos(bid), n, k, off);
     }
   }
 
-  blockAtOn(x: number, y: number, z: number) {
-    return this.st.lvl.blocks.some((q) => q.x === x && q.y === y && q.z === z && !this.st.fallen[q.id]);
-  }
-
-  /** A screw head lying on its face (an ellipse in projection); bright = can come out now, dim = covered / turned away. */
+  /** A screw head lying on its face (an ellipse in projection); bright = a tap here takes it now, dim = covered /
+   *  turned away. */
   paintScrew(g: Phaser.GameObjects.Graphics, sid: number, p: V3, n: V3, k: number, off = { x: 0, y: 0 }) {
     const sc = this.st.lvl.screws[sid];
     const col = SCREW_COLORS[sc.color];
     const live = !this.turning && reachable(this.st, sid, this.view);
-    const c: V3 = [p[0] + n[0] * 0.52, p[1] + n[1] * 0.52, p[2] + n[2] * 0.52];
+    const c: V3 = [p[0] + n[0] * SCREW_OUT, p[1] + n[1] * SCREW_OUT, p[2] + n[2] * SCREW_OUT];
     const u: V3 = n[1] !== 0 ? [1, 0, 0] : [-n[2], 0, n[0]];
     const v: V3 = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
     const ring = (r: number) => {
@@ -232,13 +183,9 @@ export class ObjectYardScene extends Phaser.Scene {
   /** Redraw the whole object at the current turn, blocks back to front. */
   drawObject() {
     const g = this.obj.clear();
-    const drawn: Drawn[] = [];
     // shadow on the floor
     g.fillStyle(INK, 0.22).fillEllipse(this.cx, this.cy + this.S * 1.45, this.S * 4.2, this.S * 0.9);
-    const ids = this.st.lvl.blocks.filter((b) => !this.st.fallen[b.id]).map((b) => b.id);
-    ids.sort((a, b) => this.project(this.bpos(a)).d - this.project(this.bpos(b)).d);
-    for (const bid of ids) this.paintBlock(g, bid, undefined, false, drawn);
-    this.drawn = drawn;
+    this.paintFaces(g, shownFaces(this.st, this.turn));
     this.viewLabel?.setText(`${VIEW_NAMES[this.view]}  ·  ${this.view + 1}/4`);
   }
 
@@ -258,8 +205,9 @@ export class ObjectYardScene extends Phaser.Scene {
         this.drawObject();
       },
       onComplete: () => {
-        this.turn = to;
         this.view = ((((to % 4) + 4) % 4) as View);
+        // snapped: draw at exactly the view the model tests taps at
+        this.turn = this.view;
         this.turning = false;
         sfx.snap();
         this.drawObject();
@@ -371,40 +319,25 @@ export class ObjectYardScene extends Phaser.Scene {
   }
 
   // ---- input ----
-  /** The screw under the finger on a face that shows (nearest the camera wins), or null. */
+  /** What a tap here does (the model's screenPick: the screw on the front-most painted face under the finger). */
+  pick(x: number, y: number) {
+    const u = this.toUnits(x, y);
+    return screenPick(this.st, this.view, u.x, u.y);
+  }
+  /** The screw a tap here takes, or null. */
   pickScrew(x: number, y: number) {
-    let best: number | null = null, bd = -Infinity;
-    for (const sc of this.st.lvl.screws) {
-      if (this.st.removed[sc.id]) continue;
-      const n = FACE_DIR[sc.face];
-      const b = this.st.lvl.blocks[sc.block];
-      if (this.facingAmount(n) <= 0.05 || this.blockAtOn(b.x + n[0], b.y + n[1], b.z + n[2])) continue;
-      const p = this.bpos(sc.block);
-      const s = this.project([p[0] + n[0] * 0.52, p[1] + n[1] * 0.52, p[2] + n[2] * 0.52]);
-      if (Math.hypot(s.x - x, s.y - y) > this.S * 0.3) continue;
-      if (s.d > bd) [best, bd] = [sc.id, s.d];
-    }
-    // a screw hidden behind a nearer block is not under the finger: the block is
-    if (best !== null) {
-      const blk = this.pickBlock(x, y);
-      if (blk >= 0 && blk !== this.st.lvl.screws[best].block && this.project(this.bpos(blk)).d > this.project(this.bpos(this.st.lvl.screws[best].block)).d) return null;
-    }
-    return best;
+    return this.pick(x, y).sid;
   }
 
   /** The front-most block face under the finger, or -1. */
   pickBlock(x: number, y: number) {
-    const pt = new Phaser.Math.Vector2(x, y);
-    for (let i = this.drawn.length - 1; i >= 0; i--) if (Phaser.Geom.Polygon.Contains(new Phaser.Geom.Polygon(this.drawn[i].pts), pt.x, pt.y)) return this.drawn[i].block;
-    return -1;
+    const u = this.toUnits(x, y);
+    return faceUnder(shownFaces(this.st, this.turn), u.x, u.y)?.block ?? -1;
   }
 
-  /** Screen position of a screw + whether it can come out in this view (QA scripts). */
+  /** Screen position of a screw + whether a tap there takes it in this view (QA scripts). */
   screwAt(id: number) {
-    const sc = this.st.lvl.screws[id];
-    const n = FACE_DIR[sc.face];
-    const p = this.bpos(sc.block);
-    const s = this.project([p[0] + n[0] * 0.52, p[1] + n[1] * 0.52, p[2] + n[2] * 0.52]);
+    const s = this.project(screwSpot3(this.st.lvl, id));
     return { x: s.x, y: s.y, free: reachable(this.st, id, this.view) };
   }
 
@@ -423,8 +356,16 @@ export class ObjectYardScene extends Phaser.Scene {
       if (bid >= 0) this.hammer(bid);
       return;
     }
-    const sid = this.pickScrew(x, y);
-    if (sid === null) return;
+    const pk = this.pick(x, y);
+    const sid = pk.sid;
+    if (sid === null) {
+      // never a silent no-op on the object
+      if (pk.reason) sfx.invalid();
+      if (pk.reason === 'away') this.say(`TURN IT TO REACH THAT ONE`, '#ffcf33');
+      else if (pk.reason === 'blocked') this.say(`A BLOCK IS IN FRONT OF IT`, '#ff8a6a');
+      else if (pk.reason === 'bare') this.say(`TAP A BRIGHT SCREW`, '#ffcf33');
+      return;
+    }
     const before = this.screwAt(sid);
     const r = tapScrew(this.st, sid, this.view);
     if (!r.ok) {
@@ -474,7 +415,7 @@ export class ObjectYardScene extends Phaser.Scene {
   fall(blocks: number[]) {
     for (const bid of blocks) {
       const g = this.add.graphics().setDepth(30);
-      this.paintBlock(g, bid, { x: 0, y: 0 }, true);
+      this.paintFaces(g, blockFaces(this.st, bid, this.turn, true));
       const floor = this.cy + this.S * 1.45 - this.project(this.bpos(bid)).y;
       sfx.panelBreak(0);
       this.tweens.chain({
