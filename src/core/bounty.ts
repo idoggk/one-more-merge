@@ -24,9 +24,14 @@ export function bountiesFor(date: string, beaten: string[]): { id: string; twist
   const pool = [...new Set(beaten)].sort();
   if (pool.length < 3) return null;
   const rng = new Rng(hashStr(`bounty:${date}`) || 1);
-  const twists: BountyTwist[] = ['gaps', 'corners', 'rocket'];
-  return rng.shuffle(pool).slice(0, 3).map((id, k) => ({ id, twist: twists[(k + rng.int(3)) % 3] }));
+  const ids = rng.shuffle(pool).slice(0, 3);
+  // walkthrough 3: one of each twist per day (each slot used to roll its own, so a day could be three Rocket fights)
+  const twists = rng.shuffle<BountyTwist>(['gaps', 'corners', 'rocket']);
+  return ids.map((id, k) => ({ id, twist: twists[k] }));
 }
+
+/** Card text for a twist; before the player owns Rocket the Rocket fight says the Rockets are lent for it. */
+export const twistText = (twist: BountyTwist, rocketOwned: boolean) => (twist === 'rocket' && !rocketOwned ? 'Rockets instead of Cannons (lent to you)' : TWIST_TEXT[twist]);
 
 export function newBountyFight(id: string, twist: BountyTwist, date: string, slot: number): GameState {
   const base = rushDef(id, 1);

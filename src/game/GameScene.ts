@@ -58,11 +58,12 @@ import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayL
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { CRATE } from '../core/screwObject';
-import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
-import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, OD_LABEL, stageHudText, TUTORIAL, unitsTitle } from '../content/sceneCopy';
+import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
+import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, chapterChestText, FACE, goalDoneText, GUIDE, ITEM_COPY, mergesText, OD_LABEL, relayLockNote, stageHudText, TUTORIAL, unitsTitle } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
 import { FEATURE_INFO, grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { admitTip, newTipLedger } from './tips';
+import { MODE_INTRO, modeIntroFor } from './modeIntro';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
 import { bossLesson, joinRewards, machineName, OverlayQueue, rewardRows, trayEarnText } from './flow';
@@ -773,7 +774,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.puzzle ? `WIN IN ${this.s.puzzle.moves} MERGES` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.puzzle ? `WIN IN ${mergesText(this.s.puzzle.moves).toUpperCase()}` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -828,6 +829,10 @@ export class GameScene extends Phaser.Scene {
         this.explain('stage_hud', [
           { text: stageHudText(this.s.stage), spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
         ]);
+    } else {
+      // walkthrough 3: the first Challenge / Remix opens with one card (clock paused, once per mode, modeIntro.ts)
+      const mi = modeIntroFor(this.s);
+      if (mi) this.explain(mi, [{ text: MODE_INTRO[mi], spots: [{ x: SCRAP_X, y: TRAY_Y, r: 70 }] }]);
     }
     tlog.log('intro_end', { skipped });
   }
@@ -2646,8 +2651,9 @@ Now beat the real level.`, this.coachY());
         case 'goal': {
           const cp = cellXY(e.idx);
           sfx.win();
-          this.floatText(cp.x, cp.y - 40, e.kind === 'rank' ? `RANK ${e.n} BUILT!` : `CHAIN x${e.n}!`, '#ffcf33', 56, 900, 'banner_destroyed');
-          this.showEvent(e.kind === 'rank' ? `RANK ${e.n} BUILT!  GOAL DONE` : `CHAIN x${e.n}!  GOAL DONE`, '#ffd24a', 3000);
+          const got = Math.max(e.n, this.s.goal?.best ?? 0); // walkthrough 3: name the rank actually built
+          this.floatText(cp.x, cp.y - 40, e.kind === 'rank' ? `RANK ${got} BUILT!` : `CHAIN x${got}!`, '#ffcf33', 56, 900, 'banner_destroyed');
+          this.showEvent(e.kind === 'rank' ? `RANK ${got} BUILT!  GOAL DONE` : `CHAIN x${got}!  GOAL DONE`, '#ffd24a', 3000);
           tlog.log('goal_done', { kind: e.kind, n: e.n, at: +this.s.elapsed.toFixed(1) });
           break;
         }
@@ -3834,6 +3840,7 @@ Now beat the real level.`, this.coachY());
     let got = 0;
     let firstClear = false;
     let chapterDone = 0;
+    const chest = { goldCrates: 0, gems: 0 }; // walkthrough 3: listed on the CHAPTER COMPLETE chest
     if (won) {
       m.wins++;
       got = starsFor(def, s.elapsed);
@@ -3906,10 +3913,12 @@ Now beat the real level.`, this.coachY());
         const kind: CrateKind | null = def.mini_boss ? 'iron' : n % 10 === 0 ? 'gold' : n % 3 === 0 ? 'wood' : null;
         if (n % 10 === 0) {
           m.gems = (m.gems ?? 0) + GEM_REWARDS.chapterBoss;
+          chest.gems += GEM_REWARDS.chapterBoss;
           lines.push(`+${GEM_REWARDS.chapterBoss} GEMS`);
         }
         if (kind) {
           this.giveCrate(kind);
+          if (kind === 'gold' && n % 10 === 0) chest.goldCrates++;
           lines.push(`+1 ${CRATES[kind].name}`);
         }
       }
@@ -3949,7 +3958,9 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${this.stageCount()!.at} of ${this.stageCount()!.n}  ·  ${this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
+    const sub = this.add.text(W / 2, top + 140, s.goal ? (won ? `${goalDoneText(s.goal)} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${this.stageCount()!.at} of ${this.stageCount()!.n}  ·  ${this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5);
+    if (sub.width > W - 120) sub.setScale((W - 120) / sub.width); // walkthrough 3: no overflow at 390 wide
+    c.add(sub);
     // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
     if (!won && this.hasArt('defeat')) {
       const im = this.fitVisible(this.add.image(W / 2, top + 296, 'defeat'), 240);
@@ -4005,7 +4016,7 @@ Now beat the real level.`, this.coachY());
     // own tap); the button's action runs after them, so a tap on NEXT LEVEL is never eaten by a popup
     this.endQueue.clear();
     if (chapterDone) {
-      this.endQueue.push((done) => this.playChapterChest(chapterDone, done));
+      this.endQueue.push((done) => this.playChapterChest(chapterDone, done, chest));
       this.endQueue.push((done) => this.backupNudge(chapterDone, done));
     }
     const leave = (fn: () => void) => () => this.endQueue.run(fn);
@@ -4056,7 +4067,7 @@ Now beat the real level.`, this.coachY());
   }
 
   /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
-  playChapterChest(chapter: number, done: () => void = () => this.backupNudge(chapter)) {
+  playChapterChest(chapter: number, done: () => void = () => this.backupNudge(chapter), chest = { goldCrates: 0, gems: 0 }) {
     const o = this.add.container(0, 0).setDepth(140);
     o.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive());
     const shownAt = this.time.now;
@@ -4070,6 +4081,31 @@ Now beat the real level.`, this.coachY());
     o.add(medal);
     const cap = this.add.text(W / 2, H / 2 + 260, `Chapter ${chapter} medal added to your MACHINE\n(tap to continue)`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', align: 'center' }).setOrigin(0.5).setAlpha(0);
     o.add(cap);
+    // walkthrough 3: the chest lists what is in it, and OPEN NOW opens the gold crate, then carries on to the level card
+    const inside = chapterChestText(chest);
+    const contents = this.add.text(W / 2, H / 2 + 185, inside, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6, align: 'center' }).setOrigin(0.5).setAlpha(0);
+    if (contents.width > W - 80) contents.setScale((W - 80) / contents.width);
+    o.add(contents);
+    let leaving = false;
+    const leave = (fn: () => void) => {
+      if (leaving) return;
+      leaving = true;
+      tlog.log('chapter_reward_presented', { chapter });
+      o.destroy();
+      fn();
+    };
+    const canOpen = () => chest.goldCrates > 0 && (this.meta.crates?.gold ?? 0) > 0;
+    this.time.delayedCall(1100, () => {
+      if (!o.active) return;
+      this.tweens.add({ targets: contents, alpha: 1, duration: 300 });
+      if (canOpen())
+        this.button(o, W / 2, H / 2 + 380, 380, 'OPEN NOW', 0x5fbf4a, () => leave(() => {
+          if (!canOpen()) return done();
+          this.meta.crates!.gold! -= 1;
+          this.crateReturn = () => (this.closeModal(), done());
+          this.openCrate('gold');
+        }));
+    });
     sfx.chestShake();
     if (closed) this.tweens.add({ targets: closed, angle: { from: -4, to: 4 }, duration: 90, yoyo: true, repeat: 4 });
     this.time.delayedCall(700, () => {
@@ -4083,13 +4119,11 @@ Now beat the real level.`, this.coachY());
     // F6: its own tap: the press must start on the chest screen (not the tap that opened it), after the medal shows
     let pressed = false;
     o.list[0].on('pointerdown', () => (pressed = this.time.now - shownAt > 500));
-    o.list[0].on('pointerup', () => {
-      if (!pressed) return;
-      tlog.log('chapter_reward_presented', { chapter });
-      o.destroy();
-      done();
-    });
+    o.list[0].on('pointerup', () => pressed && leave(done));
   }
+
+  /** Walkthrough 3: set while a crate opened from the chapter chest is on screen; its button goes back to the level flow. */
+  crateReturn: (() => void) | null = null;
 
   /** r43: after a chapter clear, offer a save backup once per chapter (dismissible; never blocks the level-end panel). */
   backupNudge(chapter: number, done: () => void = () => undefined) {
@@ -4331,7 +4365,7 @@ Now beat the real level.`, this.coachY());
         im.setScale(110 / Math.max(im.width, im.height));
         slot.add(im);
       }
-      slot.add(this.add.text(0, 52, TWIST_TEXT[b.twist], { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
+      slot.add(this.add.text(0, 52, twistText(b.twist, this.ownsUnit('rocket')), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
       if (done) slot.add(this.add.text(70, -62, mast ? '★' : '✓', { fontFamily: 'Arial Black', fontSize: '34px', color: mast ? '#e0a020' : '#2a8a3a', stroke: '#fff0cf', strokeThickness: 5 }).setOrigin(0.5));
       slot.setSize(190, 175).setInteractive({ useHandCursor: true });
       slot.on('pointerup', () => (sfx.click(), this.startBounty(k)));
@@ -5082,7 +5116,7 @@ Now beat the real level.`, this.coachY());
     const pz = this.puzzleRec();
     const solvedToday = pz.lastSolved === localDate();
     const dp = this.dailyPuzzle();
-    const dcard = card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : UNLOCK_LEVEL.puzzles!, () => (this.seen('puzzles'), this.startPuzzle(dp, 'daily')), ['Other modes \u203a', () => this.openOtherModes(), modesOpen]);
+    const dcard = card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${mergesText(dp.moves)}${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : UNLOCK_LEVEL.puzzles!, () => (this.seen('puzzles'), this.startPuzzle(dp, 'daily')), ['Other modes \u203a', () => this.openOtherModes(), modesOpen]);
     if (dailyOpen && isNew(m, 'puzzles')) this.newTag(dcard, 70, -70);
     if (modesOpen && modesNew) this.newTag(dcard, -(W - 50) / 2 + 220, 110 - 50 - 18, 0.8);
     if (m.playtestMode) {
@@ -6670,7 +6704,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const cols = cards.length > 6 ? 4 : 3, rows = Math.ceil(cards.length / cols);
       const by = Math.min(top + 920, top + (cols === 4 ? 220 : 250) + (rows - 1) * (cols === 4 ? 190 : 250) + (cols === 4 ? 175 : 200));
       if (more) this.button(c, W / 2 - 150, by, 260, `NEXT (${more})`, 0x5fbf4a, () => this.openNextCrate(), 0.8);
-      this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
+      const back = this.crateReturn;
+      if (back) this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'CONTINUE', 0x27a4c0, () => ((this.crateReturn = null), back()), 0.8);
+      else this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
     });
   }
 
@@ -6831,8 +6867,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const lv = this.currentLevel();
     const slots: { label: string; fam: Family | null; role: string; note: string; tap: () => void }[] = [
       { label: 'SHOOTER', fam: this.teamShooter(), role: 'shooter', note: 'tap to change', tap: () => this.openSlotPicker('shooter', 0) },
-      { label: 'RELAY A', fam: ra, role: 'relay', note: lv > 10 ? 'tap to change' : 'opens in chapter 2', tap: () => (lv > 10 ? this.openSlotPicker('relay', 0) : this.showToast('RELAY A OPENS IN CHAPTER 2')) },
-      { label: 'RELAY B', fam: rb, role: 'relay', note: lv > 20 ? 'tap to change' : 'opens in chapter 3', tap: () => (lv > 20 ? this.openSlotPicker('relay', 1) : this.showToast('RELAY B OPENS IN CHAPTER 3')) },
+      { label: 'RELAY A', fam: ra, role: 'relay', note: lv > 10 ? 'tap to change' : relayLockNote(FAMILY_INFO[ra as 'coil'].name, 2), tap: () => (lv > 10 ? this.openSlotPicker('relay', 0) : this.showToast('RELAY A OPENS IN CHAPTER 2')) },
+      { label: 'RELAY B', fam: rb, role: 'relay', note: lv > 20 ? 'tap to change' : relayLockNote(FAMILY_INFO[rb as 'coil'].name, 3), tap: () => (lv > 20 ? this.openSlotPicker('relay', 1) : this.showToast('RELAY B OPENS IN CHAPTER 3')) },
       { label: 'HELPER', fam: m.playtestMode ? null : helper, role: helper ? FAMILY_INFO[helper as 'cannon'].role.toLowerCase() : 'support', note: 'tap to change', tap: () => (m.playtestMode ? this.showToast('HELPERS ARE OFF IN THIS PLAYTEST') : this.openSlotPicker('helper', 0)) },
     ];
     slots.forEach((sl, i) => {
@@ -6842,9 +6878,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const plate = this.hasArt('ui_team_slot') ? this.add.image(0, 0, 'ui_team_slot').setDisplaySize(280, 210) : this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(-140, -105, 280, 210, 22);
       card.add(plate);
       card.add(this.add.text(0, -78, sl.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+      const long = sl.note.length > 20;
       if (sl.fam && this.textures.exists(`${sl.fam}_1`)) {
-        const im = this.add.image(0, -8, `${sl.fam}_1`);
-        im.setScale(96 / Math.max(im.width, im.height));
+        const im = this.add.image(0, long ? -16 : -8, `${sl.fam}_1`);
+        im.setScale((long ? 80 : 96) / Math.max(im.width, im.height));
         card.add(im);
       } else card.add(this.add.text(0, -8, 'none', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));
       if (this.hasArt(`role_${sl.role}`)) {
@@ -6852,8 +6889,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
         ri.setScale(34 / Math.max(ri.width, ri.height));
         card.add(ri);
       }
-      card.add(this.add.text(0, 52, sl.fam ? FAMILY_INFO[sl.fam as keyof typeof FAMILY_INFO].name : 'No helper', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0.5));
-      card.add(this.add.text(0, 86, sl.note, { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#fff0cf' }).setOrigin(0.5));
+      // walkthrough 3: a locked relay's note is two wrapped lines, so the unit and its name sit a little higher
+      card.add(this.add.text(0, long ? 40 : 52, sl.fam ? FAMILY_INFO[sl.fam as keyof typeof FAMILY_INFO].name : 'No helper', { fontFamily: 'Lilita One, Arial Black', fontSize: long ? '25px' : '28px', color: '#3b2533' }).setOrigin(0.5));
+      card.add(this.add.text(0, long ? 80 : 86, sl.note, { fontFamily: 'Lilita One, Arial Black', fontSize: long ? '16px' : '19px', color: '#fff0cf', align: 'center', wordWrap: { width: 250 } }).setOrigin(0.5));
       card.setSize(280, 210).setInteractive({ useHandCursor: true });
       card.on('pointerup', sl.tap);
       c.add(card);

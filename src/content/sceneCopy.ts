@@ -95,3 +95,22 @@ export const BOUNTY_LOCKED = { text: (beaten: number) => `Beat 3 bosses or mini-
 
 /** HUD caption under the Overdrive pips (F8): the lightning meter is not the Bolts currency. */
 export const OD_LABEL = 'OVERDRIVE';
+
+/** Walkthrough 3: "Win in 1 merges" read wrong; puzzle counts say merge / merges. */
+export const mergesText = (n: number) => `${n} merge${n === 1 ? '' : 's'}`;
+
+/** Walkthrough 3: a goal level won with a bigger rank / chain than asked names both (it said "Rank 5 built" for a rank 6). */
+export function goalDoneText(g: { kind: 'rank' | 'chain'; n: number; best: number }): string {
+  const got = Math.max(g.n, g.best);
+  if (g.kind === 'rank') return got > g.n ? `Rank ${got} built (goal rank ${g.n})` : `Rank ${g.n} built`;
+  return got > g.n ? `Chain x${got} fired (goal x${g.n})` : `Chain x${g.n} fired`;
+}
+
+/** TEAM sheet (walkthrough 3): a locked relay slot names the unit it holds for now and when it opens. */
+export const relayLockNote = (name: string, chapter: number) => `(${name} for now: pick your own relay from chapter ${chapter})`;
+
+/** CHAPTER N COMPLETE (walkthrough 3): what is inside the chest. */
+export function chapterChestText(items: { goldCrates: number; gems: number }): string {
+  const parts = [items.goldCrates ? `${items.goldCrates > 1 ? `${items.goldCrates} ` : ''}GOLD CRATE${items.goldCrates > 1 ? 'S' : ''}` : '', items.gems ? `+${items.gems} GEMS` : ''].filter(Boolean);
+  return parts.length ? `In your chest: ${parts.join('  ·  ')}` : '';
+}
