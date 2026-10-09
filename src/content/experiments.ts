@@ -62,4 +62,26 @@ export function storedUnitsB0(read: () => string | null): boolean {
 }
 export function applyUnitsB0(on: boolean) {
   TUNING.unitsB0 = on;
+  TUNING.unitsB1 = false;
+}
+
+/** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF). */
+export type UnitsVariant = 'off' | 'b0' | 'b1';
+export const UNITS_VARIANTS: { id: UnitsVariant; label: string }[] = [
+  { id: 'off', label: 'OFF' },
+  { id: 'b0', label: 'B0' },
+  { id: 'b1', label: 'B1' },
+];
+export function storedUnits(read: () => string | null): UnitsVariant {
+  try {
+    const v = read();
+    return v === 'on' ? 'b0' : v === 'b1' ? 'b1' : 'off';
+  } catch {
+    return 'off';
+  }
+}
+export const unitsStoreValue = (v: UnitsVariant) => (v === 'b0' ? 'on' : v === 'b1' ? 'b1' : null);
+export function applyUnits(v: UnitsVariant) {
+  TUNING.unitsB0 = v === 'b0';
+  TUNING.unitsB1 = v === 'b1';
 }

@@ -1,4 +1,4 @@
-import { COLS, MAX_RANK, ROWS, TUNING } from '../content/tuning';
+import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
 import { isRelay, isShooter, type Activation, type CascadeResult, type Family, type Grid, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
@@ -30,11 +30,13 @@ export function routeCells(idx: number, family: Family, rank: number, perks: rea
     for (let d = 1; d <= reach; d++)
       for (const [dr, dc] of DIRS) if (inside(r + dr * d, c + dc * d)) out.push(at(r + dr * d, c + dc * d));
   } else if (family === 'horn') {
-    // r32 Horn: its whole column (the vertical Bell)
+    // r32 Horn: its whole column (the vertical Bell); units B1 hornSides: plus its left / right neighbours
     for (let rr = 0; rr < ROWS; rr++) if (rr !== r) out.push(at(rr, c));
+    if (TUNING.unitsB1 && TUNING.b1.hornSides) for (const cc of [c - 1, c + 1]) if (inside(r, cc)) out.push(at(r, cc));
   } else if (family === 'fuse_box') {
-    // r32 Fuse Box: the four diagonal corners
-    for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) if (inside(r + dr, c + dc)) out.push(at(r + dr, c + dc));
+    // r32 Fuse Box: the four diagonal corners (units B1: b1.fuseReach cells along each diagonal)
+    const reach = TUNING.unitsB1 ? TUNING.b1.fuseReach : 1;
+    for (let d = 1; d <= reach; d++) for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) if (inside(r + dr * d, c + dc * d)) out.push(at(r + dr * d, c + dc * d));
   } else if (family === 'bell') {
     for (let cc = 0; cc < COLS; cc++) if (cc !== c) out.push(at(r, cc));
     if (TUNING.clarity) return out; // clarity ruleset: a Bell rings its row, at every rank
@@ -62,13 +64,20 @@ function mortarMult(a: Activation, level: number, nth: number) {
 }
 
 /** Units B0 Mortar: x(0.8 + 0.1 per machine already fired earlier in this chain), cap x2.0 (+0.15 L3 Bigger Shell, rank 4+);
- *  L6 High Arc counts 2 more machines on every 6th fire, L9 Siege Shot (rank 7-8) counts at least 4. */
+ *  L6 High Arc counts 2 more machines on every 6th fire, L9 Siege Shot (rank 7-8) counts at least 4. B1: b1 base / step. */
 export function mortarOrderMult(a: Activation, level: number, nth: number, before: number) {
   const B = TUNING.b0;
+  const base = TUNING.unitsB1 ? TUNING.b1.orderBase : B.orderBase, step = TUNING.unitsB1 ? TUNING.b1.orderStep : B.orderStep;
   let n = before;
   if (level >= 6 && nth > 0 && nth % 6 === 0) n += 2;
   if (level >= 9 && a.rank >= 7) n = Math.max(n, 4);
-  return Math.min(B.orderCap + (level >= 3 && a.rank >= 4 ? B.capPerk : 0), B.orderBase + B.orderStep * n);
+  return Math.min(B.orderCap + (level >= 3 && a.rank >= 4 ? B.capPerk : 0), base + step * n);
+}
+
+/** Units B1 boost marks: Battery (touching) > Amplifier (within 2 cells) > Beacon (anywhere); +0.03 per unit level. */
+export function b1BoostMult(family: Family, level: number): number {
+  const b = TUNING.b1;
+  return (family === 'battery' ? b.battery : family === 'amplifier' ? b.amp : b.beacon) + 0.03 * (level - 1);
 }
 
 /** r32 relay milestone geometry (extra cells a relay wakes; same-family / fired filters still apply). */
@@ -116,6 +125,8 @@ export interface CascadeOpts {
   unitLevel?: Partial<Record<Family, number>>;
   /** r32 'every Nth fire' counters carried in from earlier cascades this level. */
   fireBase?: Record<string, number>;
+  /** Units B1: cells a firing Fan may clear (junk block, clamp, frost row, locked row); caller applies `clears`. */
+  hazards?: ReadonlySet<number>;
 }
 
 /**
@@ -223,6 +234,22 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     amps.push({ id: g.id, mult });
     edges.push({ from, to: idx, kind: 'amp' });
   };
+  const clears: number[] = [];
+  let fetch = 0;
+  /** Units B1 SETUP: BOOSTED xmult on the strongest unfired shooter within `reach` (Chebyshev; Infinity = anywhere) that
+   *  it would raise; nearest, then row-major on ties. Returns the marked cell, or -1 when no shooter qualifies. */
+  const boostShooter = (idx: number, reach: number, mult: number) => {
+    const [r0, c0] = rc(idx);
+    let best = -1, bd = 99;
+    grid.forEach((g, n) => {
+      if (!g || n === idx || fired.has(g.id) || !isShooter(g.family) || (ampNow.get(g.id) ?? 0) >= mult || lockedSet.has(n)) return;
+      const d = Math.max(Math.abs(Math.floor(n / COLS) - r0), Math.abs((n % COLS) - c0));
+      if (d > reach) return;
+      if (best < 0 || g.rank > grid[best]!.rank || (g.rank === grid[best]!.rank && d < bd)) [best, bd] = [n, d];
+    });
+    if (best >= 0) mark(best, mult, idx);
+    return best;
+  };
   const overcharged = new Set<number>();
   const crosses = (from: number, to: number) => opts.splitB !== undefined && from % COLS <= opts.splitB !== to % COLS <= opts.splitB;
   /** Item wake edges: occupied neighbours (orthogonal or diagonal), excluding the owner's family; shared split predicate. */
@@ -288,6 +315,17 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
   };
 
+  /** Units B1 helperPass: a helper that did its job passes the chain on to its U/R/D/L neighbours (other families). */
+  const passOn = (idx: number, a: Activation) => {
+    if (!TUNING.b1.helperPass) return;
+    for (const n of sparkCells(idx)) {
+      const g = grid[n];
+      if (!g || g.family === a.family || visited.has(n) || lockedSet.has(n) || crosses(idx, n)) continue;
+      edges.push({ from: idx, to: n, kind: 'spark' });
+      enqueue(idx, n, a.depth + 1);
+    }
+  };
+
   let guard = 0;
   while (queue.length) {
     if (++guard > ROWS * COLS + 1) throw new Error('cascade bound violated');
@@ -324,7 +362,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
             if (!inside(r0 + dr, c0 + dc)) continue;
             const n = at(r0 + dr, c0 + dc);
             const g = grid[n];
-            if (!g || visited.has(n) || blockSet.has(n) || lockedSet.has(n) || (TUNING.unitsB0 && g.family === 'arc_welder')) continue;
+            if (!g || visited.has(n) || blockSet.has(n) || lockedSet.has(n) || (unitsB0On() && g.family === 'arc_welder')) continue;
             if (opts.splitB !== undefined && c0 <= opts.splitB !== (n % COLS) <= opts.splitB) continue;
             if (best < 0 || g.rank > grid[best]!.rank || (g.rank === grid[best]!.rank && n < best)) best = n;
           }
@@ -351,6 +389,23 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       }
       continue;
     }
+    if (a.family === 'fan' && TUNING.unitsB1) {
+      // units B1 CONTROL: clear one touching (8 neighbours) junk / clamp / frost / lock cell; nothing to clear = push as today
+      const [r0, c0] = rc(idx);
+      let hit = -1;
+      for (let dr = -1; dr <= 1 && hit < 0; dr++)
+        for (let dc = -1; dc <= 1 && hit < 0; dc++) {
+          const n = at(r0 + dr, c0 + dc);
+          if ((dr || dc) && inside(r0 + dr, c0 + dc) && opts.hazards?.has(n) && !clears.includes(n)) hit = n;
+        }
+      passOn(idx, a);
+      if (hit >= 0) {
+        clears.push(hit);
+        edges.push({ from: idx, to: hit, kind: 'fan' });
+        continue;
+      }
+      if (!TUNING.b1.fanPush) continue;
+    }
     if (a.family === 'fan') {
       // L3 Strong Gust (rank 4+ pushes 2 cells), L6 Double Gust (every 4th), L9 Launch (rank 6 = helper max: wakes what it pushed)
       const pushes = nthEvery('fan', 6, 4, a) ? 2 : 1;
@@ -365,6 +420,33 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
         busy.add(p.to);
         if (hasPerk('fan', 9, MAX_RANK, a) && !fired.has(grid[p.to]!.id) && !visited.has(p.to)) enqueue(idx, p.to, a.depth + 1);
       }
+      continue;
+    }
+    if (a.family === 'battery' && TUNING.unitsB1) {
+      // units B1 SETUP: BOOSTED x2 on a touching shooter (L6 every 5th / L9: two shooters)
+      for (let k = 0; k < (lvl('battery') >= 9 || nthEvery('battery', 6, 5, a) ? 2 : 1); k++) if (boostShooter(idx, 1, b1BoostMult('battery', lvl('battery'))) < 0) break;
+      passOn(idx, a);
+      continue;
+    }
+    if (a.family === 'amplifier' && TUNING.unitsB1) {
+      // units B1 SETUP: BOOSTED x1.6 on a shooter within 2 cells (L6 every 5th: two shooters, L9 rank 6: within 3)
+      const reach = hasPerk('amplifier', 9, MAX_RANK, a) ? 3 : 2;
+      for (let k = 0; k < (nthEvery('amplifier', 6, 5, a) ? 2 : 1); k++) if (boostShooter(idx, reach, b1BoostMult('amplifier', lvl('amplifier'))) < 0) break;
+      passOn(idx, a);
+      continue;
+    }
+    if (a.family === 'signal_beacon' && TUNING.unitsB1) {
+      // units B1 SETUP: BOOSTED x1.3 on the strongest shooter anywhere (L6 every 6th +0.25; L9 rank 6 wakes it)
+      const mult = b1BoostMult('signal_beacon', lvl('signal_beacon')) + (nthEvery('signal_beacon', 6, 6, a) ? 0.25 : 0);
+      const to = boostShooter(idx, Infinity, mult);
+      if (to >= 0 && hasPerk('signal_beacon', 9, MAX_RANK, a) && !visited.has(to)) enqueue(idx, to, a.depth + 1);
+      passOn(idx, a);
+      continue;
+    }
+    if (a.family === 'magnet' && TUNING.unitsB1) {
+      // units B1 ECONOMY: fetch one matching part that lands next to a lonely twin (caller queues it; one per cascade)
+      fetch = 1;
+      passOn(idx, a);
       continue;
     }
     if (a.family === 'battery') {
@@ -461,7 +543,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const oc = overcharged.has(a.id) ? 2 : 1;
     // r32 Mortar: deeper in the chain = harder hit (x0.9 at depth 1 ... x1.65 cap); Arc Welder hits x0.75
     // units B0: Mortar scales with chain ORDER (machines fired before it) instead of depth
-    const deep = a.family === 'mortar' ? (TUNING.unitsB0 ? mortarOrderMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0, orderOf.get(a.id) ?? 0) : mortarMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0)) : a.family === 'arc_welder' ? (hasPerk('arc_welder', 3, 4, a) ? 0.9 : 0.75) : 1;
+    const deep = a.family === 'mortar' ? (unitsB0On() ? mortarOrderMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0, orderOf.get(a.id) ?? 0) : mortarMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0)) : a.family === 'arc_welder' ? (hasPerk('arc_welder', 3, 4, a) ? 0.9 : 0.75) : 1;
     // shooter milestones: Cannon L3 Heavy Barrel / L6 Lucky Eight; Rocket L3 Warhead / L6 Sixth Salvo / L9 Deep Burn
     const ms =
       a.family === 'cannon' ? (hasPerk('cannon', 3, 4, a) ? 1.2 : 1) * (nthEvery('cannon', 6, 8, a) ? 2 : 1)
@@ -476,5 +558,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(fetch ? { fetch } : {}) };
 }

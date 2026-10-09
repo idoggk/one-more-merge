@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, applyUnitsB0, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnitsB0, UNITS_B0_KEY, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyUnits, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -37,7 +37,7 @@ import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits } from '../core/types';
-import { ATTACK_TINT, CELL_COPY, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
+import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
@@ -64,6 +64,8 @@ import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, typ
 import { FEATURE_INFO, grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { admitTip, newTipLedger } from './tips';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
+import { FormulaStrip } from './formulaStrip';
+import { hitFormula, type HitFormula } from '../core/hitFormula';
 export { localDate };
 
 export const W = 720;
@@ -210,9 +212,10 @@ const qaYardObject = () => {
     return false;
   }
 };
-// t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
-const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
-applyUnitsB0(qaUnitsB0());
+// t-a8c886ad / t-4a966cee QA-only: units option B, OFF / B0 (helpers copy, Mortar chain order, welders skip welders) /
+// B1 (B0 + one direct job per helper, shared BOOSTED mark, Fuse Box reach)
+const qaUnits = () => storedUnits(() => localStorage.getItem(UNITS_B0_KEY));
+applyUnits(qaUnits());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -455,6 +458,7 @@ export class GameScene extends Phaser.Scene {
     this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
     this.laneBg.setDepth(20).setAlpha(0);
     this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
+    this.formula = new FormulaStrip(this, W / 2, () => EVENT_Y, () => HP_Y - 50, REDUCED_MOTION);
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -1444,8 +1448,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.pulledMerge = merging && (this.pulledIds.has(a!.id) || this.pulledIds.has(b!.id));
     const prevBest = this.s.stats.bestRank;
+    // the hit formula is read before the drop changes the board; playCascade() plays it as the chain ribbon
+    this.pendingFormula = merging ? hitFormula(this.s, from, to) : null;
     const res = recordCommand(this.runLog, this.s, { k: 'drop', from, to, id });
     if (!res.ok) {
+      this.pendingFormula = null;
       tlog.log('invalid');
       return false;
     }
@@ -1533,6 +1540,7 @@ Now beat the real level.`, this.coachY());
       this.reconcile();
     }
     this.handleEvents(res.events);
+    this.pendingFormula = null;
     this.save();
     return true;
   }
@@ -1672,6 +1680,7 @@ Now beat the real level.`, this.coachY());
     const key = this.chipKeyFor(src, hov);
     if (key === this.chipKey) return;
     this.chipKey = key;
+    this.formula.show(key ? () => hitFormula(this.s, src, hov) : null);
     this.chipsC?.destroy();
     this.chipsC = null;
     const pv = key ? mergePreview(this.s, src, hov) : null;
@@ -1767,6 +1776,8 @@ Now beat the real level.`, this.coachY());
 
   /** Cannons about to auto-fire puff up a little; everything breathes slightly. */
   primeG!: Phaser.GameObjects.Graphics;
+  /** units B1: the shared BOOSTED mark shows its multiplier beside the badge (pooled, one per boosted machine). */
+  boostTexts: Phaser.GameObjects.Text[] = [];
   lastTickSec = -1;
   resultCall: Phaser.Time.TimerEvent | null = null;
   resultAt = 0;
@@ -1789,12 +1800,20 @@ Now beat the real level.`, this.coachY());
     this.primeG.clear();
     // helper marks share the top-left slot: Amplifier / Beacon boost (lavender ring + up-arrow) first, Battery charge
     // (green ring + bolt) below it when both are on; each stays until the machine fires (the model clears it on use)
+    let nBoost = 0;
     this.s.grid.forEach((g, idx) => {
       if (!g?.primed && !g?.amp) return;
       const { x, y } = cellXY(idx);
       if (g.amp) drawAmpMark(this.primeG, x, y, 0.6 + 0.4 * Math.sin(t * 6 + 1.5));
       if (g.primed) drawPrimeMark(this.primeG, x, y, 0.6 + 0.4 * Math.sin(t * 6), 1, g.amp ? SLOT.helper2 : SLOT.helper);
+      if (g.amp && TUNING.unitsB1) {
+        let tx = this.boostTexts[nBoost];
+        if (!tx?.active) tx = this.boostTexts[nBoost] = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: hex(AMP_COL), stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0, 0.5).setDepth(11);
+        tx.setText(fmtMult(g.amp)).setPosition(x + SLOT.helper.x + 15, y + SLOT.helper.y).setVisible(true);
+        nBoost++;
+      }
     });
+    for (let i = nBoost; i < this.boostTexts.length; i++) if (this.boostTexts[i]?.active) this.boostTexts[i].setVisible(false);
     // idle life (ChatGPT r10 #8): only two gadgets act at once, each for ~420ms, on a 1800-2600ms cosmetic beat
     const now = this.time.now;
     const holding = this.dragIdx >= 0 && this.moved;
@@ -3054,8 +3073,14 @@ Now beat the real level.`, this.coachY());
     });
   }
 
+  formula!: FormulaStrip;
+  pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
+    // rival study #3: a player merge's chain ribbon is its hit formula, counted up link by link
+    const hf = !kickback && this.pendingFormula?.machines === r.count ? this.pendingFormula : null;
+    this.pendingFormula = null;
+    const ribbon = !!hf && (hf.machines > 1 || hf.terms.length > 0 || hf.cap !== null);
     const sig = r.edges.filter((e) => e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime').map((e) => e.kind);
     if (sig.length) tlog.log('max_signature', { kinds: sig, chain: r.count });
     const maxDepth = Math.max(...r.activations.map((a) => a.depth));
@@ -3112,7 +3137,7 @@ Now beat the real level.`, this.coachY());
 
     // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
     // live chain counter in the lane: counts up beat by beat, then the final line lands on the hit
-    if (r.count > 2) {
+    if (r.count > 2 && !ribbon) {
       let soFar = 0;
       for (let d = 0; d <= maxDepth; d++) {
         soFar += r.activations.filter((a) => a.depth === d).length;
@@ -3165,6 +3190,7 @@ Now beat the real level.`, this.coachY());
       this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
     });
     const end = windup + maxDepth * step + 260;
+    if (ribbon) this.formula.play(hf!, r.activations.map((a) => windup + a.depth * step), end);
     this.time.delayedCall(end, () => {
       this.hitTarget(true, r.count >= 10 ? 1 : 0);
       if (r.count >= 3) {
@@ -3178,7 +3204,7 @@ Now beat the real level.`, this.coachY());
       const huge = r.count >= 10;
       // EXPERIMENT spam fatigue: a hurried merge's number is dimmed and says how much of its hit landed
       const tired = r.fatigue !== undefined && r.fatigue < 1 ? `  ·  RUSHED ${Math.round(r.fatigue * 100)}%` : '';
-      if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
+      if (r.count > 1 && !ribbon) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
       if (!kickback && r.count >= 3)
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
@@ -3188,7 +3214,7 @@ Now beat the real level.`, this.coachY());
         );
       // damage number beside the opponent, never on its face
       const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
-      if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
+      if (capped && !ribbon) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
       if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.stageFloatY(this.target.y - 40), capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });
   }
@@ -5407,7 +5433,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
     else if (td?.slot === 'helper') toys = [td.id];
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
-    applyUnitsB0(qaUnitsB0()); // QA UNITS B0 switch, same
+    applyUnits(qaUnits()); // QA UNITS switch, same
     applyMergeRule(qaMergeRule()); // QA MERGE RULE switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
@@ -6067,15 +6093,15 @@ Merge them into a RANK ${rank}!`, this.coachY());
         this.openQaTools(jump);
       }, 0.62);
     });
-    // 6) t-a8c886ad units B0 (this device only; applies when the next level starts)
-    c.add(this.add.text(W / 2, top + 1015, 'UNITS B0 (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
-    const curB0 = qaUnitsB0();
-    [false, true].forEach((on, i) => {
-      const sel = on === curB0, label = on ? 'B0' : 'OFF';
-      this.button(c, W / 2 + (i - 0.5) * 210, top + 1070, 300, sel ? `[${label}]` : label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(UNITS_B0_KEY, on ? 'on' : null);
-        tlog.log('qa_units_b0', { on });
-        this.showToast(on ? 'UNITS B0  ·  START A LEVEL' : 'UNITS B0 OFF (live game)  ·  NEXT LEVEL');
+    // 6) t-a8c886ad / t-4a966cee units OFF / B0 / B1 (this device only; applies when the next level starts)
+    c.add(this.add.text(W / 2, top + 1015, 'UNITS (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const curUnits = qaUnits();
+    UNITS_VARIANTS.forEach((v, i) => {
+      const sel = v.id === curUnits;
+      this.button(c, W / 2 + (i - 1) * 210, top + 1070, 300, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(UNITS_B0_KEY, unitsStoreValue(v.id));
+        tlog.log('qa_units', { units: v.id });
+        this.showToast(v.id === 'off' ? 'UNITS OFF (live game)  ·  NEXT LEVEL' : `UNITS ${v.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });
@@ -7075,7 +7101,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     ];
     const rows: Row[] = page2 ? cells : [
       { label: P.boost.label, fam: 'cannon_2', text: P.boost.text, draw: (g, x, y) => drawAmpMark(g, x, y, 1, k) },
-      { label: P.charge.label, fam: 'cannon_2', text: P.charge.text, draw: (g, x, y) => drawPrimeMark(g, x, y, 1, k) },
+      // units B1: Battery boosts too, so the CHARGED row would explain a mark that never appears
+      ...(TUNING.unitsB1 ? [] : [{ label: P.charge.label, fam: 'cannon_2', text: P.charge.text, draw: (g: Gfx, x: number, y: number) => drawPrimeMark(g, x, y, 1, k) }]),
       {
         label: P.powerup.label, fam: 'cannon_2', text: P.powerup.text,
         draw: (g, x, y) => {
