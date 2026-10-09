@@ -61,10 +61,11 @@ import { CRATE } from '../core/screwObject';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, OD_LABEL, stageHudText, TUTORIAL, unitsTitle } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
-import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
+import { FEATURE_INFO, grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
+import { admitTip, newTipLedger } from './tips';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
-import { bossLesson, joinRewards, machineName, newToyText, OverlayQueue, rewardRows, trayEarnText } from './flow';
+import { bossLesson, joinRewards, machineName, OverlayQueue, rewardRows, trayEarnText } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
 export { localDate };
 
@@ -561,6 +562,7 @@ export class GameScene extends Phaser.Scene {
     this.acc = 0;
     this.heldQueue = []; // cards still waiting for a finger-up belong to the previous run
     if (!this.explaining) this.explainQueue = [];
+    this.tipLedger = newTipLedger(s.level !== undefined && !s.puzzle ? s.level : undefined);
     this.idleTime = 0;
     this.tutorialStep = 0;
     this.coach?.clear();
@@ -811,6 +813,7 @@ export class GameScene extends Phaser.Scene {
       const fam = tdef.level === 6 ? 'rocket' : (tdef.start_extra ?? []).map(([f]) => f).find((f) => f === 'magnet' || f === 'battery' || f === 'fan');
       const pageIdx = fam ? GameScene.GUIDE.findIndex((p) => p.key === fam) : -1;
       if (fam && !this.meta.tips[`new_${fam}`]) {
+        this.admitTip(`new_${fam}`, 1, true); // the guide page is this level's start card
         this.meta.tips[`new_${fam}`] = true;
         store(META_KEY, JSON.stringify(this.meta));
         this.openHowTo(pageIdx, undefined, true);
@@ -1975,12 +1978,7 @@ Now beat the real level.`, this.coachY());
   }
   /** First-time contextual tips (once per player). */
   tip(id: string, text: string, pointAt?: { x: number; y: number }) {
-    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
-    this.meta.tips[id] = true;
-    store(META_KEY, JSON.stringify(this.meta));
-    tlog.log('tip', { id });
-    this.meta.tips[id] = false; // explain() owns the seen-flag
-    this.explain(id, [{ text, spots: pointAt ? [{ ...pointAt, r: 70 }] : [], y: pointAt ? this.nearY([pointAt]) : undefined }]);
+    if (this.explain(id, [{ text, spots: pointAt ? [{ ...pointAt, r: 70 }] : [], y: pointAt ? this.nearY([pointAt]) : undefined }])) tlog.log('tip', { id });
   }
 
   explainQueue: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[] = [];
@@ -1991,11 +1989,22 @@ Now beat the real level.`, this.coachY());
   fuseAfterLesson = false;
   /** F6: overlays that wait for the player to leave the level result (chapter chest, backup nudge). */
   endQueue = new OverlayQueue();
+  /** t-0a294f99 per-level tip budget (tips.ts); reset by startState. */
+  tipLedger = newTipLedger();
+  /** Counts pause cards against this level's tip budget; a tip that doesn't fit stays unseen and is queued (persisted). */
+  admitTip(id: string, cards: number, atStart = this.s.elapsed < 0.5) {
+    if (this.realBoss) return true; // boss fights already show only their own lessons
+    const q = (this.meta.tipQueue ??= []), n = q.length;
+    const ok = admitTip(this.tipLedger, q, id, cards, atStart);
+    if (q.length !== n) store(META_KEY, JSON.stringify(this.meta));
+    return ok;
+  }
   /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). True when queued. */
   explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]): boolean {
     if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return false;
     // r22 (ChatGPT): boss fights show only the boss-warning lesson; other lessons stay unseen until a normal level
     if (this.realBoss && id !== 'x_boss' && id !== 'overdrive' && !id.startsWith('xb_')) return false;
+    if (!this.admitTip(id, cards.length)) return false;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
@@ -2400,23 +2409,17 @@ Now beat the real level.`, this.coachY());
           const kc = events.find((x) => x.type === 'cascade' && x.kickback) as { result: CascadeResult } | undefined;
           const kChain = kc?.result.count ?? 1;
           this.time.delayedCall(520, () => {
-            if (fused)
-              this.explain('x_kick_fuse', [
-                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot, hpSpot] },
-                { text: kChain > 1 ? 'A loose part fell. The DOUBLE ring showed\nit would land on its match: it merged,\nand that free merge fired another chain!' : 'A loose part fell. The DOUBLE ring showed\nit would land on its match: it merged,\nand that free merge fired the new gadget!', spots: [cellXY(landedAt)] },
-              ]);
-            else {
-              const lg = this.s.grid[landedAt];
-              const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
-              // plain drops come from big chains; only paces without kickbackFuse (CALM) also drop them on panel breaks
-              this.explain('x_kick_plain', [
-                TUNING.kickbackFuse
-                  ? { text: `Your big chain (${TUNING.bigCascade}+) shook\na part loose from the monster!`, spots: [tgtSpot] }
-                  : { text: `A big chain (${TUNING.bigCascade}+) or a broken monster panel\n(every 25% of HP: the marks on the HP bar)\nshook a part loose!`, spots: [tgtSpot, hpSpot] },
-                { text: 'The ring showed where it lands: this cell.\n(A DOUBLE ring = it lands on its match and merges.)', spots: [cellXY(landedAt)] },
-                { text: 'This one waits for you.\nMerge it with the same gadget\nand the same number!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
-              ]);
-            }
+            // t-0a294f99: ONE kickback card, from L5 (tips.ts); saves that saw the old two-lesson version skip it
+            if (this.meta.tips.x_kick_fuse || this.meta.tips.x_kick_plain) return;
+            const lg = this.s.grid[landedAt];
+            const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
+            // plain drops come from big chains; only paces without kickbackFuse (CALM) also drop them on panel breaks
+            const why = fused ? 'You broke a monster panel (the marks on the HP bar)' : TUNING.kickbackFuse ? `Your big chain (${TUNING.bigCascade}+)` : `A big chain (${TUNING.bigCascade}+) or a broken panel`;
+            this.explain('x_kick', [
+              fused
+                ? { text: `KICKBACK! ${why}:\na loose part fell onto its match (DOUBLE ring)\nand that free merge fired ${kChain > 1 ? 'another chain' : 'the new gadget'}!`, spots: [hpSpot, cellXY(landedAt)] }
+                : { text: `KICKBACK! ${why}\nshook a part loose: it landed here (the ring).\nMerge it with the same gadget and number!`, spots: partner >= 0 ? [tgtSpot, cellXY(landedAt), cellXY(partner)] : [tgtSpot, cellXY(landedAt)] },
+            ]);
           });
           this.time.delayedCall(420, () => {
             const lg = this.s.grid[landedAt];
@@ -3224,8 +3227,7 @@ Now beat the real level.`, this.coachY());
       if (!kickback && r.count >= 3)
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
-            { text: 'Your merge fired this gadget.\nIt hit the monster.', spots: [cellXY(r.rootIdx)] },
-            { text: chainWakeText(this.s.grid.flatMap((g) => (g ? [g.family] : []))), spots: [], draw: () => this.chainArrows(r, 3, true) },
+            { text: `Your merge fired this gadget.\n${chainWakeText(this.s.grid.flatMap((g) => (g ? [g.family] : [])))}`, spots: [cellXY(r.rootIdx)], draw: () => this.chainArrows(r, 3, true) },
             { text: `Those fired too: a CHAIN of ${r.count}!\nMove gadgets next to each other\nto connect their reach.`, spots: [], draw: () => this.chainArrows(r, 3, false) },
           ]),
         );
@@ -4223,15 +4225,16 @@ Now beat the real level.`, this.coachY());
   pulledMerge = false;
 
   nextChallenge() {
+    if (!toysOpen(this.currentLevel())) return undefined; // t-0a294f99: no helper teasers before L8
     return GameScene.CHALLENGES.find((c) => !(c.toy in this.meta.toys));
   }
 
   unlockToy(toy: Family) {
-    if (toy in this.meta.toys) return;
-    for (const k of Object.keys(this.meta.toys) as Family[]) this.meta.toys[k] = false;
-    this.meta.toys[toy] = true;
+    // t-0a294f99: the player's helper choice never changes silently (see grantToy)
+    const got = grantToy(this.meta.toys, toy, (t) => FAMILY_INFO[t as Family].name);
+    if (!got) return;
     store(META_KEY, JSON.stringify(this.meta));
-    tlog.log('unlock', { toy });
+    tlog.log('unlock', { toy, on: got.on });
     this.checkUnlocks(); // the first helper opens TEAM
     // F8: once per toy, and it says where to turn it on
     if (this.meta.tips[`toy_${toy}`]) return;
@@ -4239,18 +4242,15 @@ Now beat the real level.`, this.coachY());
     store(META_KEY, JSON.stringify(this.meta));
     this.time.delayedCall(900, () => {
       sfx.rankUp(6);
-      this.showEvent(newToyText(FAMILY_INFO[toy].name), '#f0b8ff', 3200);
+      this.showEvent(got.text, '#f0b8ff', 3200);
     });
   }
 
   checkChallenges(r: CascadeResult, kickback: boolean) {
     for (const m of r.edges) if (m.kind === 'magnet') this.pulledIds.add(this.s.grid[m.to]?.id ?? -1);
     if (this.s.phase === 'tutorial') return;
-    const ch = this.nextChallenge();
-    if (!ch) return;
-    if (ch.toy === 'magnet' && !kickback && r.activations.filter((a) => a.family === 'cannon').length >= 3) this.unlockToy('magnet');
-    if (ch.toy === 'battery' && !kickback && this.pulledMerge) this.unlockToy('battery');
-    if (ch.toy === 'fan' && r.discharged.length) this.unlockToy('fan');
+    const toy = toyEarned(Math.max(this.currentLevel(), this.s.level ?? 0), this.meta.toys, r, kickback, this.pulledMerge);
+    if (toy) this.unlockToy(toy);
   }
   retry(hardArg?: boolean, remixArg?: number) {
     // "again" (ONE MORE / RESTART, no args) repeats the same mode; a Daily repeats today's bench
