@@ -633,6 +633,8 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     ev.push({ type: 'move', from, to, swap: false }, { type: 'move', from: pf, to: pt, swap: false });
     return { ok: true, events: ev };
   }
+  // a swap would move a towed b on its own and split the pair: refuse (all-or-nothing, as for a towed a)
+  if (atk === 'tow' && b && act?.ids?.includes(b.id)) return { ok: false, events: ev };
   let land = to;
   if (!b && act?.cells && (atk === 'slick' || atk === 'portals') && act.cells[0] === to) land = act.cells[1];
   else if (!b && act?.cells && atk === 'portals' && act.cells[1] === to) land = act.cells[0];

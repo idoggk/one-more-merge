@@ -53,6 +53,36 @@ describe('r29 chapter 7-8 attacks', () => {
     expect(s.boss!.active).toBeNull();
   });
 
+  it('TOW BAR: swapping a different part onto a towed machine is refused (pair never splits)', () => {
+    const s = blank('rivet_rhino');
+    const a = g('cannon', 2), b = g('coil', 2), c = g('bell', 1);
+    s.grid[10] = a;
+    s.grid[11] = b;
+    s.grid[0] = c;
+    s.boss!.active = { attack: 'tow', cells: [10, 11], ids: [a.id, b.id], until: 99 };
+    const before = s.grid.slice();
+    const r = drop(s, 0, 11, c.id); // would move towed b alone to cell 0
+    expect(r.ok).toBe(false);
+    expect(r.events).toEqual([]);
+    expect(s.grid).toEqual(before);
+    expect(s.boss!.active?.ids).toEqual([a.id, b.id]);
+  });
+
+  it('TOW BAR: merging onto a towed machine still releases the bar', () => {
+    const s = blank('rivet_rhino');
+    const a = g('cannon', 2), b = g('coil', 2), c = g('coil', 2);
+    s.grid[10] = a;
+    s.grid[11] = b;
+    s.grid[0] = c;
+    s.boss!.active = { attack: 'tow', cells: [10, 11], ids: [a.id, b.id], until: 99 };
+    expect(drop(s, 0, 11, c.id).ok).toBe(true);
+    expect(s.grid[11]?.family).toBe('coil');
+    expect(s.grid[11]?.rank).toBe(3);
+    expect(s.grid[0]).toBeNull();
+    expect(s.grid[10]).toBe(a);
+    expect(s.boss!.active).toBeNull();
+  });
+
   it('TIME RANSOM: unsaved takes 2 s; one player chain waking both saves it', () => {
     const s = newLevel(solo(LEVELS[79]));
     expect(BOSSES[s.boss!.def].id).toBe('chrono_chimera');
