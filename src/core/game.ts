@@ -1,4 +1,4 @@
-import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
+import { COLS, MAX_RANK, ROWS, TICK, TUNING, unitsB0On } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
@@ -428,7 +428,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!matchShare()) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= capOf(s, g.family) || !(TUNING.unitsB0 || isShooter(g.family) || isRelay(g.family))) continue;
+    if (!g || g.rank >= capOf(s, g.family) || !(unitsB0On() || isShooter(g.family) || isRelay(g.family))) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -514,7 +514,7 @@ export function refillBag(s: GameState) {
   const bag: Family[] = [];
   const src = s.bagOverride ?? TUNING.bag;
   for (const f of Object.keys(src) as Family[]) for (let i = 0; i < src[f]; i++) bag.push(squadFam(s, f));
-  for (const f of s.toys ?? []) for (let i = 0, n = TUNING.toyBag[f] ? (TUNING.unitsB0 ? TUNING.b0.toyBag : TUNING.toyBag[f]) : 0; i < n; i++) bag.push(f);
+  for (const f of s.toys ?? []) for (let i = 0, n = TUNING.toyBag[f] ? (TUNING.unitsB1 ? TUNING.b1.toyBag : TUNING.unitsB0 ? TUNING.b0.toyBag : TUNING.toyBag[f]) : 0; i < n; i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
   s.supplyRng = rng.state;
@@ -692,8 +692,9 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing' });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s) });
   applyMoves(s, result);
+  applyB1(s, result, ev);
   spendItems(s, result);
   scaleA2(s, result);
   if (fatigueCfg() && s.phase === 'playing') s.lastMergeAt = s.elapsed;
@@ -1093,7 +1094,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   const grid = s.grid.slice();
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount }));
+  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s) }));
 }
 
 export function serialize(s: GameState): string {
@@ -1166,6 +1167,54 @@ function queueDrop(s: GameState, ev: GameEvent[], fuse: boolean) {
   ev.push({ type: 'kickbackIncoming', land: plan?.land ?? -1, into: f ? (plan?.idx ?? -1) : -1 });
 }
 
+/** Units B1 Fan: cells a firing Fan may clear (junk blocks, the active clamp / frost row, a locked remix row, and the
+ *  cells an incoming boss / remix attack is aimed at). */
+export function fanHazards(s: GameState): ReadonlySet<number> | undefined {
+  if (!TUNING.unitsB1) return undefined;
+  const out = new Set<number>([...bossBlockCells(s.boss), ...lockedCells(s.remix), ...bossPendingCells(s.boss), ...(s.remix?.pending?.cells ?? [])]);
+  for (const c of fanHazardsOfActive(s)) out.add(c);
+  return out;
+}
+function fanHazardsOfActive(s: GameState): Set<number> {
+  const out = new Set<number>();
+  const a = s.boss?.active;
+  if (s.boss && a) {
+    const atk = castAttack(s.boss, a);
+    if (atk === 'clamp') for (const c of a.cells ?? []) out.add(c);
+    if (atk === 'frost' && a.row !== undefined) for (let c = 0; c < COLS; c++) out.add(a.row * COLS + c);
+  }
+  return out;
+}
+
+/** Units B1: end the hazards a Fan cleared, and queue the part a Magnet fetched (lands next to a lonely twin). */
+function applyB1(s: GameState, r: CascadeResult, ev: GameEvent[]) {
+  for (const cell of r.clears ?? []) {
+    const b = s.boss;
+    if (b?.blocks?.some((x) => x.cell === cell)) {
+      b.blocks = b.blocks.filter((x) => x.cell !== cell);
+      ev.push({ type: 'bossDefuse', attack: 'blocks', cells: [cell] });
+    } else if (s.remix?.lock?.cells.includes(cell)) {
+      ev.push({ type: 'remixUnlock', cells: s.remix.lock.cells }, { type: 'bossDefuse', attack: 'clamp', cells: [cell] });
+      s.remix.lock = null;
+    } else if (b?.active && fanHazardsOfActive(s).has(cell)) {
+      const atk = castAttack(b, b.active);
+      b.active = null;
+      ev.push({ type: 'bossEnd', attack: atk }, { type: 'bossDefuse', attack: atk, cells: [cell] });
+    } else if (b?.pending && bossPendingCells(b).includes(cell)) {
+      ev.push({ type: 'bossDefuse', attack: castAttack(b, b.pending), cells: [cell] });
+      b.pending = null;
+    } else if (s.remix?.pending?.cells.includes(cell)) {
+      ev.push({ type: 'bossDefuse', attack: 'clamp', cells: [cell] });
+      s.remix.pending = null;
+    }
+  }
+  if (r.fetch && s.phase === 'playing' && s.target >= 0) {
+    const plan = planDrop(s, new Set(), false);
+    s.drops.push({ t: TUNING.kickbackFall, fuse: false, plan });
+    ev.push({ type: 'kickbackIncoming', land: plan?.land ?? -1, into: -1 });
+  }
+}
+
 /** Cells promised to falling parts; deliveries avoid them. */
 export function dropReserved(s: GameState): number[] {
   return s.drops.flatMap((d) => (d.plan ? [d.plan.land] : []));
@@ -1194,8 +1243,9 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s) });
     applyMoves(s, result);
+    applyB1(s, result, ev);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
     applyDamage(s, result.total, ev, 'kick');

@@ -60,6 +60,9 @@ export interface CascadeResult {
   count: number;
   comboMult: number;
   total: number;
+  /** Units B1: hazard cells a Fan cleared (caller ends those hazards), and parts a Magnet fetched (caller queues them). */
+  clears?: number[];
+  fetch?: number;
   /** EXPERIMENT optionA2/A3 spam fatigue: damage share applied (< 1 only); the UI dims the number. */
   fatigue?: number;
 }
