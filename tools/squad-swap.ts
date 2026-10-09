@@ -1,12 +1,13 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
+// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 //        [--rule today|sandwich2|sandwichBonus]   (t-1effe0bf merge rule prototype; also prints board-full time, sandwiches/run, mean chain)
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
 import { levelMult, unitDef } from '../src/content/units';
 import { choosePerk, drop, legalPairs, locked, newLevel, previewMerge, sandwichFor, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
+import { autoSupport, useSupport } from '../src/core/support';
 import { applyMergeRule, storedMergeRule } from '../src/core/sandwich';
 import { FAMILIES, isRelay, type CascadeResult, type Family } from '../src/core/types';
 
@@ -23,6 +24,8 @@ const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : '';
 TUNING.unitsB0 = args.includes('--b0');
 // --b1: units option B stage B1 (TUNING.unitsB1, builds on B0); --set k.sub=v,...: numeric/boolean TUNING overrides for tuning runs
 TUNING.unitsB1 = args.includes('--b1');
+// --rb: roster B (TUNING.rosterB, t-e91097cd): B jobs + the helper as a Support card (bots tap it via core/support autoSupport)
+TUNING.rosterB = args.includes('--rb');
 if (args.includes('--set'))
   for (const kv of args[args.indexOf('--set') + 1].split(',')) {
     const [path, v] = kv.split('=');
@@ -121,6 +124,7 @@ interface Run {
   fullSecs: number; // 1-s samples with no free usable cell (board full)
   secs: number;
   sandwiches: number;
+  supports: number;
   decisions: number;
   swOpp: number; // decisions where some legal merge would sandwich
 }
@@ -159,7 +163,7 @@ function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
     s.unitMult = Object.fromEntries(FAMILIES.map((f) => [f, levelMult(unitDef(f), LVL)]));
     s.unitLevel = Object.fromEntries(FAMILIES.map((f) => [f, LVL]));
   }
-  const r: Run = { won: false, clock: 1, chains: [], dmgFam: {}, passive: 0, deep: 0, total: 0, acts: 0, relayFires: {}, relayWakes: {}, moves: 0, primes: 0, primesUsed: 0, marks: 0, marksUsed: 0, arcs: 0, arcToWelder: 0, clears: 0, fetches: 0, fullSecs: 0, secs: 0, sandwiches: 0, decisions: 0, swOpp: 0 };
+  const r: Run = { won: false, clock: 1, chains: [], dmgFam: {}, passive: 0, deep: 0, total: 0, acts: 0, relayFires: {}, relayWakes: {}, moves: 0, primes: 0, primesUsed: 0, marks: 0, marksUsed: 0, arcs: 0, arcToWelder: 0, clears: 0, fetches: 0, fullSecs: 0, secs: 0, sandwiches: 0, supports: 0, decisions: 0, swOpp: 0 };
   const see = (ev: GameEvent[], player: boolean) => {
     for (const e of ev) {
       if (e.type === 'cascade') absorb(r, e.result, player && !e.kickback);
@@ -186,7 +190,14 @@ function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
       next += EVERY;
       r.decisions++;
       if (TUNING.mergeRule !== 'today' && bothWays(s).some(([f, t]) => sandwichFor(s, f, t))) r.swOpp++;
-      const m = bot.pick(s, rng);
+      // roster B: a full Support card is tapped first (random bot: half the time), then the merge
+      const sup = s.support ? autoSupport(s) : null;
+      if (sup && (bot.name !== 'random' || rng.next() < 0.5)) {
+        const res = useSupport(s, sup.cell, sup.axis);
+        if (res.ok) r.supports++;
+        see(res.events, true);
+      }
+      const m = s.phase === 'playing' ? bot.pick(s, rng) : null;
       if (m) see(drop(s, m[0], m[1], s.grid[m[0]]!.id).events, true);
     }
     see(tick(s), false);
@@ -202,7 +213,7 @@ const pct = (x: number) => (Number.isFinite(x) ? (x * 100).toFixed(1) : '  -').p
 
 // same levels for every squad: skip teach levels, goal-only levels and levels that force their own shooter
 const defs = LEVELS.filter((d) => d.level >= FROM && d.level <= TO && (d.level - FROM) % STEP === 0 && !d.teach && !(d.goal && !d.waves) && !d.shooter);
-console.log(`squad-swap: levels ${defs.map((d) => d.level).join(',')}  n=${N}/level  every ${EVERY}s  unit level ${LVL || 'unset'}${TUNING.unitsB1 ? '  UNITS B1' : TUNING.unitsB0 ? '  UNITS B0' : ''}${args.includes('--set') ? `  set ${args[args.indexOf('--set') + 1]}` : ''}`);
+console.log(`squad-swap: levels ${defs.map((d) => d.level).join(',')}  n=${N}/level  every ${EVERY}s  unit level ${LVL || 'unset'}${TUNING.rosterB ? '  ROSTER B' : TUNING.unitsB1 ? '  UNITS B1' : TUNING.unitsB0 ? '  UNITS B0' : ''}${args.includes('--set') ? `  set ${args[args.indexOf('--set') + 1]}` : ''}`);
 
 interface Agg { win: number; clr: number; mean: number; clrAll: number; chainMed: number; chainP90: number; share: Partial<Record<Family, number>>; passive: number; deep: number; acts: number; wakes: Partial<Record<Family, number>>; helper: string }
 const results = new Map<string, Agg>();
@@ -227,7 +238,7 @@ for (const sq of SQUADS) {
     const chains = runs.flatMap((r) => r.chains);
     const per = (f: (r: Run) => number) => (sumOf(f) / runs.length).toFixed(1);
     let helper = '';
-    if (sq.helper) helper = `  moves ${per((r) => r.moves)}  primes ${per((r) => r.primes)}/${per((r) => r.primesUsed)}  marks ${per((r) => r.marks)}/${per((r) => r.marksUsed)}  clears ${per((r) => r.clears)}  fetches ${per((r) => r.fetches)}`;
+    if (sq.helper) helper = `  moves ${per((r) => r.moves)}  primes ${per((r) => r.primes)}/${per((r) => r.primesUsed)}  marks ${per((r) => r.marks)}/${per((r) => r.marksUsed)}  clears ${per((r) => r.clears)}  fetches ${per((r) => r.fetches)}${TUNING.rosterB ? `  cardUses ${per((r) => r.supports)}` : ''}`;
     if (sq.shooter === 'arc_welder') helper += `  arcs ${per((r) => r.arcs)}  arc->welder ${pct(sumOf((r) => r.arcToWelder) / Math.max(1, sumOf((r) => r.arcs)))}%`;
     const a: Agg = {
       win: wins.length / runs.length,

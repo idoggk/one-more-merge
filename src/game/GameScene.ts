@@ -66,6 +66,9 @@ import { admitTip, newTipLedger } from './tips';
 import { MODE_INTRO, modeIntroFor } from './modeIntro';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
+import { playJobTag, playSupportFx } from './rosterFx';
+import { SupportCard } from './supportCard';
+import { playBeatSounds, UNIT_SOUND } from './unitSounds';
 import { bossLesson, joinRewards, machineName, OverlayQueue, rewardRows, trayEarnText } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
 export { localDate };
@@ -466,6 +469,12 @@ export class GameScene extends Phaser.Scene {
     this.laneBg.setDepth(20).setAlpha(0);
     this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
     this.formula = new FormulaStrip(this, W / 2, () => EVENT_Y, () => HP_Y - 50, REDUCED_MOTION);
+    // t-e91097cd roster B: the off-board Support card (hidden unless the run has one)
+    this.support = new SupportCard(this, 82, () => STAGE_TOP + STAGE_H - 84, (x, y) => this.cellAt(x, y), (cell, axis) => {
+      const r = recordCommand(this.runLog, this.s, { k: 'support', cell, axis: axis === 'col' ? 1 : 0 });
+      if (r.ok) this.handleEvents(r.events);
+      return r.ok;
+    }, (msg, color) => this.showEvent(msg, color ?? '#fff0cf', 2200));
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -1164,6 +1173,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!this.canAct()) return;
+    if (this.support?.onDown(p, this.s)) return;
     if (this.s.itemTray && Phaser.Math.Distance.Between(p.worldX, p.worldY, ITEM_X, TRAY_Y) < 52) {
       this.itemDrag = { x: p.worldX, y: p.worldY, moved: false };
       sfx.pickup();
@@ -1781,6 +1791,7 @@ Now beat the real level.`, this.coachY());
     this.checkTips();
     this.drawRemix();
     this.drawItems();
+    this.support?.sync(this.s);
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -2348,6 +2359,10 @@ Now beat the real level.`, this.coachY());
           break;
         case 'sandwich':
           playSandwich(this, e, cellXY);
+          break;
+        case 'support':
+          playSupportFx(this, e, cellXY, FAMILY_INFO[e.family as 'fan']?.color ?? 0xffffff, { x: W / 2, y: BY + (CELL * ROWS) / 2 });
+          UNIT_SOUND[e.family](0, 1);
           break;
         case 'delivery':
           spawn.set(e.gadget.id, { x: BX + 150, y: TRAY_Y });
@@ -3115,6 +3130,7 @@ Now beat the real level.`, this.coachY());
   }
 
   formula!: FormulaStrip;
+  support?: SupportCard;
   pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
@@ -3190,13 +3206,7 @@ Now beat the real level.`, this.coachY());
       const at = (windup + d * step) / 1000;
       const acts = r.activations.filter((a) => a.depth === d);
       if (d > 0) sfx.cascadeStep(Math.min(d - 1, 3), at);
-      if (acts.some((a) => a.family === 'coil')) sfx.zap(at);
-      const bell = acts.find((a) => a.family === 'bell');
-      if (bell) sfx.bell(bell.rank, at);
-      if (acts.some((a) => a.family === 'cannon')) sfx.cannon(at + 0.02, true);
-      if (acts.some((a) => a.family === 'magnet')) sfx.magnet(at);
-      if (acts.some((a) => a.family === 'battery')) sfx.battery(at);
-      if (acts.some((a) => a.family === 'fan')) sfx.fan(at);
+      playBeatSounds(acts, at); // t-e91097cd: every unit has its own sound
     }
     r.activations.forEach((a) => {
       const delay = windup + a.depth * step;
@@ -3228,7 +3238,9 @@ Now beat the real level.`, this.coachY());
           if (!this.fx('vfx_muzzle', x, y - 58, 90, { angle: -90, dur: 100, grow: 1.1 })) this.flash(x, y - 46, 40, 0xfff0a0);
         }
       });
-      this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
+      // t-e91097cd: only a machine that deals damage fires a shot at the monster
+      if (a.contribution > 0) this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
+      playJobTag(this, a, { x, y }, delay); // roster B: Mortar DEPTH x1.48, Rocket BURST x2 ... over the machine
     });
     const end = windup + maxDepth * step + 260;
     if (ribbon) this.formula.play(hf!, r.activations.map((a) => windup + a.depth * step), end);
@@ -6212,7 +6224,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const curUnits = qaUnits();
     UNITS_VARIANTS.forEach((v, i) => {
       const sel = v.id === curUnits;
-      this.button(c, W / 2 + (i - 1) * 210, top + 1070, 300, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1.5) * 162, top + 1070, 240, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
         store(UNITS_B0_KEY, unitsStoreValue(v.id));
         tlog.log('qa_units', { units: v.id });
         this.showToast(v.id === 'off' ? 'UNITS OFF (live game)  ·  NEXT LEVEL' : `UNITS ${v.label}  ·  START A LEVEL`);

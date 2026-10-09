@@ -5,9 +5,19 @@
 import { TUNING } from '../content/tuning';
 import { a2Scale, canMerge, drop, odByChain, sandwichFor, shieldMult, type GameEvent, type GameState } from './game';
 import { ITEM_MARK, PALETTE, primeMult, type Meaning } from './marks';
-import { isShooter, type CascadeResult, type Gadget } from './types';
+import { isShooter, type CascadeResult, type Family, type Gadget, type JobKey } from './types';
 
-export type TermKey = 'boost' | 'charge' | 'overcharge' | 'combo' | 'overdrive' | 'chainsize' | 'rushed' | 'shield';
+export type TermKey = 'boost' | 'charge' | 'overcharge' | 'combo' | 'overdrive' | 'chainsize' | 'rushed' | 'shield' | JobKey;
+
+/** TUNING.rosterB job multipliers as formula words (Mortar DEPTH shows its own x, e.g. MORTAR 1.48). */
+export const JOB_TERMS: Record<JobKey, { label: string; hue: number }> = {
+  mortar: { label: 'MORTAR', hue: 0xb8c46a },
+  burst: { label: 'BURST', hue: 0xff8a3c },
+  kick: { label: 'HORN KICK', hue: 0xe8b060 },
+  spread: { label: 'SPREAD', hue: 0x7a9aff },
+  prime: { label: 'PRIME', hue: 0x7ccf2e },
+  go: { label: 'GO', hue: 0xf05030 },
+};
 
 /** One factor of the hit, in the order it applies. `usedUp`: a mark this merge spends (named in its PALETTE colour). */
 export interface FormulaTerm {
@@ -29,6 +39,9 @@ export interface HitFormula {
   base: number;
   /** Plain hit of each activation, in the cascade's activation order (the post-drop ribbon counts these up). */
   links: number[];
+  /** Family of each link and its own hit after its job multiplier (roster B: the ribbon names each machine's number). */
+  linkFam?: Family[];
+  linkHit?: number[];
   terms: FormulaTerm[];
   /** base × every term, before the MAX HIT cap. */
   raw: number;
@@ -79,6 +92,11 @@ export function hitFormula(s: GameState, from: number, to: number): HitFormula |
   let s0 = 0, s1 = 0, s2 = 0, s3 = 0;
   let nAmp = 0, nPrime = 0, nOc = 0;
   const links: number[] = [];
+  const linkHit: number[] = [];
+  // roster B jobs: each key's effective lift on the whole hit, folded in after the marks
+  const jobKeys = [...new Set(res.activations.flatMap((x) => Object.keys(x.jobs ?? {}) as JobKey[]))];
+  const jobSums = jobKeys.map(() => 0);
+  let jobBase = 0;
   for (const act of res.activations) {
     const amp = ampUsed.has(act.id) ? Math.max(before(act.id)?.amp ?? 0, placed.get(act.id) ?? 0) || 1 : 1;
     const prime = primeUsed.has(act.id) ? pm : 1;
@@ -86,8 +104,17 @@ export function hitFormula(s: GameState, from: number, to: number): HitFormula |
     if (amp !== 1) nAmp++;
     if (prime !== 1) nPrime++;
     if (oc !== 1) nOc++;
-    const plain = act.contribution / k / (amp * prime * oc);
+    const jobs = act.jobs ?? {};
+    const job = Object.values(jobs).reduce((m, x) => m * x, 1);
+    const plain = act.contribution / k / (amp * prime * oc * job);
     links.push(plain);
+    linkHit.push(plain * job);
+    jobBase += plain * amp * prime * oc;
+    let acc = plain * amp * prime * oc;
+    jobKeys.forEach((key, i) => {
+      acc *= jobs[key] ?? 1;
+      jobSums[i] += acc;
+    });
     s0 += plain;
     s1 += plain * amp;
     s2 += plain * amp * prime;
@@ -98,6 +125,7 @@ export function hitFormula(s: GameState, from: number, to: number): HitFormula |
   if (nAmp) terms.push({ key: 'boost', label: 'BOOST',mult: ratio(s1, s0), hue: PALETTE.boost.hue, meaning: 'boost', usedUp: true, n: nAmp });
   if (nPrime) terms.push({ key: 'charge', label: 'CHARGE', mult: ratio(s2, s1), hue: PALETTE.charge.hue, meaning: 'charge', usedUp: true, n: nPrime });
   if (nOc) terms.push({ key: 'overcharge', label: ITEM_MARK.overcharge.name, mult: ratio(s3, s2), hue: PALETTE.powerup.hue, meaning: 'powerup', usedUp: true, n: nOc });
+  jobKeys.forEach((key, i) => terms.push({ key, label: JOB_TERMS[key].label, mult: ratio(jobSums[i], i ? jobSums[i - 1] : jobBase), hue: JOB_TERMS[key].hue }));
   if (res.comboMult !== 1) terms.push({ key: 'combo', label: 'COMBO', mult: res.comboMult, hue: PALETTE.merge.hue, meaning: 'merge' });
   if (od !== 1) terms.push({ key: 'overdrive', label: PALETTE.overdrive.label, mult: od, hue: PALETTE.overdrive.hue, meaning: 'overdrive' });
   if (chain !== 1) terms.push({ key: 'chainsize', label: 'CHAIN SIZE', mult: chain, hue: NEUTRAL_HUE });
@@ -107,7 +135,7 @@ export function hitFormula(s: GameState, from: number, to: number): HitFormula |
   const raw = res.total > 0 ? Math.round(res.total * shield) : 0;
   const capAt = s.level !== undefined && !s.goal ? Math.ceil(s.maxHp * TUNING.cascadeCap) : Infinity;
   const dealt = (c.stats.dmgBy?.player ?? 0) - (s.stats.dmgBy?.player ?? 0);
-  return { machines: res.count, base: s0, links, terms, raw, cap: raw > capAt ? capAt : null, damage: dealt, result: res };
+  return { machines: res.count, base: s0, links, ...(jobKeys.length || TUNING.rosterB ? { linkFam: res.activations.map((x) => x.family), linkHit } : {}), terms, raw, cap: raw > capAt ? capAt : null, damage: dealt, result: res };
 }
 
 /** Damage numbers as the scene prints them (12,345 / 45.6K / 1.2M). */
