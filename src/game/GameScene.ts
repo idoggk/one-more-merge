@@ -49,6 +49,8 @@ import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/e
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import puzzleData from '../content/puzzles.json';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../core/sandwich';
+import { playSandwich } from './sandwichFx';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
 import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
 import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
@@ -212,6 +214,9 @@ const qaYardObject = () => {
 // t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
 const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
 applyUnitsB0(qaUnitsB0());
+// t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
+const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
+applyMergeRule(qaMergeRule());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -1645,7 +1650,7 @@ Now beat the real level.`, this.coachY());
       const f = cellXY(e.from), t = cellXY(e.to);
       g.lineStyle(10, 0xffcf33, 0.55).lineBetween(f.x, f.y, t.x, t.y).lineStyle(6, 0xffcf33, 0.8).strokeCircle(t.x, t.y, 50);
     }
-    const nk = `${a.family}_${Math.min(a.rank + 1, capOf(this.s, a.family))}`;
+    const nk = `${a.family}_${Math.min(p.activations.find((x) => x.idx === hov)?.rank ?? a.rank + 1, capOf(this.s, a.family))}`; // root rank: a sandwich shows +2
     if (this.textures.exists(nk)) {
       const c = cellXY(hov);
       this.ghost.setTexture(nk).setVisible(true);
@@ -2290,6 +2295,9 @@ Now beat the real level.`, this.coachY());
           break;
         case 'shot':
           this.playPassiveShot(e.idx, e.damage);
+          break;
+        case 'sandwich':
+          playSandwich(this, e, cellXY);
           break;
         case 'delivery':
           spawn.set(e.gadget.id, { x: BX + 150, y: TRAY_Y });
@@ -5414,6 +5422,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     else if (td?.slot === 'helper') toys = [td.id];
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
     applyUnitsB0(qaUnitsB0()); // QA UNITS B0 switch, same
+    applyMergeRule(qaMergeRule()); // QA MERGE RULE switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -6097,7 +6106,20 @@ Merge them into a RANK ${rank}!`, this.coachY());
         this.openQaTools(jump);
       }, 0.62);
     });
-    this.button(c, W / 2, top + 1232, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
+    // (the 1280-tall small-phone screen has no room left below: BACK moved up beside the title for this row)
+    c.add(this.add.text(W / 2, top + 1211, 'MERGE RULE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0.5));
+    const curRule = qaMergeRule();
+    MERGE_RULES.forEach((r, i) => {
+      const on = r.id === curRule;
+      this.button(c, W / 2 + (i - 1) * 200, top + 1244, 320, on ? `[${r.label}]` : r.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(MERGE_RULE_KEY, r.id === 'today' ? null : r.id);
+        tlog.log('qa_merge_rule', { rule: r.id });
+        this.showToast(r.id === 'today' ? 'MERGE RULE TODAY (live game)  ·  NEXT LEVEL' : `MERGE RULE ${r.label}  ·  START A LEVEL`);
+        this.openQaTools(jump);
+      }, 0.55);
+    });
+    this.button(c, W - 150, top + 64, 220, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.6);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
