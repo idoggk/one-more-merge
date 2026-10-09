@@ -1,216 +1,59 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, applyUnitsB0, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnitsB0, UNITS_B0_KEY, type SpamVariant } from '../content/experiments';
-import {
-  canMerge,
-  capOf,
-  deserialize,
-  resumable,
-  legalPairs,
-  newGame,
-  newLevel,
-  odByChain,
-  odNeeded,
-  peekNext,
-  fatigueCfg,
-  supplyGated,
-  mergeEarns,
-  previewMerge,
-  serialize,
-  supplyPeriod,
-  type GameEvent,
-  type GameState,
-} from '../core/game';
+import { applyPace, applyUnitsB0 } from '../content/experiments';
+import { canMerge, capOf, deserialize, resumable, legalPairs, newGame, newLevel, odByChain, odNeeded, previewMerge, serialize, type GameEvent, type GameState } from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
-import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
+import { buy, CATALOG, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_VERSION } from '../content/dailySeeds';
-import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals, starsFor } from '../content/levels';
-import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
+import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals } from '../content/levels';
+import { audioSettings, duckMusic, haptic, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
-import { applyBundle, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, safeStorage, SAVE_KEY, type SaveBundle } from '../platform/backup';
-import { closeCodeBox, copyText, openCodeBox } from './codeBox';
+import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { itemFits } from '../core/types';
 import { ATTACK_TINT, CELL_COPY, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
-import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
-import { Rng } from '../core/rng';
-import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
+import { newRushFight, rushCourse, weekId } from '../core/rush';
+import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
-import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
+import { addBoosters, nextYard, recordYard, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
-import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
-import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
-import puzzleData from '../content/puzzles.json';
+import { ENDLESS_UNLOCK, endlessDef, endlessPos } from '../core/endless';
+import { contractsFor, contractText } from '../core/mastery';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
-import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
-import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
-import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
-import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
+import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, type Move, type PuzzleRec } from '../core/puzzle';
+import { newRunLog, recordCommand, recordTick, type RunLog } from '../core/replay';
+import { decodeCurve, levelProgress, type PaceCurve } from '../core/pace';
+import { BONUS_XP, rollSeason, seasonCount, seasonTier, seasonUnit, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { CRATE } from '../core/screwObject';
-import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
+import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
-import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
+import { isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, type Feature } from './unlocks';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
+import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES } from './sceneKit';
+import * as qa from './ui/qaPanel';
+import { qaPace, qaUnitsB0, qaYardObject } from './ui/qaPanel';
+import * as settingsUi from './ui/settings';
+import * as pauseUi from './ui/pause';
+import * as hud from './ui/hud';
+import * as results from './ui/results';
+import * as eventsTab from './ui/eventsTab';
+import * as unitsTab from './ui/unitsTab';
+import * as roadTab from './ui/roadTab';
+import * as machineTab from './ui/machineTab';
 export { localDate };
+export { computeLayout, H, layoutHeight, RS, setRenderScale, W } from './sceneKit';
 
-export const W = 720;
-const CELL = 124;
-/** A held piece floats this far above the pointer so it stays visible; targeting uses the piece, not the finger.
- *  Touch lifts higher (merge-flow audit: at 40 px the thumb still covered the piece and its target). */
-const DRAG_LIFT = 40;
-const DRAG_LIFT_TOUCH = 85;
-/** A merging piece flies into its partner over this long; the merged gadget pops when it arrives. */
-const MERGE_ARRIVE = 110;
-const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-/** Snap cue (held piece reaches a mergeable cell): at most one per this many ms. */
-const SNAP_CUE_GAP = 120;
-const BX = (W - CELL * COLS) / 2;
-const SCRAP_X = W - 92;
-/** Smallest tap height in design px: 44 pt on a 390 pt-wide phone (W = 720). */
-const TAP_MIN = 82;
-/** r38: player-facing durations are m:ss (ChatGPT review: never raw seconds on cards). */
-/** Mix a 0xRRGGBB colour toward white by t (0..1). */
-const lighten = (c: number, t: number) => [16, 8, 0].reduce((n, sh) => n | (Math.round(((c >> sh) & 255) + (255 - ((c >> sh) & 255)) * t) << sh), 0);
-const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
-/** r34: clock ring centre x (left of the HP bar); the machine counter mirrors it on the right. */
-const CLOCK_X = 62;
-/** r35 trophy figurines (ChatGPT spec): 3 mastery stars on one boss / mini-boss win its trophy; 4 stand by the machine. */
-const TROPHY_AT = 3;
-const TROPHY_SHELF = 4;
-/** r38 Featured Unit Trial: free battles per day with today's unit at this level; opens after this many cleared levels. */
-const TRIAL_BATTLES = 3;
-const TRIAL_LEVEL = 5;
-const TRIAL_UNLOCK = 6;
-/** r36: the Screw Yard event opens after this many cleared levels. */
-const YARD_UNLOCK = 4;
-/** r25 item tray slot, between NEXT (+ Time Capsule) and SCRAP. */
-const ITEM_X = W - 208;
-// Safe-area-aware layout (ChatGPT round-7 review): design width is fixed, design height follows the phone's aspect,
-// so there are no letterbox bands. Header pinned top, tray pinned bottom, board + event lane above it, stage gets the rest.
-export let H = 1280;
-/** Render scale: the canvas is W*RS x H*RS device-ish pixels; the main camera zooms by RS so game code stays in design units. */
-export let RS = 1;
-export function setRenderScale(r: number) {
-  RS = r;
-}
-let BY = 446;
-let TRAY_Y = 1234;
-let EVENT_Y = 410;
-let HP_Y = 404;
-let STAGE_TOP = 92;
-let STAGE_H = 284;
-let TARGET_Y = 245;
-
-export const layoutHeight = (viewW: number, viewH: number) => Math.round(Math.min(1720, Math.max(1280, (W * viewH) / Math.max(1, viewW))));
-
-export function computeLayout(viewW: number, viewH: number) {
-  H = layoutHeight(viewW, viewH);
-  // UI audit (375x667): the stage shrank to a thin strip; short layouts tighten the gaps around the board to give it back
-  const t = H < 1380 ? 1 : 0;
-  TRAY_Y = H - 66;
-  BY = TRAY_Y - 58 + t * 8 - CELL * ROWS;
-  EVENT_Y = BY - 34 + t * 2;
-  HP_Y = EVENT_Y - 54 + t * 6;
-  const top = 96 - t * 4;
-  const avail = HP_Y - 34 + t * 10 - top;
-  STAGE_H = Math.min(450, avail);
-  STAGE_TOP = top + (avail - STAGE_H) / 2;
-  TARGET_Y = STAGE_TOP + STAGE_H / 2 + 4;
-  return H;
-}
-
-
-/** Which stage backdrop the Workshop preview shows: the previewed stage item, else the equipped one. */
-const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
-/** Telegraph icon per attack (v17 boss icons + v19 mini-boss icons). */
-const ATTACK_ICON: Record<BossAttack, string> = { clamp: 'btg_clamp', frost: 'btg_frost', suction: 'btg_suction', hot: 'btg_heat', rest: 'btg_rest', split: 'btg_split', bomb: 'btg_bomb', conveyor: 'btg_conveyor', mirror: 'btg_mirror', blocks: 'btg_blocks', pull: 'btg_pull', bounce: 'btg_bounce', slick: 'btg_slick', portals: 'btg_portals', tow: 'btg_tow', ransom: 'btg_ransom' };
-/** Clarity pass 1: fixed badge slots, offsets from a cell's centre, so marks never sit on each other.
- *  TL = helper mark (Amplifier/Beacon boost, Battery charge; a second one drops to left-middle), top-centre = power-up,
- *  TR = boss/remix countdown (its icon just below, right-middle), BL = rank, BR = max-rank crown. */
-const SLOT = { helper: { x: -38, y: -38 }, helper2: { x: -38, y: -2 }, item: { x: 0, y: -42 }, boss: { x: 38, y: -38 }, bossIcon: { x: 42, y: 2 }, rank: { x: -36, y: 36 }, crown: { x: 36, y: 40 } };
-// clarity pass 2: every mark colour comes from PALETTE in core/marks.ts (one hue per meaning)
-const AMP_COL = PALETTE.boost.hue, PRIME_COL = PALETTE.charge.hue, ITEM_COL = PALETTE.powerup.hue, ATTACK_COL = PALETTE.attack.hue, LOCK_COL = PALETTE.locked.hue, KICK_COL = PALETTE.kickback.hue, OD_COL = PALETTE.overdrive.hue;
-type Gfx = Phaser.GameObjects.Graphics;
-/** Battery CHARGED mark: green ring + lightning badge. k scales it (guide demos / legend / inspect icon). */
-function drawPrimeMark(g: Gfx, x: number, y: number, a: number, k = 1, slot = SLOT.helper, ring = true) {
-  const h = 54 * k;
-  if (ring) g.lineStyle(5 * k, PRIME_COL, a).strokeRoundedRect(x - h, y - h, 2 * h, 2 * h, 22 * k);
-  const bx = x + slot.x * k, by = y + slot.y * k;
-  g.fillStyle(0x2b1d2e, 1).fillCircle(bx, by, 15 * k).fillStyle(PRIME_COL, 1).fillCircle(bx, by, 12 * k);
-  g.fillStyle(0x2b1d2e, 1).fillTriangle(bx + 2 * k, by - 10 * k, bx - 6 * k, by + 2 * k, bx + k, by + 2 * k).fillTriangle(bx - k, by - 2 * k, bx + 6 * k, by - 2 * k, bx - 2 * k, by + 10 * k);
-}
-/** Amplifier / Signal Beacon BOOSTED mark: lavender ring + up-arrow badge. */
-function drawAmpMark(g: Gfx, x: number, y: number, a: number, k = 1, slot = SLOT.helper, ring = true) {
-  const h = 49 * k;
-  if (ring) g.lineStyle(5 * k, AMP_COL, a).strokeRoundedRect(x - h, y - h, 2 * h, 2 * h, 20 * k);
-  const bx = x + slot.x * k, by = y + slot.y * k;
-  g.fillStyle(0x2b1d2e, 1).fillCircle(bx, by, 15 * k).fillStyle(AMP_COL, 1).fillCircle(bx, by, 12 * k);
-  g.fillStyle(0x2b1d2e, 1).fillTriangle(bx, by - 9 * k, bx - 8 * k, by + k, bx + 8 * k, by + k).fillRect(bx - 3 * k, by, 6 * k, 9 * k);
-}
-/** Boss telegraph on a cell: dashed coral boundary (warning) or the attack's tinted fill (active). */
-function drawBossCell(g: Gfx, x0: number, y0: number, sz: number, warn: boolean, pulse: number, tint: number) {
-  const coral = ATTACK_COL;
-  if (warn) {
-    g.lineStyle(5, coral, pulse);
-    for (let d = 0; d < sz; d += 22) {
-      g.lineBetween(x0 + d, y0, Math.min(x0 + d + 12, x0 + sz), y0).lineBetween(x0 + d, y0 + sz, Math.min(x0 + d + 12, x0 + sz), y0 + sz);
-      g.lineBetween(x0, y0 + d, x0, Math.min(y0 + d + 12, y0 + sz)).lineBetween(x0 + sz, y0 + d, x0 + sz, Math.min(y0 + d + 12, y0 + sz));
-    }
-  } else {
-    g.fillStyle(tint, 0.55).fillRoundedRect(x0, y0, sz, sz, 16);
-    g.lineStyle(6, coral, 1).strokeRoundedRect(x0, y0, sz, sz, 16).lineStyle(2, 0xfff0cf, 1).strokeRoundedRect(x0 + 4, y0 + 4, sz - 8, sz - 8, 13);
-  }
-}
-const MACHINE_NAMES = ['CLANKZILLA', 'BOLT BUCKET', 'SIR SPARKS', 'THE CONTRAPTION', 'BIG BERTHA', 'JUNK JUNIOR', 'RUSTY 3000', 'MEGA MERGE'];
-const cellXY = (idx: number) => ({ x: BX + (idx % COLS) * CELL + CELL / 2, y: BY + Math.floor(idx / COLS) * CELL + CELL / 2 });
-const fmt = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString());
-/** Phaser's setColor / setBackgroundColor / setPadding re-render the text texture even when nothing changed:
- *  per-frame HUD code calls these instead (phone performance). */
-const textColor = (t: Phaser.GameObjects.Text, c: string) => (t.style.color === c ? t : t.setColor(c));
-const textBg = (t: Phaser.GameObjects.Text, bg: string, px: number, py: number) => {
-  if (t.style.backgroundColor !== bg) t.setBackgroundColor(bg);
-  const p = t.padding;
-  if (p.left !== px || p.right !== px || p.top !== py || p.bottom !== py) t.setPadding(px, py);
-  return t;
-};
-
-// t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
-const SPAM_KEY = 'omm_qa_spam_variant';
-const spamVariant = (): SpamVariant => {
-  try {
-    const v = localStorage.getItem(SPAM_KEY);
-    return SPAM_VARIANTS.some((x) => x.id === v) ? (v as SpamVariant) : 'off';
-  } catch {
-    return 'off';
-  }
-};
-applySpamVariant(spamVariant());
-// t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
-const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
-applyPace(qaPace());
-// t-9adea8b8 QA-only: SCREW YARD OLD (today's plates) / OBJECT (the turnable Screwdom-style object), this device only
-const YARD_MODE_KEY = 'omm_qa_screw_yard';
-const qaYardObject = () => {
-  try {
-    return localStorage.getItem(YARD_MODE_KEY) === 'object';
-  } catch {
-    return false;
-  }
-};
-// t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
-const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
-applyUnitsB0(qaUnitsB0());
-
+/** Parameters of a scene-module function after its leading `scene` argument (thin delegating methods below). */
+type Tail<F> = F extends (scene: GameScene, ...a: infer A) => unknown ? A : never;
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
 export class GameScene extends Phaser.Scene {
@@ -2066,206 +1909,8 @@ Now beat the real level.`, this.coachY());
     }
   }
 
-  drawHud(dms: number) {
-    const s = this.s;
-    const demo = s.target < 0;
-    textColor(this.headerText, s.hard ? '#b3201a' : s.remix ? '#1f6f8f' : '#3b2533');
-    if (this.headerText.text !== this.lastHeader) {
-      // fixed header columns: the name gets x 70..350 and shrinks to fit
-      this.lastHeader = this.headerText.text;
-      let fs = 30;
-      this.headerText.setFontSize(fs);
-      while (this.headerText.width > 276 && fs > 18) this.headerText.setFontSize((fs -= 2));
-    }
-    this.headerText.setText(demo ? 'WARM-UP' : s.puzzle ? `${this.puzzleKind === 'drill' ? 'DRILL' : 'PUZZLE'}  \u00b7  WIN IN ${s.puzzle.moves}` : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : s.endless ? `FLOOR ${s.endless}` : `L${s.level}`} \u00b7 ${this.realBoss ? (BOSSES[this.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : this.s.goal ? 'GOAL' : this.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
-    // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
-    const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (this.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
-    if (capOk && !this.capsuleBtn) {
-      // bottom action lane (ChatGPT r16), between NEXT and SCRAP; a 350ms hold with a progress rim prevents accidents
-      const b = this.add.container(W / 2 + 30, TRAY_Y).setDepth(60);
-      const bgp = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-84, -40, 168, 80, 24).fillStyle(0x27a4c0, 1).fillRoundedRect(-80, -36, 160, 72, 20);
-      b.add(bgp);
-      if (this.hasArt('booster_time_capsule')) {
-        const ic = this.add.image(-46, 0, 'booster_time_capsule');
-        ic.setScale(56 / Math.max(ic.width, ic.height));
-        b.add(ic);
-      }
-      b.add(this.add.text(18, -10, '+15s', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#ffffff' }).setOrigin(0.5));
-      const stock = this.add.text(18, 20, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '18px', color: '#e8f8ff' }).setOrigin(0.5);
-      stock.setName('stock');
-      b.add(stock);
-      const rim = this.add.graphics();
-      b.add(rim);
-      let holdT: Phaser.Time.TimerEvent | null = null;
-      let prog: Phaser.Tweens.Tween | null = null;
-      const cancel = () => {
-        holdT?.remove();
-        holdT = null;
-        prog?.stop();
-        rim.clear();
-      };
-      b.setSize(168, 80).setInteractive({ useHandCursor: true });
-      b.on('pointerdown', () => {
-        cancel();
-        const o = { t: 0 };
-        prog = this.tweens.add({ targets: o, t: 1, duration: 350, onUpdate: () => rim.clear().lineStyle(6, 0xffcf33, 1).beginPath().arc(0, 0, 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * o.t).strokePath() });
-        holdT = this.time.delayedCall(350, () => {
-          cancel();
-          if (!recordCommand(this.runLog, this.s, { k: 'capsule' }).ok) return;
-          this.meta.capsules = Math.max(0, (this.meta.capsules ?? 0) - 1);
-          store(META_KEY, JSON.stringify(this.meta));
-          tlog.log('booster', { kind: 'time_capsule', level: this.s.level, at: +this.s.elapsed.toFixed(1), left: this.meta.capsules });
-          sfx.capsule();
-          this.floatText(this.timerText.x - 60, this.timerText.y + 60, '+15s', '#7fe0ff', 40, 300);
-        });
-      });
-      b.on('pointerup', cancel);
-      b.on('pointerout', cancel);
-      this.capsuleBtn = b;
-    }
-    this.capsuleBtn?.setVisible(capOk);
-    (this.capsuleBtn?.getByName('stock') as Phaser.GameObjects.Text | undefined)?.setText(`hold  ·  ${this.meta.capsules ?? 0} left`);
-    const t = Math.ceil(s.timeLeft);
-    this.timerText.setText(demo || s.showcase ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`);
-    textColor(this.timerText, s.timeLeft < 10 && !demo ? '#d8261a' : '#3b2533');
-    this.drawClock(demo || !!s.showcase);
-    this.practiceText.setVisible(s.practice && !demo);
-    // QA PACE MANIA: label the craze rules on the HUD (top-right of the stage window)
-    if (!this.maniaBadge) this.maniaBadge = this.add.text(W - 92, STAGE_TOP + 28, 'MANIA', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#c0287a', padding: { x: 12, y: 4 } }).setOrigin(1, 0.5).setDepth(22);
-    this.maniaBadge.setVisible(TUNING.pace === 'mania' && s.level !== undefined && !s.puzzle && !demo);
-    // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
-    const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
-    if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
-    if (ldef && s.phase === 'playing' && !demo) {
-      const [g2, g3] = starGoals(ldef);
-      const goal = s.elapsed <= g3 ? 3 : s.elapsed <= g2 ? 2 : 0;
-      const left = Math.ceil((goal === 3 ? g3 : g2) - s.elapsed);
-      const txt = goal ? `${goal}★ · ${left}s left` : '';
-      if (txt !== this.starChase.text) textColor(this.starChase.setText(txt), left <= 5 ? '#ff8a5c' : '#ffcf33');
-      this.starChase.setVisible(!!goal);
-    } else if (s.puzzle && s.phase === 'playing') {
-      // r42: the puzzle's rule lives where the star chase usually is
-      const rule = s.puzzle.only ? `ONLY: ${s.puzzle.only.map((f) => FAMILY_INFO[f as 'cannon'].name.toUpperCase().replace('SIGNAL ', '')).join(' + ')}` : 'ANY MERGE';
-      if (this.starChase.text !== rule) textColor(this.starChase.setText(rule), '#d9c2ff');
-      this.starChase.setVisible(true);
-    } else this.starChase.setVisible(false);
-
-    // smooth HP (goal levels: the bar fills with goal progress instead, r23)
-    this.shownHp += (s.hp - this.shownHp) * Math.min(1, dms / 120);
-    const frac = s.goal ? 1 - Math.min(1, s.goal.best / s.goal.n) : Math.max(0, this.shownHp / s.maxHp);
-    const bw = 440;
-    const hb = this.hpBar.clear();
-    if (this.hpFill) {
-      this.hpFill.setCrop(0, 0, this.hpFill.width * frac, this.hpFill.height);
-      this.hpFill.setTint(frac > 0.5 ? 0xffffff : frac > 0.25 ? 0xffd27a : 0xff8a7a);
-    } else {
-    hb.fillStyle(0x2b1d2e, 1).fillRoundedRect(W / 2 - bw / 2 - 5, HP_Y - 18, bw + 10, 36, 18);
-    hb.fillStyle(0x5a4a5a, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, bw, 26, 13);
-    if (frac > 0) hb.fillStyle(frac > 0.5 ? 0x5fd35f : frac > 0.25 ? 0xf2b521 : 0xe8452c, 1).fillRoundedRect(W / 2 - bw / 2, HP_Y - 13, Math.max(26, bw * frac), 26, 13);
-    }
-    this.hpText.setText(s.showcase ? 'PRACTICE' : s.goal ? (s.goal.kind === 'rank' ? `BEST RANK ${Math.max(1, s.goal.best)} / ${s.goal.n}` : `BEST CHAIN ${s.goal.best} / ${s.goal.n}`) : fmt(Math.max(0, Math.round(this.shownHp))));
-    if (s.goal && this.hpFill) this.hpFill.setCrop(0, 0, this.hpFill.width * (1 - frac), this.hpFill.height).setTint(0x8ef08a);
-    this.drawPace(bw);
-    // r23 chain shield chip + bubble on the monster
-    if (!this.shieldChip) {
-      this.shieldChip = this.add.text(W - 92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(1, 0.5).setDepth(22);
-      this.shieldG = this.add.graphics().setDepth(4);
-    }
-    const sh = s.shieldUntil !== undefined && s.phase === 'playing';
-    const open = sh && s.elapsed < s.shieldUntil!;
-    this.shieldChip.setVisible(sh).setText(open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s` : 'SHIELD  \u00b7  chain of 4 opens it');
-    this.shieldG.clear();
-    if (sh && !open) {
-      const rr = Math.min(STAGE_H * 0.46, 170);
-      this.shieldG.fillStyle(0x6fd3ff, 0.16).fillCircle(this.target.x, this.target.y, rr).lineStyle(5, 0x9fe8ff, 0.8 + 0.2 * Math.sin(this.time.now / 200)).strokeCircle(this.target.x, this.target.y, rr);
-    }
-    if (!this.hpTicks) this.hpTicks = this.add.graphics().setDepth(3);
-    const ht = this.hpTicks.clear();
-    if (this.realBoss && !BOSSES[this.realBoss.def].mini) {
-      // r30 (ChatGPT): bosses show their armor phases in the bar
-      for (const q of [0.66, 0.33]) {
-        const x = W / 2 - bw / 2 + bw * q;
-        ht.fillStyle(0x2b1d2e, 1).fillRect(x - 5, HP_Y - 19, 10, 38).fillStyle(frac > q ? 0xe0b04a : 0x8a6a3a, 1).fillRect(x - 3, HP_Y - 17, 6, 34);
-      }
-    } else if (s.target >= 0 && TUNING.kickback && !s.goal)
-      for (const q of [0.75, 0.5, 0.25]) {
-        const x = W / 2 - bw / 2 + bw * q;
-        ht.fillStyle(0x2b1d2e, frac > q ? 0.85 : 0.3).fillRect(x - 2, HP_Y - 15, 4, 30);
-      }
-
-    // r18 progressive reveal: overdrive from level 3, scrap from level 4
-    const early = s.level !== undefined && s.level < 3;
-    this.scrapZone?.setVisible(this.scrapShown());
-    // overdrive gauge
-    const og = this.odGauge.clear();
-    // experiments charge Overdrive by chain links (12 to fill): the 6 pips show the fraction
-    const need = Math.min(6, odNeeded(s));
-    const charged = Math.floor((s.odCharge * need) / odNeeded(s));
-    const gx = 384;
-    this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo && !early).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
-    const active = s.odLeft > 0;
-    const gaugeArt = this.hasArt('gauge_off') && this.hasArt('gauge_on');
-    if (gaugeArt && !this.gaugeImgs.length) for (let i = 0; i < 6; i++) this.gaugeImgs.push(this.add.image(0, 46, 'gauge_off').setDisplaySize(24, 34));
-    this.gaugeImgs.forEach((g, i) => {
-      const on = i < need && !demo && !early;
-      g.setVisible(on).setPosition(gx + i * 26 + 11, 46);
-      if (on) g.setTexture(active ? (this.hasArt('gauge_lit') ? 'gauge_lit' : 'gauge_on') : i < charged ? 'gauge_on' : 'gauge_off').setDisplaySize(24, 34);
-    });
-    for (let i = 0; i < (demo || gaugeArt || early ? 0 : need); i++) {
-      const filled = active || i < charged;
-      og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx + i * 26, 30, 22, 30, 6);
-      // charged pips in the OVERDRIVE hue (gold is MAX only); while Overdrive runs they pulse toward white
-      const lit = active ? Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(OD_COL), Phaser.Display.Color.ValueToColor(0xffffff), 100, 50 + 50 * Math.sin(this.time.now / 90)) : null;
-      og.fillStyle(filled ? (lit ? Phaser.Display.Color.GetColor(lit.r, lit.g, lit.b) : OD_COL) : 0x7a6a6a, 1).fillRoundedRect(gx + i * 26 + 3, 33, 16, 24, 4);
-    }
-    // EXPERIMENT spam fatigue (QA toggle): STEADY HAND bar under the gauge refills over the fatigue window after a merge;
-    // a merge made before it is full hits for less (its damage number is dimmed)
-    const fc = fatigueCfg();
-    const steadyOn = !!fc && !demo && !early && s.phase === 'playing' && !s.goal && !s.puzzle;
-    if (steadyOn) {
-      const p = Math.min(1, (s.elapsed - (s.lastMergeAt ?? -1e9)) / fc!.window);
-      og.fillStyle(0x2b1d2e, 1).fillRoundedRect(gx, 66, 152, 12, 6);
-      og.fillStyle(p >= 1 ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(gx + 2, 68, Math.max(4, 148 * p), 8, 4);
-    }
-    this.steadyText.setVisible(steadyOn);
-    setMusicIntensity(active);
-    const rb = this.realBoss;
-    setMusicMode(!rb || s.phase !== 'playing' ? 'normal' : BOSSES[rb.def].mini ? 'mini' : rb.phaseShown >= 2 ? 'final' : 'boss');
-    const glow = this.odGlow.clear();
-    for (const fl of this.flames) fl.setVisible(active).setAlpha(0.75 + 0.25 * Math.sin(this.time.now / 70));
-    if (active && !this.flames.length) {
-      const a = 0.35 + 0.25 * Math.sin(this.time.now / 90);
-      glow.lineStyle(14, PALETTE.overdrive.hue, a).strokeRoundedRect(BX - 14, BY - 14, CELL * COLS + 28, CELL * ROWS + 28, 30);
-    }
-
-    // tray
-    const nxt = peekNext(s);
-    this.trayIcon.setTexture(`${nxt.family}_${nxt.rank}`);
-    const f = this.trayIcon.frame;
-    this.trayIcon.setScale(Math.min(54 / f.width, 54 / f.height));
-    this.trayBadge.setText(nxt.rank > 1 ? String(nxt.rank) : '');
-    const ta = this.trayArc.clear();
-    const prog = s.pending.length >= TUNING.maxPending ? 1 : 1 - s.supplyTimer / supplyPeriod(s);
-    ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
-    // r38: reactive levels say what the next merge earns (the board only changes when you merge)
-    const earn = mergeEarns(s);
-    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? (earn && supplyGated(s) ? `CHAIN \u2192 +${earn}` : `MERGE \u2192 +${earn}`) : '');
-    textBg(textColor(this.pendingText, s.pending.length ? '#9e2416' : '#3b2533'), this.pendingText.text && !s.pending.length ? '#fbe7c6' : '', this.pendingText.text && !s.pending.length ? 10 : 0, 4);
-    const tut = s.phase === 'tutorial';
-    this.scrapZone.setVisible(this.scrapShown());
-    this.trayPlate?.setVisible(!tut && !s.puzzle);
-    for (const o of [this.trayBox, this.trayLabel, this.trayIcon, this.trayBadge, this.trayArc, this.pendingText]) o.setVisible(!tut && !s.puzzle);
-    this.hintBtn?.setVisible(!!s.puzzle && s.phase === 'playing');
-    const help = this.puzzleHelpNow();
-    this.helpBtn?.setVisible(!!s.puzzle && s.phase === 'playing' && help.hint);
-    this.helpLabel?.setText(help.showMove ? 'NEXT MOVE' : 'HINT');
-    const sr = this.scrapRing.clear();
-    if (this.dragIdx >= 0 && this.overScrapFlag) {
-      const g = s.grid[this.dragIdx];
-      const need2 = g && g.rank >= 3 ? 0.25 : 0;
-      const p = need2 ? Math.min(1, this.scrapHold / need2) : 1;
-      sr.lineStyle(6, 0xff5533, 1).beginPath().arc(0, 0, 50, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2).strokePath();
-    }
+  drawHud(...a: Tail<typeof hud.drawHud>) {
+    return hud.drawHud(this, ...a);
   }
 
   // ---------- events → presentation ----------
@@ -2716,138 +2361,20 @@ Now beat the real level.`, this.coachY());
     this.handleEvents(r.events);
   }
 
-  /** r25: tray slot (between NEXT and SCRAP), drag ghost, valid-target rims, and owner badges with charge pips. */
   drawItems() {
-    const s = this.s;
-    if (!this.itemG) this.itemG = this.add.graphics().setDepth(57);
-    const g = this.itemG.clear();
-    const kind = s.itemTray ?? null;
-    if (kind && !this.itemSlot) {
-      const c = this.add.container(ITEM_X, TRAY_Y).setDepth(58);
-      c.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillCircle(0, 0, 38).fillStyle(0xfff0cf, 1).fillCircle(0, 0, 33));
-      const ic = this.add.image(0, 0, `item_${kind}`);
-      ic.setScale(60 / Math.max(ic.width, ic.height)).setName('icon');
-      c.add(ic);
-      this.itemSlot = c;
-    }
-    if (!kind && this.itemSlot) {
-      this.itemSlot.destroy();
-      this.itemSlot = null;
-    }
-    if (this.itemSlot && kind) {
-      const ic = this.itemSlot.getByName('icon') as Phaser.GameObjects.Image;
-      if (ic.texture.key !== `item_${kind}`) ic.setTexture(`item_${kind}`);
-      const lift = this.itemDrag?.moved;
-      ic.setPosition(lift ? this.itemDrag!.x - ITEM_X : 0, lift ? this.itemDrag!.y - TRAY_Y - 30 : 0).setScale((lift ? 84 : 60 + 4 * Math.sin(this.time.now / 180)) / Math.max(ic.width, ic.height));
-      // while selecting: rim every machine that can take it
-      if (this.itemDrag || this.itemSelected || this.itemLesson)
-        s.grid.forEach((x, i) => {
-          if (!x || !itemFits(kind, x.family) || x.item) return;
-          const { x: cx, y: cy } = cellXY(i);
-          g.lineStyle(6, ITEM_COL, 0.6 + 0.4 * Math.sin(this.time.now / 150)).strokeRoundedRect(cx - CELL / 2 + 5, cy - CELL / 2 + 5, CELL - 10, CELL - 10, 16);
-        });
-    }
-    // owner badges (top-centre slot, clear of the helper marks and the rank plate) + pips for OVERCHARGE
-    const seen = new Set<number>();
-    for (const x of s.grid) {
-      if (!x?.item) continue;
-      seen.add(x.id);
-      const v = this.views.get(x.id);
-      if (!v) continue;
-      let b = this.itemBadges.get(x.id);
-      if (!b || b.getData('kind') !== x.item.kind) {
-        b?.destroy();
-        b = this.add.container(0, 0).setDepth(56).setData('kind', x.item.kind);
-        const im = this.add.image(0, 0, `item_badge_${x.item.kind}`);
-        im.setScale(40 / Math.max(im.width, im.height));
-        b.add(im);
-        const pips = this.add.graphics().setName('pips');
-        b.add(pips);
-        this.itemBadges.set(x.id, b);
-        b.setScale(0.2);
-        this.tweens.add({ targets: b, scale: 1, duration: 180, ease: 'Back.Out' });
-      }
-      b.setPosition(v.x + SLOT.item.x, v.y + SLOT.item.y).setVisible(v.visible);
-      const pg = b.getByName('pips') as Phaser.GameObjects.Graphics;
-      pg.clear();
-      if (x.item.kind === 'overcharge') for (let k = 0; k < x.item.charges; k++) pg.fillStyle(0x2b1d2e, 1).fillCircle(-8 + k * 16, 26, 7).fillStyle(ITEM_COL, 1).fillCircle(-8 + k * 16, 26, 5);
-    }
-    for (const [id, b] of this.itemBadges)
-      if (!seen.has(id)) {
-        this.itemBadges.delete(id);
-        this.tweens.add({ targets: b, scale: 1.6, alpha: 0, duration: 160, onComplete: () => b.destroy() });
-      }
+    return hud.drawItems(this);
   }
 
-  /** Transient message in the event lane. Remix warnings (drawRemix) override it while active. */
-  /** r34: draining clock ring + 30 s warning + last-10 countdown over the board (the board is where the player looks). */
-  drawClock(hidden: boolean) {
-    const s = this.s;
-    const r = this.clockRing.clear();
-    const sc = s.stage ? this.stageCount() : undefined;
-    if (this.mergesLeftLabel.visible !== !!s.puzzle) this.mergesLeftLabel.setVisible(!!s.puzzle).setY(HP_Y - 52);
-    // puzzles set the pips to merges-left below: skip this text so it isn't re-rendered twice every frame
-    if (!s.puzzle) this.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
-    if (sc) {
-      r.fillStyle(0x2b1d2e, 1).fillRoundedRect(W - CLOCK_X - 46, HP_Y - 26, 92, 52, 16);
-    }
-    if (s.puzzle) {
-      // r42 puzzles: no time; the ring shows merges left
-      this.timerText.setText('');
-      const left = s.puzzle.moves - s.puzzle.used;
-      r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50).fillStyle(0x8e58c9, 1).fillCircle(CLOCK_X, HP_Y, 40);
-      this.stagePips.setText(`${left}`).setVisible(true).setPosition(CLOCK_X, HP_Y).setFontSize(44);
-      return;
-    }
-    this.stagePips.setPosition(W - CLOCK_X, HP_Y).setFontSize(30);
-    if (hidden || s.phase === 'tutorial') return;
-    const total = s.levelTime ?? TUNING.runTime;
-    const frac = Phaser.Math.Clamp(s.timeLeft / Math.max(1, total), 0, 1);
-    const col = s.timeLeft < 10 ? 0xe8452c : s.timeLeft < 30 ? 0xf2b521 : 0x5fd35f;
-    r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50);
-    r.fillStyle(0xfff0cf, 1).fillCircle(CLOCK_X, HP_Y, 36);
-    if (frac > 0) r.lineStyle(10, col, 1).beginPath().arc(CLOCK_X, HP_Y, 43, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
-    // r39: gold ticks where the 2- and 3-star times fall (still reachable ones bright, missed ones faded)
-    const sdef = s.level !== undefined && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
-    if (sdef?.star_times)
-      for (const st of sdef.star_times) {
-        const a = -Math.PI / 2 + Math.PI * 2 * Math.max(0, (total - st) / total);
-        const live = s.elapsed <= st;
-        r.lineStyle(5, live ? 0xffcf33 : 0x8a7a5a, live ? 1 : 0.6).lineBetween(CLOCK_X + Math.cos(a) * 36, HP_Y + Math.sin(a) * 36, CLOCK_X + Math.cos(a) * 52, HP_Y + Math.sin(a) * 52);
-      }
-    const sec = Math.ceil(s.timeLeft);
-    if (sec !== this.lastSec && s.phase === 'playing' && !this.paused) {
-      const prev = this.lastSec;
-      this.lastSec = sec;
-      if (prev > 30 && sec <= 30 && total > 45) this.showEvent('30 SECONDS LEFT!', '#ffcf33', 1100);
-      if (sec <= 10 && sec > 0 && prev > sec) {
-        this.timerText.setScale(1.45);
-        this.tweens.add({ targets: this.timerText, scale: 1, duration: 320, ease: 'Back.Out' });
-        const big = this.add.text(W / 2, BY + (CELL * ROWS) / 2, String(sec), { fontFamily: 'Lilita One, Arial Black', fontSize: '260px', color: '#e8452c', stroke: '#2b1d2e', strokeThickness: 14 }).setOrigin(0.5).setDepth(70).setAlpha(0.32).setScale(1.2);
-        this.tweens.add({ targets: big, alpha: 0, scale: 0.9, duration: 800, onComplete: () => big.destroy() });
-        this.cameras.main.flash?.(120, 120, 20, 10, false);
-      }
-    }
+  drawClock(...a: Tail<typeof hud.drawClock>) {
+    return hud.drawClock(this, ...a);
   }
 
-  showEvent(text: string, color = '#fff0cf', ms = 1400) {
-    this.laneMsg = { text, color, until: this.time.now + ms };
-    this.laneText.setScale(1.25);
-    this.tweens.add({ targets: this.laneText, scale: 1, duration: 180, ease: 'Back.Out' });
+  showEvent(...a: Tail<typeof hud.showEvent>) {
+    return hud.showEvent(this, ...a);
   }
 
-  updateLane(persistent: string | null, color = '#ffd2c8') {
-    const msg = persistent ?? (this.time.now < this.laneMsg.until ? this.laneMsg.text : '');
-    const col = persistent ? color : this.laneMsg.color;
-    const on = !!msg;
-    if (msg && msg !== this.laneText.text) {
-      this.laneText.setFontSize(28).setText(msg);
-      if (this.laneText.width > 610) this.laneText.setFontSize(Math.max(26, Math.floor((28 * 610) / this.laneText.width)));
-    }
-    if (msg) textColor(this.laneText, col);
-    const a = on ? 1 : Math.max(0, this.laneText.alpha - 0.08);
-    this.laneText.setAlpha(a);
-    this.laneBg.setAlpha(a * 0.95);
+  updateLane(...a: Tail<typeof hud.updateLane>) {
+    return hud.updateLane(this, ...a);
   }
 
   /** Start height for a number floating over the monster: it rises 70 as it fades, so on a short stage it must start
@@ -3506,441 +3033,20 @@ Now beat the real level.`, this.coachY());
     });
   }
 
-  openResult(won: boolean) {
-    if (this.modal) this.closeModal();
-    // the run is over: its last 'playing' snapshot must never resume (a lost fight retried, a won one replayed)
-    store(SAVE_KEY, null);
-    if (this.s.rush) return this.openRushResult(won);
-    if (this.s.bounty) return this.openBountyResult(won);
-    if (this.s.endless) return this.openEndlessResult(won);
-    if (this.s.puzzle) return this.openPuzzleResult(won);
-    if (this.s.level !== undefined) return this.playBestChain(() => this.openLevelResult(won));
-    const s = this.s;
-    const m = this.meta;
-    m.runs++;
-    let newBest = false;
-    if (won) {
-      m.wins++;
-      const rkey = s.remix ? `${s.target}:${this.activeToys()[0] ?? 'none'}` : '';
-      const prev = s.remix ? (m.remixBest[rkey] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
-      if (s.remix && (prev === null || s.elapsed < prev)) {
-        m.remixBest[rkey] = s.elapsed;
-        newBest = true;
-      } else if (!s.remix && !s.practice && (prev === null || s.elapsed < prev)) {
-        if (s.hard) m.bestTimeHard = s.elapsed;
-        else m.bestTime = s.elapsed;
-        newBest = true;
-      }
-      // t-2fd7bb86: a classic win no longer opens features (they follow the road, unlocks.ts)
-      m.hardUnlocked = true;
-    }
-    m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
-    const mastery = (m.mastery ??= {});
-    const newBests: string[] = [];
-    for (const [fam, r] of Object.entries(this.runBest) as [Family, number][]) {
-      if (r > (mastery[fam] ?? 0)) {
-        if ((mastery[fam] ?? 0) > 0 || r >= 2) newBests.push(`${FAMILY_INFO[fam].name} ${r}`);
-        mastery[fam] = r;
-      }
-    }
-    const pay = this.settleBolts(won);
-    const daily = s.daily ? this.recordDaily(won) : null;
-    if (daily) newBest = false;
-    store(META_KEY, JSON.stringify(m));
-    store(SAVE_KEY, null);
-    won ? sfx.win() : sfx.lose();
-    // ChatGPT r13 layout: headline first, the machine in a fixed region, few big numbers, "new this run", details, CTA stack
-    const PH = 1000;
-    const c = this.panel(PH);
-    const top = H / 2 - PH / 2;
-    const txt = (y: number, t: string, size: number, color: string, font = 'Lilita One, Arial Black') =>
-      c.add(this.add.text(W / 2, y, t, { fontFamily: font, fontStyle: font === 'Arial' ? 'bold' : '', fontSize: `${size}px`, color, align: 'center', wordWrap: { width: W - 150 } }).setOrigin(0.5));
-    const head = this.add.text(W / 2, top + 70, won ? `${TARGET_NAMES[Math.max(0, s.target)]} DEFEATED!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
-    while (head.width > W - 140 && Number.parseInt(String(head.style.fontSize)) > 30) head.setFontSize(Number.parseInt(String(head.style.fontSize)) - 4);
-    c.add(head);
-    const sub = won
-      ? `${s.elapsed.toFixed(1)}s${newBest ? '  ·  NEW BEST!' : ''}${s.practice ? '  (practice)' : ''}`
-      : s.remix
-        ? `${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`
-        : `Beat ${s.target} of 3  ·  ${TARGET_NAMES[s.target]} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%`;
-    txt(top + 128, sub, 30, newBest ? '#2f8a3a' : '#5a4a5a');
-    if (hasMachineArt(this)) {
-      const pic = buildMachine(this, W / 2, top + 390, 430, this.runBest, s.toys[0] ?? null, s.shooter ?? 'cannon')!;
-      c.add(pic);
-      const sc0 = pic.scale;
-      this.tweens.add({ targets: pic, scale: { from: sc0 * 0.7, to: sc0 }, duration: 380, ease: 'Back.Out' });
-      txt(top + 420, won ? 'Your machine this run, built from your best merges' : 'Your machine this run. Merge higher to grow it!', 21, '#7a5a4a', 'Arial');
-    }
-    const big = [`Biggest chain x${s.stats.biggestChain}`, pay && pay.total > 0 ? `+${pay.total} BOLTS` : ''].filter(Boolean).join('    ');
-    txt(top + 490, big, 36, '#3b2533');
-    const fresh: string[] = [];
-    if (daily) {
-      const [b, improved] = daily;
-      fresh.push(`Daily best ${b.targets === 3 ? `${b.time}s` : `${b.targets}/3 + ${fmt(b.dmg)}`}${improved ? '  NEW!' : ''}  ·  new bench tomorrow`);
-    }
-    if (newBests.length) fresh.push(`New best: ${newBests.slice(0, 3).join(' · ')}`);
-    if (pay?.onboarding) fresh.push('Includes a welcome gift of 12 Bolts');
-    if (fresh.length) {
-      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 535, W - 140, 40 + fresh.length * 38, 18));
-      txt(top + 557 + (fresh.length * 38) / 2, fresh.join('\n'), 24, '#b06a1a');
-    }
-    const rec = s.daily ? null : s.remix ? (m.remixBest[`${s.target}:${this.activeToys()[0] ?? 'none'}`] ?? null) : s.hard ? m.bestTimeHard : m.bestTime;
-    const details = [`Biggest hit ${fmt(s.stats.biggestHit)}`, rec !== null ? `Record ${rec.toFixed(1)}s` : '', s.perks.length ? `Perks: ${s.perks.map((p) => PERKS[p].name).join(', ')}` : ''].filter(Boolean).join('  ·  ');
-    txt(top + 720, details, 20, '#8a7a6a', 'Arial');
-    this.button(c, W / 2, top + 820, 520, 'ONE MORE!', 0xe8452c, () => this.retry(), 1.15);
-    this.button(c, W / 2, top + 932, 260, 'HOME', 0x27a4c0, () => this.openTitle(), 0.78);
+  openResult(...a: Tail<typeof results.openResult>) {
+    return results.openResult(this, ...a);
   }
 
-  /** r43 pride moment: before the level result, rebuild the board right before this attempt's biggest player chain
-   *  (start state + command log, see core/replay) and play that chain back in slow motion (~3 s, tap to skip).
-   *  A small self-contained board on its own layer: no sprites from the live board, no physics, a few dozen images. */
-  playBestChain(done: () => void) {
-    const log = this.runLog;
-    const best = log.best;
-    if (!best || best.count < 3) return done();
-    let before: GameState | null = null;
-    let cascade: CascadeResult | null = null;
-    const a = log.actions[best.at];
-    try {
-      before = replayRun(log, best.at);
-      if (before && a?.k === 'drop') {
-        const after = JSON.parse(JSON.stringify(before)) as GameState;
-        const e = applyCommand(after, a).events.find((x) => x.type === 'cascade');
-        if (e?.type === 'cascade') cascade = e.result;
-      }
-    } catch {
-      cascade = null;
-    }
-    // a replay that does not reproduce the recorded chain is never shown (no faked pride moment)
-    if (!before || !cascade || a?.k !== 'drop' || cascade.count !== best.count) return done();
-    tlog.log('best_chain_replay', { level: this.s.level, count: best.count });
-
-    const c = this.add.container(0, 0).setDepth(100);
-    this.modal = c;
-    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive();
-    c.add(dim);
-    const MC = 96;
-    const ox = W / 2 - (COLS * MC) / 2, oy = H / 2 - (ROWS * MC) / 2 + 30;
-    const at = (i: number) => ({ x: ox + (i % COLS) * MC + MC / 2, y: oy + Math.floor(i / COLS) * MC + MC / 2 });
-    const bg = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(ox - 14, oy - 14, COLS * MC + 28, ROWS * MC + 28, 24);
-    for (let i = 0; i < ROWS * COLS; i++) bg.fillStyle(0xfbe7c6, 0.14).fillRoundedRect(at(i).x - MC / 2 + 4, at(i).y - MC / 2 + 4, MC - 8, MC - 8, 12);
-    c.add(bg);
-    const piece = (fam: Family, rank: number, i: number) => {
-      const p = at(i);
-      const key = `${fam}_${rank}`;
-      const img = this.add.image(p.x, p.y, this.textures.exists(key) ? key : 'slot');
-      img.setScale((MC - 14) / Math.max(img.width, img.height, 1));
-      c.add(img);
-      return img;
-    };
-    const views = new Map<number, Phaser.GameObjects.Image>();
-    before.grid.forEach((g, i) => {
-      if (g && i !== a.from && i !== a.to) views.set(i, piece(g.family, g.rank, i));
-    });
-    const ga = before.grid[a.from]!;
-    const mover = piece(ga.family, ga.rank, a.from);
-    const target = piece(ga.family, ga.rank, a.to);
-    const links = this.add.graphics();
-    c.add(links);
-    const title = this.add.text(W / 2, oy - 70, 'YOUR BEST CHAIN', { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#ffd24a' }).setOrigin(0.5);
-    const counter = this.add.text(W / 2, oy + ROWS * MC + 60, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#ffffff' }).setOrigin(0.5);
-    const skip = this.add.text(W / 2, H - 60, 'tap to skip', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#c8b8a8' }).setOrigin(0.5);
-    c.add([title, counter, skip]);
-
-    let finished = false;
-    const timers: Phaser.Time.TimerEvent[] = [];
-    // one teardown for every close path: our own finish, closeModal() (e.g. the next level starting) or a direct
-    // destroy (sheet()). Only finish() goes on to done(); an outside close means someone else moved on.
-    const teardown = () => {
-      if (finished) return false;
-      finished = true;
-      for (const t of timers) t.remove(false);
-      this.tweens.killTweensOf(c.list);
-      dim.off('pointerdown').off('pointerup');
-      return true;
-    };
-    c.once('modalclose', teardown);
-    c.once('destroy', teardown);
-    const finish = () => {
-      if (!teardown()) return;
-      if (this.modal === c) this.modal = null;
-      c.destroy();
-      done();
-    };
-    // Skip only on a press that STARTS on the dim: the tap that skipped the win show opens this replay mid-press,
-    // and its release must not close it instantly.
-    let pressed = false;
-    dim.on('pointerdown', () => (pressed = true));
-    dim.on('pointerup', () => pressed && finish());
-    const later = (ms: number, fn: () => void) => timers.push(this.time.delayedCall(ms, () => !finished && fn()));
-
-    // 1) the merge slides in slowly (0.45 s), 2) each activation lights up in order (~2 s), 3) hold on the count
-    const MERGE = 450;
-    const p = at(a.to);
-    this.tweens.add({ targets: mover, x: p.x, y: p.y, duration: MERGE, ease: 'Quad.InOut' });
-    later(MERGE, () => {
-      mover.destroy();
-      const key = `${ga.family}_${Math.min(ga.rank + 1, capOf(before!, ga.family))}`;
-      if (this.textures.exists(key)) target.setTexture(key).setScale((MC - 14) / Math.max(target.width, target.height, 1));
-      views.set(a.to, target);
-    });
-    const acts = cascade.activations;
-    const step = Math.min(300, 2000 / acts.length);
-    acts.forEach((act, k) => {
-      later(MERGE + 80 + k * step, () => {
-        const q = at(act.idx);
-        if (act.parent >= 0 && act.parent !== act.idx) {
-          const f = at(act.parent);
-          links.lineStyle(8, 0xffcf33, 0.85).lineBetween(f.x, f.y, q.x, q.y);
-        }
-        links.lineStyle(5, 0xffcf33, 1).strokeCircle(q.x, q.y, MC / 2 - 4);
-        const v = views.get(act.idx);
-        if (v && !REDUCED_MOTION) this.tweens.add({ targets: v, scale: v.scale * 1.3, duration: Math.max(80, step * 0.5), yoyo: true, ease: 'Quad.Out' });
-        counter.setText(`CHAIN x${k + 1}`);
-        sfx.click();
-      });
-    });
-    const end = MERGE + 80 + acts.length * step;
-    later(end, () => {
-      counter.setColor('#ffd24a');
-      if (!REDUCED_MOTION) this.tweens.add({ targets: counter, scale: 1.25, duration: 160, yoyo: true, ease: 'Back.Out' });
-    });
-    later(end + 650, finish);
+  playBestChain(...a: Tail<typeof results.playBestChain>) {
+    return results.playBestChain(this, ...a);
   }
 
-  /** r46 ghost pace on a replay of a beaten level: a thin tick on the HP bar where the best run's HP is now, and a
-   *  small "2.1 s ahead" above the bar's right end (over the stage, never the board). Text refreshes 4x a second. */
-  drawPace(bw: number) {
-    const s = this.s;
-    const p = this.paceGhost && s.phase === 'playing' && !this.modal ? levelProgress(s) : null;
-    if (!this.paceText) {
-      this.paceText = this.add.text(W / 2 + bw / 2, HP_Y - 30, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(1, 0.5).setDepth(4).setAlpha(0.85);
-      this.paceG = this.add.graphics().setDepth(3.5); // above the HP number and the kickback quarter ticks
-    }
-    this.paceG!.clear();
-    if (p === null || !this.paceGhost || s.elapsed < 1) {
-      this.paceText.setVisible(false);
-      return;
-    }
-    // ghost marker: the ghost's damage mapped into the current machine's bar (stages: the bar is per machine)
-    const st = s.stage;
-    const g = ghostProgress(this.paceGhost, s.elapsed);
-    const inMachine = st ? (g * st.total - st.done) / s.maxHp : g;
-    const gx = W / 2 - bw / 2 + bw * (1 - Math.min(1, Math.max(0, inMachine)));
-    this.paceG!.fillStyle(0x2b1d2e, 0.9).fillRect(gx - 2.5, HP_Y - 16, 5, 32); // dark outline: readable on the pale fill
-    this.paceG!.fillStyle(0xfff0cf, 0.95).fillRect(gx - 1.5, HP_Y - 15, 3, 30);
-    if (this.paceShownAt < 0 || s.elapsed - this.paceShownAt >= 0.25 || s.elapsed < this.paceShownAt) {
-      this.paceShownAt = s.elapsed;
-      const d = paceDelta(this.paceGhost, s.elapsed, p);
-      textColor(this.paceText.setText(paceLabel(d)), Math.abs(d) < 0.05 ? '#fff0cf' : d > 0 ? '#8ef08a' : '#ffa58a');
-    }
-    this.paceText.setVisible(true);
+  drawPace(...a: Tail<typeof hud.drawPace>) {
+    return hud.drawPace(this, ...a);
   }
 
-  /** SAGA level result: stars, Bolts (first clear / replay / new stars / eligible fail), free boosters, next step. */
-  openLevelResult(won: boolean) {
-    this.coach.clear();
-    this.closeInspect();
-    this.capsuleBtn?.setVisible(false);
-    const s = this.s;
-    const m = this.meta;
-    const n = s.level!;
-    const def = LEVELS[n - 1];
-    if (!def) return this.openTitle(); // a level this build no longer has: nothing to score, back home
-    m.runs++;
-    const key = String(n);
-    const stars = (m.levelStars ??= {});
-    const grants = (m.grants ??= {});
-    const id = `L${n}:${s.seed}:${s.stats.merges}:${s.elapsed.toFixed(2)}`;
-    const fresh = m.lastSettle !== id;
-    m.lastSettle = id;
-    const lines: string[] = [];
-    let bolts = 0;
-    const parts: string[] = [];
-    let got = 0;
-    let firstClear = false;
-    let chapterDone = 0;
-    if (won) {
-      m.wins++;
-      got = starsFor(def, s.elapsed);
-      if (fresh) {
-        this.seasonEv('levelWin');
-        if (s.stats.biggestChain >= 8) this.seasonEv('chain8');
-        if (got === 3) this.seasonEv('threeStars');
-      }
-      const prev = stars[key] ?? 0;
-      firstClear = prev === 0;
-      const rw = levelReward(def);
-      if (fresh) {
-        // r46 ghost pace: the fastest win becomes the ghost (rebuilt from the run log; a log that doesn't replay to this win is not stored)
-        const curve = paceFromLog(this.runLog);
-        if (curve && Math.abs(curve.t - s.elapsed) < 0.06) updatePace((m.levelPace ??= {}), key, curve);
-        const lvB = firstClear ? rw.win_bolts + rw.first_clear_bolts : Math.min(rw.win_bolts, Math.floor(0.15 * s.elapsed));
-        const stB = Math.max(0, got - prev) * rw.new_star_bolts;
-        bolts += lvB + stB;
-        parts.push(`${firstClear ? 'First clear' : 'Level'} +${lvB}`);
-        // r40 Saga Mastery: contracts met in this win earn medals (+Bolts; every 10th a Wood crate, every 30th Iron, all = Gold)
-        const medals = (m.sagaMedals ??= {});
-        const doneHere = (medals[key] ??= []);
-        contractsFor(def).forEach((ct, ci) => {
-          if (doneHere.includes(ci) || !contractMet(ct, s)) return;
-          doneHere.push(ci);
-          this.seasonEv('medal');
-          bolts += MASTERY_BOLTS;
-          const total = Object.values(medals).reduce((t, v) => t + v.length, 0);
-          lines.push(`MASTERY \u2713 ${contractText(ct)}  +${MASTERY_BOLTS}`);
-          if (total % 30 === 0) {
-            this.giveCrate('iron');
-            lines.push(`${total} MASTERY MEDALS: +1 IRON CRATE`);
-          } else if (total % 10 === 0) {
-            this.giveCrate('wood');
-            lines.push(`${total} MASTERY MEDALS: +1 WOOD CRATE`);
-          }
-          if (total === LEVELS.length * 2) {
-            this.giveCrate('gold');
-            lines.push('EVERY MEDAL! +1 GOLD CRATE');
-          }
-          tlog.log('mastery_medal', { level: n, contract: ct.kind, total });
-        });
-        if (firstClear && n === YARD_UNLOCK) lines.push('NEW EVENT: SCREW YARD!  (EVENTS tab)');
-        if (stB) parts.push(`Stars +${stB}`);
-        if (firstClear && rw.free_jumpstart && !grants[`kit${n}`]) {
-          grants[`kit${n}`] = true;
-          m.kits = (m.kits ?? 0) + rw.free_jumpstart;
-          lines.push(`+${rw.free_jumpstart} Jumpstart Kit`);
-        }
-        if (firstClear && rw.free_time_capsule && !grants[`cap${n}`]) {
-          grants[`cap${n}`] = true;
-          m.capsules = (m.capsules ?? 0) + rw.free_time_capsule;
-          lines.push(`+${rw.free_time_capsule} Time Capsule`);
-        }
-      }
-      stars[key] = Math.max(prev, got);
-      const total = Object.values(stars).reduce((a, b) => a + b, 0);
-      if (total >= 25 && !grants.stars25) {
-        grants.stars25 = true;
-        m.kits = (m.kits ?? 0) + 1;
-        lines.push('25 stars: +1 Jumpstart Kit');
-      }
-      if (total >= 50 && !grants.stars50) {
-        grants.stars50 = true;
-        m.capsules = (m.capsules ?? 0) + 1;
-        lines.push('50 stars: +1 Time Capsule');
-      }
-      // r32 crates from play: mini-boss -> iron, chapter boss -> gold, every 3rd ordinary first clear -> wood
-      if (fresh && firstClear) {
-        const kind: CrateKind | null = def.mini_boss ? 'iron' : n % 10 === 0 ? 'gold' : n % 3 === 0 ? 'wood' : null;
-        if (n % 10 === 0) {
-          m.gems = (m.gems ?? 0) + GEM_REWARDS.chapterBoss;
-          lines.push(`+${GEM_REWARDS.chapterBoss} GEMS`);
-        }
-        if (kind) {
-          this.giveCrate(kind);
-          lines.push(`+1 ${CRATES[kind].name}`);
-        }
-      }
-      if (firstClear && n % 10 === 0 && !(m.medals ??= {})[String(n / 10)]) {
-        m.medals![String(n / 10)] = true;
-        chapterDone = n / 10;
-        tlog.log('chapter_reward_granted', { chapter: chapterDone });
-      }
-      if (n >= 5 && !m.hardUnlocked) m.hardUnlocked = true;
-      // t-2fd7bb86: features open one at a time (unlocks.ts), each announced once here and tagged NEW where it lives
-      for (const f of this.checkUnlocks()) if (f !== 'gems') lines.push(`\u2605 NEW: ${FEATURE_INFO[f].name}  (${FEATURE_INFO[f].where}) \u2605`);
-    } else if (fresh && s.elapsed >= 30 && s.stats.merges >= 3) {
-      const day = localDate();
-      const fp = (m.failPaid ??= {});
-      if (fp[key] !== day) {
-        fp[key] = day;
-        bolts += 4;
-        parts.push('Good try +4');
-      }
-    }
-    if (fresh && !m.onboarded && (won || (s.elapsed >= 30 && s.stats.merges >= 3))) {
-      m.onboarded = true;
-      bolts += ONBOARDING_BOLTS;
-      parts.push(`Welcome +${ONBOARDING_BOLTS}`);
-    }
-    m.bolts = (m.bolts ?? 0) + bolts;
-    // mastery (the home machine) grows from this attempt's merges either way
-    const mastery = (m.mastery ??= {});
-    for (const [fam, r] of Object.entries(this.runBest) as [Family, number][]) if (r > (mastery[fam] ?? 0)) mastery[fam] = r;
-    m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
-    tlog.log('level_end', { level: n, won, stars: got, elapsed: +s.elapsed.toFixed(1), bolts, jumpstart: !!s.jumpstart, capsule: !!s.capsuleUsed, firstClear });
-    store(META_KEY, JSON.stringify(m));
-    store(SAVE_KEY, null);
-    won ? sfx.win() : sfx.lose();
-    const PH = 860;
-    const c = this.panel(PH);
-    const top = H / 2 - PH / 2;
-    const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
-    c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${this.stageCount()!.at} of ${this.stageCount()!.n}  ·  ${this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
-    // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
-    if (!won && this.hasArt('defeat')) {
-      const im = this.fitVisible(this.add.image(W / 2, top + 296, 'defeat'), 240);
-      const sc = im.scale;
-      c.add(im.setScale(0));
-      this.tweens.add({ targets: im, scale: sc, duration: 300, delay: 150, ease: 'Back.Out' });
-    } else for (let k = 0; k < 3; k++) {
-      const st = this.add.image(W / 2 + (k - 1) * 130, top + 270 + (k === 1 ? -14 : 0), 'star');
-      const sc = (k === 1 ? 120 : 100) / Math.max(st.width, st.height);
-      st.setScale(0).setAlpha(k < got ? 1 : 0.22);
-      c.add(st);
-      this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.star(k) });
-    }
-    if (won && got < 3) c.add(this.add.text(W / 2, top + 360, `Next star: clear in ${starGoals(def)[got === 1 ? 0 : 1]}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
-    // reward row: chain, then a bolt icon + the bolts (UI audit: rewards read as plain text)
-    const big = { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' };
-    const rowObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
-    if (s.stats.biggestChain >= 2 && n >= 2) rowObjs.push(this.add.text(0, 0, `Biggest chain x${s.stats.biggestChain}`, big));
-    if (bolts > 0) {
-      if (this.hasArt('icon_bolt')) rowObjs.push(this.fitVisible(this.add.image(0, 0, 'icon_bolt'), 46));
-      rowObjs.push(this.add.text(0, 0, `+${bolts} BOLTS`, { ...big, color: '#b06a1a' }));
-    }
-    // the icon hugs its number; separate items get a wide gap
-    const gapAt = (i: number) => (i === 0 ? 0 : rowObjs[i - 1] instanceof Phaser.GameObjects.Image ? 8 : 40);
-    // the icon is centred on its visible pixels by fitVisible, so it takes a fixed 46 px slot
-    const wOf = (o: Phaser.GameObjects.Text | Phaser.GameObjects.Image) => (o instanceof Phaser.GameObjects.Text ? o.width : 46);
-    const rowW = rowObjs.reduce((w, o, i) => w + gapAt(i) + wOf(o), 0);
-    let rx0 = W / 2 - rowW / 2;
-    rowObjs.forEach((o, i) => {
-      rx0 += gapAt(i);
-      if (o instanceof Phaser.GameObjects.Text) o.setOrigin(0, 0.5).setPosition(rx0, top + 410);
-      else o.setPosition(rx0 + 23, top + 410);
-      c.add(o);
-      rx0 += wOf(o);
-    });
-    if (bolts > 0) this.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
-    if (parts.length) c.add(this.add.text(W / 2, top + 452, parts.join('  \u00b7  '), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
-    if (lines.length) {
-      // r40: long reward lists (mastery, screwdriver, milestones) compress instead of running into the buttons
-      const lh = lines.length > 3 ? 27 : 36;
-      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 24 + lines.length * lh, 18));
-      c.add(this.add.text(W / 2, top + 497 + (lines.length * lh) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: lines.length > 3 ? '20px' : '24px', color: '#b06a1a', align: 'center', lineSpacing: lines.length > 3 ? 3 : 8 }).setOrigin(0.5));
-    }
-    if (chapterDone) this.time.delayedCall(700, () => this.playChapterChest(chapterDone));
-    else if (won && n % 10 !== 0 && n > 1 && lines.length <= 2) {
-      const left = 10 - (n % 10);
-      c.add(this.add.text(W / 2, top + 600, `${left} level${left > 1 ? 's' : ''} until your Chapter ${Math.ceil(n / 10)} chest`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
-    }
-    const nextN = Math.min(LEVELS.length, n + 1);
-    if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road')), 1.1);
-    else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => this.openLevelSheet(n), 1.1);
-    // r37: a crate to open or a unit ready to level up gets its own button here (units are the main progression)
-    // r38 Upgrade Prescription (ChatGPT review): after a loss, name the squad upgrade that helps most and how close it is
-    const rx = !won ? this.upgradePrescription() : null;
-    if (rx) c.add(this.add.text(W / 2, top + 572, rx.text, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a5a', align: 'center', lineSpacing: 4 }).setOrigin(0.5));
-    // r38 trial over: point at the unit the player just tried
-    const tr = this.meta.trial;
-    const trialEnd = tr && tr.date === localDate() && tr.on && tr.left === 0 && !tr.endShown ? unitDef(tr.unit) : undefined;
-    if (trialEnd && tr) {
-      tr.endShown = true;
-      store(META_KEY, JSON.stringify(this.meta));
-    }
-    const unitCta = trialEnd ? 'KEEP BUILDING' : this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP \u2191' : rx ? 'GET CARDS' : '';
-    this.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
-    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => (trialEnd ? this.openUnitDetail(trialEnd) : unitCta === 'GET CARDS' ? this.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? this.openUnitDetail(rx.u) : this.openTitle('units')), 0.78);
+  openLevelResult(...a: Tail<typeof results.openLevelResult>) {
+    return results.openLevelResult(this, ...a);
   }
 
   /** r38: the squad unit (shooter, relays, helper) closest to its next level, with what that level gives. */
@@ -3961,126 +3067,24 @@ Now beat the real level.`, this.coachY());
     return { u: best.u, text: `${name}  LV ${best.lv} \u2192 ${best.lv + 1}:  ${levelPerkText(best.u, best.lv + 1)}\ncards ${Math.min(best.cards, best.need)}/${best.need}` };
   }
 
-  /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
-  playChapterChest(chapter: number) {
-    const o = this.add.container(0, 0).setDepth(140);
-    o.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive());
-    o.add(this.add.text(W / 2, H / 2 - 360, `CHAPTER ${chapter} COMPLETE!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
-    const closed = this.hasArt('chest_closed') ? this.add.image(W / 2, H / 2, 'chest_closed') : null;
-    const open = this.hasArt('chest_open') ? this.add.image(W / 2, H / 2, 'chest_open').setAlpha(0) : null;
-    for (const im of [closed, open]) if (im) im.setScale(300 / Math.max(im.width, im.height));
-    if (closed) o.add(closed);
-    if (open) o.add(open);
-    const medal = this.medalIcon(W / 2, H / 2 - 40, 220, chapter, true).setAlpha(0).setScale(0.4);
-    o.add(medal);
-    const cap = this.add.text(W / 2, H / 2 + 260, `Chapter ${chapter} medal added to your MACHINE\n(tap to continue)`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', align: 'center' }).setOrigin(0.5).setAlpha(0);
-    o.add(cap);
-    sfx.chestShake();
-    if (closed) this.tweens.add({ targets: closed, angle: { from: -4, to: 4 }, duration: 90, yoyo: true, repeat: 4 });
-    this.time.delayedCall(700, () => {
-      sfx.chestOpen();
-      this.time.delayedCall(250, () => sfx.medal());
-      if (closed) this.tweens.add({ targets: closed, alpha: 0, duration: 200 });
-      if (open) this.tweens.add({ targets: open, alpha: 1, duration: 200 });
-      this.tweens.add({ targets: medal, alpha: 1, scale: 1, y: H / 2 - 170, duration: 520, ease: 'Back.Out' });
-      this.tweens.add({ targets: cap, alpha: 1, delay: 400, duration: 300 });
-    });
-    o.list[0].on('pointerup', () => {
-      tlog.log('chapter_reward_presented', { chapter });
-      o.destroy();
-      this.backupNudge(chapter);
-    });
+  playChapterChest(...a: Tail<typeof results.playChapterChest>) {
+    return results.playChapterChest(this, ...a);
   }
 
-  /** r43: after a chapter clear, offer a save backup once per chapter (dismissible; never blocks the level-end panel). */
-  backupNudge(chapter: number) {
-    const m = this.meta;
-    if ((m.backupNudged ??= {})[String(chapter)]) return;
-    m.backupNudged[String(chapter)] = true;
-    store(META_KEY, JSON.stringify(m));
-    tlog.log('backup_nudge', { chapter });
-    const o = this.add.container(0, 0).setDepth(140);
-    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.6).setInteractive();
-    const PH = 440;
-    const top = H / 2 - PH / 2;
-    o.add([dim, this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(40, top - 6, W - 80, PH + 12, 36).fillStyle(0xfbe7c6, 1).fillRoundedRect(46, top, W - 92, PH, 32)]);
-    o.add(this.add.text(W / 2, top + 70, 'BACK UP YOUR PROGRESS?', { fontFamily: 'Lilita One, Arial Black', fontSize: '42px', color: '#3b2533' }).setOrigin(0.5));
-    o.add(this.add.text(W / 2, top + 120, `Chapter ${chapter} done! Your progress lives only on this phone.\nKeep a save code in Notes to get it back anytime.`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
-    const close = () => o.destroy();
-    dim.on('pointerup', close);
-    this.button(o, W / 2, top + 280, 460, 'COPY SAVE CODE', 0x5fbf4a, () => {
-      close();
-      this.copySaveCode();
-    }, 0.9);
-    this.button(o, W / 2, top + 380, 260, 'NOT NOW', 0x8a6a4a, close, 0.75);
+  backupNudge(...a: Tail<typeof results.backupNudge>) {
+    return results.backupNudge(this, ...a);
   }
 
-  /** r43 save backup: the whole save as a code on the clipboard; a select-all text box when the clipboard is refused. */
   copySaveCode() {
-    const live = (this.s.phase === 'playing' || this.s.phase === 'choice') && !this.s.showcase && !this.homeIdle;
-    if (live) this.save();
-    store(META_KEY, JSON.stringify(this.meta));
-    // storage blocked (private mode, site data off): the code is made from the game in memory
-    const code = exportCode(safeStorage(readBundle, () => ({ meta: this.meta as unknown as Record<string, unknown>, run: live ? serialize(this.s) : null })));
-    void copyText(code).then((ok) => {
-      tlog.log('backup_copy', { clipboard: ok });
-      if (ok) return this.showToast('SAVE CODE COPIED!\nPaste it in Notes to keep it safe');
-      return code.then(
-        (value) => void openCodeBox({ title: 'YOUR SAVE CODE', hint: 'Tap and hold the code, then tap Copy.\nKeep it in Notes or send it to yourself.', value, actions: [{ label: 'DONE', color: '#27a4c0', run: () => undefined }] }),
-        () => this.showToast("COULDN'T MAKE THE CODE"),
-      );
-    });
+    return settingsUi.copySaveCode(this);
   }
 
-  /** r43: paste box -> checked code -> confirm -> the save is replaced and the game reloads. Bad codes never touch the save. */
   openPasteCode() {
-    openCodeBox({
-      title: 'PASTE SAVE CODE',
-      hint: 'Tap and hold the box, then tap Paste.',
-      placeholder: 'OMM1z.…',
-      actions: [
-        { label: 'CANCEL', color: '#8a6a4a', run: () => undefined },
-        {
-          label: 'LOAD',
-          color: '#5fbf4a',
-          run: async (text) => {
-            const r = await importCode(text);
-            tlog.log('backup_paste', { ok: r.ok, reason: r.ok ? undefined : r.reason });
-            if (!r.ok) return r.message;
-            this.confirmImport(r.bundle);
-          },
-        },
-      ],
-    });
+    return settingsUi.openPasteCode(this);
   }
 
-  /** `undo`: put back the save from before the last load (Settings link). */
-  confirmImport(b: SaveBundle, undo = false) {
-    closeCodeBox();
-    const c = this.sheet(620);
-    const top = H / 2 - 310;
-    this.sheetTitle(c, top, undo ? 'UNDO LAST LOAD?' : 'LOAD THIS SAVE?', undo ? 'This puts back the save you had\nbefore you loaded a code.' : 'This replaces your current progress.\nYou can undo it once in Settings.');
-    const sum = (meta: Record<string, unknown>) => {
-      const stars = Object.values((meta.levelStars ?? {}) as Record<string, number>);
-      return `${stars.length} levels  ·  ${stars.reduce((a, x) => a + (Number(x) || 0), 0)} stars  ·  ${Number(meta.bolts) || 0} Bolts`;
-    };
-    const when = b.at ? new Date(b.at).toLocaleDateString() : '';
-    c.add(this.add.text(W / 2, top + 210, `${undo ? 'BEFORE THE LOAD' : `SAVE CODE${when ? ` (${when})` : ''}`}\n${sum(b.meta)}\n\nNOW ON THIS PHONE\n${sum(this.meta as unknown as Record<string, unknown>)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533', align: 'center', lineSpacing: 6 }).setOrigin(0.5, 0));
-    this.button(c, W / 2 - 140, top + 540, 260, 'CANCEL', 0x8a6a4a, () => this.openSettings(), 0.8);
-    this.button(c, W / 2 + 140, top + 540, 260, undo ? 'UNDO' : 'REPLACE', 0xe8452c, () => {
-      tlog.log(undo ? 'backup_undo' : 'backup_restore');
-      tlog.flush();
-      // lock first: nothing may write the old in-memory game back before or during the reload
-      lockSaves();
-      try {
-        if (undo) restorePreimport(localStorage);
-        else applyBundle(localStorage, b);
-      } catch {
-        lockSaves(false);
-        return this.showToast("COULDN'T SAVE ON THIS PHONE");
-      }
-      location.reload();
-    }, 0.8);
+  confirmImport(...a: Tail<typeof settingsUi.confirmImport>) {
+    return settingsUi.confirmImport(this, ...a);
   }
 
   /** Leave a run for the home page: an abandoned run keeps what it earned (no Daily bonus), then the save is dropped. */
@@ -4239,61 +3243,8 @@ Now beat the real level.`, this.coachY());
     this.showEvent(`BOUNTY  \u00b7  ${TWIST_TEXT[b.twist].toUpperCase()}`, '#d9c2ff', 2200);
   }
 
-  openBountyResult(won: boolean) {
-    const m = this.meta;
-    const bt = this.s.bounty!;
-    m.bounty = m.bounty ?? {};
-    const rec = (m.bounty[bt.date] = m.bounty[bt.date] ?? { won: [], mastered: [] });
-    let bolts = 0;
-    const masteredNow = won && (this.s.timeLeft >= MASTERY_TIME_LEFT || this.s.stats.biggestChain >= MASTERY_CHAIN);
-    let crate = false;
-    if (won && !rec.won.includes(bt.slot)) {
-      rec.won.push(bt.slot);
-      this.seasonEv('bountyWin');
-      bolts += BOUNTY_BOLTS;
-      this.giveCrate('wood'); // r32
-      crate = true;
-      if (rec.won.length === 3) m.gems = (m.gems ?? 0) + GEM_REWARDS.allBounties; // all three bounties today
-    }
-    let newStar = false;
-    if (masteredNow && !rec.mastered.includes(bt.slot)) {
-      rec.mastered.push(bt.slot);
-      m.bossMastery = { ...(m.bossMastery ?? {}), [bt.id]: (m.bossMastery?.[bt.id] ?? 0) + 1 };
-      newStar = true;
-      // r35: the third star wins the trophy; it goes straight onto the shelf when there is room
-      if (m.bossMastery[bt.id] === TROPHY_AT) {
-        if ((m.trophies ?? []).length < TROPHY_SHELF) m.trophies = [...(m.trophies ?? []), bt.id];
-        this.time.delayedCall(900, () => this.showToast(`TROPHY WON: ${BOSSES.find((x) => x.id === bt.id)?.name ?? ''}!`));
-        tlog.log('trophy', { id: bt.id });
-      }
-    }
-    const total = Object.values(m.bossMastery ?? {}).reduce((a, b) => a + b, 0);
-    let milestone = 0;
-    for (const [need, pay] of MASTERY_MILESTONES) if (total >= need && (m.masteryPaid ?? 0) < need) {
-      milestone += pay;
-      m.masteryPaid = need;
-    }
-    bolts += milestone;
-    if (bolts) m.bolts = (m.bolts ?? 0) + bolts;
-    store(META_KEY, JSON.stringify(m));
-    tlog.log('bounty_end', { id: bt.id, won, mastered: masteredNow, bolts });
-    const c = this.panel(640);
-    const top = H / 2 - 320;
-    const name = BOSSES.find((x) => x.id === bt.id)?.name ?? '';
-    c.add(this.add.text(W / 2, top + 64, won ? 'BOUNTY CLAIMED!' : 'BOUNTY ESCAPED', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    const key = `boss_${bt.id}_intact`;
-    if (this.hasArt(key)) {
-      const im = this.add.image(W / 2, top + 210, key);
-      im.setScale(170 / Math.max(im.width, im.height));
-      if (!won) im.setAlpha(0.6);
-      c.add(im);
-    }
-    const lines = [name, won ? (masteredNow ? `MASTERY ★  ${m.bossMastery?.[bt.id] ?? 1}` : `Master it: ${MASTERY_TIME_LEFT}s left or a x${MASTERY_CHAIN} chain`) : 'Try again any time today'];
-    if (bolts) lines.push(`+${bolts} BOLTS${milestone ? '  (mastery milestone!)' : ''}${crate ? '  +1 WOOD CRATE' : ''}`);
-    if (newStar) sfx.star?.(3);
-    c.add(this.add.text(W / 2, top + 320, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    this.button(c, W / 2 - 120, top + 540, 220, 'AGAIN', 0x5fbf4a, () => this.startBounty(bt.slot), 0.85);
-    this.button(c, W / 2 + 120, top + 540, 220, 'EVENTS', 0x27a4c0, () => this.openTitle('events'), 0.85);
+  openBountyResult(...a: Tail<typeof results.openBountyResult>) {
+    return results.openBountyResult(this, ...a);
   }
 
   rushRun: { i: number; times: number[] } | null = null;
@@ -4321,80 +3272,8 @@ Now beat the real level.`, this.coachY());
     this.showEvent(`BOSS RUSH  \u00b7  FIGHT ${i + 1} OF 3`, '#d9c2ff', 2000);
   }
 
-  openRushResult(won: boolean) {
-    const m = this.meta;
-    const { id, slot, week } = this.s.rush!;
-    const r = m.rush;
-    if (!r || r.week !== week) {
-      // this week's rush record is gone (a reset or a loaded save): nothing to credit the fight against
-      tlog.log('rush_record_missing', { opponent: id, index: slot });
-      this.rushRun = null;
-      this.openTitle('events');
-      this.showToast('BOSS RUSH RESET\nStart it again from EVENTS');
-      return;
-    }
-    const run = this.rushRun?.i === slot ? this.rushRun : r.run?.i === slot ? { i: slot, times: [...r.run.times] } : { i: slot, times: [] };
-    if (won) {
-      run.times.push(this.s.elapsed);
-      r.stamps = { ...(r.stamps ?? {}), [id]: true };
-      tlog.log('rush_fight_finish', { index: run.i, opponent: id, clear_time: +this.s.elapsed.toFixed(1) });
-    }
-    const cleared = run.times.length;
-    const done = !won || cleared >= 3;
-    // weekly cumulative Bolts: only the positive difference is paid
-    const due = cleared ? RUSH_REWARDS[cleared - 1] : 0;
-    const delta = Math.max(0, due - (r.granted ?? 0));
-    if (delta) {
-      // r32: crossing fight 2 / fight 3 for the first time this week also drops a crate
-      if ((r.granted ?? 0) < RUSH_REWARDS[1] && due >= RUSH_REWARDS[1]) this.giveCrate('iron');
-      if ((r.granted ?? 0) < RUSH_REWARDS[2] && due >= RUSH_REWARDS[2]) {
-        this.giveCrate('gold');
-        m.gems = (m.gems ?? 0) + GEM_REWARDS.rushFull;
-        this.seasonBonus(BONUS_XP.rushFull, 'BOSS RUSH');
-      }
-      m.bolts = (m.bolts ?? 0) + delta;
-      r.granted = due;
-    }
-    const firstMedal = cleared >= 3 && !r.medal;
-    if (cleared >= 3) {
-      r.medal = true;
-      r.weeks = [...new Set([...(r.weeks ?? []), r.week])];
-    }
-    const total = run.times.reduce((a, b) => a + b, 0);
-    if (done && cleared && (!r.best || cleared > r.best.fights || (cleared === r.best.fights && total < r.best.time))) r.best = { fights: cleared, time: total };
-    store(META_KEY, JSON.stringify(m));
-    const c = this.panel(760);
-    const top = H / 2 - 380;
-    c.add(this.add.text(W / 2, top + 64, done ? (cleared >= 3 ? 'RUSH COMPLETE!' : 'RUSH OVER') : `FIGHT ${cleared} CLEARED!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: cleared >= 3 ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    r.course.forEach((bid, k) => {
-      const x = W / 2 + (k - 1) * 190, y = top + 230;
-      const key = `boss_${bid}_intact`;
-      if (this.hasArt(key)) {
-        const im = this.add.image(x, y, key);
-        im.setScale(140 / Math.max(im.width, im.height));
-        if (k >= cleared) im.setTint(k === cleared && !done ? 0xffffff : 0x2b1d2e).setAlpha(k === cleared && !done ? 1 : 0.6);
-        c.add(im);
-      }
-      if (k < cleared) c.add(this.add.text(x + 50, y + 50, '✓', { fontFamily: 'Arial Black', fontSize: '44px', color: '#2a8a3a', stroke: '#fff0cf', strokeThickness: 6 }).setOrigin(0.5));
-      c.add(this.add.text(x, y + 96, BOSSES.find((b) => b.id === bid)?.name ?? '', { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#3b2533', align: 'center', wordWrap: { width: 180 } }).setOrigin(0.5, 0));
-    });
-    const lines = [`${cleared} of 3 fights  \u00b7  ${total.toFixed(1)}s`, delta ? `+${delta} BOLTS` : `This week: ${r.granted}/${RUSH_REWARDS[2]} Bolts`];
-    if (firstMedal) lines.push('BOSS RUSH MEDAL EARNED!');
-    c.add(this.add.text(W / 2, top + 400, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    if (!done) {
-      const nextId = r.course[cleared];
-      this.button(c, W / 2, top + 600, 440, 'NEXT FIGHT', 0x5fbf4a, () => {
-        run.i = cleared;
-        this.rushRun = run;
-        this.startRushFight(cleared);
-      });
-      c.add(this.add.text(W / 2, top + 545, `Next: ${BOSSES.find((b) => b.id === nextId)?.name ?? ''}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-    } else {
-      this.button(c, W / 2 - 120, top + 640, 220, 'AGAIN', 0x5fbf4a, () => this.startRush(), 0.85);
-      this.button(c, W / 2 + 120, top + 640, 220, 'HOME', 0x27a4c0, () => this.quitHome(), 0.85);
-      tlog.log('rush_attempt_end', { completed: cleared, total: +total.toFixed(1) });
-      if (delta) tlog.log('rush_settle', { delta, week: r.week });
-    }
+  openRushResult(...a: Tail<typeof results.openRushResult>) {
+    return results.openRushResult(this, ...a);
   }
 
   /** Daily Bench (ChatGPT r11): today's validated seed, normal rules, no helper toy, unlimited retries. */
@@ -4442,146 +3321,8 @@ Now beat the real level.`, this.coachY());
     return this.openMachineTab();
   }
 
-  /** MACHINE tab: YOUR MACHINE as the hero, team, PLAY (current level), workshop, utilities. */
   openMachineTab() {
-    this.closeModal();
-    const m = this.meta;
-    const c = this.add.container(0, 0).setDepth(100);
-    if (this.homeC?.active) this.homeC.destroy();
-    this.homeC = c;
-    this.modal = c;
-    const bottom = H;
-    // layout: top-anchored header, bottom-anchored controls, the machine fills what is left
-    const helperY = bottom - 547;
-    const feetY = Math.min(helperY - 70, bottom - 600);
-    const headY = 150;
-    const room = feetY - (headY + 70);
-    const mWidth = Math.min(W * 1.02, Math.max(380, room / 0.56));
-    // background, pedestal aligned under the machine's feet
-    const stageKey = m.stage && this.hasArt(`stagebg_${m.stage}`) ? `stagebg_${m.stage}` : 'hero_bg';
-    const bg = this.add.image(W / 2, 0, stageKey).setOrigin(0.5, 0);
-    const k = Math.max(W / bg.width, (feetY - 20) / (0.538 * bg.height), (H - feetY + 20) / (0.462 * bg.height));
-    bg.setScale(k).setY(feetY - 20 - 0.538 * bg.height * k);
-    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
-
-    this.drawWallet(c);
-
-    // identity
-    const name = m.owned?.includes('nameplate') ? MACHINE_NAMES[(m.nameIdx ?? 0) % MACHINE_NAMES.length] : 'YOUR MACHINE';
-    // ChatGPT r13: quieter identity on the quiet wall (no heavy sticker outline)
-    const darkStage = m.stage === 'night_shift';
-    c.add(this.add.text(W / 2, headY, name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: darkStage ? '#fff0cf' : '#3b2533', stroke: darkStage ? '#2b1d2e' : '#fff0cf', strokeThickness: darkStage ? 8 : 4 }).setOrigin(0.5));
-    const empty = !Object.values(m.mastery ?? {}).some((r) => (r ?? 0) > 0);
-    const status = empty ? 'Starter kit  ·  upgrade it in runs' : m.bestChain ? `Best chain: x${m.bestChain}` : "Built from the gadgets you've merged";
-    c.add(this.add.text(W / 2, headY + 48, status, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: darkStage ? '#e8dcc8' : '#5a3a3a' }).setOrigin(0.5));
-
-    // trophy shelf (r17): earned chapter medals, collection only
-    const medals = Object.keys(m.medals ?? {}).map(Number).sort((a, b) => a - b);
-    medals.slice(0, 6).forEach((ch, i) => c.add(this.medalIcon(W / 2 + (i - (Math.min(medals.length, 6) - 1) / 2) * 76, headY + 110, 70, ch, true)));
-    // r28 MONSTER BOOK: every monster / mini-boss / boss you have met
-    if (this.currentLevel() > 1) {
-      const bk = this.add.container(W - 86, headY + 110);
-      bk.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-60, -34, 120, 68, 18).fillStyle(0x8e58c9, 1).fillRoundedRect(-56, -30, 112, 60, 15));
-      bk.add(this.add.text(0, 0, 'BOOK', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#ffffff' }).setOrigin(0.5));
-      bk.setSize(120, 68).setInteractive({ useHandCursor: true });
-      bk.on('pointerup', () => (sfx.click(), this.openMonsterBook(0, 0)));
-      c.add(bk);
-    }
-    // r35 TROPHIES: drawer button (mirror of BOOK) + the figurines on display around the machine's feet
-    if (this.currentLevel() > 1) {
-      const tb = this.add.container(86, headY + 110);
-      tb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-74, -34, 148, 68, 18).fillStyle(0xe0a020, 1).fillRoundedRect(-70, -30, 140, 60, 15));
-      tb.add(this.add.text(0, 0, 'TROPHIES', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-      tb.setSize(148, 68).setInteractive({ useHandCursor: true });
-      tb.on('pointerup', () => (sfx.click(), this.openTrophies()));
-      c.add(tb);
-    }
-    // the machine
-    const helper = this.activeToys()[0] ?? null;
-    // day 0: three rank-1 starter modules instead of an empty chassis (display baseline, not earned mastery)
-    const shown = empty ? { cannon: 1, coil: 1, bell: 1 } : (m.mastery ?? {});
-    const mach = buildMachine(this, W / 2, feetY, mWidth, empty ? { ...shown, [this.teamShooter()]: 1 } : shown, helper, this.teamShooter())!;
-    this.applyFinish(mach);
-    c.add(mach);
-    const hit = this.add.zone(W / 2, feetY - mWidth * 0.25, mWidth * 0.95, mWidth * 0.5).setInteractive({ useHandCursor: true });
-    hit.on('pointerup', () => (!m.playtestMode && this.featureOpen('workshop') ? this.openWorkshop() : this.showToast(`THE WORKSHOP OPENS AFTER LEVEL ${UNLOCK_LEVEL.workshop}`)));
-    c.add(hit);
-    // idle: 1% breath over 2400ms; newly improved modules get one 180ms highlight
-    if (!REDUCED_MOTION) this.tweens.add({ targets: mach, scaleY: mach.scaleY * 1.01, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    const seen = m.homeSeen ?? {};
-    for (const f of ['cannon', 'coil', 'bell'] as Family[]) {
-      if ((m.mastery?.[f] ?? 0) > (seen[f] ?? 0)) {
-        const part = mach.getByName(f) as Phaser.GameObjects.Image | null;
-        if (part) {
-          const s0 = part.scale;
-          this.tweens.chain({ targets: part, tweens: [{ scale: s0 * 1.12, duration: 180, delay: 350, ease: 'Quad.Out' }, { scale: s0, duration: 220, ease: 'Sine.Out' }] });
-        }
-      }
-    }
-    m.homeSeen = { ...(m.mastery ?? {}) };
-    store(META_KEY, JSON.stringify(m));
-    // r38 (ChatGPT review): four fixed sockets on a shelf plank, never free-placed
-    const anyTrophy = Object.values(m.bossMastery ?? {}).some((v) => v >= TROPHY_AT);
-    if (anyTrophy) {
-      const sy = feetY - 2, xs = [82, 262, W - 262, W - 82];
-      const shelf = m.trophies ?? [];
-      xs.forEach((x, i) => {
-        // brass plinth per socket (ChatGPT shelf_plate); an empty socket shows the bare plinth
-        if (this.hasArt('shelf_plate')) {
-          const pl = this.add.image(x, sy + 14, 'shelf_plate').setOrigin(0.5, 1);
-          pl.setScale(118 / pl.width);
-          c.add(pl);
-        } else c.add(this.add.graphics().fillStyle(0x2b1d2e, 0.35).fillEllipse(x, sy + 1, 64, 12));
-        const id = shelf[i];
-        const im = id ? this.trophyImage(id, x, sy + 2, 122) : null;
-        if (im) c.add(im);
-        else c.add(this.add.text(x, sy - 22, '\u{1F512}', { fontSize: '30px' }).setOrigin(0.5).setAlpha(0.7));
-      });
-    }
-
-    // helper row
-    const hy = helperY;
-    const hg = this.add.graphics().fillStyle(0x2b1d2e, 0.82).fillRoundedRect(44, hy - 46, W - 88, 92, 26);
-    c.add(hg);
-    const nc = this.nextChallenge();
-    const teamOn = this.featureOpen('team');
-    const shooterName = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO].name;
-    const hl = teamOn ? `Team:  ${shooterName} + ${helper ? FAMILY_INFO[helper].name : 'no helper'}` : empty || !m.bestChain ? 'Merge your first gadgets: tap PLAY!' : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
-    const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: teamOn ? '28px' : '22px', color: '#fff0cf', wordWrap: { width: teamOn ? 400 : W - 170 } }).setOrigin(0, 0.5);
-    c.add(ht);
-    if (teamOn && !(m.playtestMode && !m.hardUnlocked)) {
-      this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
-      if (isNew(m, 'team')) this.newTag(c, W - 82, hy - 40);
-    }
-
-    // PLAY = the current saga level
-    const play = this.button(c, W / 2, bottom - 410, 600, `PLAY  LEVEL ${this.currentLevel()}`, 0x5fbf4a, () => this.openLevelSheet(this.currentLevel()), 1.1);
-    if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.13, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-
-    const today = m.daily?.[localDate()];
-    if (m.hardUnlocked) tlog.log('daily_offer_view', { date: localDate(), done: !!today });
-
-    // workshop
-    const wsOpen = !m.playtestMode && this.featureOpen('workshop');
-    const wsAt = UNLOCK_LEVEL.workshop;
-    const ws = this.button(c, W / 2, bottom - 280, 600, wsOpen ? 'WORKSHOP' : m.playtestMode ? 'WORKSHOP  \u00b7  soon' : `WORKSHOP  \u00b7  level ${wsAt}`, 0x8a6a4a, () => (wsOpen ? this.openWorkshop() : this.showToast(`THE WORKSHOP OPENS AFTER LEVEL ${wsAt}`)), 0.85);
-    if (!wsOpen) ws.setAlpha(0.6);
-    else if (isNew(m, 'workshop')) this.newTag(c, W / 2 - 230, bottom - 312);
-    // dot only for genuinely new options: something became affordable since the last Workshop visit
-    const affordable = wsOpen && CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
-    if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 312, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
-
-    // utilities
-    const util = this.add.text(W / 2, bottom - 175, 'Records   ·   How to play', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    util.on('pointerup', (p: Phaser.Input.Pointer) => {
-      sfx.click();
-      if (p.worldX < W / 2) this.openRecords();
-      else this.openHowTo(0, () => this.openTitle());
-    });
-    c.add(util);
-    this.drawNav(c, 'machine');
-    c.setAlpha(0);
-    this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
+    return machineTab.openMachineTab(this);
   }
 
   /** Header: Bolts (core) + Jumpstart Kits + Time Capsules (dynamic) + settings. */
@@ -4739,254 +3480,12 @@ Now beat the real level.`, this.coachY());
     return t;
   }
 
-  /** ROAD tab (ChatGPT r15): a scrolling path of numbered levels, HARD / MEGA HARD tags, little machines at work. */
   openRoadTab() {
-    this.closeModal();
-    const m = this.meta;
-    const c = this.add.container(0, 0).setDepth(100);
-    if (this.homeC?.active) this.homeC.destroy();
-    this.homeC = c;
-    this.modal = c;
-    const bg = this.add.image(W / 2, 0, this.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
-    bg.setScale(Math.max(W / bg.width, H / bg.height));
-    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
-    const top = 128, bottom = H - 250; // road viewport (sticky PLAY + nav below)
-    const cur = this.currentLevel();
-    const SPACING = 170;
-    const xs = [W / 2 - 190, W / 2, W / 2 + 190, W / 2];
-    const nodeY = (n: number) => -(n - 1) * SPACING; // in road space, level 1 at 0, going up
-    const road = this.add.container(0, 0);
-    const g = this.add.graphics();
-    road.add(g);
-    for (let n = 1; n < LEVELS.length; n++) {
-      const a = { x: xs[(n - 1) % 4], y: nodeY(n) }, b = { x: xs[n % 4], y: nodeY(n + 1) };
-      // r16: a 12px cream connector with a thin plum outline; travelled stretches get a gold centre (curved, joins centres)
-      const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(a.x, a.y), new Phaser.Math.Vector2((a.x + b.x) / 2 + (n % 2 ? 40 : -40), (a.y + b.y) / 2), new Phaser.Math.Vector2(b.x, b.y));
-      const pts = curve.getPoints(16);
-      g.lineStyle(30, 0x2b1d2e, 0.85).strokePoints(pts);
-      g.lineStyle(22, 0xf3e3c8, 1).strokePoints(pts);
-      if (n < cur) g.lineStyle(9, 0xffcf33, 1).strokePoints(pts);
-    }
-    const stars = m.levelStars ?? {};
-    for (const def of LEVELS) {
-      const n = def.level;
-      const x = xs[(n - 1) % 4], y = nodeY(n);
-      const done = !!stars[String(n)];
-      const key = done ? 'node_completed' : n > cur ? 'node_locked' : def.boss_node ? 'node_boss' : def.difficulty === 'MEGA_HARD' ? 'node_mega_hard' : def.difficulty === 'HARD' ? 'node_hard' : 'node_normal';
-      const size = def.boss_node ? 150 : def.difficulty === 'MEGA_HARD' ? 134 : def.difficulty === 'HARD' ? 126 : 116;
-      const node = this.add.image(x, y, key);
-      node.setScale(size / Math.max(node.width, node.height));
-      road.add(node);
-      const ny = y - node.displayHeight * (done ? 0.095 : 0.07);
-      road.add(this.add.text(x, ny, String(n), { fontFamily: 'Lilita One, Arial Black', fontSize: n >= 10 ? '40px' : '46px', color: n > cur ? '#8a7a8a' : '#3b2533' }).setOrigin(0.5));
-      if (done)
-        for (let k = 0; k < 3; k++) {
-          const st = this.add.image(x + (k - 1) * 30, y + node.displayHeight * 0.25 + (k === 1 ? 4 : 0), 'star');
-          st.setScale(30 / Math.max(st.width, st.height)).setAlpha(k < stars[String(n)] ? 1 : 0.25);
-          road.add(st);
-        }
-      if ((def.difficulty !== 'NORMAL' || n % 10 === 0 || def.mini_boss) && n >= cur) {
-        const side = x > W / 2 ? -1 : 1;
-        const isB = n % 10 === 0 || !!def.mini_boss;
-        const tag = this.add.text(x + side * (size / 2 + 12), y, def.mini_boss ? 'MINI-BOSS' : isB ? 'BOSS' : def.difficulty === 'HARD' ? 'HARD' : 'MEGA HARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: isB ? '#2b1d2e' : def.difficulty === 'HARD' ? '#e8452c' : '#8e58c9', padding: { x: 10, y: 4 } }).setOrigin(side > 0 ? 0 : 1, 0.5);
-        road.add(tag);
-        // r28: the boss waiting there (a silhouette until it is beaten)
-        const bd = def.mini_boss ? BOSSES.find((x) => x.id === def.mini_boss) : isB ? BOSSES[chapterBossIdx(n)] : undefined;
-        const pk = bd ? `boss_${bd.id}_intact` : '';
-        if (pk && this.hasArt(pk)) {
-          const pi = this.add.image(tag.x + side * (tag.width + 46), y - 6, pk);
-          pi.setScale(116 / Math.max(pi.width, pi.height));
-          if (!(stars[String(n)] ?? 0)) pi.setTint(0x3b2d4e).setAlpha(0.5);
-          road.add(pi);
-        }
-      }
-      if (n === cur) {
-        const ring = this.add.circle(x, y, size * 0.6, 0xffcf33, 0.2).setStrokeStyle(5, 0xffcf33, 0.9);
-        road.add(ring);
-        if (!REDUCED_MOTION) this.tweens.add({ targets: ring, scale: 1.12, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-      }
-      const hit = this.add.zone(x, y, size + 20, size + 20).setInteractive({ useHandCursor: true });
-      hit.on('pointerup', () => {
-        if (Math.abs(dragDist) > 12) return;
-        if (n > cur) return this.showToast(`FINISH LEVEL ${cur} FIRST`);
-        this.roadLessonDone?.();
-        this.roadLessonDone = null;
-        sfx.nodeTap();
-        this.openLevelSheet(n);
-      });
-      road.add(hit);
-    }
-    // two little machines at work beside the road (one restrained fidget every 3-5 s)
-    const workers: string[] = []; // r21: no floating decorations on the road for the playtest
-    workers.slice(0, 3).forEach((k, i) => {
-      const n = Math.max(1, cur - 1 + i * 2);
-      const wx = xs[(n - 1) % 4] > W / 2 ? 80 : W - 80;
-      const w = this.add.image(wx, nodeY(n) - 60, k);
-      w.setScale(84 / Math.max(w.width, w.height));
-      road.add(w);
-      if (!REDUCED_MOTION) this.tweens.add({ targets: w, angle: { from: -4, to: 4 }, y: w.y - 6, duration: 420, yoyo: true, repeat: -1, repeatDelay: 2600 + i * 900, ease: 'Sine.InOut' });
-    });
-    // scrolling: road space -> screen; centre the current level
-    const minScroll = bottom - 90, maxScroll = top + 90 + (LEVELS.length - 1) * SPACING;
-    let scrollY = Phaser.Math.Clamp((top + bottom) / 2 + (cur - 1) * SPACING, minScroll, maxScroll);
-    road.setY(scrollY);
-    const mask = this.add.graphics().setVisible(false).fillRect(0, top, W, bottom - top);
-    road.setMask(mask.createGeometryMask());
-    c.add(road);
-    let dragStart = 0, startScroll = 0, dragDist = 0;
-    const area = this.add.zone(W / 2, (top + bottom) / 2, W, bottom - top).setInteractive();
-    c.addAt(area, 2);
-    area.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      dragStart = p.worldY;
-      startScroll = scrollY;
-      dragDist = 0;
-    });
-    const onMove = (p: Phaser.Input.Pointer) => {
-      if (!p.isDown || this.homeC !== c || !c.active) return;
-      if (p.worldY < top - 40 || p.worldY > bottom + 40) return;
-      dragDist = p.worldY - dragStart;
-      scrollY = Phaser.Math.Clamp(startScroll + dragDist, minScroll, maxScroll);
-      road.setY(scrollY);
-    };
-    const onDown = (p: Phaser.Input.Pointer) => {
-      if (this.homeC !== c || !c.active) return;
-      dragStart = p.worldY;
-      startScroll = scrollY;
-      dragDist = 0;
-    };
-    this.input.on('pointermove', onMove);
-    this.input.on('pointerdown', onDown);
-    // leaving the tab: drop the scene listeners and the (unparented) mask, or every visit would stack another set
-    c.once(Phaser.GameObjects.Events.DESTROY, () => {
-      this.input.off('pointermove', onMove);
-      this.input.off('pointerdown', onDown);
-      mask.destroy();
-    });
-    this.drawWallet(c);
-    // chapter strip (r17): progress toward the chapter chest; tap previews the reward
-    const chapter = Math.ceil(cur / 10);
-    const doneInCh = Math.min(10, LEVELS.slice((chapter - 1) * 10, chapter * 10).filter((d) => stars[String(d.level)]).length);
-    const strip = this.add.container(W / 2, 140).setVisible(cur > 3);
-    // r28: each chapter wears its setting's colours (ChatGPT CAST_CONFIG road strip palette)
-    const CH = [
-      { name: 'KITCHEN', fill: 0xe9c9a3, accent: 0xae7040 },
-      { name: 'LAUNDRY', fill: 0xb8d7d1, accent: 0x458f87 },
-      { name: 'GARAGE', fill: 0xd7b38a, accent: 0xa8753e },
-      { name: 'ARCADE', fill: 0xb9a7d8, accent: 0x795aa8 },
-      { name: 'MUSIC ATTIC', fill: 0xdec29a, accent: 0xb08042 },
-      { name: 'SCRAPYARD', fill: 0xbac5cd, accent: 0x66818e },
-      { name: 'PACKING DEPOT', fill: 0xd9c08f, accent: 0x9a7240 },
-      { name: 'OBSERVATORY', fill: 0xaab4d8, accent: 0x52608f },
-    ][(chapter - 1) % 8];
-    strip.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-(W - 60) / 2 - 3, -33, W - 54, 66, 22).fillStyle(CH.fill, 1).fillRoundedRect(-(W - 60) / 2, -30, W - 60, 60, 20).fillStyle(CH.accent, 1).fillRoundedRect(-(W - 60) / 2, -30, 14, 60, { tl: 20, bl: 20, tr: 0, br: 0 }));
-    strip.add(this.add.text(-(W - 60) / 2 + 30, 0, `CH ${chapter} \u00b7 ${CH.name}  \u00b7  ${doneInCh}/10`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#302b35' }).setOrigin(0, 0.5));
-    if (this.hasArt('chest_closed')) {
-      const ch = this.add.image((W - 60) / 2 - 40, -4, 'chest_closed');
-      ch.setScale(64 / Math.max(ch.width, ch.height));
-      strip.add(ch);
-    }
-    strip.setSize(W - 60, 60).setInteractive({ useHandCursor: true });
-    strip.on('pointerup', () => this.showToast(`CLEAR LEVEL ${chapter * 10} FOR THE CHAPTER ${chapter} MEDAL`));
-    c.add(strip);
-    const def = LEVELS[cur - 1];
-    const tag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
-    const endlessOpen = this.endlessOpen();
-    const play = endlessOpen
-      ? this.button(c, W / 2, H - 182, 620, `ENDLESS  \u00b7  FLOOR ${this.endlessRec().floor}`, 0x8e58c9, () => this.startEndless(), 1.0)
-      : this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => {
-          this.roadLessonDone?.();
-          this.roadLessonDone = null;
-          this.openLevelSheet(cur);
-        }, 1.0);
-    // r41 Workshop Season entry (left, mirrors QA)
-    if (this.currentLevel() > 3) {
-      const sr = this.seasonRec();
-      const sb = this.add.container(86, 236);
-      sb.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-62, -36, 124, 72, 20).fillStyle(0xe0a020, 1).fillRoundedRect(-58, -32, 116, 64, 17));
-      sb.add(this.add.text(0, -9, 'SEASON', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-      sb.add(this.add.text(0, 14, `${seasonTier(sr)}/${SEASON_TIERS}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5));
-      if (this.seasonClaimable() > 0) sb.add(this.add.circle(54, -30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
-      sb.add(this.add.zone(0, 0, 124, 72).setInteractive({ useHandCursor: true }).on('pointerup', () => (sfx.click(), this.openSeason())));
-      c.add(sb);
-    }
-    // r34 (Ido: "where are the reset and jump-to buttons?"): QA tools one tap from the road
-    const qa = this.add.container(W - 66, 236);
-    qa.add(this.add.circle(0, 0, 40, 0xd8261a).setStrokeStyle(5, 0x2b1d2e));
-    qa.add(this.add.text(0, 0, 'QA', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffffff' }).setOrigin(0.5));
-    qa.add(this.add.zone(0, 0, 90, 90).setInteractive({ useHandCursor: true }).on('pointerup', () => this.openQaTools()));
-    c.add(qa);
-    if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    this.drawNav(c, 'road');
-    // r17 lesson 1: first road visit
-    if (!(m.lessons ?? {}).road && cur <= 3) {
-      // the ring lives in road space so it scrolls and masks with the road; the bubble stays on screen
-      const done = this.lesson('road', c, `Tap Level ${cur} to play.`, { x: xs[(cur - 1) % 4], y: nodeY(cur), r: 80 }, Math.max(top + 70, scrollY + nodeY(cur) - 150), true, road);
-      this.roadLessonDone = done ?? null;
-      // closing the tab destroys ring + bubble with it; a later visit must not run this stale callback
-      c.once(Phaser.GameObjects.Events.DESTROY, () => {
-        if (this.roadLessonDone === done) this.roadLessonDone = null;
-      });
-    }
-    c.setAlpha(0);
-    this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
+    return roadTab.openRoadTab(this);
   }
 
-  /** EVENTS tab: Daily (level 3), Challenge (level 5), Remix (level 10), plus the classic 3-monster run. */
   openEventsTab() {
-    this.closeModal();
-    const m = this.meta;
-    const c = this.add.container(0, 0).setDepth(100);
-    if (this.homeC?.active) this.homeC.destroy();
-    this.homeC = c;
-    this.modal = c;
-    const bg = this.add.image(W / 2, 0, this.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
-    bg.setScale(Math.max(W / bg.width, H / bg.height));
-    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
-    this.drawWallet(c);
-    c.add(this.add.text(W / 2, 170, 'EVENTS', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
-    const lv = this.currentLevel() - 1; // levels cleared
-    const card =(y: number, h: number, title: string, lines: string[], col: number, open: boolean, need: number, cb: () => void, extra?: [string, () => void, boolean]) => {
-      const cc = this.add.container(W / 2, y);
-      if (this.hasArt('ui_card')) cc.add(this.add.image(0, 0, 'ui_card').setDisplaySize(W - 50, h));
-      else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
-      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 40, title, { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' }).setOrigin(0, 0.5));
-      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 72, open ? lines.join('\n') : `Unlocks after level ${need}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6, wordWrap: { width: W - 330 } }));
-      const b = this.button(cc, (W - 50) / 2 - 130, h / 2 - 56, 200, open ? 'PLAY' : 'LOCKED', col, open ? cb : () => this.showToast(`UNLOCKS AT LEVEL ${need}`), 0.72);
-      if (!open) b.setAlpha(0.5);
-      // extra[2]: the link shows even while the card itself is locked
-      if (extra && (open || extra[2])) {
-        const t = this.add.text(-(W - 50) / 2 + 44, h / 2 - 50, extra[0], { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a' }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
-        t.on('pointerup', extra[1]);
-        cc.add(t);
-      }
-      c.add(cc);
-      return cc;
-    };
-    // t-2fd7bb86: Daily Puzzle, Challenge and Remix each open on their own level (unlocks.ts)
-    const dailyOpen = m.playtestMode ? lv >= 10 : this.featureOpen('puzzles');
-    const modesOpen = !m.playtestMode && (['puzzles', 'challenge', 'remix'] as Feature[]).some((f) => this.featureOpen(f));
-    const modesNew = (['challenge', 'remix'] as Feature[]).some((f) => isNew(m, f));
-    // r42 DAILY PUZZLE leads the Events tab (Daily Bench + classic modes moved behind "Other modes")
-    const pz = this.puzzleRec();
-    const solvedToday = pz.lastSolved === localDate();
-    const dp = this.dailyPuzzle();
-    const dcard = card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : UNLOCK_LEVEL.puzzles!, () => (this.seen('puzzles'), this.startPuzzle(dp, 'daily')), ['Other modes \u203a', () => this.openOtherModes(), modesOpen]);
-    if (dailyOpen && isNew(m, 'puzzles')) this.newTag(dcard, 70, -70);
-    if (modesOpen && modesNew) this.newTag(dcard, -(W - 50) / 2 + 220, 110 - 50 - 18, 0.8);
-    if (m.playtestMode) {
-      this.drawNav(c, 'events');
-      return;
-    }
-    // r29 BOSS RUSH card (before the older modes)
-    const rushOpen = this.rushEligible();
-    const rw = m.rush?.week === weekId() ? m.rush.granted : 0;
-    this.bountyCard(c, 585);
-    card(845, 240, 'BOSS RUSH', ['3 fights in a row  \u00b7  fresh boards', `This week: ${rw}/${RUSH_REWARDS[2]} Bolts${m.rush?.medal ? '  \u00b7  medal ✓' : ''}`], 0x8e58c9, !!rushOpen, 20, () => this.startRush());
-    // r36 SCREW YARD weekly event (outside-core mini-game)
-    const yd = this.yardWeek();
-    const tierNow = YARD_TIERS.filter((_, i) => tierReached(yd, i)).length;
-    card(1100, 230, 'SCREW YARD', [`TIER ${tierNow}/${YARD_TIERS.length}  ·  ★ ${yardStarTotal(yd)}/${YARD_COUNT * 3}  ·  ends in ${this.weekLeft()}`, 'Free to play  ·  Grand prize: Gold Crate + Epic'], 0xe0a020, lv >= YARD_UNLOCK, YARD_UNLOCK, () => this.openYardEvent());
-    this.drawNav(c, 'events');
+    return eventsTab.openEventsTab(this);
   }
 
   /** r36: this week's Screw Yard record (a new week resets it; a classic record moves to 2.0, see yardWeekRec). */
@@ -5018,53 +3517,8 @@ Now beat the real level.`, this.coachY());
     return [r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : '', ...bst].filter(Boolean).join(' + ');
   }
 
-  /** Screw Yard event panel (2.0): the star track + grand prize, the week's 10 yards with their stars, boosters, PLAY.
-   *  Free to play: the r36 screwdriver ticket is gone (the 10-yard ramp already caps the week; stars pay, not volume). */
   openYardEvent() {
-    this.closeModal();
-    const yd = this.yardWeek();
-    const bst = this.yardBoosters();
-    const PH = 1180;
-    const c = this.sheet(PH);
-    const top = H / 2 - PH / 2;
-    const total = yardStarTotal(yd);
-    this.sheetTitle(c, top, 'SCREW YARD', `Earn stars to climb the tiers.  Event ends in ${this.weekLeft()}.`);
-    const rows = YARD_TIERS.length;
-    YARD_TIERS.forEach((t, i) => {
-      const y = top + 196 + i * 66;
-      const done = tierReached(yd, i);
-      const grand = i === rows - 1;
-      const g = this.add.graphics();
-      g.fillStyle(grand ? 0xffcf33 : done ? 0x8ef08a : 0xfbe7c6, 1).fillRoundedRect(70, y - 29, W - 140, 58, 16);
-      g.lineStyle(4, 0x2b1d2e, grand ? 1 : 0.4).strokeRoundedRect(70, y - 29, W - 140, 58, 16);
-      c.add(g);
-      c.add(this.add.text(96, y, done ? '✓' : `★${t.need}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0, 0.5));
-      c.add(this.add.text(186, y, `${grand ? 'GRAND PRIZE: ' : ''}${this.rewardText(t.reward)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: grand ? '22px' : '24px', color: '#3b2533' }).setOrigin(0, 0.5));
-    });
-    // the week's 10 yards: number + best stars; open ones can be replayed for more stars
-    const cy = top + 196 + rows * 66 + 40;
-    for (let n = 1; n <= YARD_COUNT; n++) {
-      const x = W / 2 + (n - (YARD_COUNT + 1) / 2) * 62;
-      const open = yardPlayable(yd, n);
-      const s = yd.stars?.[n] ?? 0;
-      const g = this.add.graphics();
-      g.fillStyle(s ? 0xffe9a8 : open ? 0xfbe7c6 : 0xcdbfa8, 1).fillRoundedRect(x - 28, cy - 34, 56, 76, 14).lineStyle(3, 0x2b1d2e, open ? 0.8 : 0.3).strokeRoundedRect(x - 28, cy - 34, 56, 76, 14);
-      c.add(g);
-      c.add(this.add.text(x, cy + 24, '★'.repeat(s) + '☆'.repeat(3 - s), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '17px', color: s ? '#c07a00' : '#8a7a6a' }).setOrigin(0.5));
-      const t = this.add.text(x, cy - 6, open ? String(n) : '\u{1F512}', { fontFamily: 'Lilita One, Arial Black', fontSize: open ? '30px' : '22px', color: '#3b2533' }).setOrigin(0.5);
-      c.add(t);
-      if (open) {
-        const hit = this.add.zone(x, cy + 4, 56, 76).setInteractive({ useHandCursor: true });
-        hit.on('pointerup', () => this.startYard(n));
-        c.add(hit);
-      }
-    }
-    const by = cy + 78;
-    c.add(this.add.text(W / 2, by, `★ ${total}/${YARD_COUNT * 3}  ·  ${YARD_BOOSTERS.map((k) => `${BOOSTER_COPY[k].name} ${bst[k] ?? 0}`).join('  ')}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a3a' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, by + 44, 'Free to play. Stars: keep the dock nearly empty.\nBoosters are earned with 3 stars and tiers.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
-    const nx = nextYard(yd);
-    this.button(c, W / 2, top + PH - 170, 460, `PLAY YARD ${nx}`, 0x5fbf4a, () => this.startYard(nx), 0.95);
-    this.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => this.openTitle('events'), 0.75);
+    return eventsTab.openYardEvent(this);
   }
 
   startYard(n = nextYard(this.yardWeek())) {
@@ -5422,7 +3876,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** r45 idle nudge: HINT shown by idling on this puzzle (until it is left), and the nudge already ran this attempt. */
   puzzleNudged = false;
   nudgedThisTry = false;
-  static PUZZLES = puzzleData as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+  static PUZZLES = PUZZLES;
 
   puzzleRec(): PuzzleRec {
     return (this.meta.puzzles ??= { streak: 0, drills: [] });
@@ -5543,59 +3997,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     tlog.log('puzzle_hint', { id: def.id, at: this.puzzlePlayed.length });
   }
 
-  openPuzzleResult(won: boolean) {
-    const m = this.meta;
-    const pz = this.puzzleRec();
-    const def = this.puzzleDef;
-    if (!def || def.id !== this.s.puzzle?.id) return this.openTitle('events'); // never reached via startPuzzle; a guard, not a flow
-    const kind = this.puzzleKind;
-    const lines: string[] = [];
-    let firstSolve = false;
-    notePuzzleAttempt(pz, def.id, won);
-    // r44: the first solve pays; the highlight hint is free, a shown merge halves it (rewards are once per puzzle/day)
-    const rw = puzzleReward(kind, pz.shown?.includes(def.id) ? 'move' : 'none');
-    const halved = rw.bolts < puzzleReward(kind, 'none').bolts;
-    if (won && kind === 'daily' && pz.lastSolved !== localDate()) {
-      firstSolve = true;
-      const yesterday = new Date(Date.now() - 86400000);
-      const y = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-      pz.streak = pz.lastSolved === y ? pz.streak + 1 : 1;
-      pz.lastSolved = localDate();
-      m.bolts = (m.bolts ?? 0) + rw.bolts;
-      m.gems = (m.gems ?? 0) + rw.gems;
-      lines.push(`+${rw.bolts} BOLTS  +${rw.gems} GEM${rw.gems === 1 ? '' : 'S'}`, `STREAK: ${pz.streak} day${pz.streak > 1 ? 's' : ''}`);
-    } else if (won && kind === 'drill' && !pz.drills.includes(def.id)) {
-      firstSolve = true;
-      pz.drills.push(def.id);
-      m.bolts = (m.bolts ?? 0) + rw.bolts;
-      if (def.unit) this.applyCards([{ unit: def.unit as Family, count: rw.cards, isNew: false }]);
-      lines.push(`+${rw.bolts} BOLTS  +${rw.cards} ${FAMILY_INFO[def.unit as 'cannon'].name.toUpperCase()} CARD${rw.cards === 1 ? '' : 'S'}`);
-    } else if (won) lines.push('Solved again - nice!');
-    if (firstSolve && halved) lines.push('(half reward: a move was shown)');
-    if (won) pz.shown = pz.shown?.filter((id) => id !== def.id);
-    store(META_KEY, JSON.stringify(m));
-    // r43: first solves (the rewarded ones) feed the Season, so replays can't farm it
-    if (firstSolve) this.seasonEv('puzzleSolve');
-    tlog.log('puzzle_end', { id: def.id, won, fails: pz.fails?.[def.id] ?? 0 });
-    const help = puzzleHelp(pz.fails?.[def.id] ?? 0, kind);
-    const c = this.panel(640);
-    const top = H / 2 - 320;
-    const helpLine = help.showMove ? 'Stuck? NEXT MOVE shows a right merge.' : help.hint ? 'Stuck? HINT lights the part to move first.' : `A hint unlocks after ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0)} more ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0) === 1 ? 'try' : 'tries'}.`;
-    c.add(this.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    const nextDrill = won && kind === 'drill' && def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
-    if (nextDrill) this.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => this.startPuzzle(nextDrill, 'drill'), 0.95);
-    else if (!won) {
-      const tryX = help.hint ? W / 2 - 130 : W / 2;
-      this.button(c, tryX, top + 440, help.hint ? 240 : 320, 'TRY AGAIN', 0xe8452c, () => this.startPuzzle(def, kind), 0.85);
-      if (help.hint) this.button(c, W / 2 + 130, top + 440, 240, help.showMove ? 'NEXT MOVE' : 'HINT', 0x8e58c9, () => (this.closeModal(), this.startPuzzle(def, kind), this.puzzleHelpTap()), 0.85);
-    }
-    const back = () => this.openTitle(kind === 'drill' ? 'units' : 'events');
-    // skip: drills only (no reward, no Season credit). The daily has a streak and a reward, and the hints already get you there.
-    if (!won && help.skip) {
-      this.button(c, W / 2 - 130, top + 550, 240, 'SKIP DRILL', 0x8a6a4a, () => this.skipDrill(def), 0.78);
-      this.button(c, W / 2 + 130, top + 550, 240, 'UNITS', 0x27a4c0, back, 0.78);
-    } else this.button(c, W / 2, top + 550, 260, kind === 'drill' ? 'UNITS' : 'EVENTS', 0x27a4c0, back, 0.78);
+  openPuzzleResult(...a: Tail<typeof results.openPuzzleResult>) {
+    return results.openPuzzleResult(this, ...a);
   }
 
   /** r44: a drill you can't crack (6+ tries) can be marked done without its reward, so the unit's next drill opens. */
@@ -5627,21 +4030,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
 
   openOtherModes() {
-    this.closeModal();
-    const m = this.meta;
-    const c = this.sheet(560);
-    const top = H / 2 - 280;
-    this.sheetTitle(c, top, 'OTHER MODES', 'Daily Bench and the classic modes.');
-    // t-2fd7bb86: each mode opens on its own level; Daily Bench comes with the Daily Puzzle
-    const mode = (y: number, label: string, col: number, f: Feature, go: () => void) => {
-      const open = this.featureOpen(f);
-      const b = this.button(c, W / 2, y, 440, label, col, () => (open ? (this.seen(f), go()) : this.showToast(`UNLOCKS AT LEVEL ${UNLOCK_LEVEL[f]}`)), 0.85);
-      if (!open) b.setAlpha(0.5);
-      else if (isNew(m, f)) this.newTag(c, W / 2 + 170, y - 34);
-    };
-    mode(top + 210, 'DAILY BENCH', 0x5fbf4a, 'puzzles', () => this.startDaily());
-    mode(top + 320, 'CHALLENGE', 0xe8452c, 'challenge', () => this.retry(true, -1));
-    mode(top + 430, 'REMIX', 0x27a4c0, 'remix', () => this.openRemixPicker());
+    return eventsTab.openOtherModes(this);
   }
 
   /** r41 Workshop Season: today's record (rolled to the current day / week / season). */
@@ -5694,75 +4083,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     }
   }
 
-  /** r41 SEASON panel: XP bar, today's + this week's tasks, the tier track around the current tier, claim all, premium. */
   openSeason() {
-    this.closeModal();
-    const m = this.meta;
-    const rec = this.seasonRec();
-    const day = Math.floor(Date.now() / 86400000);
-    const tier = seasonTier(rec);
-    const PH = 1220;
-    const c = this.sheet(PH);
-    const top = H / 2 - PH / 2;
-    this.sheetTitle(c, top, 'WORKSHOP SEASON', `Tier ${tier}/${SEASON_TIERS}  ·  ends in ${seasonDayLeft(day)} days`);
-    // XP bar
-    const into = tier >= SEASON_TIERS ? TIER_XP : rec.xp - tier * TIER_XP;
-    const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(80, top + 168, W - 160, 30, 15).fillStyle(0xe0a020, 1).fillRoundedRect(84, top + 172, Math.max(22, (W - 168) * (into / TIER_XP)), 22, 11);
-    c.add(g);
-    c.add(this.add.text(W / 2, top + 183, `${into}/${TIER_XP} XP`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-    // tasks
-    const taskLine = (y: number, text: string, have: number, need: number, xp: number) => {
-      const done = have >= need;
-      c.add(this.add.text(86, y, `${done ? '\u2713' : '\u25cb'} ${text}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: done ? '#3a8a2a' : '#3b2533' }).setOrigin(0, 0.5));
-      c.add(this.add.text(W - 86, y, done ? 'DONE' : `${have}/${need}  \u00b7  +${xp}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: done ? '#3a8a2a' : '#8a6a5a' }).setOrigin(1, 0.5));
-    };
-    c.add(this.add.text(86, top + 230, 'TODAY', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#b06a1a' }).setOrigin(0, 0.5));
-    dailyTasks(rec.day).forEach((t, i) => taskLine(top + 264 + i * 34, t.text, rec.daily[i], t.n, 15));
-    c.add(this.add.text(86, top + 378, 'THIS WEEK', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#b06a1a' }).setOrigin(0, 0.5));
-    weeklyTasks(rec.week).forEach((t, i) => taskLine(top + 412 + i * 34, t.text, rec.weekly[i], t.n, 100));
-    // track: 6 tiers from the current one
-    c.add(this.add.text(W / 2 - 100, top + 560, 'FREE', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2 + 170, top + 560, rec.premium ? 'PREMIUM \u2713' : 'PREMIUM', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#8e58c9' }).setOrigin(0.5));
-    const first = Math.max(1, Math.min(SEASON_TIERS - 5, tier));
-    for (let k = 0; k < 6; k++) {
-      const t = first + k;
-      const y = top + 604 + k * 66;
-      const [fr, pr] = tierRewards(t);
-      const reached = t <= tier;
-      c.add(this.add.graphics().fillStyle(reached ? 0x8ef08a : 0xfbe7c6, reached ? 0.45 : 1).fillRoundedRect(70, y - 28, W - 140, 56, 14));
-      c.add(this.add.text(96, y, `${t}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0, 0.5));
-      const fDone = rec.claimed.free.includes(t), pDone = rec.claimed.prem.includes(t);
-      c.add(this.add.text(W / 2 - 100, y, `${fDone ? '\u2713 ' : ''}${this.seasonRewardText(fr)}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: fDone ? '#3a8a2a' : '#5a4a5a' }).setOrigin(0.5));
-      c.add(this.add.text(W / 2 + 170, y, `${pDone ? '\u2713 ' : rec.premium ? '' : '\u{1F512} '}${this.seasonRewardText(pr)}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: pDone ? '#3a8a2a' : '#6a4a8a' }).setOrigin(0.5));
-    }
-    const claim = this.seasonClaimable();
-    this.button(c, W / 2, top + 1018, 420, claim ? `CLAIM ALL (${claim})` : 'NOTHING TO CLAIM', claim ? 0x5fbf4a : 0x81736c, () => {
-      if (!claim) return;
-      for (let t = 1; t <= tier; t++) {
-        const [fr, pr] = tierRewards(t);
-        if (!rec.claimed.free.includes(t)) {
-          rec.claimed.free.push(t);
-          this.grantSeasonReward(fr);
-        }
-        if (rec.premium && !rec.claimed.prem.includes(t)) {
-          rec.claimed.prem.push(t);
-          this.grantSeasonReward(pr);
-        }
-      }
-      store(META_KEY, JSON.stringify(m));
-      tlog.log('season_claim', { tier });
-      sfx.star?.(3);
-      this.openSeason();
-    }, 0.8);
-    if (!rec.premium)
-      this.button(c, W / 2 - 150, top + 1118, 270, 'PREMIUM $4.99', 0x8e58c9, () => {
-        rec.premium = true;
-        store(META_KEY, JSON.stringify(m));
-        tlog.log('season_premium_mock', { id: rec.id });
-        this.showToast('PREMIUM UNLOCKED (TEST)');
-        this.openSeason();
-      }, 0.7);
-    this.button(c, rec.premium ? W / 2 : W / 2 + 150, top + 1118, 220, 'BACK', 0x8a6a4a, () => this.openTitle('road'), 0.7);
+    return eventsTab.openSeason(this);
   }
 
   /** r40 ENDLESS ROAD: opens when Level 80 is cleared. */
@@ -5784,39 +4106,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.time.delayedCall(700, () => this.showEvent(`ENDLESS ROAD  \u00b7  FLOOR ${rec.floor}${pos === 10 ? '  \u00b7  BOSS' : pos === 5 ? '  \u00b7  MINI-BOSS' : ''}`, '#d9c2ff', 1800));
   }
 
-  openEndlessResult(won: boolean) {
-    const m = this.meta;
-    const rec = this.endlessRec();
-    const floor = this.s.endless!;
-    const lines: string[] = [];
-    if (won) {
-      const first = floor > rec.best;
-      const rw = endlessReward(floor, first);
-      m.bolts = (m.bolts ?? 0) + rw.bolts;
-      lines.push(`+${rw.bolts} BOLTS${first ? '' : '  (replay)'}`);
-      if (rw.crate) {
-        this.giveCrate(rw.crate);
-        lines.push(`+1 ${rw.crate.toUpperCase()} CRATE`);
-      }
-      rec.best = Math.max(rec.best, floor);
-      this.seasonEv('levelWin');
-      this.seasonEv('endlessFloor');
-      if (this.s.stats.biggestChain >= 8) this.seasonEv('chain8');
-      rec.floor = floor + 1;
-      const toBlock = 10 - endlessPos(rec.floor) + 1;
-      lines.push(endlessPos(rec.floor) === 10 ? 'Next: a BOSS floor!' : endlessPos(rec.floor) === 5 ? 'Next: a MINI-BOSS floor!' : `${toBlock} floor${toBlock > 1 ? 's' : ''} to the next boss`);
-    }
-    store(META_KEY, JSON.stringify(m));
-    tlog.log('endless_end', { floor, won, best: rec.best });
-    const c = this.panel(720);
-    const top = H / 2 - 360;
-    c.add(this.add.text(W / 2, top + 70, won ? `FLOOR ${floor} CLEARED!` : `FLOOR ${floor}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 130, `ENDLESS ROAD  \u00b7  best floor ${rec.best}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#7a5a4a' }).setOrigin(0.5));
-    const rx = !won ? this.upgradePrescription() : null;
-    const body = won ? lines.join('\n') : `Out of time. Try the floor again${rx ? `\n\n${rx.text}` : ''}`;
-    c.add(this.add.text(W / 2, top + 200, body, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
-    this.button(c, W / 2, top + 540, 460, won ? `NEXT  \u00b7  FLOOR ${rec.floor}` : 'TRY AGAIN', won ? 0x8e58c9 : 0xe8452c, () => this.startEndless(), 1.0);
-    this.button(c, W / 2, top + 640, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
+  openEndlessResult(...a: Tail<typeof results.openEndlessResult>) {
+    return results.openEndlessResult(this, ...a);
   }
 
   /** r38: today's featured trial unit (not owned, or owned below level 3; never a starter). */
@@ -5922,167 +4213,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
 
   openSettings() {
-    sfx.click();
-    const c = this.sheet(960);
-    const top = H / 2 - 480;
-    this.sheetTitle(c, top, 'SETTINGS');
-    const m = this.meta;
-    const toggles: [string, () => boolean, () => void][] = [
-      ['SOUND', () => m.sound, () => ((m.sound = !m.sound), (audioSettings.on = m.sound))],
-      ['MUSIC', () => m.music, () => ((m.music = !m.music), (audioSettings.music = m.music))],
-      ['SHAKE', () => m.shake !== false, () => (m.shake = m.shake === false)],
-      ['SWAP ON DROP', () => !!m.swapMismatch, () => (m.swapMismatch = !m.swapMismatch)],
-    ];
-    toggles.forEach(([label, get, flip], i) => {
-      const b = this.button(c, W / 2, top + 180 + i * 110, 460, `${label}: ${get() ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
-        flip();
-        store(META_KEY, JSON.stringify(m));
-        (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
-      });
-    });
-    // r43 save backup code
-    const pre = safeStorage(readPreimport, () => null);
-    if (pre) {
-      // a code was loaded: this line becomes the one-time undo
-      const un = this.add.text(W / 2, top + 580, 'Loaded the wrong code? Tap to undo', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      un.on('pointerup', () => this.confirmImport(pre, true));
-      c.add(un);
-    } else c.add(this.add.text(W / 2, top + 580, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-    this.button(c, W / 2 - 150, top + 640, 360, 'COPY SAVE CODE', 0x5fbf4a, () => this.copySaveCode(), 0.78);
-    this.button(c, W / 2 + 150, top + 640, 360, 'PASTE SAVE CODE', 0x27a4c0, () => this.openPasteCode(), 0.78);
-    // the two text links share one row so each gets a finger-sized hit box (they were 52 px apart, one above the other)
-    const link = { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' };
-    c.add(this.tapLink(this.add.text(W / 2 - 150, top + 722, 'Playtest stats', link).setOrigin(0.5), () => this.openPlaytestStats()));
-    c.add(this.tapLink(this.add.text(W / 2 + 150, top + 722, 'Replay tutorial', link).setOrigin(0.5), () => this.startTutorial()));
-    // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
-    this.button(c, W / 2, top + 808, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
-    this.button(c, W / 2, top + 900, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    return settingsUi.openSettings(this);
   }
 
-  /** r33 QA panel: start over, jump to any level, give units / currency. */
-  openQaTools(jump = this.currentLevel()) {
-    this.closeModal();
-    const c = this.sheet(1270);
-    const top = H / 2 - 635;
-    this.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
-    const m = this.meta;
-    const save = () => store(META_KEY, JSON.stringify(m));
-    // 1) start over (second tap within 3 s confirms)
-    let armed = 0;
-    const wipe = this.button(c, W / 2, top + 185, 520, 'START OVER (WIPE ALL)', 0xd8261a, () => {
-      if (this.time.now - armed > 3000) {
-        armed = this.time.now;
-        sfx.invalid();
-        (wipe.list[1] as Phaser.GameObjects.Text).setText('TAP AGAIN TO WIPE');
-        this.time.delayedCall(3000, () => wipe.active && this.time.now - armed >= 2900 && (wipe.list[1] as Phaser.GameObjects.Text).setText('START OVER (WIPE ALL)'));
-        return;
-      }
-      tlog.log('start_over');
-      store(SAVE_KEY, null);
-      store(META_KEY, null);
-      lockSaves(); // the reload's visibilitychange -> save() must not write the old game back
-      location.reload();
-    }, 0.85);
-    // 2) jump to level: every earlier level counts as cleared (2 stars), then the level card opens
-    c.add(this.add.text(W / 2, top + 280, 'JUMP TO LEVEL', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0.5));
-    const lvT = this.add.text(W / 2, top + 350, `${jump}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#e8452c' }).setOrigin(0.5);
-    c.add(lvT);
-    const set = (d: number) => {
-      jump = Math.max(1, Math.min(LEVELS.length + 1, jump + d));
-      lvT.setText(`${jump}`);
-    };
-    ([[-10, 110], [-1, 240], [1, W - 240], [10, W - 110]] as const).forEach(([d, x]) => this.button(c, x, top + 350, 110, d > 0 ? `+${d}` : `${d}`, 0x8a6a4a, () => set(d), 0.7));
-    this.button(c, W / 2, top + 430, 420, 'GO', 0x5fbf4a, () => {
-      const st: Record<string, number> = {};
-      for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
-      m.levelStars = st;
-      m.tutorialDone = true;
-      m.onboarded = true;
-      save();
-      tlog.log('qa_jump', { level: jump });
-      this.openTitle('road');
-      if (jump <= LEVELS.length) this.openLevelSheet(jump);
-    }, 0.85);
-    // 3) give stuff
-    this.button(c, W / 2 - 150, top + 530, 360, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
-      m.units = m.units ?? {};
-      for (const u of UNITS) {
-        m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
-        if (u.slot === 'helper') m.toys[u.id] = m.toys[u.id] ?? false;
-      }
-      save();
-      this.showToast('ALL 13 UNITS AT LEVEL 5');
-    }, 0.75);
-    // t-2fd7bb86: every staggered feature (Team, Challenge, Workshop, Puzzles, Remix, Gems) open at once
-    this.button(c, W / 2 + 150, top + 530, 360, 'UNLOCK ALL', 0x27a4c0, () => {
-      unlockAll(m);
-      m.hardUnlocked = true;
-      save();
-      tlog.log('qa_unlock_all');
-      this.showToast('ALL FEATURES UNLOCKED');
-    }, 0.75);
-    this.button(c, W / 2, top + 620, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
-      m.bolts = (m.bolts ?? 0) + 2000;
-      m.gems = (m.gems ?? 0) + 500;
-      save();
-      this.showToast('+2000 BOLTS  +500 GEMS');
-    }, 0.8);
-    this.button(c, W / 2, top + 710, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
-      for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) this.giveCrate(k);
-      save();
-      this.showToast('3 CRATES ADDED  ·  UNITS TAB');
-    }, 0.8);
-    // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
-    c.add(this.add.text(W / 2, top + 775, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
-    const cur = spamVariant();
-    SPAM_VARIANTS.forEach((v, i) => {
-      const on = v.id === cur;
-      this.button(c, W / 2 + (i - 1.5) * 162, top + 830, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(SPAM_KEY, v.id === 'off' ? null : v.id);
-        applySpamVariant(v.id);
-        tlog.log('qa_spam_variant', { variant: v.id });
-        this.showToast(v.id === 'off' ? 'SPAM TEST OFF (live game)' : `SPAM TEST ${v.label}  ·  START A LEVEL`);
-        this.openQaTools(jump);
-      }, 0.62);
-    });
-    // 5) t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
-    c.add(this.add.text(W / 2, top + 895, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
-    const curPace = qaPace();
-    PACES.forEach((p, i) => {
-      const on = p.id === curPace;
-      this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(PACE_KEY, p.id === 'today' ? null : p.id);
-        tlog.log('qa_pace', { pace: p.id });
-        this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
-        this.openQaTools(jump);
-      }, 0.62);
-    });
-    // 6) t-a8c886ad units B0 (this device only; applies when the next level starts)
-    c.add(this.add.text(W / 2, top + 1015, 'UNITS B0 (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
-    const curB0 = qaUnitsB0();
-    [false, true].forEach((on, i) => {
-      const sel = on === curB0, label = on ? 'B0' : 'OFF';
-      this.button(c, W / 2 + (i - 0.5) * 210, top + 1070, 300, sel ? `[${label}]` : label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(UNITS_B0_KEY, on ? 'on' : null);
-        tlog.log('qa_units_b0', { on });
-        this.showToast(on ? 'UNITS B0  ·  START A LEVEL' : 'UNITS B0 OFF (live game)  ·  NEXT LEVEL');
-        this.openQaTools(jump);
-      }, 0.62);
-    });
-    // 7) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
-    c.add(this.add.text(W / 2, top + 1120, 'SCREW YARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
-    const obj = qaYardObject();
-    (['old', 'object'] as const).forEach((id, i) => {
-      const on = (id === 'object') === obj;
-      const label = id.toUpperCase();
-      this.button(c, W / 2 + (i - 0.5) * 260, top + 1168, 340, on ? `[${label}]` : label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(YARD_MODE_KEY, id === 'old' ? null : id);
-        tlog.log('qa_screw_yard', { mode: id });
-        this.showToast(id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD');
-        this.openQaTools(jump);
-      }, 0.62);
-    });
-    this.button(c, W / 2, top + 1232, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+  openQaTools(...a: Tail<typeof qa.openQaTools>) {
+    return qa.openQaTools(this, ...a);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
@@ -6228,51 +4363,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
 
   openUnitsTab() {
-    this.closeModal();
-    const c = this.add.container(0, 0).setDepth(100);
-    if (this.homeC?.active) this.homeC.destroy();
-    this.homeC = c;
-    this.modal = c;
-    const bg = this.add.image(W / 2, 0, this.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
-    bg.setScale(Math.max(W / bg.width, H / bg.height));
-    c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
-    this.drawWallet(c);
-    c.add(this.add.text(W / 2, 160, 'UNITS', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
-    // crates + shop row
-    const crates = this.totalCrates();
-    this.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x81736c, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
-    this.button(c, W / 2 + 150, 232, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
-    this.collectionStrip(c, 304);
-    // owned units: 4 columns of slightly smaller cards
-    // t-2fd7bb86: units you don't own yet are a row of small locked silhouettes, not 13 full cards on day 1
-    const owned = UNITS.filter((u) => this.ownsUnit(u.id));
-    const locked = UNITS.filter((u) => !this.ownsUnit(u.id));
-    // UI audit (375x667): the last row hid under the bottom nav, so the
-    // rows fit between the collection strip and the nav (cards shrink a little on short phones)
-    const rows = Math.ceil(owned.length / 4), gridTop = 342;
-    const pitch = Math.min(232, (H - 122 - gridTop) / rows), k0 = Math.min(0.8, (pitch - 12) / 274);
-    owned.forEach((u, k) => {
-      const x = W / 2 + ((k % 4) - 1.5) * 172, y = gridTop + (Math.floor(k / 4) + 0.5) * pitch;
-      c.add(this.unitCard(u, x, y).setScale(k0));
-    });
-    if (locked.length) {
-      const ly = gridTop + rows * pitch - 10;
-      c.add(this.add.text(W / 2, ly, `LOCKED (${locked.length})  ·  find them in crates`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
-      const per = 7, step = 92;
-      locked.forEach((u, k) => {
-        const row = Math.floor(k / per), inRow = Math.min(per, locked.length - row * per);
-        const x = W / 2 + ((k % per) - (inRow - 1) / 2) * step, y = ly + 66 + row * 96;
-        const t = this.add.container(x, y);
-        t.add(this.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-42, -42, 84, 84, 16));
-        const art = this.unitPortrait(u.id);
-        if (this.textures.exists(art)) t.add(this.fitVisible(this.add.image(0, 0, art), 66).setTintFill(0x8a7a8a).setAlpha(0.5));
-        t.add(this.add.text(0, 0, '\u{1F512}', { fontSize: '28px' }).setOrigin(0.5));
-        t.setSize(84, 84).setInteractive({ useHandCursor: true });
-        t.on('pointerup', () => (sfx.click(), this.openUnitDetail(u)));
-        c.add(t);
-      });
-    }
-    this.drawNav(c, 'units');
+    return unitsTab.openUnitsTab(this);
   }
 
   /** r38 collection milestones: the next goal, progress and reward; CLAIM when reached. */
@@ -6281,396 +4372,56 @@ Merge them into a RANK ${rank}!`, this.coachY());
     return { own: units.length, levels: units.reduce((a, v) => a + v.level, 0) };
   }
 
-  collectionStrip(c: Phaser.GameObjects.Container, y: number) {
-    const m = this.meta;
-    const i = m.collClaimed ?? 0;
-    const goal = COLLECTION_GOALS[i];
-    const g = this.add.graphics().fillStyle(0x2b1d2e, 0.88).fillRoundedRect(40, y - 30, W - 80, 60, 20);
-    c.add(g);
-    if (!goal) {
-      c.add(this.add.text(W / 2, y, 'COLLECTION COMPLETE  \u2605', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffcf33' }).setOrigin(0.5));
-      return;
-    }
-    const p = this.collectionProgress();
-    const have = goal.kind === 'own' ? p.own : p.levels;
-    const done = have >= goal.n;
-    const r = goal.reward;
-    const prize = r.crate ? `${r.crate.toUpperCase()} CRATE` : r.gems ? `${r.gems} GEMS` : `${r.bolts} BOLTS`;
-    const what = goal.kind === 'own' ? 'UNITS OWNED' : 'TOTAL UNIT LEVELS';
-    // progress fill under the text
-    g.fillStyle(0x5fbf4a, 0.45).fillRoundedRect(44, y - 26, (W - 88) * Math.min(1, have / goal.n), 52, 17);
-    c.add(this.add.text(64, y, `${Math.min(have, goal.n)}/${goal.n} ${what}  \u00b7  ${prize}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#fff0cf' }).setOrigin(0, 0.5));
-    if (done)
-      this.button(c, W - 120, y, 150, 'CLAIM', 0x5fbf4a, () => {
-        m.collClaimed = i + 1;
-        if (r.bolts) m.bolts = (m.bolts ?? 0) + r.bolts;
-        if (r.gems) m.gems = (m.gems ?? 0) + r.gems;
-        if (r.crate) this.giveCrate(r.crate);
-        store(META_KEY, JSON.stringify(m));
-        tlog.log('collection_claim', { i, prize });
-        sfx.star?.(3);
-        this.showToast(`COLLECTION: +${prize}`);
-        this.openUnitsTab();
-      }, 0.55);
+  collectionStrip(...a: Tail<typeof unitsTab.collectionStrip>) {
+    return unitsTab.collectionStrip(this, ...a);
   }
 
-  /** r39 (ChatGPT art review): ONE canonical portrait per unit everywhere (collection, crate reveal): the rank tier
-   *  that matches its level (unowned = rank 3 silhouette). */
-  unitPortrait(id: string) {
-    const st = this.meta.units?.[id];
-    return `${id}_${st && st.level >= 1 ? Math.min(6, 1 + Math.floor((st.level - 1) / 2)) : 3}`;
+  unitPortrait(...a: Tail<typeof unitsTab.unitPortrait>) {
+    return unitsTab.unitPortrait(this, ...a);
   }
 
-  unitCard(u: UnitDef, x: number, y: number) {
-    const st = this.meta.units?.[u.id];
-    const owned = !!st && st.level >= 1;
-    const cc = this.add.container(x, y);
-    const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
-    cc.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-102, -132, 204, 268, 22).fillStyle(rc, 1).fillRoundedRect(-98, -128, 196, 260, 19).fillStyle(0xfbe7c6, 1).fillRoundedRect(-90, -100, 180, 170, 14));
-    cc.add(this.add.text(0, -114, u.rarity.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
-    const art = this.unitPortrait(u.id);
-    if (this.textures.exists(art)) {
-      const im = this.fitVisible(this.add.image(0, -16, art), 140);
-      if (!owned) im.setTint(0x2b1d2e).setAlpha(0.6);
-      cc.add(im);
-    }
-    // r38 rarity frame art (ChatGPT v22, transparent centre) over the card edge
-    if (this.hasArt(`card_${u.rarity}`)) cc.add(this.add.image(0, 2, `card_${u.rarity}`).setDisplaySize(214, 274));
-    cc.add(this.add.text(0, 88, owned ? FAMILY_INFO[u.id as 'cannon'].name.toUpperCase().replace('SIGNAL ', '') : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
-    if (owned) {
-      cc.add(this.add.text(-78, -72, `LV ${st!.level}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: '#2b1d2e', padding: { x: 6, y: 2 } }).setOrigin(0, 0.5));
-      const need = st!.level >= MAX_UNIT_LEVEL ? 0 : cardsFor(u, st!.level);
-      const frac = need ? Math.min(1, st!.cards / need) : 1;
-      const bar = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-84, 108, 168, 20, 10).fillStyle(this.canUpgrade(u) ? 0x5fbf4a : 0x3a8adf, 1).fillRoundedRect(-82, 110, Math.max(14, 164 * frac), 16, 8);
-      cc.add(bar);
-      cc.add(this.add.text(0, 118, need ? `${st!.cards}/${need}` : 'MAX', { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-      if (this.canUpgrade(u)) {
-        const up = this.add.text(70, -112, '\u2191', { fontFamily: 'Arial Black', fontSize: '30px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 8, y: 0 } }).setOrigin(0.5);
-        cc.add(up);
-        this.tweens.add({ targets: up, y: -118, duration: 500, yoyo: true, repeat: -1 });
-      }
-    } else {
-      // UI audit: the loose Arial caption spilled past the frame onto '???'; it now sits in the same pill as the owned card's bar
-      cc.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-84, 108, 168, 20, 10));
-      cc.add(this.add.text(0, 118, 'IN CRATES', { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
-    }
-    cc.setSize(204, 268).setInteractive({ useHandCursor: true });
-    cc.on('pointerup', () => (sfx.click(), this.openUnitDetail(u)));
-    return cc;
+  unitCard(...a: Tail<typeof unitsTab.unitCard>) {
+    return unitsTab.unitCard(this, ...a);
   }
 
-  openUnitDetail(u: UnitDef) {
-    const st = this.meta.units?.[u.id];
-    const owned = !!st && st.level >= 1;
-    this.closeModal();
-    const c = this.panel(1180);
-    const top = H / 2 - 590;
-    const info = FAMILY_INFO[u.id as 'cannon'];
-    c.add(this.add.text(W / 2, top + 60, owned ? info.name.toUpperCase() : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#2a2233' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 112, `${u.rarity.toUpperCase()}  \u00b7  ${u.role}${owned ? `  \u00b7  LEVEL ${st!.level}` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
-    // the animated mini-board explains it
-    const gi = GameScene.GUIDE.find((g) => g.key === u.id);
-    if (owned && gi) {
-      this.machineDemo(c, W / 2, top + 330, u.id);
-      c.add(this.add.text(W / 2, top + 520, gi.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
-    } else {
-      // UI audit: the locked page was an empty cream sheet; show the same dark silhouette as the collection card
-      const art = this.unitPortrait(u.id);
-      if (this.textures.exists(art)) c.add(this.fitVisible(this.add.image(W / 2, top + 300, art), 220).setTint(0x2b1d2e).setAlpha(0.6));
-      c.add(this.add.text(W / 2, top + 500, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
-    }
-    // r32 milestone perks: L3 / L6 / L9, lit when reached (unreached lines darker brown: light grey on cream was unreadable)
-    (UNIT_PERKS[u.id] ?? []).forEach(([name, txt], i) => {
-      const need = [3, 6, 9][i];
-      const got = owned && st!.level >= need;
-      c.add(this.add.text(W / 2, top + 660 + i * 44, `LV${need}  ${name}: ${txt}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: got ? '#2a8a3a' : '#6e5646', wordWrap: { width: W - 140 }, align: 'center' }).setOrigin(0.5));
-    });
-    if (owned) {
-      const lv = st!.level;
-      c.add(this.add.text(W / 2, top + 810, lv >= MAX_UNIT_LEVEL ? `${levelPerkText(u, lv)}  \u00b7  MAX LEVEL` : `${levelPerkText(u, lv)}  \u2192  ${levelPerkText(u, lv + 1)} at LV ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
-      if (lv < MAX_UNIT_LEVEL) {
-        const needC = cardsFor(u, lv), needB = boltsFor(u, lv);
-        const ok = this.canUpgrade(u);
-        c.add(this.add.text(W / 2, top + 870, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
-        this.button(c, W / 2, top + 960, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
-      }
-    }
-    // r42 Unit Drills (Ido: "challenges connected to a unit when we unlock it")
-    const drills = GameScene.PUZZLES.drills[u.id] ?? [];
-    if (this.ownsUnit(u.id) && drills.length) {
-      const done = drills.filter((p) => this.puzzleRec().drills.includes(p.id)).length;
-      this.button(c, W / 2 - 150, top + 1100, 260, `DRILLS ${done}/${drills.length}`, 0x8e58c9, () => this.openDrills(u), 0.8);
-      this.button(c, W / 2 + 150, top + 1100, 240, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
-    } else this.button(c, W / 2, top + 1100, 280, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.8);
-    tlog.log('unit_detail', { unit: u.id, owned });
+  openUnitDetail(...a: Tail<typeof unitsTab.openUnitDetail>) {
+    return unitsTab.openUnitDetail(this, ...a);
   }
 
-  upgradeUnit(u: UnitDef) {
-    const m = this.meta;
-    const st = m.units![u.id];
-    const needC = cardsFor(u, st.level), needB = boltsFor(u, st.level);
-    if (st.cards < needC || (m.bolts ?? 0) < needB) return;
-    st.cards -= needC;
-    m.bolts = (m.bolts ?? 0) - needB;
-    st.level++;
-    this.seasonEv('unitUp');
-    store(META_KEY, JSON.stringify(m));
-    tlog.log('unit_upgrade', { unit: u.id, level: st.level, bolts: needB, cards: needC });
-    sfx.win();
-    this.openUnitDetail(u);
-    this.floatText(W / 2, H / 2 - 300, `LEVEL ${st.level}!`, '#ffcf33', 64, 600, 'banner_destroyed');
+  upgradeUnit(...a: Tail<typeof unitsTab.upgradeUnit>) {
+    return unitsTab.upgradeUnit(this, ...a);
   }
 
   openNextCrate() {
-    const m = this.meta;
-    const kind = (['gold', 'iron', 'wood'] as CrateKind[]).find((k) => (m.crates?.[k] ?? 0) > 0);
-    if (!kind) return;
-    m.crates![kind] = (m.crates![kind] ?? 1) - 1;
-    this.openCrate(kind);
+    return unitsTab.openNextCrate(this);
   }
 
-  /** Roll, apply and present a crate: shake, burst, then each card flips in; NEW units unlock on the spot. */
-  openCrate(kind: CrateKind) {
-    const m = this.meta;
-    if (kind === 'iron' && !m.unitChoiceDone && UNITS.some((u) => u.rarity === 'rare' && !this.ownsUnit(u.id))) {
-      m.unitChoiceDone = true;
-      return this.openUnitChoice(() => this.openCrate(kind));
-    }
-    m.crateSeq = (m.crateSeq ?? 0) + 1;
-    const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
-    m.pity = m.pity ?? { epic: 0, dry: 0 };
-    // r32 early guarantees (ChatGPT): a Gold crate brings an Epic while the player owns none
-    if (kind === 'gold' && !UNITS.some((u) => u.rarity === 'epic' && owned.has(u.id))) m.pity.epic = Math.max(m.pity.epic, 6);
-    let cards = rollCrate(kind, owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, m.pity);
-    // ...and the first Wood crate always shows that crates unlock playable units: Horn
-    if (kind === 'wood' && !owned.has('horn')) {
-      const first = cards[cards.length - 1];
-      if (first.count > 1) first.count--;
-      else cards = cards.slice(0, -1);
-      cards = [{ unit: 'horn', count: 1, isNew: true }, ...cards];
-    }
-    this.applyCards(cards);
-    tlog.log('crate_open', { kind, cards: cards.map((x) => `${x.unit}x${x.count}${x.isNew ? '*' : ''}`), pity: { ...m.pity } });
-    this.presentCrate(kind, cards);
+  openCrate(...a: Tail<typeof unitsTab.openCrate>) {
+    return unitsTab.openCrate(this, ...a);
   }
 
-  applyCards(cards: CrateCard[]) {
-    const m = this.meta;
-    m.units = m.units ?? {};
-    // r42: a newly unlocked unit opens its drills
-    const fresh = cards.filter((cd) => cd.isNew && (GameScene.PUZZLES.drills[cd.unit] ?? []).length && !this.ownsUnit(cd.unit));
-    if (fresh.length) this.time.delayedCall(2600, () => this.showToast(`NEW DRILLS: ${fresh.map((cd) => FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()).join(', ')} (UNIT PAGE)`));
-    for (const cd of cards) {
-      const st = (m.units[cd.unit] = m.units[cd.unit] ?? { level: 0, cards: 0 });
-      if (st.level === 0) {
-        st.level = 1;
-        st.cards += cd.count - 1;
-        if (unitDef(cd.unit)?.slot === 'helper') m.toys[cd.unit] = m.toys[cd.unit] ?? false;
-      } else st.cards += cd.count;
-    }
-    store(META_KEY, JSON.stringify(m));
-    this.checkUnlocks(); // the first new unit opens TEAM
+  applyCards(...a: Tail<typeof unitsTab.applyCards>) {
+    return unitsTab.applyCards(this, ...a);
   }
 
-  openPack(packId: string, role?: UnitDef['slot']) {
-    const m = this.meta;
-    const spec = SHOP.boltPacks.find((p) => p.id === packId)!;
-    if ((m.bolts ?? 0) < spec.bolts) return this.showToast('NOT ENOUGH BOLTS');
-    m.bolts = (m.bolts ?? 0) - spec.bolts;
-    m.crateSeq = (m.crateSeq ?? 0) + 1;
-    const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
-    const cards = rollPack(packId, owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, { role, featured: featuredUnit(localDate(), owned) });
-    this.applyCards(cards);
-    tlog.log('pack_open', { packId, role, cards: cards.map((x) => `${x.unit}x${x.count}`) });
-    this.presentCrate('wood', cards, spec.name);
+  openPack(...a: Tail<typeof unitsTab.openPack>) {
+    return unitsTab.openPack(this, ...a);
   }
 
-  presentCrate(kind: CrateKind, cards: CrateCard[], title?: string) {
-    this.closeModal();
-    const c = this.panel(1000);
-    const top = H / 2 - 500;
-    c.add(this.add.text(W / 2, top + 60, title ?? CRATES[kind].name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
-    const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
-    const box = this.add.container(W / 2, top + 260);
-    // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
-    // No closed gold crate yet: the iron crate tinted gold stands in.
-    this.seasonEv('crateOpen');
-    const ck = this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
-    let crateIm: Phaser.GameObjects.Image | null = null;
-    if (ck) {
-      const im = this.add.image(0, 0, ck);
-      im.setScale(220 / Math.max(im.width, im.height));
-      if (ck === 'crate_iron' && kind === 'gold') im.setTint(0xffd36a);
-      box.add(im);
-      crateIm = im;
-    } else box.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-110, -90, 220, 180, 20).fillStyle(col, 1).fillRoundedRect(-102, -82, 204, 164, 16).lineStyle(8, 0x2b1d2e, 1).lineBetween(-102, -20, 102, -20));
-    c.add(box);
-    sfx.chestShake?.();
-    this.tweens.add({ targets: box, angle: { from: -6, to: 6 }, duration: 90, yoyo: true, repeat: 5, onComplete: () => {
-      sfx.chestOpen?.();
-      const openKey = `crate_${kind}_open`;
-      if (crateIm && this.hasArt(openKey)) {
-        crateIm.clearTint().setTexture(openKey);
-        crateIm.setScale(240 / Math.max(crateIm.width, crateIm.height));
-      }
-      this.tweens.add({ targets: box, scale: 0, alpha: 0, duration: 220, delay: crateIm ? 260 : 0 });
-      this.ring(W / 2, top + 260, 0xffcf33, 160, 18, 420);
-      cards.forEach((cd, k) => {
-        // up to 6 kinds in 3 columns; more (big crates/packs) in 4 smaller columns so nothing hides under the buttons
-        const cols = cards.length > 6 ? 4 : 3, sc = cards.length > 6 ? 0.78 : 1;
-        // r39: a short last row is centred under the full rows
-        const rowN = Math.floor(k / cols), inRow = Math.min(cols, cards.length - rowN * cols);
-        const x = W / 2 + ((k % cols) - (inRow - 1) / 2) * (cols === 4 ? 152 : 200), y = top + (cols === 4 ? 220 : 250) + rowN * (cols === 4 ? 190 : 250);
-        const card = this.add.container(x, y).setScale(0, sc);
-        const u = UNITS.find((v) => v.id === cd.unit)!;
-        const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
-        card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -110, 176, 220, 18).fillStyle(rc, 1).fillRoundedRect(-84, -106, 168, 212, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -80, 152, 130, 12));
-        const pk = this.unitPortrait(cd.unit);
-        if (this.textures.exists(pk)) card.add(this.fitVisible(this.add.image(0, -16, pk), 112));
-        card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`.replace('SIGNAL ', ''), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
-        if (cd.isNew) card.add(this.add.text(56, -104, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 8, y: 1 } }).setOrigin(0.5).setAngle(8));
-        c.add(card);
-        this.tweens.add({ targets: card, scaleX: sc, duration: 220, delay: 300 + k * 260, ease: 'Back.Out', onStart: () => sfx.star?.(Math.min(2, k)) });
-      });
-    } });
-    const more = this.totalCrates();
-    this.time.delayedCall(900 + cards.length * 260, () => {
-      if (!c.active) return;
-      // r39: buttons follow the last row instead of a fixed y (no dead space)
-      const cols = cards.length > 6 ? 4 : 3, rows = Math.ceil(cards.length / cols);
-      const by = Math.min(top + 920, top + (cols === 4 ? 220 : 250) + (rows - 1) * (cols === 4 ? 190 : 250) + (cols === 4 ? 175 : 200));
-      if (more) this.button(c, W / 2 - 150, by, 260, `NEXT (${more})`, 0x5fbf4a, () => this.openNextCrate(), 0.8);
-      this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
-    });
+  presentCrate(...a: Tail<typeof unitsTab.presentCrate>) {
+    return unitsTab.presentCrate(this, ...a);
   }
 
   openUnitShop() {
-    this.closeModal();
-    const m = this.meta;
-    // r40: taller panel; the Featured Crate row leads (Gems can target one unit)
-    const c = this.panel(1214);
-    const top = H / 2 - 607;
-    const D = 152;
-    c.add(this.add.text(W / 2, top + 60, 'CRATE SHOP', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 112, `${m.bolts ?? 0} Bolts  \u00b7  ${m.gems ?? 0} Gems`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#7a5a4a' }).setOrigin(0.5));
-    const row = (y: number, title: string, sub: string, label: string, col: number, cb: () => void) => {
-      c.add(this.add.graphics().fillStyle(0xead2b0, 1).fillRoundedRect(70, y - 60, W - 140, 120, 20));
-      c.add(this.add.text(100, y - 22, title, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' }).setOrigin(0, 0.5));
-      c.add(this.add.text(100, y + 20, sub, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0, 0.5));
-      this.button(c, W - 170, y, 200, label, col, cb, 0.7);
-    };
-    const buyCrate = (kind: CrateKind, cur: 'bolts' | 'gems', price: number) => {
-      if ((m[cur] ?? 0) < price) return this.showToast(cur === 'gems' ? 'NOT ENOUGH GEMS' : 'NOT ENOUGH BOLTS');
-      m[cur] = (m[cur] ?? 0) - price;
-      tlog.log('crate_buy', { kind, cur, price });
-      this.openCrate(kind);
-    };
-    const day = Math.floor(Date.now() / 86400000);
-    const fu = featuredGemUnit(day);
-    const fname = FAMILY_INFO[fu as 'cannon'].name.toUpperCase();
-    const pf = (m.pity ??= { epic: 0, dry: 0 }).featured ?? 0;
-    c.add(this.add.graphics().fillStyle(0x8e58c9, 0.25).fillRoundedRect(70, top + 156, W - 140, 148, 20).lineStyle(4, 0x8e58c9, 1).strokeRoundedRect(70, top + 156, W - 140, 148, 20));
-    const pk = this.unitPortrait(fu);
-    if (this.textures.exists(pk)) c.add(this.fitVisible(this.add.image(136, top + 230, pk), 104));
-    c.add(this.add.text(200, top + 188, `FEATURED: ${fname}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0, 0.5));
-    c.add(this.add.text(200, top + 222, `60% of its rarity · guaranteed in ${FEATURED_CRATE.pity - pf} crate${FEATURED_CRATE.pity - pf > 1 ? 's' : ''}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: '#5a3a5a' }).setOrigin(0, 0.5));
-    const buyFeatured = (n: number, price: number) => {
-      if ((m.gems ?? 0) < price) return this.showToast('NOT ENOUGH GEMS');
-      m.gems = (m.gems ?? 0) - price;
-      const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
-      const all = new Map<string, CrateCard>();
-      for (let k = 0; k < n; k++) {
-        m.crateSeq = (m.crateSeq ?? 0) + 1;
-        for (const cd of rollFeatured(owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, fu, m.pity!)) {
-          const e = all.get(cd.unit);
-          if (e) e.count += cd.count;
-          else all.set(cd.unit, { ...cd });
-        }
-      }
-      const cards = [...all.values()];
-      this.applyCards(cards);
-      tlog.log('featured_buy', { unit: fu, n, price, cards: cards.map((x) => `${x.unit}x${x.count}`) });
-      this.presentCrate('iron', cards, n > 1 ? `${n} FEATURED CRATES` : 'FEATURED CRATE');
-    };
-    this.button(c, 330, top + 266, 220, `x1  ${FEATURED_CRATE.gems1} GEMS`, 0x8e58c9, () => buyFeatured(1, FEATURED_CRATE.gems1), 0.6);
-    this.button(c, 520, top + 266, 220, `x5  ${FEATURED_CRATE.gems5} GEMS`, 0x8e58c9, () => buyFeatured(5, FEATURED_CRATE.gems5), 0.6);
-    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
-    const ownedNow = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
-    const feat = featuredUnit(localDate(), ownedNow);
-    SHOP.boltPacks.forEach((p, i) =>
-      row(top + 476 + D + i * 128, p.name, p.id === 'role' ? `${p.cards} cards of a role you pick` : `${p.cards} cards  \u00b7  ${p.featuredMin}+ ${FAMILY_INFO[feat as 'cannon'].name}`, `${p.bolts} BOLTS`, 0xe0a020, () => (p.id === 'role' ? this.openRolePick() : this.openPack(p.id))),
-    );
-    c.add(this.add.text(W / 2, top + 850 + D, 'GEMS  (test store, no real payment)', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0.5));
-    SHOP.gemPacks.forEach((p, i) => {
-      const x = W / 2 + (i - 1) * 200;
-      this.button(c, x, top + 905 + D, 180, `${p.gems}`, 0x27a4c0, () => {
-        m.gems = (m.gems ?? 0) + p.gems;
-        store(META_KEY, JSON.stringify(m));
-        tlog.log('gems_mock_buy', { gems: p.gems, price: p.price });
-        this.showToast(`+${p.gems} GEMS (TEST)`);
-        this.openUnitShop();
-      }, 0.65);
-      c.add(this.add.text(x, top + 950 + D, p.price, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
-    });
-    // ChatGPT r32: Gems can also buy Bolts (60 -> 300, 200 -> 1,100)
-    ([[60, 300], [200, 1100]] as const).forEach(([gem, bolt], i) =>
-      this.button(c, i ? W - 160 : 160, top + 1010 + D, 200, `${bolt}B / ${gem}G`, 0xe0a020, () => {
-        if ((m.gems ?? 0) < gem) return this.showToast('NOT ENOUGH GEMS');
-        m.gems = (m.gems ?? 0) - gem;
-        m.bolts = (m.bolts ?? 0) + bolt;
-        store(META_KEY, JSON.stringify(m));
-        tlog.log('gems_for_bolts', { gem, bolt });
-        this.showToast(`+${bolt} BOLTS`);
-        this.openUnitShop();
-      }, 0.6),
-    );
-    this.button(c, W / 2, top + 1010 + D, 200, 'BACK', 0x8a6a4a, () => this.openTitle('units'), 0.7);
+    return unitsTab.openUnitShop(this);
   }
 
-  /** r32 (ChatGPT early guarantee): the first Iron crate lets you CHOOSE 1 of 3 units you don't own yet. */
-  openUnitChoice(then: () => void) {
-    const m = this.meta;
-    const missing = UNITS.filter((u) => !this.ownsUnit(u.id) && u.rarity === 'rare').map((u) => u.id);
-    if (!missing.length) return then();
-    const rng = new Rng(((m.crateSeq ?? 1) * 2654435761) >>> 0);
-    const picks = rng.shuffle([...missing]).slice(0, 3);
-    this.closeModal();
-    const c = this.panel(640);
-    const top = H / 2 - 320;
-    c.add(this.add.text(W / 2, top + 64, 'CHOOSE A NEW UNIT', { fontFamily: 'Lilita One, Arial Black', fontSize: '44px', color: '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 110, 'It joins your collection right away', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-    picks.forEach((f, k) => {
-      const x = W / 2 + (k - (picks.length - 1) / 2) * 200, y = top + 330;
-      const card = this.add.container(x, y);
-      card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -130, 176, 260, 18).fillStyle(0x3a8adf, 1).fillRoundedRect(-84, -126, 168, 252, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -100, 152, 130, 12));
-      if (this.textures.exists(`${f}_3`)) {
-        const im = this.add.image(0, -36, `${f}_3`);
-        im.setScale(110 / Math.max(im.width, im.height));
-        card.add(im);
-      }
-      const info = FAMILY_INFO[f as 'cannon'];
-      card.add(this.add.text(0, 50, info.name.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
-      card.add(this.add.text(0, 86, info.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '18px', color: '#fff0cf' }).setOrigin(0.5));
-      card.setSize(176, 260).setInteractive({ useHandCursor: true });
-      card.on('pointerup', () => {
-        m.unitChoiceDone = true;
-        this.applyCards([{ unit: f, count: 1, isNew: true }]);
-        tlog.log('unit_choice', { unit: f, from: picks });
-        sfx.win();
-        then();
-      });
-      c.add(card);
-    });
+  openUnitChoice(...a: Tail<typeof unitsTab.openUnitChoice>) {
+    return unitsTab.openUnitChoice(this, ...a);
   }
 
   openRolePick() {
-    this.closeModal();
-    const c = this.panel(520);
-    const top = H / 2 - 260;
-    c.add(this.add.text(W / 2, top + 64, 'ROLE PACK', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 116, 'Pick the role you want cards for', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-    (['shooter', 'relay', 'helper'] as const).forEach((r, i) => this.button(c, W / 2, top + 210 + i * 100, 380, r.toUpperCase(), 0x5fbf4a, () => this.openPack('role', r), 0.8));
-    this.button(c, W / 2, top + 480, 240, 'BACK', 0x8a6a4a, () => this.openUnitShop(), 0.7);
+    return unitsTab.openRolePick(this);
   }
 
   teamShooter(): Family {
@@ -6687,126 +4438,16 @@ Merge them into a RANK ${rank}!`, this.coachY());
     return [a, b];
   }
 
-  /** BUILD YOUR TEAM (ChatGPT r14): Shooter (Cannon/Rocket) + Coil + Bell (fixed relays) + optional Helper. */
   openTeamSheet() {
-    sfx.click();
-    this.seen('team');
-    const m = this.meta;
-    const PH = 900;
-    const c = this.sheet(PH);
-    const top = H / 2 - PH / 2;
-    this.sheetTitle(c, top, 'BUILD YOUR TEAM', 'Changes apply to your next run');
-    const helper = this.activeToys()[0] ?? null;
-    const [ra, rb] = this.teamRelays();
-    const lv = this.currentLevel();
-    const slots: { label: string; fam: Family | null; role: string; note: string; tap: () => void }[] = [
-      { label: 'SHOOTER', fam: this.teamShooter(), role: 'shooter', note: 'tap to change', tap: () => this.openSlotPicker('shooter', 0) },
-      { label: 'RELAY A', fam: ra, role: 'relay', note: lv > 10 ? 'tap to change' : 'opens in chapter 2', tap: () => (lv > 10 ? this.openSlotPicker('relay', 0) : this.showToast('RELAY A OPENS IN CHAPTER 2')) },
-      { label: 'RELAY B', fam: rb, role: 'relay', note: lv > 20 ? 'tap to change' : 'opens in chapter 3', tap: () => (lv > 20 ? this.openSlotPicker('relay', 1) : this.showToast('RELAY B OPENS IN CHAPTER 3')) },
-      { label: 'HELPER', fam: m.playtestMode ? null : helper, role: helper ? FAMILY_INFO[helper as 'cannon'].role.toLowerCase() : 'support', note: 'tap to change', tap: () => (m.playtestMode ? this.showToast('HELPERS ARE OFF IN THIS PLAYTEST') : this.openSlotPicker('helper', 0)) },
-    ];
-    slots.forEach((sl, i) => {
-      const x = W / 2 + (i % 2 ? 150 : -150);
-      const y = top + 270 + Math.floor(i / 2) * 230;
-      const card = this.add.container(x, y);
-      const plate = this.hasArt('ui_team_slot') ? this.add.image(0, 0, 'ui_team_slot').setDisplaySize(280, 210) : this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(-140, -105, 280, 210, 22);
-      card.add(plate);
-      card.add(this.add.text(0, -78, sl.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-      if (sl.fam && this.textures.exists(`${sl.fam}_1`)) {
-        const im = this.add.image(0, -8, `${sl.fam}_1`);
-        im.setScale(96 / Math.max(im.width, im.height));
-        card.add(im);
-      } else card.add(this.add.text(0, -8, 'none', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));
-      if (this.hasArt(`role_${sl.role}`)) {
-        const ri = this.add.image(-100, -78, `role_${sl.role}`);
-        ri.setScale(34 / Math.max(ri.width, ri.height));
-        card.add(ri);
-      }
-      card.add(this.add.text(0, 52, sl.fam ? FAMILY_INFO[sl.fam as keyof typeof FAMILY_INFO].name : 'No helper', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0.5));
-      card.add(this.add.text(0, 86, sl.note, { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#fff0cf' }).setOrigin(0.5));
-      card.setSize(280, 210).setInteractive({ useHandCursor: true });
-      card.on('pointerup', sl.tap);
-      c.add(card);
-    });
-    const sh = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO];
-    c.add(this.add.text(W / 2, top + 650, `${sh.name}: ${sh.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5));
-    this.button(c, W / 2, top + 790, 380, 'USE TEAM', 0x5fbf4a, () => this.openTitle(), 0.9);
+    return unitsTab.openTeamSheet(this);
   }
 
-  /** r32 squad picker: every OWNED unit of that role with its level; locked ones say where to find them. */
-  openSlotPicker(slot: 'shooter' | 'relay' | 'helper', k: 0 | 1) {
-    const m = this.meta;
-    const list = UNITS.filter((u) => u.slot === slot);
-    const PH = 260 + list.length * 104 + (slot === 'helper' ? 104 : 0);
-    const c = this.sheet(PH);
-    const top = H / 2 - PH / 2;
-    this.sheetTitle(c, top, slot === 'relay' ? `RELAY ${k ? 'B' : 'A'}` : slot.toUpperCase(), 'Units you own. Find more in crates.');
-    const [ra, rb] = this.teamRelays();
-    const cur = slot === 'shooter' ? this.teamShooter() : slot === 'relay' ? (k ? rb : ra) : this.activeToys()[0] ?? null;
-    const other = slot === 'relay' ? (k ? ra : rb) : null;
-    const choose = (f: Family | null) => {
-      if (slot === 'shooter') m.shooter = f!;
-      else if (slot === 'relay') {
-        const r = [...(m.relays ?? [ra, rb])] as [string, string];
-        r[k] = f!;
-        m.relays = r;
-      } else {
-        for (const key of Object.keys(m.toys) as Family[]) m.toys[key] = false;
-        if (f) m.toys[f] = true;
-      }
-      store(META_KEY, JSON.stringify(m));
-      tlog.log('squad', { slot, k, unit: f });
-      this.openTeamSheet();
-    };
-    let y = top + 190;
-    if (slot === 'helper') {
-      this.button(c, W / 2, y, 440, cur ? 'NO HELPER' : 'NO HELPER  \u2713', 0x8a6a4a, () => choose(null), 0.8);
-      y += 104;
-    }
-    for (const u of list) {
-      const own = this.ownsUnit(u.id);
-      const name = FAMILY_INFO[u.id as 'cannon'].name.toUpperCase();
-      if (!own) c.add(this.add.text(W / 2, y, `${name}: find it in crates`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#9a8a7a' }).setOrigin(0.5));
-      else if (u.id === other) c.add(this.add.text(W / 2, y, `${name}: in the other relay slot`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#9a8a7a' }).setOrigin(0.5));
-      else this.button(c, W / 2, y, 440, `${name}  LV ${m.units?.[u.id]?.level ?? 1}${cur === u.id ? '  \u2713' : ''}`, cur === u.id ? 0x5fbf4a : 0x27a4c0, () => choose(u.id), 0.8);
-      y += 104;
-    }
+  openSlotPicker(...a: Tail<typeof unitsTab.openSlotPicker>) {
+    return unitsTab.openSlotPicker(this, ...a);
   }
 
-  /** Local playtest dashboard (ChatGPT r17 D): the numbers that decide rhythm, booster use and rank payoff. */
   openPlaytestStats() {
-    sfx.click();
-    const ev = tlog.events();
-    const ends = ev.filter((e) => e.e === 'level_end');
-    const by: Record<string, { n: number; w: number }> = { NORMAL: { n: 0, w: 0 }, HARD: { n: 0, w: 0 }, MEGA_HARD: { n: 0, w: 0 } };
-    for (const e of ends) {
-      const d = LEVELS[Number(e.level) - 1]?.difficulty ?? 'NORMAL';
-      by[d].n++;
-      if (e.won) by[d].w++;
-    }
-    const pct = (x: { n: number; w: number }) => (x.n ? `${Math.round((100 * x.w) / x.n)}% (${x.w}/${x.n})` : '-');
-    const cleared = new Set(ends.filter((e) => e.won).map((e) => e.level)).size;
-    const attemptsPerClear = cleared ? (ends.length / cleared).toFixed(1) : '-';
-    const bought = (k: string) => ev.filter((e) => e.e === 'booster_buy' && e.item === k).length;
-    const used = (k: string) => ev.filter((e) => e.e === 'booster' && e.kind === k).length;
-    const merges = ev.filter((e) => e.e === 'merge');
-    const topRank = Math.max(0, ...merges.map((e) => Number(e.rank) || 0));
-    const r78 = merges.filter((e) => Number(e.rank) >= 7).length;
-    const starts = ev.filter((e) => e.e === 'level_start').length;
-    const lines = [
-      `Level win rate  Normal ${pct(by.NORMAL)}`,
-      `Hard ${pct(by.HARD)}   Mega ${pct(by.MEGA_HARD)}`,
-      `Attempts per clear  ${attemptsPerClear}   (levels started ${starts})`,
-      `Kits  bought ${bought('kits')} / used ${used('jumpstart')} / held ${this.meta.kits ?? 0}`,
-      `Capsules  bought ${bought('capsules')} / used ${used('time_capsule')} / held ${this.meta.capsules ?? 0}`,
-      `Highest rank made  ${topRank}   (rank 7-8 merges: ${r78})`,
-      `Merges logged  ${merges.length}   Bolts now ${this.meta.bolts ?? 0}`,
-    ];
-    const c = this.sheet(760);
-    const top = H / 2 - 380;
-    this.sheetTitle(c, top, 'PLAYTEST STATS', 'Local only. Nothing leaves this phone.');
-    c.add(this.add.text(W / 2, top + 170, lines.join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', lineSpacing: 18 }).setOrigin(0.5, 0));
-    this.button(c, W / 2, top + 680, 300, 'BACK', 0x8a6a4a, () => this.openSettings(), 0.8);
+    return settingsUi.openPlaytestStats(this);
   }
 
   openRecords() {
@@ -7629,58 +5270,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.updateLane(lane, r.lock || r.kind === 'piano' ? '#b4c6e0' : '#ffd2c8');
   }
   openPause() {
-    if (this.modal || this.s.phase === 'won' || this.s.phase === 'lost') return;
-    this.cancelDrag();
-    const c = this.panel(this.s.phase === 'tutorial' ? 840 : 730);
-    const top = H / 2 - (this.s.phase === 'tutorial' ? 420 : 365);
-    c.add(this.add.text(W / 2, top + 70, 'PAUSED', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533' }).setOrigin(0.5));
-    this.button(c, W / 2, top + 190, 420, 'RESUME', 0x5fbf4a, () => this.closeModal());
-    const snd = this.button(c, W / 2, top + 300, 420, `SOUND: ${this.meta.sound ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
-      this.meta.sound = !this.meta.sound;
-      audioSettings.on = this.meta.sound;
-      store(META_KEY, JSON.stringify(this.meta));
-      (snd.list[1] as Phaser.GameObjects.Text).setText(`SOUND: ${this.meta.sound ? 'ON' : 'OFF'}`);
-    });
-    const mus = this.button(c, W / 2, top + 410, 420, `MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
-      this.meta.music = !this.meta.music;
-      audioSettings.music = this.meta.music;
-      store(META_KEY, JSON.stringify(this.meta));
-      (mus.list[1] as Phaser.GameObjects.Text).setText(`MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`);
-    });
-    // UI audit: at +-108 the two pills overlapped; +-125 leaves a clear gap between them
-    this.button(c, W / 2 + 125, top + 520, 200, 'RESTART', 0xe8452c, () => this.retry());
-    this.button(c, W / 2 - 125, top + 520, 200, 'HOME', 0x27a4c0, () => this.quitHome());
-    const ex = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 796 : 684), 'export playtest log', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    ex.on('pointerup', () => {
-      try {
-        const blob = new Blob([tlog.exportText()], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `one-more-merge-playtest-${Date.now()}.json`;
-        a.click();
-        ex.setText('saved ✓');
-      } catch {
-        ex.setText('export failed');
-      }
-    });
-    c.add(ex);
-    const linkY = top + (this.s.phase === 'tutorial' ? 720 : 612);
-    const shk = this.add.text(W / 2 + 140, linkY, `Shake: ${this.meta.shake === false ? 'OFF' : 'ON'}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);
-    this.tapLink(shk, () => {
-      sfx.click();
-      this.meta.shake = this.meta.shake === false;
-      store(META_KEY, JSON.stringify(this.meta));
-      shk.setText(`Shake: ${this.meta.shake === false ? 'OFF' : 'ON'}`);
-      if (this.meta.shake) this.shake(90, 0.003);
-    });
-    c.add(shk);
-    const how = this.add.text(W / 2 - 120, linkY, 'Machine guide', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);
-    this.tapLink(how, () => {
-      sfx.click();
-      this.openHowTo(0, () => this.openPause());
-    });
-    c.add(how);
-    if (this.s.phase === 'tutorial') this.button(c, W / 2, top + 630, 420, 'SKIP TUTORIAL', 0x8a6a4a, () => this.skipTutorial());
+    return pauseUi.openPause(this);
   }
 
   /** SKIP TUTORIAL lands where finishing it does: Level 1 on the road (never a classic run). */

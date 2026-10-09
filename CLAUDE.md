@@ -8,6 +8,7 @@ Architecture
 - `src/core/` — pure, deterministic model (no Phaser). `game.ts` = state + commands (`drop`, `scrap`, `choosePerk`) + fixed 50 ms `tick`. `cascade.ts` = bounded BFS resolver. All randomness via saved seeded `Rng` streams (supply / perk / kickback).
 - `src/content/` — tuning constants (`tuning.ts`, change balance here first) and perk/family text.
 - `src/game/` — Phaser presentation. `GameScene` turns model `GameEvent`s into animation; sprites never hold game state; `reconcile()` syncs sprites to the grid.
+- `src/game/ui/` — GameScene's QA panel, HUD, results, settings, pause and home tabs (road / machine / events / units), as `fn(scene, ...)` modules; GameScene keeps one-line delegating methods. Put new menus/UI here, not in GameScene.ts (merge-conflict hotspot). QA switches: add one `qaSwitch({...})` entry to `QA_ROWS` in `ui/qaPanel.ts`. Shared layout constants/helpers live in `sceneKit.ts`.
 - Art: drop PNGs into `src/assets/art/<key>.png` (keys: `cannon_1..6`, `coil_1..6`, `bell_1..6`, `target_0..2`, `target_N_dmg`, `demo_can`, `bg`, `slot`, `icon_bolt`, `icon_scrap`). Missing keys fall back to procedural textures in `textures.ts`.
 
 Invariants (tested in `tests/core.test.ts`)
