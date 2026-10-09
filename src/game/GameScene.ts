@@ -1432,10 +1432,7 @@ export class GameScene extends Phaser.Scene {
       this.streak = now - this.lastMergeAt < 2500 ? this.streak + 1 : 1;
       this.lastMergeAt = now;
       if (this.streak >= 2) {
-        const { x, y } = cellXY(to);
         sfx.cascadeStep(Math.min(this.streak - 2, 3), 0.05);
-        void x;
-        void y;
         this.showEvent(this.streak >= 10 ? `MERGE FEST!!  x${this.streak}` : this.streak >= 5 ? `MERGE STREAK  x${this.streak}` : `MERGE x${this.streak}`, this.streak >= 5 ? '#ffd24a' : '#fff0cf', 900);
       }
       if (ng.rank > prevBest && ng.rank >= 2) {
@@ -4359,7 +4356,6 @@ Now beat the real level.`, this.coachY());
     if (this.homeC?.active) this.homeC.destroy();
     this.homeC = c;
     this.modal = c;
-    const u = W / 390; // design spec is in CSS px at 390 wide
     const bottom = H;
     // layout: top-anchored header, bottom-anchored controls, the machine fills what is left
     const helperY = bottom - 547;
@@ -4466,17 +4462,8 @@ Now beat the real level.`, this.coachY());
     const play = this.button(c, W / 2, bottom - 410, 600, `PLAY  LEVEL ${this.currentLevel()}`, 0x5fbf4a, () => this.openLevelSheet(this.currentLevel()), 1.1);
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.13, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
 
-    // modes: three equal buttons; locked ones explain themselves
     const today = m.daily?.[localDate()];
     if (m.hardUnlocked) tlog.log('daily_offer_view', { date: localDate(), done: !!today });
-    const locked = () => this.showToast('Win one normal run to unlock'.toUpperCase());
-    const modes: [string, number, () => void][] = [
-      [today ? 'DAILY \u2713' : 'DAILY', 0x5fbf4a, () => (m.hardUnlocked ? this.startDaily() : locked())],
-      ['CHALLENGE', 0xe8452c, () => (m.hardUnlocked ? this.retry(true, -1) : locked())],
-      ['REMIX', 0x27a4c0, () => (m.hardUnlocked ? this.openRemixPicker() : locked())],
-    ];
-    void modes;
-    void locked;
 
     // workshop
     const wsOpen = !m.playtestMode && (this.currentLevel() > 5 || !!m.hardUnlocked || (m.owned?.length ?? 0) > 0);
@@ -4495,7 +4482,6 @@ Now beat the real level.`, this.coachY());
     });
     c.add(util);
     this.drawNav(c, 'machine');
-    void u;
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
   }
@@ -4582,9 +4568,10 @@ Now beat the real level.`, this.coachY());
     return c;
   }
 
-  /** One-time lesson bubble over a home screen (r17): text, a pulsing ring on the target, GOT IT. */
+  /** One-time lesson bubble over a home screen (r17): text, a pulsing ring on the target, GOT IT.
+   *  ringC: where the ring lives (e.g. a scrolling road container, so it moves and masks with it); defaults to c. */
   roadLessonDone: (() => void) | null = null;
-  lesson(id: string, c: Phaser.GameObjects.Container, text: string, at: { x: number; y: number; r: number }, bubbleY: number, noButton = false) {
+  lesson(id: string, c: Phaser.GameObjects.Container, text: string, at: { x: number; y: number; r: number }, bubbleY: number, noButton = false, ringC: Phaser.GameObjects.Container = c) {
     const m = this.meta;
     if ((m.lessons ??= {})[id]) return;
     sfx.lessonPop();
@@ -4595,8 +4582,6 @@ Now beat the real level.`, this.coachY());
     const h = 70 + lines * 38;
     b.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-(W - 60) / 2, -h / 2, W - 60, h, 24).fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 60) / 2 + 4, -h / 2 + 4, W - 68, h - 8, 21));
     b.add(this.add.text(-(W - 60) / 2 + 30, -h / 2 + 22, text, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533', lineSpacing: 6, wordWrap: { width: W - 280 } }));
-    const ok = this.add.text((W - 60) / 2 - 30, h / 2 - 30, noButton ? '' : 'GOT IT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 16, y: 8 } }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
-    b.add(ok);
     const done = () => {
       m.lessons![id] = true;
       store(META_KEY, JSON.stringify(m));
@@ -4604,8 +4589,13 @@ Now beat the real level.`, this.coachY());
       ring.destroy();
       b.destroy();
     };
-    ok.on('pointerup', done);
-    c.add([ring, b]);
+    if (!noButton) {
+      const ok = this.add.text((W - 60) / 2 - 30, h / 2 - 30, 'GOT IT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 16, y: 8 } }).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+      b.add(ok);
+      ok.on('pointerup', done);
+    }
+    ringC.add(ring);
+    c.add(b);
     return done;
   }
 
@@ -4771,7 +4761,11 @@ Now beat the real level.`, this.coachY());
     const endlessOpen = this.endlessOpen();
     const play = endlessOpen
       ? this.button(c, W / 2, H - 182, 620, `ENDLESS  \u00b7  FLOOR ${this.endlessRec().floor}`, 0x8e58c9, () => this.startEndless(), 1.0)
-      : this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => this.openLevelSheet(cur), 1.0);
+      : this.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${tag}`, 0x5fbf4a, () => {
+          this.roadLessonDone?.();
+          this.roadLessonDone = null;
+          this.openLevelSheet(cur);
+        }, 1.0);
     // r41 Workshop Season entry (left, mirrors QA)
     if (this.currentLevel() > 3) {
       const sr = this.seasonRec();
@@ -4792,10 +4786,14 @@ Now beat the real level.`, this.coachY());
     if (!REDUCED_MOTION) this.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.drawNav(c, 'road');
     // r17 lesson 1: first road visit
-    const curY = scrollY + nodeY(cur);
     if (!(m.lessons ?? {}).road && cur <= 3) {
-      const done = this.lesson('road', c, `Tap Level ${cur} to play.`, { x: xs[(cur - 1) % 4], y: curY, r: 80 }, Math.max(top + 70, curY - 150), true);
+      // the ring lives in road space so it scrolls and masks with the road; the bubble stays on screen
+      const done = this.lesson('road', c, `Tap Level ${cur} to play.`, { x: xs[(cur - 1) % 4], y: nodeY(cur), r: 80 }, Math.max(top + 70, scrollY + nodeY(cur) - 150), true, road);
       this.roadLessonDone = done ?? null;
+      // closing the tab destroys ring + bubble with it; a later visit must not run this stale callback
+      c.once(Phaser.GameObjects.Events.DESTROY, () => {
+        if (this.roadLessonDone === done) this.roadLessonDone = null;
+      });
     }
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.Out' });
@@ -4815,9 +4813,7 @@ Now beat the real level.`, this.coachY());
     this.drawWallet(c);
     c.add(this.add.text(W / 2, 170, 'EVENTS', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     const lv = this.currentLevel() - 1; // levels cleared
-    const today = m.daily?.[localDate()];
-    const paid = !!m.dailyPaid?.[localDate()];
-    const card = (y: number, h: number, title: string, lines: string[], col: number, open: boolean, need: number, cb: () => void, extra?: [string, () => void]) => {
+    const card =(y: number, h: number, title: string, lines: string[], col: number, open: boolean, need: number, cb: () => void, extra?: [string, () => void]) => {
       const cc = this.add.container(W / 2, y);
       if (this.hasArt('ui_card')) cc.add(this.add.image(0, 0, 'ui_card').setDisplaySize(W - 50, h));
       else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
@@ -4832,19 +4828,12 @@ Now beat the real level.`, this.coachY());
       }
       c.add(cc);
     };
-    const now = new Date();
-    const hrs = 23 - now.getHours();
-    const mins = 59 - now.getMinutes();
     const dailyOpen = m.playtestMode ? lv >= 10 : lv >= 3 || m.hardUnlocked;
     // r42 DAILY PUZZLE leads the Events tab (Daily Bench + classic modes moved behind "Other modes")
     const pz = this.puzzleRec();
     const solvedToday = pz.lastSolved === localDate();
     const dp = this.dailyPuzzle();
     card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : 3, () => this.startPuzzle(dp, 'daily'), ['Other modes \u203a', () => this.openOtherModes(lv)]);
-    void today;
-    void paid;
-    void hrs;
-    void mins;
     if (m.playtestMode) {
       this.drawNav(c, 'events');
       return;
@@ -6585,29 +6574,6 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.button(c, W / 2, top + 680, 300, 'BACK', 0x8a6a4a, () => this.openSettings(), 0.8);
   }
 
-  openHelperSheet() {
-    sfx.click();
-    const m = this.meta;
-    const all: Family[] = ['magnet', 'battery', 'fan'];
-    const c = this.sheet(760);
-    const top = H / 2 - 380;
-    this.sheetTitle(c, top, 'HELPER', 'One helper joins your next run.\nIt mixes its own parts into the deliveries.');
-    const pick = (f: Family | null) => {
-      for (const k of Object.keys(m.toys) as Family[]) m.toys[k] = false;
-      if (f) m.toys[f] = true;
-      store(META_KEY, JSON.stringify(m));
-      this.openTeamSheet();
-    };
-    this.button(c, W / 2, top + 230, 440, 'NONE', 0x8a6a4a, () => pick(null), 0.85);
-    all.forEach((f, i) => {
-      const y = top + 340 + i * 110;
-      if (f in m.toys || this.ownsUnit(f)) this.button(c, W / 2, y, 440, `${FAMILY_INFO[f].name.toUpperCase()}${m.toys[f] ? '  \u2713' : ''}`, 0x27a4c0, () => pick(f), 0.85);
-      else c.add(this.add.text(W / 2, y, `${FAMILY_INFO[f].name}: locked`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));
-    });
-    const nc = this.nextChallenge();
-    if (nc) c.add(this.add.text(W / 2, top + 670, `Next unlock: ${nc.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5));
-  }
-
   openRecords() {
     const m = this.meta;
     const c = this.sheet(720);
@@ -7058,10 +7024,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
           }),
         );
       };
-      let rootIdx = 0;
       if (d.merge) {
         const [a, b] = d.merge;
-        rootIdx = b;
         this.tweens.add({ targets: imgs[a], x: base[b].x, y: base[b].y, duration: 260, ease: 'Quad.In', onComplete: () => imgs[a].setAlpha(0) });
         timers.push(this.time.delayedCall(280, () => c.active && this.tweens.add({ targets: imgs[b], scale: imgs[b].scale * 1.3, duration: 140, yoyo: true })));
         fire(b, 1);
@@ -7081,7 +7045,6 @@ Merge them into a RANK ${rank}!`, this.coachY());
         const to = at(r, k);
         timers.push(this.time.delayedCall(STEP, () => c.active && this.tweens.add({ targets: imgs[i], x: to.x, y: to.y, duration: 380, ease: 'Back.Out' })));
       }
-      void rootIdx;
       timers.push(this.time.delayedCall(2300, () => zap.destroy()));
     };
     play();
