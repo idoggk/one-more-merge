@@ -1,28 +1,46 @@
 // Smoke test: start every saga level in the real scene, let a merge bot play it fast for a few seconds,
 // and report page errors / console errors per level. Usage: node tools/smoke-levels.mjs [from] [to] [seconds]
+// 'to' defaults to the last level in levels.json. PAGES=n plays n levels at once, each on its own page in
+// its own browser context (separate saves); output stays in level order.
+import { readFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { createServer } from 'vite';
 
-const from = Number(process.argv[2] ?? 1), to = Number(process.argv[3] ?? 60), secs = Number(process.argv[4] ?? 6);
+const levelCount = JSON.parse(readFileSync(new URL('../src/content/levels.json', import.meta.url), 'utf8')).levels.length;
+const from = Number(process.argv[2] ?? 1), to = Number(process.argv[3] ?? levelCount), secs = Number(process.argv[4] ?? 6);
 const only = process.env.ONLY ? process.env.ONLY.split(',').map(Number) : null;
+const pages = Math.max(1, Number(process.env.PAGES ?? 1) || 1);
 const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const server = await createServer({ server: { port: 5198, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
-const page = await browser.newPage();
-await page.setViewport({ width: 390, height: 763, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-const errors = [];
-let cur = 0;
-page.on('pageerror', (e) => errors.push(`L${cur} PAGEERROR ${e.message}\n${(e.stack ?? '').split('\n').slice(1, 6).join('\n')}`));
-page.on('console', (m) => m.type() === 'error' && errors.push(`L${cur} console ${m.text().slice(0, 160)}`));
-// 'load' + polling for the scene, not networkidle0: a cold Vite dep pre-bundle on a busy machine can keep
-// the network busy past 30 s, and the scene check is what we actually need
-await page.goto(`${server.resolvedUrls.local[0]}?timer&reset`, { waitUntil: 'load', timeout: 120000 });
-await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 120000 });
+// several pages run side by side, so none of them may be throttled as a background tab
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--autoplay-policy=no-user-gesture-required',
+  '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-for (let n = from; n <= to; n++) {
-  if (only && !only.includes(n)) continue;
-  cur = n;
+const levels = [];
+for (let n = from; n <= to; n++) if (!only || only.includes(n)) levels.push(n);
+const errors = []; // [level, message]
+const lines = new Map();
+let printed = 0;
+const flush = () => { while (printed < levels.length && lines.has(levels[printed])) console.log(lines.get(levels[printed++])); };
+
+async function openPage() {
+  const ctx = pages > 1 ? await browser.createBrowserContext() : browser.defaultBrowserContext();
+  const page = await ctx.newPage();
+  await page.setViewport({ width: 390, height: 763, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const p = { page, cur: 0 };
+  page.on('pageerror', (e) => errors.push([p.cur, `L${p.cur} PAGEERROR ${e.message}\n${(e.stack ?? '').split('\n').slice(1, 6).join('\n')}`]));
+  page.on('console', (m) => m.type() === 'error' && errors.push([p.cur, `L${p.cur} console ${m.text().slice(0, 160)}`]));
+  // 'load' + polling for the scene, not networkidle0: a cold Vite dep pre-bundle on a busy machine can keep
+  // the network busy past 30 s, and the scene check is what we actually need
+  await page.goto(`${server.resolvedUrls.local[0]}?timer&reset`, { waitUntil: 'load', timeout: 120000 });
+  await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 120000 });
+  return p;
+}
+
+async function runLevel(p, n) {
+  const { page } = p;
+  p.cur = n;
   await page.evaluate((fk) => { window.__fk = fk; }, !!process.env.FASTKILL);
   await page.evaluate((lv) => {
     const sc = window.__omm.game.scene.getScene('game');
@@ -58,8 +76,17 @@ for (let n = from; n <= to; n++) {
     const flags = process_env_debug ? ` [paused=${sc.paused} modal=${!!sc.modal} expl=${sc.explaining} intro=${sc.introActive} guided=${!!sc.guided} item=${!!sc.itemLesson} wait=${sc.tutorialWaiting} coach=${sc.coach?.waitingTap}]` : '';
     return `${s.phase}${flags} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.stage ? ` machine ${s.stage.i + 1}/${s.stage.hps.length + (s.stage.goal ? 1 : 0)}` : ''}${s.boss && !s.boss.light ? ' BOSS' : ''}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}`;
   }, !!process.env.DEBUGFLAGS);
-  console.log(`L${n} ${st}`);
+  lines.set(n, `L${n} ${st}`);
+  flush();
 }
-console.log(errors.length ? errors.join('\n') : 'NO ERRORS');
+
+// the first page warms Vite's dep pre-bundle; the rest then open in parallel
+const first = await openPage();
+const workers = [first, ...await Promise.all(Array.from({ length: Math.min(pages, levels.length) - 1 }, openPage))];
+let next = 0;
+await Promise.all(workers.map(async (p) => { while (next < levels.length) await runLevel(p, levels[next++]); }));
+// stable sort: errors stay in the order they happened within each level
+errors.sort((a, b) => a[0] - b[0]);
+console.log(errors.length ? errors.map((e) => e[1]).join('\n') : 'NO ERRORS');
 await browser.close();
 await server.close();
