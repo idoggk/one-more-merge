@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyUnitsB0, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnitsB0, UNITS_B0_KEY, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -191,6 +191,9 @@ applySpamVariant(spamVariant());
 // t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
 const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
 applyPace(qaPace());
+// t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
+const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
+applyUnitsB0(qaUnitsB0());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -5264,6 +5267,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
     else if (td?.slot === 'helper') toys = [td.id];
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
+    applyUnitsB0(qaUnitsB0()); // QA UNITS B0 switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -5884,11 +5888,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
     }, 0.8);
     // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
-    c.add(this.add.text(W / 2, top + 790, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 775, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const cur = spamVariant();
     SPAM_VARIANTS.forEach((v, i) => {
       const on = v.id === cur;
-      this.button(c, W / 2 + (i - 1.5) * 162, top + 850, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1.5) * 162, top + 830, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(SPAM_KEY, v.id === 'off' ? null : v.id);
         applySpamVariant(v.id);
         tlog.log('qa_spam_variant', { variant: v.id });
@@ -5897,18 +5901,30 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }, 0.62);
     });
     // 5) t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
-    c.add(this.add.text(W / 2, top + 935, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 895, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const curPace = qaPace();
     PACES.forEach((p, i) => {
       const on = p.id === curPace;
-      this.button(c, W / 2 + (i - 1) * 210, top + 995, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(PACE_KEY, p.id === 'today' ? null : p.id);
         tlog.log('qa_pace', { pace: p.id });
         this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });
-    this.button(c, W / 2, top + 1100, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    // 6) t-a8c886ad units B0 (this device only; applies when the next level starts)
+    c.add(this.add.text(W / 2, top + 1015, 'UNITS B0 (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const curB0 = qaUnitsB0();
+    [false, true].forEach((on, i) => {
+      const sel = on === curB0, label = on ? 'B0' : 'OFF';
+      this.button(c, W / 2 + (i - 0.5) * 210, top + 1070, 300, sel ? `[${label}]` : label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(UNITS_B0_KEY, on ? 'on' : null);
+        tlog.log('qa_units_b0', { on });
+        this.showToast(on ? 'UNITS B0  ·  START A LEVEL' : 'UNITS B0 OFF (live game)  ·  NEXT LEVEL');
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    this.button(c, W / 2, top + 1135, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */

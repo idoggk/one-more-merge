@@ -428,7 +428,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!matchShare()) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= capOf(s, g.family) || !(isShooter(g.family) || isRelay(g.family))) continue;
+    if (!g || g.rank >= capOf(s, g.family) || !(TUNING.unitsB0 || isShooter(g.family) || isRelay(g.family))) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -509,12 +509,12 @@ function peekBag(s: GameState): Family {
   return tmp.bag[0];
 }
 
-function refillBag(s: GameState) {
+export function refillBag(s: GameState) {
   const rng = new Rng(s.supplyRng);
   const bag: Family[] = [];
   const src = s.bagOverride ?? TUNING.bag;
   for (const f of Object.keys(src) as Family[]) for (let i = 0; i < src[f]; i++) bag.push(squadFam(s, f));
-  for (const f of s.toys ?? []) for (let i = 0; i < (TUNING.toyBag[f] ?? 0); i++) bag.push(f);
+  for (const f of s.toys ?? []) for (let i = 0, n = TUNING.toyBag[f] ? (TUNING.unitsB0 ? TUNING.b0.toyBag : TUNING.toyBag[f]) : 0; i < n; i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
   s.supplyRng = rng.state;
