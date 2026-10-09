@@ -71,6 +71,8 @@ const SNAP_CUE_GAP = 120;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
 /** r38: player-facing durations are m:ss (ChatGPT review: never raw seconds on cards). */
+/** Mix a 0xRRGGBB colour toward white by t (0..1). */
+const lighten = (c: number, t: number) => [16, 8, 0].reduce((n, sh) => n | (Math.round(((c >> sh) & 255) + (255 - ((c >> sh) & 255)) * t) << sh), 0);
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
 /** r34: clock ring centre x (left of the HP bar); the machine counter mirrors it on the right. */
 const CLOCK_X = 62;
@@ -545,7 +547,8 @@ export class GameScene extends Phaser.Scene {
     this.clockRing = this.add.graphics().setDepth(3);
     this.timerText.setPosition(CLOCK_X, HP_Y + 1).setOrigin(0.5).setFontSize(27).setDepth(4);
     this.stagePips = this.add.text(W - CLOCK_X, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center', lineSpacing: -6 }).setOrigin(0.5).setDepth(4);
-    this.mergesLeftLabel = this.add.text(8, HP_Y - 64, 'MERGES LEFT', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0, 0.5).setDepth(4).setVisible(false);
+    // 390x844 QA: 20px read as tiny; now two centred lines sitting on top of the merges-left ring
+    this.mergesLeftLabel = this.add.text(CLOCK_X, HP_Y - 52, 'MERGES\nLEFT', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center', lineSpacing: -8 }).setOrigin(0.5, 1).setDepth(4).setVisible(false);
 
     // event lane (single place for chain results / warnings, never over the HP bar or gadgets)
     this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
@@ -1750,7 +1753,8 @@ Now beat the real level.`, this.coachY());
       const col = hex(PALETTE[ch.meaning].hue);
       const parts: Phaser.GameObjects.Text[] = [];
       if (ch.text) parts.push(this.add.text(0, 0, ch.text, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: col }).setOrigin(0, 0.5));
-      if (ch.sub) parts.push(this.add.text(0, 0, ch.sub, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: col }).setOrigin(0, 0.5).setAlpha(ch.struck ? 0.8 : 1));
+      // USED UP sub-labels are lifted toward white so the struck-out name still reads on the dark chip
+      if (ch.sub) parts.push(this.add.text(0, 0, ch.sub, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ch.struck ? hex(lighten(PALETTE[ch.meaning].hue, 0.55)) : col }).setOrigin(0, 0.5));
       const w = PAD * 2 + parts.reduce((n, t) => n + t.width, 0) + (parts.length - 1) * 6;
       return { ch, parts, w, hue: PALETTE[ch.meaning].hue };
     });
@@ -1765,13 +1769,16 @@ Now beat the real level.`, this.coachY());
       rows[rows.length - 1].push(b);
       rw += (rw ? GAP : 0) + b.w;
     }
+    // 390x844 QA: above a top-row target the chips covered the clock ring and machine counter. When the stack would
+    // reach past the board's top edge into the HUD, it hangs BELOW the target instead (first row just under it).
+    const below = cy - CELL / 2 - 40 - (rows.length - 1) * (CH + 6) - CH / 2 < BY - 4;
     rows.forEach((row, ri) => {
       const total = row.reduce((n, b) => n + b.w, 0) + GAP * (row.length - 1);
       let x = Phaser.Math.Clamp(cx - total / 2, 12, W - 12 - total);
-      const y = cy - CELL / 2 - 40 - ri * (CH + 6);
+      const y = below ? cy + CELL / 2 + 40 + ri * (CH + 6) : cy - CELL / 2 - 40 - ri * (CH + 6);
       for (const b of row) {
         const g = this.add.graphics();
-        g.fillStyle(0x2b1d2e, 0.92).fillRoundedRect(x, y - CH / 2, b.w, CH, 14).lineStyle(3, b.hue, b.ch.struck ? 0.55 : 1).strokeRoundedRect(x, y - CH / 2, b.w, CH, 14);
+        g.fillStyle(0x2b1d2e, 0.92).fillRoundedRect(x, y - CH / 2, b.w, CH, 14).lineStyle(3, b.hue, b.ch.struck ? 0.7 : 1).strokeRoundedRect(x, y - CH / 2, b.w, CH, 14);
         c.add(g);
         let tx = x + PAD;
         for (const t of b.parts) {
@@ -1781,7 +1788,7 @@ Now beat the real level.`, this.coachY());
         }
         const sub = b.ch.sub ? b.parts[b.parts.length - 1] : null;
         // USED UP: the mark's name struck through
-        if (b.ch.struck && sub) c.add(this.add.graphics().lineStyle(3, 0xffffff, 0.9).lineBetween(sub.x - 2, y + 1, sub.x + sub.width + 2, y + 1));
+        if (b.ch.struck && sub) c.add(this.add.graphics().lineStyle(4, b.hue, 1).lineBetween(sub.x - 2, y + 1, sub.x + sub.width + 2, y + 1));
         x += b.w + GAP;
       }
     });
@@ -2868,7 +2875,7 @@ Now beat the real level.`, this.coachY());
     const s = this.s;
     const r = this.clockRing.clear();
     const sc = s.stage ? this.stageCount() : undefined;
-    if (this.mergesLeftLabel.visible !== !!s.puzzle) this.mergesLeftLabel.setVisible(!!s.puzzle).setY(HP_Y - 64);
+    if (this.mergesLeftLabel.visible !== !!s.puzzle) this.mergesLeftLabel.setVisible(!!s.puzzle).setY(HP_Y - 52);
     // puzzles set the pips to merges-left below: skip this text so it isn't re-rendered twice every frame
     if (!s.puzzle) this.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
     if (sc) {
@@ -6955,7 +6962,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   ];
 
   /** Board marks legend: a mini cell per mark, drawn with the same functions / art as the board, one sentence each. */
-  marksLegend(c: Phaser.GameObjects.Container, top: number, page2 = false) {
+  marksLegend(c: Phaser.GameObjects.Container, top: number, page2 = false): number {
     // clarity pass 2: label, sentence and colour of every row come from PALETTE (core/marks.ts), same as the board
     const cs = 76, k = cs / CELL, x = 118;
     const P = PALETTE;
@@ -7053,8 +7060,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
         },
       },
     ];
-    rows.forEach((r, i) => {
-      const y = top + 222 + i * 80;
+    // flow layout (390x844 QA: 3-line rows ran into the next one): each row is as tall as its wrapped text, min 80
+    let rowTop = top + 182;
+    rows.forEach((r) => {
+      const body = this.add.text(x + 64, 0, r.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: '#3b2533', wordWrap: { width: W - x - 64 - 70 }, lineSpacing: 1 }).setOrigin(0, 0);
+      const h = Math.max(80, 28 + body.height + 4);
+      const y = rowTop + 40;
+      rowTop += h;
       const under = this.add.graphics().fillStyle(0xb98a5e, 0.35).fillRoundedRect(x - cs / 2 + 4, y - cs / 2 + 4, cs - 8, cs - 8, 14);
       const boss = !!r.under;
       const g = this.add.graphics();
@@ -7066,8 +7078,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       c.add(g);
       if (more) c.add(more);
       c.add(this.add.text(x + 64, y - 30, r.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a' }).setOrigin(0, 0.5));
-      c.add(this.add.text(x + 64, y - 14, r.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: '#3b2533', wordWrap: { width: W - x - 64 - 70 }, lineSpacing: 1 }).setOrigin(0, 0));
+      c.add(body.setY(y - 14));
     });
+    return rowTop;
   }
 
   guideUnlocked(unlock: number) {
@@ -7098,8 +7111,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       c.add(this.add.text(W / 2, top + 560, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '25px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
       c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
     } else if (open && (pg.key === 'marks' || pg.key === 'marks2')) {
-      this.marksLegend(c, top, pg.key === 'marks2');
-      c.add(this.add.text(W / 2, top + 762, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+      const end = this.marksLegend(c, top, pg.key === 'marks2');
+      c.add(this.add.text(W / 2, Math.max(top + 762, end + 8), `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
     } else if (open && pg.key === 'items') {
       (['overcharge', 'spark', 'corner'] as const).forEach((k, i) => {
         const im = this.add.image(W / 2 + (i - 1) * 150, top + 330, `item_${k}`);

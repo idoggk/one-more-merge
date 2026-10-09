@@ -1,10 +1,15 @@
 // Phone-size screenshots of named game states for design reviews (ChatGPT critique rounds).
-// Starts its own temporary Vite server. Usage: node tools/shots.mjs [outDir] [state ...]   (default screenshots/)
+// Starts its own temporary Vite server. Usage: node tools/shots.mjs [--viewport=WxH] [outDir] [state ...]
+// (default screenshots/, 390x763; e.g. --viewport=390x844 for an iPhone 12-15 screen; VIEWPORT=390x844 also works)
 import puppeteer from 'puppeteer-core';
 import { createServer } from 'vite';
 import { mkdirSync } from 'node:fs';
 
-const out = process.argv[2] ?? 'screenshots';
+const vpArg = process.argv.find((a) => a.startsWith('--viewport='));
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--viewport='));
+const vp = (vpArg?.slice('--viewport='.length) ?? process.env.VIEWPORT ?? '390x763').match(/^(\d+)x(\d+)$/);
+if (!vp) throw new Error('viewport must look like 390x844');
+const out = args[0] ?? 'screenshots';
 mkdirSync(out, { recursive: true });
 const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const server = await createServer({ server: { port: 5199, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' });
@@ -13,7 +18,7 @@ const URL = `${server.resolvedUrls.local[0]}?timer`;
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage();
-await page.setViewport({ width: 390, height: 763, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+await page.setViewport({ width: +vp[1], height: +vp[2], deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
 await page.goto(URL, { waitUntil: 'networkidle0', timeout: 120000 });
 await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 30000 });
@@ -337,6 +342,13 @@ const states = {
   marks_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks'))); }, 900],
   marks2_legend: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'marks2'))); }, 900],
   overdrive_guide: [(sc) => { sc.openHowTo(Math.max(0, sc.constructor.GUIDE.findIndex((p) => p.key === 'overdrive'))); }, 900],
+  // phone layout QA (390x844): guide legend pages, merge-preview chips on top-row targets, puzzle MERGES LEFT
+  guide_marks: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'marks')); }, 900],
+  guide_marks2: [(sc) => { sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'marks2')); }, 900],
+  chips_top_left: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(22); sc.finishIntro(true); const s = sc.s; const mk = (f, r, x = {}) => ({ id: s.nextId++, family: f, rank: r, cd: 30, ...x }); s.grid.fill(null); Object.assign(s.grid, { 0: mk('cannon', 2, { amp: 1.3, primed: true }), 4: mk('cannon', 2, { amp: 1.15 }), 2: mk('cannon', 2), 7: mk('coil', 2), 6: mk('bell', 1), 12: mk('cannon', 2), 1: mk('amplifier', 1), 3: mk('battery', 1) }); sc.reconcile(true); setTimeout(() => { sc.input.activePointer.isDown = true; sc.paused = true; sc.dragIdx = 12; sc.dragId = s.grid[12].id; sc.moved = true; sc.hoverIdx = 0; sc.drawHeld(); }, 700); }, 1300],
+  chips_top_right: [(sc) => { sc.hoverIdx = 4; sc.drawHeld(); }, 600],
+  chips_top_mid: [(sc) => { sc.hoverIdx = 2; sc.drawHeld(); }, 600],
+  pz_label: [(sc) => { clearInterval(window.__bot); sc.input.activePointer.isDown = false; sc.paused = false; sc.dragIdx = -1; sc.hoverIdx = -1; sc.drawHeld(); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startPuzzle(sc.dailyPuzzle(), 'daily'); setTimeout(() => { if (sc.explaining) sc.nextExplain(); }, 1200); }, 2400],
   // clarity pass 3: a tap on a closed corner with a loose part about to land beside it
   cell_card: [(sc) => { sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, tap_hint: true }; sc.startLevel(5); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = false; const e = sc.s.grid.map((x, i) => (x ? -1 : i)).filter((i) => i >= 0); sc.s.masked = [e[e.length - 1]]; sc.openCellCard(e[e.length - 1]); }, 500); }, 1500],
   intro_mid: [
@@ -371,7 +383,7 @@ const states = {
     900,
   ],
 };
-const only = process.argv.slice(3);
+const only = args.slice(1);
 for (const [name, [fn, ms]] of Object.entries(states)) {
   if (only.length && !only.includes(name)) continue;
   await page.evaluate(`(${fn.toString()})(window.__omm.game.scene.getScene('game'))`);
