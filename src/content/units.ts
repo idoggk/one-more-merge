@@ -2,6 +2,7 @@
 // monetization values"). Cards come from crates (earned or bought with Gems) and Bolt packs; the first card of a
 // unit unlocks it; duplicates + Bolts level it. Numbers: ChatGPT round 32 spec (reviewed). Tune here first.
 import type { Family } from '../core/types';
+import { TUNING } from './tuning';
 
 export type Rarity = 'common' | 'rare' | 'epic';
 export interface UnitDef {
@@ -46,9 +47,15 @@ export const cardsFor = (u: UnitDef, level: number) => LEVEL_CARDS[u.rarity][lev
 export const boltsFor = (u: UnitDef, level: number) => LEVEL_BOLTS[u.rarity][level - 1] ?? 99999;
 /** Damage multiplier a unit's level gives (shooters +4%/level, relays +2%/level, helpers level their utility instead). */
 export const levelMult = (u: UnitDef | undefined, level: number) => (!u ? 1 : u.slot === 'shooter' ? 1 + 0.04 * (level - 1) : u.slot === 'relay' ? 1 + 0.02 * (level - 1) : 1);
+/** Helper multipliers by unit level, same formulas as core/cascade.ts (Battery: +0.03/level, L3 High Voltage +0.20). */
+export const helperMult = {
+  battery: (level: number) => TUNING.batteryBonus + 0.03 * (level - 1) + (level >= 3 ? 0.2 : 0),
+  amplifier: (level: number) => 1.3 + 0.03 * (level - 1),
+  signal_beacon: (level: number) => 1.15 + 0.02 * (level - 1),
+};
 /** What a level gives, in words (unit detail page). */
 export const levelPerkText = (u: UnitDef, level: number) =>
-  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${(1.3 + 0.03 * (level - 1)).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${(1.15 + 0.02 * (level - 1)).toFixed(2)}` : u.id === 'battery' ? `Prime x${(1.5 + 0.03 * (level - 1)).toFixed(2)}` : `Level ${level}`;
+  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : `Level ${level}`;
 
 // ---- crates ----
 export type CrateKind = 'wood' | 'iron' | 'gold';

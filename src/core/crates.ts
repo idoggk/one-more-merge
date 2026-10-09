@@ -1,5 +1,6 @@
 // Crate + pack opening (round 32). Pure + seeded so contents are reproducible from (seed, counter).
-import { CRATES, EPIC_PITY, FEATURED_CRATE, NEW_UNIT_PITY, RARITY_ODDS, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
+import { slotRarity } from './crateOdds';
+import { CRATES, EPIC_PITY, FEATURED_CRATE, NEW_UNIT_PITY, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
 import { Rng } from './rng';
 import type { Family } from './types';
 
@@ -36,12 +37,8 @@ export function rollCrate(kind: CrateKind, owned: ReadonlySet<Family>, seed: num
   const spec = CRATES[kind];
   const rng = new Rng(seed >>> 0 || 1);
   const rar: Rarity[] = [];
-  for (let k = 0; k < spec.cards; k++) {
-    const x = rng.next();
-    rar.push(x < RARITY_ODDS.epic ? 'epic' : x < RARITY_ODDS.epic + RARITY_ODDS.rare ? 'rare' : 'common');
-  }
-  // guarantees fill the first slots
-  for (let k = 0; k < spec.rareMin; k++) if (rar[k] === 'common') rar[k] = 'rare';
+  // guarantees fill the first slots (crateOdds.ts reads the same rule for the odds panel)
+  for (let k = 0; k < spec.cards; k++) rar.push(slotRarity(rng.next(), k < spec.rareMin));
   const forcedEpic = kind !== 'wood' && pity.epic >= EPIC_PITY.at && !rar.includes('epic');
   if (forcedEpic) rar[0] = 'epic';
   const missing = (r: Rarity) => pool(r).filter((u) => !owned.has(u));
