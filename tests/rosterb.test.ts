@@ -152,6 +152,9 @@ describe('roster B unit jobs', () => {
     const two = run(board([[0, g('arc_welder')], [3, g('rocket')], [29, g('cannon')]]), 0, { arc_welder: 6 });
     expect(two.edges.filter((e) => e.kind === 'arc').map((e) => e.to)).toEqual([3, 29]);
     expect(act(two, 'rocket').jobs?.spread).toBe(1.3);
+    // a Welder squad (no other shooter kind on the board) jumps to the nearest other machine instead
+    const alone = run(board([[0, g('arc_welder')], [1, g('arc_welder')], [12, g('coil')], [29, g('bell')]]), 0);
+    expect(alone.edges.filter((e) => e.kind === 'arc' && e.from === 0).map((e) => e.to)).toEqual([12]);
   });
 
   it('each machine fires at most once in a crowded roster B chain', () => {

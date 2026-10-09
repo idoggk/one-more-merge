@@ -422,11 +422,12 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       const [r0, c0] = rc(idx);
       const L = lvl('arc_welder');
       for (let t = 0; t < (L >= 9 ? 3 : L >= 3 ? 2 : 1); t++) {
-        let best = -1, bd = 99;
+        // (a squad whose only shooter kind is the Welder has no other shooter: it jumps to the nearest other machine)
+        let best = -1, bd = 99, bs = false;
         grid.forEach((g, n) => {
-          if (!g || visited.has(n) || !isShooter(g.family) || g.family === 'arc_welder' || blockSet.has(n) || crosses(idx, n)) return;
-          const d = Math.abs(Math.floor(n / COLS) - r0) + Math.abs((n % COLS) - c0);
-          if (best < 0 || d < bd || (d === bd && g.rank > grid[best]!.rank)) [best, bd] = [n, d];
+          if (!g || visited.has(n) || g.family === 'arc_welder' || blockSet.has(n) || crosses(idx, n)) return;
+          const d = Math.abs(Math.floor(n / COLS) - r0) + Math.abs((n % COLS) - c0), sh = isShooter(g.family);
+          if (best < 0 || (sh && !bs) || (sh === bs && (d < bd || (d === bd && g.rank > grid[best]!.rank)))) [best, bd, bs] = [n, d, sh];
         });
         if (best < 0) break;
         edges.push({ from: idx, to: best, kind: 'arc' });
