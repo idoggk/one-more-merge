@@ -6,6 +6,7 @@ import type { BoosterCounts, YardWeekRec } from '../core/yardWeek';
 import type { PuzzleRec } from '../core/puzzle';
 import type { SeasonRec } from '../core/season';
 import type { PaceCurve } from '../core/pace';
+import type { Feature } from './unlocks';
 import { isQuotaError, mergeMeta, META_KEY, storeTo } from '../platform/backup';
 import { warnStorageFull } from '../platform/storageWarn';
 
@@ -80,7 +81,11 @@ export interface Meta {
   swapMismatch?: boolean;
   /** Camera shake on big hits (pause-menu toggle; default on). */
   shake?: boolean;
+  /** Set by the level-5 clear / a classic win. Since t-2fd7bb86 it no longer opens features (see unlocks.ts). */
   hardUnlocked: boolean;
+  /** t-2fd7bb86 staggered feature unlocks (sticky) and which ones the player has opened (NEW cue gone). */
+  unlocks?: Partial<Record<Feature, boolean>>;
+  unlockSeen?: Partial<Record<Feature, boolean>>;
   bestTimeHard: number | null;
   /** Unlocked toys and whether each is switched on for runs. */
   toys: Partial<Record<Family, boolean>>;

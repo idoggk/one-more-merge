@@ -119,6 +119,12 @@ export const TUNING = {
    *  (A2 rule with window / minMult) shows a STEADY meter and dims the damage number. Merges are never blocked. */
   optionA3: false,
   optA3: { chainMult: [0.9, 1, 1, 1.05, 1.1, 1.15], gateChain: 2, gateAbove: 10, beat: 0, fatigue: false, window: 3, minMult: 0.2 },
+  /** EXPERIMENT (t-a8c886ad, units option B stage B0), default OFF: the matchmaker copies helpers too and a helper puts
+   *  b0.toyBag tokens in the bag (shooter 6, relay A 4, relay B 2, helper 2); Mortar hits x(orderBase + orderStep x machines
+   *  already fired earlier in this chain), capped at orderCap (+capPerk with L3 Bigger Shell) instead of the depth bonus;
+   *  Arc Welder arcs skip other Arc Welders. */
+  unitsB0: false,
+  b0: { toyBag: 2, orderBase: 0.8, orderStep: 0.1, orderCap: 2.0, capPerk: 0.15 },
 };
 
 export type Tuning = typeof TUNING;

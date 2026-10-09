@@ -1,7 +1,8 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner]
+// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0]
 import { LEVELS, type LevelDef } from '../src/content/levels';
+import { TUNING } from '../src/content/tuning';
 import { levelMult, unitDef } from '../src/content/units';
 import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
@@ -16,6 +17,8 @@ const N = opt('--n', 20);
 const EVERY = opt('--every', 3.5);
 const LVL = args.includes('--lvl') ? opt('--lvl', 1) : 0;
 const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : '';
+// --b0: units option B stage B0 (TUNING.unitsB0) for every squad, BASE included
+TUNING.unitsB0 = args.includes('--b0');
 
 type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
 const SQUADS: Squad[] = [
@@ -157,7 +160,7 @@ const pct = (x: number) => (Number.isFinite(x) ? (x * 100).toFixed(1) : '  -').p
 
 // same levels for every squad: skip teach levels, goal-only levels and levels that force their own shooter
 const defs = LEVELS.filter((d) => d.level >= FROM && d.level <= TO && (d.level - FROM) % STEP === 0 && !d.teach && !(d.goal && !d.waves) && !d.shooter);
-console.log(`squad-swap: levels ${defs.map((d) => d.level).join(',')}  n=${N}/level  every ${EVERY}s  unit level ${LVL || 'unset'}`);
+console.log(`squad-swap: levels ${defs.map((d) => d.level).join(',')}  n=${N}/level  every ${EVERY}s  unit level ${LVL || 'unset'}${TUNING.unitsB0 ? '  UNITS B0' : ''}`);
 
 interface Agg { win: number; clr: number; clrAll: number; chainMed: number; chainP90: number; share: Partial<Record<Family, number>>; passive: number; deep: number; acts: number; wakes: Partial<Record<Family, number>>; helper: string }
 const results = new Map<string, Agg>();

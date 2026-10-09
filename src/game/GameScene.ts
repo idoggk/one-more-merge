@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyUnitsB0, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnitsB0, UNITS_B0_KEY, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -54,9 +54,12 @@ import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type Run
 import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
+import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
+import { CRATE } from '../core/screwObject';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
+import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 export { localDate };
 
@@ -195,6 +198,18 @@ applySpamVariant(spamVariant());
 // t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
 const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
 applyPace(qaPace());
+// t-9adea8b8 QA-only: SCREW YARD OLD (today's plates) / OBJECT (the turnable Screwdom-style object), this device only
+const YARD_MODE_KEY = 'omm_qa_screw_yard';
+const qaYardObject = () => {
+  try {
+    return localStorage.getItem(YARD_MODE_KEY) === 'object';
+  } catch {
+    return false;
+  }
+};
+// t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
+const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
+applyUnitsB0(qaUnitsB0());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -321,6 +336,9 @@ export class GameScene extends Phaser.Scene {
         m.gems = m.gems ?? 0;
       }
       for (const f of STARTER_UNITS) if (!m.units[f]) m.units[f] = { level: 1, cards: 0 }; // r32: Fan joined the starters
+      // t-2fd7bb86: saves from before staggered unlocks keep every feature they already had
+      migrateUnlocks(m, this.currentLevel() - 1);
+      refreshUnlocks(m, this.currentLevel() - 1);
     }
     // r21 external-playtest configuration: ?playtest=1 hides Challenge/Remix, helpers and the cosmetics catalog
     if (qp0.has('playtest')) this.meta.playtestMode = qp0.get('playtest') !== '0';
@@ -3501,7 +3519,6 @@ Now beat the real level.`, this.coachY());
     const m = this.meta;
     m.runs++;
     let newBest = false;
-    let unlockedNow = false;
     if (won) {
       m.wins++;
       const rkey = s.remix ? `${s.target}:${this.activeToys()[0] ?? 'none'}` : '';
@@ -3514,10 +3531,8 @@ Now beat the real level.`, this.coachY());
         else m.bestTime = s.elapsed;
         newBest = true;
       }
-      if (!m.hardUnlocked) {
-        m.hardUnlocked = true;
-        unlockedNow = true;
-      }
+      // t-2fd7bb86: a classic win no longer opens features (they follow the road, unlocks.ts)
+      m.hardUnlocked = true;
     }
     m.bestChain = Math.max(m.bestChain, s.stats.biggestChain);
     const mastery = (m.mastery ??= {});
@@ -3565,7 +3580,6 @@ Now beat the real level.`, this.coachY());
     }
     if (newBests.length) fresh.push(`New best: ${newBests.slice(0, 3).join(' · ')}`);
     if (pay?.onboarding) fresh.push('Includes a welcome gift of 12 Bolts');
-    if (unlockedNow) fresh.push('★ Daily, Challenge + Remix unlocked ★');
     if (fresh.length) {
       c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 535, W - 140, 40 + fresh.length * 38, 18));
       txt(top + 557 + (fresh.length * 38) / 2, fresh.join('\n'), 24, '#b06a1a');
@@ -3830,10 +3844,9 @@ Now beat the real level.`, this.coachY());
         chapterDone = n / 10;
         tlog.log('chapter_reward_granted', { chapter: chapterDone });
       }
-      if (n >= 5 && !m.hardUnlocked) {
-        m.hardUnlocked = true;
-        lines.push('\u2605 All events unlocked \u2605');
-      }
+      if (n >= 5 && !m.hardUnlocked) m.hardUnlocked = true;
+      // t-2fd7bb86: features open one at a time (unlocks.ts), each announced once here and tagged NEW where it lives
+      for (const f of this.checkUnlocks()) if (f !== 'gems') lines.push(`\u2605 NEW: ${FEATURE_INFO[f].name}  (${FEATURE_INFO[f].where}) \u2605`);
     } else if (fresh && s.elapsed >= 30 && s.stats.merges >= 3) {
       const day = localDate();
       const fp = (m.failPaid ??= {});
@@ -4129,6 +4142,7 @@ Now beat the real level.`, this.coachY());
     this.meta.toys[toy] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('unlock', { toy });
+    this.checkUnlocks(); // the first helper opens TEAM
     this.time.delayedCall(900, () => {
       sfx.rankUp(6);
       this.showEvent(`NEW TOY: ${FAMILY_INFO[toy].name.toUpperCase()}  ·  turn it on before your next run`, '#f0b8ff', 3200);
@@ -4490,7 +4504,7 @@ Now beat the real level.`, this.coachY());
     this.applyFinish(mach);
     c.add(mach);
     const hit = this.add.zone(W / 2, feetY - mWidth * 0.25, mWidth * 0.95, mWidth * 0.5).setInteractive({ useHandCursor: true });
-    hit.on('pointerup', () => this.openWorkshop());
+    hit.on('pointerup', () => (!m.playtestMode && this.featureOpen('workshop') ? this.openWorkshop() : this.showToast(`THE WORKSHOP OPENS AFTER LEVEL ${UNLOCK_LEVEL.workshop}`)));
     c.add(hit);
     // idle: 1% breath over 2400ms; newly improved modules get one 180ms highlight
     if (!REDUCED_MOTION) this.tweens.add({ targets: mach, scaleY: mach.scaleY * 1.01, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
@@ -4526,17 +4540,19 @@ Now beat the real level.`, this.coachY());
     }
 
     // helper row
-    const unlocked = Object.keys(m.toys) as Family[];
     const hy = helperY;
     const hg = this.add.graphics().fillStyle(0x2b1d2e, 0.82).fillRoundedRect(44, hy - 46, W - 88, 92, 26);
     c.add(hg);
     const nc = this.nextChallenge();
-    const teamOn = unlocked.length > 0 || m.hardUnlocked;
+    const teamOn = this.featureOpen('team');
     const shooterName = FAMILY_INFO[this.teamShooter() as keyof typeof FAMILY_INFO].name;
     const hl = teamOn ? `Team:  ${shooterName} + ${helper ? FAMILY_INFO[helper].name : 'no helper'}` : empty || !m.bestChain ? 'Merge your first gadgets: tap PLAY!' : nc ? `Next helper: ${nc.text}` : 'Helpers: none yet';
     const ht = this.add.text(80, hy, hl, { fontFamily: 'Lilita One, Arial Black', fontSize: teamOn ? '28px' : '22px', color: '#fff0cf', wordWrap: { width: teamOn ? 400 : W - 170 } }).setOrigin(0, 0.5);
     c.add(ht);
-    if (teamOn && !(m.playtestMode && !m.hardUnlocked)) this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
+    if (teamOn && !(m.playtestMode && !m.hardUnlocked)) {
+      this.button(c, W - 150, hy, 220, 'TEAM', 0x27a4c0, () => this.openTeamSheet(), 0.62);
+      if (isNew(m, 'team')) this.newTag(c, W - 82, hy - 40);
+    }
 
     // PLAY = the current saga level
     const play = this.button(c, W / 2, bottom - 410, 600, `PLAY  LEVEL ${this.currentLevel()}`, 0x5fbf4a, () => this.openLevelSheet(this.currentLevel()), 1.1);
@@ -4546,9 +4562,11 @@ Now beat the real level.`, this.coachY());
     if (m.hardUnlocked) tlog.log('daily_offer_view', { date: localDate(), done: !!today });
 
     // workshop
-    const wsOpen = !m.playtestMode && (this.currentLevel() > 5 || !!m.hardUnlocked || (m.owned?.length ?? 0) > 0);
-    const ws = this.button(c, W / 2, bottom - 280, 600, wsOpen ? 'WORKSHOP' : m.playtestMode ? 'WORKSHOP  \u00b7  soon' : 'WORKSHOP  \u00b7  level 5', 0x8a6a4a, () => (wsOpen ? this.openWorkshop() : this.showToast('THE WORKSHOP OPENS AFTER LEVEL 5')), 0.85);
+    const wsOpen = !m.playtestMode && this.featureOpen('workshop');
+    const wsAt = UNLOCK_LEVEL.workshop;
+    const ws = this.button(c, W / 2, bottom - 280, 600, wsOpen ? 'WORKSHOP' : m.playtestMode ? 'WORKSHOP  \u00b7  soon' : `WORKSHOP  \u00b7  level ${wsAt}`, 0x8a6a4a, () => (wsOpen ? this.openWorkshop() : this.showToast(`THE WORKSHOP OPENS AFTER LEVEL ${wsAt}`)), 0.85);
     if (!wsOpen) ws.setAlpha(0.6);
+    else if (isNew(m, 'workshop')) this.newTag(c, W / 2 - 230, bottom - 312);
     // dot only for genuinely new options: something became affordable since the last Workshop visit
     const affordable = wsOpen && CATALOG.some((it) => !m.owned?.includes(it.id) && it.price <= (m.bolts ?? 0) && it.price > (m.workshopSeenBolts ?? -1));
     if (affordable) c.add(this.add.circle(W / 2 + 230, bottom - 312, 12, 0xe8452c).setStrokeStyle(4, 0xffffff));
@@ -4585,12 +4603,14 @@ Now beat the real level.`, this.coachY());
     const showCaps = (m.capsules ?? 0) > 0 || this.currentLevel() > BOOSTER_UNLOCK.time_capsule || m.hardUnlocked;
     if (showKits) item('booster_jumpstart', 250, m.kits ?? 0);
     if (showCaps) item('booster_time_capsule', 380, m.capsules ?? 0);
-    // r32 premium Gems (drawn gem until art lands)
-    if (this.hasArt('icon_gem')) item('icon_gem', 510, m.gems ?? 0);
-    else {
+    // r32 premium Gems (drawn gem until art lands); t-2fd7bb86: only once the player has earned some
+    const gemsOn = this.featureOpen('gems');
+    if (gemsOn && this.hasArt('icon_gem')) item('icon_gem', 510, m.gems ?? 0);
+    else if (gemsOn) {
       c.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillPoints([new Phaser.Math.Vector2(510, barY - 26), new Phaser.Math.Vector2(536, barY - 6), new Phaser.Math.Vector2(510, barY + 26), new Phaser.Math.Vector2(484, barY - 6)], true).fillStyle(0xb06af0, 1).fillPoints([new Phaser.Math.Vector2(510, barY - 20), new Phaser.Math.Vector2(530, barY - 6), new Phaser.Math.Vector2(510, barY + 19), new Phaser.Math.Vector2(490, barY - 6)], true));
       c.add(this.add.text(544, barY, String(m.gems ?? 0), { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' }).setOrigin(0, 0.5));
     }
+    if (isNew(m, 'gems')) this.newTag(c, 510, barY - 40, 0.8);
     const wallet = this.add.zone(W / 2 - 40, barY, W - 220, 96).setInteractive({ useHandCursor: true });
     wallet.on('pointerup', () => this.openWalletInfo());
     const gear = this.add.text(W - 84, barY, '\u2699', { fontFamily: 'Arial', fontSize: '54px', color: '#3b2533' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -4613,8 +4633,12 @@ Now beat the real level.`, this.coachY());
       // r43: UNITS also gets the dot while an owned unit has an unsolved drill
       const drillReady = t === 'units' && drillsPending((u) => this.ownsUnit(u), GameScene.PUZZLES.drills, this.puzzleRec().drills);
       const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0 || collReady || drillReady)) || yardReady;
-      if (ready) c.add(this.add.circle(x + 62, y - 30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
-      if (t === 'events' && !this.meta.hardUnlocked && this.currentLevel() < 3) lb.setAlpha(0.5);
+      // t-2fd7bb86: a freshly unlocked feature tags the tab it lives on with NEW (instead of the dot)
+      const lives: Partial<Record<typeof t, Feature[]>> = { machine: this.meta.playtestMode ? [] : ['team', 'workshop'], events: ['puzzles', 'challenge', 'remix'] };
+      if ((lives[t] ?? []).some((f) => isNew(this.meta, f))) this.newTag(c, x + 52, y - 36, 0.8);
+      else if (ready) c.add(this.add.circle(x + 62, y - 30, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
+      const eventsOn = this.currentLevel() - 1 >= YARD_UNLOCK || (['puzzles', 'challenge', 'remix'] as Feature[]).some((f) => this.featureOpen(f));
+      if (t === 'events' && !eventsOn) lb.setAlpha(0.5);
       const z = this.add.zone(x, y, 166, 96).setInteractive({ useHandCursor: true });
       z.on('pointerup', () => {
         if (t !== active) {
@@ -4685,6 +4709,34 @@ Now beat the real level.`, this.coachY());
     let n = 1;
     while (st[String(n)] && n < LEVELS.length) n++;
     return n;
+  }
+
+  /** t-2fd7bb86: records features earned since the last check (sticky, see unlocks.ts) and returns them. */
+  checkUnlocks(): Feature[] {
+    const fresh = refreshUnlocks(this.meta, this.currentLevel() - 1);
+    if (fresh.length) {
+      store(META_KEY, JSON.stringify(this.meta));
+      tlog.log('feature_unlock', { features: fresh });
+    }
+    return fresh;
+  }
+
+  featureOpen(f: Feature) {
+    this.checkUnlocks();
+    return isUnlocked(this.meta, f);
+  }
+
+  /** The player opened a feature: its NEW cue goes away. */
+  seen(f: Feature) {
+    if (markSeen(this.meta, f)) store(META_KEY, JSON.stringify(this.meta));
+  }
+
+  /** The short NEW cue on a freshly unlocked feature (same yellow tag as a new crate card). */
+  newTag(c: Phaser.GameObjects.Container, x: number, y: number, scale = 1) {
+    const t = this.add.text(x, y, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 8, y: 1 } }).setOrigin(0.5).setAngle(8).setScale(scale);
+    c.add(t);
+    if (!REDUCED_MOTION) this.tweens.add({ targets: t, scale: scale * 1.15, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    return t;
   }
 
   /** ROAD tab (ChatGPT r15): a scrolling path of numbered levels, HARD / MEGA HARD tags, little machines at work. */
@@ -4893,7 +4945,7 @@ Now beat the real level.`, this.coachY());
     this.drawWallet(c);
     c.add(this.add.text(W / 2, 170, 'EVENTS', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     const lv = this.currentLevel() - 1; // levels cleared
-    const card =(y: number, h: number, title: string, lines: string[], col: number, open: boolean, need: number, cb: () => void, extra?: [string, () => void]) => {
+    const card =(y: number, h: number, title: string, lines: string[], col: number, open: boolean, need: number, cb: () => void, extra?: [string, () => void, boolean]) => {
       const cc = this.add.container(W / 2, y);
       if (this.hasArt('ui_card')) cc.add(this.add.image(0, 0, 'ui_card').setDisplaySize(W - 50, h));
       else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
@@ -4901,19 +4953,26 @@ Now beat the real level.`, this.coachY());
       cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 72, open ? lines.join('\n') : `Unlocks after level ${need}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6, wordWrap: { width: W - 330 } }));
       const b = this.button(cc, (W - 50) / 2 - 130, h / 2 - 56, 200, open ? 'PLAY' : 'LOCKED', col, open ? cb : () => this.showToast(`UNLOCKS AT LEVEL ${need}`), 0.72);
       if (!open) b.setAlpha(0.5);
-      if (extra && open) {
+      // extra[2]: the link shows even while the card itself is locked
+      if (extra && (open || extra[2])) {
         const t = this.add.text(-(W - 50) / 2 + 44, h / 2 - 50, extra[0], { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#b06a1a' }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
         t.on('pointerup', extra[1]);
         cc.add(t);
       }
       c.add(cc);
+      return cc;
     };
-    const dailyOpen = m.playtestMode ? lv >= 10 : lv >= 3 || m.hardUnlocked;
+    // t-2fd7bb86: Daily Puzzle, Challenge and Remix each open on their own level (unlocks.ts)
+    const dailyOpen = m.playtestMode ? lv >= 10 : this.featureOpen('puzzles');
+    const modesOpen = !m.playtestMode && (['puzzles', 'challenge', 'remix'] as Feature[]).some((f) => this.featureOpen(f));
+    const modesNew = (['challenge', 'remix'] as Feature[]).some((f) => isNew(m, f));
     // r42 DAILY PUZZLE leads the Events tab (Daily Bench + classic modes moved behind "Other modes")
     const pz = this.puzzleRec();
     const solvedToday = pz.lastSolved === localDate();
     const dp = this.dailyPuzzle();
-    card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : 3, () => this.startPuzzle(dp, 'daily'), ['Other modes \u203a', () => this.openOtherModes(lv)]);
+    const dcard = card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : UNLOCK_LEVEL.puzzles!, () => (this.seen('puzzles'), this.startPuzzle(dp, 'daily')), ['Other modes \u203a', () => this.openOtherModes(), modesOpen]);
+    if (dailyOpen && isNew(m, 'puzzles')) this.newTag(dcard, 70, -70);
+    if (modesOpen && modesNew) this.newTag(dcard, -(W - 50) / 2 + 220, 110 - 50 - 18, 0.8);
     if (m.playtestMode) {
       this.drawNav(c, 'events');
       return;
@@ -5009,6 +5068,7 @@ Now beat the real level.`, this.coachY());
   }
 
   startYard(n = nextYard(this.yardWeek())) {
+    if (qaYardObject()) return this.startObjectYard();
     const m = this.meta;
     const yd = this.yardWeek();
     if (!yardPlayable(yd, n)) n = nextYard(yd);
@@ -5036,6 +5096,27 @@ Now beat the real level.`, this.coachY());
     }; // (this scene sleeps meanwhile: its own clock is stopped)
     this.scene.launch('yard', data);
     this.scene.sleep();
+  }
+
+  /** QA SCREW YARD: OBJECT - the turnable crate (first step: one hand-built object, nothing booked to the week yet). */
+  startObjectYard() {
+    tlog.log('yard_object_start', { obj: CRATE.id });
+    this.closeModal();
+    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r) };
+    this.scene.launch('objectYard', data);
+    this.scene.sleep();
+  }
+
+  endObjectYard(r: ObjectYardResult) {
+    this.scene.wake();
+    if (r.quit) return this.openYardEvent();
+    tlog.log('yard_object_end', { won: r.won, moves: r.moves });
+    const c = this.panel(520);
+    const top = H / 2 - 260;
+    c.add(this.add.text(W / 2, top + 70, r.won ? 'CRATE TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: r.won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 170, r.won ? `Every screw out in ${r.moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    this.button(c, W / 2, top + 330, 420, r.won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.startObjectYard(), 0.9);
+    this.button(c, W / 2, top + 430, 260, 'EVENT', 0x8a6a4a, () => this.openYardEvent(), 0.75);
   }
 
   endYard(n: number, r: YardResult) {
@@ -5317,6 +5398,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
     else if (td?.slot === 'helper') toys = [td.id];
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
+    applyUnitsB0(qaUnitsB0()); // QA UNITS B0 switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -5544,15 +5626,22 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.button(c, W / 2, top + PH - 80, 240, 'BACK', 0x8a6a4a, () => this.openUnitDetail(u), 0.75);
   }
 
-  openOtherModes(lv: number) {
+  openOtherModes() {
     this.closeModal();
     const m = this.meta;
     const c = this.sheet(560);
     const top = H / 2 - 280;
     this.sheetTitle(c, top, 'OTHER MODES', 'Daily Bench and the classic modes.');
-    this.button(c, W / 2, top + 210, 440, 'DAILY BENCH', 0x5fbf4a, () => this.startDaily(), 0.85);
-    this.button(c, W / 2, top + 320, 440, 'CHALLENGE', 0xe8452c, () => (lv >= 5 || m.hardUnlocked ? this.retry(true, -1) : this.showToast('UNLOCKS AT LEVEL 5')), 0.85);
-    this.button(c, W / 2, top + 430, 440, 'REMIX', 0x27a4c0, () => (lv >= 10 || m.hardUnlocked ? this.openRemixPicker() : this.showToast('UNLOCKS AT LEVEL 10')), 0.85);
+    // t-2fd7bb86: each mode opens on its own level; Daily Bench comes with the Daily Puzzle
+    const mode = (y: number, label: string, col: number, f: Feature, go: () => void) => {
+      const open = this.featureOpen(f);
+      const b = this.button(c, W / 2, y, 440, label, col, () => (open ? (this.seen(f), go()) : this.showToast(`UNLOCKS AT LEVEL ${UNLOCK_LEVEL[f]}`)), 0.85);
+      if (!open) b.setAlpha(0.5);
+      else if (isNew(m, f)) this.newTag(c, W / 2 + 170, y - 34);
+    };
+    mode(top + 210, 'DAILY BENCH', 0x5fbf4a, 'puzzles', () => this.startDaily());
+    mode(top + 320, 'CHALLENGE', 0xe8452c, 'challenge', () => this.retry(true, -1));
+    mode(top + 430, 'REMIX', 0x27a4c0, 'remix', () => this.openRemixPicker());
   }
 
   /** r41 Workshop Season: today's record (rolled to the current day / week / season). */
@@ -5787,6 +5876,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
    *  Guard: stock capped at 5 each, buying is one item per tap, and boosters never enter Daily/Challenge/Remix. */
   openWalletInfo() {
     sfx.click();
+    this.seen('gems');
     const m = this.meta;
     const PH = 900;
     const c = this.sheet(PH);
@@ -5872,8 +5962,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** r33 QA panel: start over, jump to any level, give units / currency. */
   openQaTools(jump = this.currentLevel()) {
     this.closeModal();
-    const c = this.sheet(1180);
-    const top = H / 2 - 590;
+    const c = this.sheet(1270);
+    const top = H / 2 - 635;
     this.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
     const m = this.meta;
     const save = () => store(META_KEY, JSON.stringify(m));
@@ -5914,7 +6004,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (jump <= LEVELS.length) this.openLevelSheet(jump);
     }, 0.85);
     // 3) give stuff
-    this.button(c, W / 2, top + 530, 520, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
+    this.button(c, W / 2 - 150, top + 530, 360, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
       m.units = m.units ?? {};
       for (const u of UNITS) {
         m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
@@ -5922,7 +6012,15 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
       save();
       this.showToast('ALL 13 UNITS AT LEVEL 5');
-    }, 0.8);
+    }, 0.75);
+    // t-2fd7bb86: every staggered feature (Team, Challenge, Workshop, Puzzles, Remix, Gems) open at once
+    this.button(c, W / 2 + 150, top + 530, 360, 'UNLOCK ALL', 0x27a4c0, () => {
+      unlockAll(m);
+      m.hardUnlocked = true;
+      save();
+      tlog.log('qa_unlock_all');
+      this.showToast('ALL FEATURES UNLOCKED');
+    }, 0.75);
     this.button(c, W / 2, top + 620, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
       m.bolts = (m.bolts ?? 0) + 2000;
       m.gems = (m.gems ?? 0) + 500;
@@ -5935,11 +6033,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
     }, 0.8);
     // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
-    c.add(this.add.text(W / 2, top + 790, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 775, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const cur = spamVariant();
     SPAM_VARIANTS.forEach((v, i) => {
       const on = v.id === cur;
-      this.button(c, W / 2 + (i - 1.5) * 162, top + 850, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1.5) * 162, top + 830, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(SPAM_KEY, v.id === 'off' ? null : v.id);
         applySpamVariant(v.id);
         tlog.log('qa_spam_variant', { variant: v.id });
@@ -5948,18 +6046,43 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }, 0.62);
     });
     // 5) t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
-    c.add(this.add.text(W / 2, top + 935, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 895, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const curPace = qaPace();
     PACES.forEach((p, i) => {
       const on = p.id === curPace;
-      this.button(c, W / 2 + (i - 1) * 210, top + 995, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(PACE_KEY, p.id === 'today' ? null : p.id);
         tlog.log('qa_pace', { pace: p.id });
         this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });
-    this.button(c, W / 2, top + 1100, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    // 6) t-a8c886ad units B0 (this device only; applies when the next level starts)
+    c.add(this.add.text(W / 2, top + 1015, 'UNITS B0 (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const curB0 = qaUnitsB0();
+    [false, true].forEach((on, i) => {
+      const sel = on === curB0, label = on ? 'B0' : 'OFF';
+      this.button(c, W / 2 + (i - 0.5) * 210, top + 1070, 300, sel ? `[${label}]` : label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(UNITS_B0_KEY, on ? 'on' : null);
+        tlog.log('qa_units_b0', { on });
+        this.showToast(on ? 'UNITS B0  ·  START A LEVEL' : 'UNITS B0 OFF (live game)  ·  NEXT LEVEL');
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    // 7) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
+    c.add(this.add.text(W / 2, top + 1120, 'SCREW YARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const obj = qaYardObject();
+    (['old', 'object'] as const).forEach((id, i) => {
+      const on = (id === 'object') === obj;
+      const label = id.toUpperCase();
+      this.button(c, W / 2 + (i - 0.5) * 260, top + 1168, 340, on ? `[${label}]` : label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(YARD_MODE_KEY, id === 'old' ? null : id);
+        tlog.log('qa_screw_yard', { mode: id });
+        this.showToast(id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD');
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    this.button(c, W / 2, top + 1232, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
@@ -6120,15 +6243,35 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x81736c, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
     this.button(c, W / 2 + 150, 232, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
     this.collectionStrip(c, 304);
-    // 3-column card grid
-    // 13 units: 4 columns of slightly smaller cards. UI audit (375x667): the last row hid under the bottom nav, so the
+    // owned units: 4 columns of slightly smaller cards
+    // t-2fd7bb86: units you don't own yet are a row of small locked silhouettes, not 13 full cards on day 1
+    const owned = UNITS.filter((u) => this.ownsUnit(u.id));
+    const locked = UNITS.filter((u) => !this.ownsUnit(u.id));
+    // UI audit (375x667): the last row hid under the bottom nav, so the
     // rows fit between the collection strip and the nav (cards shrink a little on short phones)
-    const rows = Math.ceil(UNITS.length / 4), gridTop = 342;
+    const rows = Math.ceil(owned.length / 4), gridTop = 342;
     const pitch = Math.min(232, (H - 122 - gridTop) / rows), k0 = Math.min(0.8, (pitch - 12) / 274);
-    UNITS.forEach((u, k) => {
+    owned.forEach((u, k) => {
       const x = W / 2 + ((k % 4) - 1.5) * 172, y = gridTop + (Math.floor(k / 4) + 0.5) * pitch;
       c.add(this.unitCard(u, x, y).setScale(k0));
     });
+    if (locked.length) {
+      const ly = gridTop + rows * pitch - 10;
+      c.add(this.add.text(W / 2, ly, `LOCKED (${locked.length})  ·  find them in crates`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
+      const per = 7, step = 92;
+      locked.forEach((u, k) => {
+        const row = Math.floor(k / per), inRow = Math.min(per, locked.length - row * per);
+        const x = W / 2 + ((k % per) - (inRow - 1) / 2) * step, y = ly + 66 + row * 96;
+        const t = this.add.container(x, y);
+        t.add(this.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-42, -42, 84, 84, 16));
+        const art = this.unitPortrait(u.id);
+        if (this.textures.exists(art)) t.add(this.fitVisible(this.add.image(0, 0, art), 66).setTintFill(0x8a7a8a).setAlpha(0.5));
+        t.add(this.add.text(0, 0, '\u{1F512}', { fontSize: '28px' }).setOrigin(0.5));
+        t.setSize(84, 84).setInteractive({ useHandCursor: true });
+        t.on('pointerup', () => (sfx.click(), this.openUnitDetail(u)));
+        c.add(t);
+      });
+    }
     this.drawNav(c, 'units');
   }
 
@@ -6326,6 +6469,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       } else st.cards += cd.count;
     }
     store(META_KEY, JSON.stringify(m));
+    this.checkUnlocks(); // the first new unit opens TEAM
   }
 
   openPack(packId: string, role?: UnitDef['slot']) {
@@ -6546,6 +6690,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** BUILD YOUR TEAM (ChatGPT r14): Shooter (Cannon/Rocket) + Coil + Bell (fixed relays) + optional Helper. */
   openTeamSheet() {
     sfx.click();
+    this.seen('team');
     const m = this.meta;
     const PH = 900;
     const c = this.sheet(PH);
@@ -6689,6 +6834,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
    *  BUY / EQUIP button acts (ChatGPT r13: "tap again to buy" invited accidental spending). */
   openWorkshop(preview: string | null = null) {
     sfx.click();
+    this.seen('workshop');
     const m = this.meta;
     m.workshopSeenBolts = m.bolts ?? 0;
     store(META_KEY, JSON.stringify(m));
@@ -6967,19 +7113,49 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
 
   guideUnlocked(unlock: number) {
-    return unlock <= 1 || this.currentLevel() >= unlock || !!this.meta.hardUnlocked;
+    return unlock <= 1 || this.currentLevel() >= unlock;
+  }
+
+  /** t-2fd7bb86: a machine page opens once you own the machine or the road has put it on your board. */
+  guideMachineOpen(key: string) {
+    const pg = GameScene.GUIDE.find((p) => p.key === key);
+    return this.ownsUnit(key) || (!!pg && pg.unlock !== 999 && this.guideUnlocked(pg.unlock));
+  }
+
+  /** t-2fd7bb86: the guide lists only what the player has reached; every other machine sits on one LOCKED page. */
+  guidePages() {
+    const isUnit = (k: string) => !!unitDef(k);
+    const open = GameScene.GUIDE.filter((p) => (isUnit(p.key) ? this.guideMachineOpen(p.key) : this.guideUnlocked(p.unlock)));
+    const anyLocked = GameScene.GUIDE.some((p) => isUnit(p.key) && !this.guideMachineOpen(p.key));
+    return anyLocked ? [...open, { key: 'locked', title: 'LOCKED MACHINES', role: 'SPECIAL', text: '', tryThis: '', unlock: 0 }] : open;
+  }
+
+  /** The LOCKED page: a dark silhouette per machine not reached yet, with where it comes from. */
+  lockedMachines(c: Phaser.GameObjects.Container, top: number) {
+    const locked = GameScene.GUIDE.filter((p) => unitDef(p.key) && !this.guideMachineOpen(p.key));
+    const cols = 4, cell = 150;
+    locked.forEach((p, i) => {
+      const x = W / 2 + ((i % cols) - (Math.min(cols, locked.length) - 1) / 2) * cell, y = top + 260 + Math.floor(i / cols) * 150;
+      c.add(this.add.graphics().fillStyle(0x2b1d2e, 0.12).fillRoundedRect(x - 66, y - 62, 132, 140, 18));
+      const art = this.unitPortrait(p.key);
+      if (this.textures.exists(art)) c.add(this.fitVisible(this.add.image(x, y - 6, art), 96).setTintFill(0x2b1d2e).setAlpha(0.55));
+      c.add(this.add.text(x, y - 6, '\u{1F512}', { fontSize: '32px' }).setOrigin(0.5));
+      c.add(this.add.text(x, y + 58, p.unlock === 999 ? 'crates' : `level ${p.unlock}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+    });
+    c.add(this.add.text(W / 2, top + 250 + Math.ceil(locked.length / cols) * 150, 'Find these in crates or on the road.\nEach one gets its own page here.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center' }).setOrigin(0.5, 0));
   }
 
   openHowTo(page = 0, back?: () => void, single = false) {
     this.closeModal();
-    const pages = GameScene.GUIDE;
+    // single: one page by its GUIDE index (a new machine's first meeting); otherwise only the pages reached so far
+    const pages = single ? GameScene.GUIDE : this.guidePages();
     page = Math.max(0, Math.min(pages.length - 1, page));
     const pg = pages[page];
     const c = this.panel(940);
     const top = H / 2 - 470;
-    const open = single || (unitDef(pg.key) && pg.unlock === 999 ? this.ownsUnit(pg.key) : this.guideUnlocked(pg.unlock));
+    const open = pg.key !== 'locked';
     c.add(this.add.text(W / 2, top + 56, single ? 'NEW MACHINE!' : 'MACHINE GUIDE', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 108, open ? pg.title : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 108, pg.title, { fontFamily: 'Lilita One, Arial Black', fontSize: '54px', color: '#2a2233' }).setOrigin(0.5));
     const roleCol = { SHOOTER: '#e8452c', RELAY: '#27a4c0', MOVER: '#c23fd1', SUPPORT: '#5fbf4a', 'THE RULE': '#8a6a4a', SPECIAL: '#e0a020' }[pg.role] ?? '#8a6a4a';
     c.add(this.add.text(W / 2, top + 160, pg.role, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', backgroundColor: roleCol, padding: { x: 14, y: 4 } }).setOrigin(0.5));
     if (open && pg.key === 'overdrive') {
@@ -7009,9 +7185,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.machineDemo(c, W / 2, top + 392, pg.key);
       c.add(this.add.text(W / 2, top + 586, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '26px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
       c.add(this.add.text(W / 2, top + 748, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
-    } else {
-      c.add(this.add.text(W / 2, top + 400, pg.unlock === 999 ? 'Find this machine\nin crates.' : `You meet this machine\nat level ${pg.unlock}.`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
-    }
+    } else this.lockedMachines(c, top);
     const done = () => {
       this.closeModal();
       if (back) back();

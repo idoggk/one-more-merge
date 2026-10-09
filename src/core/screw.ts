@@ -171,7 +171,7 @@ export const removable = (st: YardState, id: number) => !st.removed[id] && block
 /** The next box colours shown to the player. */
 export const previewColors = (st: YardState) => st.lvl.queue.slice(st.qi, st.qi + st.rules.preview);
 /** The open box (slot) a screw of this colour goes into, or -1. */
-export const fitSlot = (st: YardState, color: number) => st.boxes.findIndex((b) => b && b.color === color && b.n < st.rules.boxSize);
+export const fitSlot = (st: Pick<YardState, 'boxes' | 'rules'>, color: number) => st.boxes.findIndex((b) => b && b.color === color && b.n < st.rules.boxSize);
 
 /** Take a screw out. Mutates st. */
 export function tapScrew(st: YardState, id: number): TapResult {
@@ -307,8 +307,11 @@ function endCheck(st: YardState) {
   if (!st.lost) st.peak = Math.max(st.peak, st.tray.length);
 }
 
+/** The box / queue / tray part of a yard state (shared with the object yard, src/core/screwObject.ts). */
+export type SortState = Pick<YardState, 'boxes' | 'qi' | 'tray' | 'rules'> & { lvl: { queue: number[] } };
+
 /** Full boxes leave, the next colours roll in and (with autoPull) pull matching tray screws (cascading). */
-function settle(st: YardState, res: TapResult) {
+export function settle(st: SortState, res: Pick<TapResult, 'left' | 'pulls'>) {
   for (let guard = 0; guard < 64; guard++) {
     const full = st.boxes.findIndex((b) => b && b.n >= st.rules.boxSize);
     if (full >= 0) {

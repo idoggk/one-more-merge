@@ -370,3 +370,10 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - SCREWDRIVERS DROPPED: the event is free. The ticket only metered volume, and the 10-yard ramp + a star-paid track already cap the week, so the ticket was one more resource with no decision in it (owner: "too many systems"). Its earn lines are gone from level / Bounty / Rush / Daily / Endless wins; `meta.screwdrivers` stays readable for old saves.
 - Weekly track pays STARS (best per yard, 30 a week): tiers at 2/5/8/12/15/18/21 and the grand prize at 25 (a 2-star average reaches tier 6). Bolts only for NEW stars (6 + 2n per star); replays that do not improve pay nothing.
 - Not in step 1, so not here: hidden / locked screws (TODO in screw.ts).
+
+### Staggered unlocks (owner: "fewer unlocks in levels 2-6", t-2fd7bb86)
+- Clearing level 5 used to set `hardUnlocked` and open Challenge, Remix, Workshop, TEAM and every guide page at once. Now one feature per step (`src/game/unlocks.ts`, levels cleared): TEAM with the first non-starter unit or helper toy, CHALLENGE 8, WORKSHOP 10, DAILY PUZZLE (+ Daily Bench) 12, REMIX 14, the Gems counter once the player earns a gem. Puzzles moved to 12 so that 10 (chapter boss: gold crate, gems, medal) opens only the Workshop.
+- Each unlock is announced once on the level result ("NEW: CHALLENGE (EVENTS > Other modes)") and wears a NEW! tag on its button and nav tab until first opened (`meta.unlockSeen`). Unlocks are sticky (`meta.unlocks`).
+- Old saves: a one-time migration (no `meta.unlocks` yet) keeps every feature the old rules already showed, without NEW tags. `hardUnlocked` is still set but no longer opens features.
+- Units tab: owned cards only, the rest as a row of small locked silhouettes. Machine guide: rule pages reached so far + machines owned or already met on the road, then one LOCKED MACHINES page.
+- QA TOOLS: UNLOCK ALL opens every feature.
