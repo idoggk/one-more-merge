@@ -194,8 +194,12 @@ export function mergePreview(s: GameState, from: number, to: number): { count: n
   const res = ev.result;
   const merged = s.nextId; // the merged part takes the next id; marks on a and b move onto it
   const pre = new Map(s.grid.filter((g): g is Gadget => !!g).map((g) => [g.id, g]));
-  const before = (id: number) => (id === merged ? { amp: Math.max(a.amp ?? 0, b.amp ?? 0) || undefined, primed: !!(a.primed || b.primed), item: b.item ?? a.item } : pre.get(id));
+  // TUNING.mergeRule prototype: a sandwich also folds two neighbours into the merged part
+  const sw = r.events.find((e): e is Extract<GameEvent, { type: 'sandwich' }> => e.type === 'sandwich');
+  const all = [a, b, ...(sw?.ids ?? []).map((id) => pre.get(id)!)];
+  const before = (id: number) => (id === merged ? { amp: Math.max(...all.map((g) => g.amp ?? 0)) || undefined, primed: all.some((g) => g.primed), item: b.item ?? a.item ?? all.find((g) => g.item)?.item } : pre.get(id));
   const chips: PreviewChip[] = [{ meaning: 'merge', text: `CHAIN ${res.count}` }];
+  if (sw) chips.unshift({ meaning: 'merge', text: 'SANDWICH!', sub: `RANK ${sw.rank}` });
   const placed = new Map((res.amps ?? []).map((m) => [m.id, m.mult]));
   for (const id of res.ampsUsed ?? []) {
     const had = before(id)?.amp;

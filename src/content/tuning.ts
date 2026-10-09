@@ -125,6 +125,11 @@ export const TUNING = {
    *  Arc Welder arcs skip other Arc Welders. */
   unitsB0: false,
   b0: { toyBag: 2, orderBase: 0.8, orderStep: 0.1, orderCap: 2.0, capPerk: 0.15 },
+  /** PROTOTYPE (t-1effe0bf, src/core/sandwich.ts), default 'today': a player merge whose landing cell touches 2+ more
+   *  same-rank parts of its family absorbs two of them. 'sandwich2' = rank +2 (capped); 'sandwichBonus' = +1 as today
+   *  plus sandwichOdShare of the Overdrive meter. Puzzles and kickback fuses never sandwich. */
+  mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
+  sandwichOdShare: 1 / 3,
 };
 
 export type Tuning = typeof TUNING;
