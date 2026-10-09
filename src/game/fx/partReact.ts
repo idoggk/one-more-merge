@@ -4,7 +4,7 @@
 import type Phaser from 'phaser';
 import { canMerge, legalPairs, type GameState } from '../../core/game';
 
-/** Seconds without input before paired parts blink (the 8 s pair hint in updateHints comes after this). */
+/** Seconds without input before paired parts blink (the 8 s pair hint in updateHints comes after this and ends it). */
 export const IDLE_BLINK = 6;
 /** One blink cycle: a soft dip and back, then a rest. */
 const BLINK_MS = 1600;
@@ -16,6 +16,12 @@ const LEAN_PX = 5;
 export function blinkLevel(ms: number) {
   const t = ((ms % BLINK_MS) + BLINK_MS) % BLINK_MS;
   return t < BLINK_ON ? Math.sin((Math.PI * t) / BLINK_ON) : 0;
+}
+
+/** Idle blink: only on a quiet, normal board (never in puzzles: they have their own graduated help, and never with
+ *  hints off). It stops once the 8 s hint pair shows, so the hint is then the one thing that moves. */
+export function idleBlinkOn(o: { playing: boolean; dragIdx: number; hints?: boolean; puzzle: boolean; hintPair: unknown; idleTime: number }) {
+  return o.playing && o.dragIdx < 0 && o.hints !== false && !o.puzzle && !o.hintPair && o.idleTime >= IDLE_BLINK;
 }
 
 /** Cells that are in at least one legal pair. */
@@ -55,8 +61,7 @@ export class PartReact {
     const now = sc.time.now;
     const playing = s.phase === 'playing';
     const held = playing && sc.dragIdx >= 0 && sc.moved && sc.dragView ? s.grid[sc.dragIdx] : null;
-    // idle blink: only on a quiet, normal board (never in puzzles: they have their own graduated help)
-    const blink = playing && !held && sc.dragIdx < 0 && sc.meta.hints !== false && !s.puzzle && sc.idleTime >= IDLE_BLINK;
+    const blink = !held && idleBlinkOn({ playing, dragIdx: sc.dragIdx, hints: sc.meta.hints, puzzle: !!s.puzzle, hintPair: sc.hintPair, idleTime: sc.idleTime });
     if (blink && this.blinkFrom < 0) this.blinkFrom = now;
     if (!blink) {
       this.blinkFrom = -1;
@@ -104,7 +109,7 @@ export class PartReact {
         else this.wiggled.delete(g.id);
       }
       // idle blink: a soft fade on every part that has a pair (alpha only, so it is calm under reduced motion too)
-      const a = blink && this.paired.has(idx) && !(sc.hintPair && (sc.hintPair[0] === idx || sc.hintPair[1] === idx)) ? 1 - 0.35 * lvl : 1;
+      const a = blink && this.paired.has(idx) ? 1 - 0.35 * lvl : 1;
       if (a !== 1 || this.blinked.has(g.id)) {
         img.setAlpha(a);
         if (a !== 1) this.blinked.add(g.id);

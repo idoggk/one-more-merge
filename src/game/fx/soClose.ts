@@ -1,22 +1,24 @@
 // 'So close' lose text (rival-games study #11; presentation only, no streak or economy change).
 // Estimates how many more merges the run needed: HP still standing (this machine + the ones after it)
-// over the run's average damage per merge (all damage dealt / player merges).
+// over the run's average damage per merge (player-merge damage / player merges; passive shots, kickback and
+// carried overkill are left out, so they never inflate the per-merge average).
 
 export type SoCloseInput = {
   hp: number;
   maxHp: number;
   /** Staged levels: every machine's HP and the index of the one on screen. */
   stage?: { i: number; hps: number[] };
-  totalDamage: number;
+  /** Damage from player merges only (stats.dmgBy.player). */
+  playerDamage: number;
   merges: number;
 };
 
 /** Merges still needed, or null when the run gives no fair average (no merges or no damage yet). */
 export function mergesAway(o: SoCloseInput): number | null {
-  if (o.merges <= 0 || o.totalDamage <= 0) return null;
+  if (o.merges <= 0 || o.playerDamage <= 0) return null;
   const later = o.stage ? o.stage.hps.slice(o.stage.i + 1).reduce((a, b) => a + b, 0) : 0;
   const left = Math.max(0, o.hp) + later;
-  return Math.max(1, Math.ceil(left / (o.totalDamage / o.merges)));
+  return Math.max(1, Math.ceil(left / (o.playerDamage / o.merges)));
 }
 
 /** e.g. 'Machine 4/4 at 8% HP  ·  about 2 merges away'. `name` is used when there are no stages. */

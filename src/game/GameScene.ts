@@ -2082,7 +2082,7 @@ Now beat the real level.`, this.coachY());
     }
     this.tutorialText.setText('');
     if (this.s.puzzle && this.s.phase === 'playing') this.puzzleNudge();
-    if (!this.meta.hints || this.s.phase !== 'playing') return;
+    if (this.meta.hints === false || this.s.phase !== 'playing') return;
     // r35: the board holds still now, so thinking is allowed: hint after 8 s, and point at the pair with the biggest chain
     // r44: never in puzzles - the biggest chain is usually the trap there; puzzles have their own graduated help
     if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0 && !this.s.puzzle) {
@@ -3145,15 +3145,7 @@ Now beat the real level.`, this.coachY());
     }
 
     // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
-    // live chain counter in the lane: counts up beat by beat, then the final line lands on the hit
-    if (r.count > 2 && !ribbon) {
-      let soFar = 0;
-      for (let d = 0; d <= maxDepth; d++) {
-        soFar += r.activations.filter((a) => a.depth === d).length;
-        const n = soFar;
-        this.time.delayedCall(windup + d * step, () => this.showEvent(`CHAIN  x${n}`, n >= 10 ? '#ffd24a' : '#fff0cf', 900));
-      }
-    }
+    // live chain counter: the ladder's 'xN' at the source cell (the old lane counter is gone, so only one counter shows)
     playChainLadder(this, r.activations, windup, step, root, REDUCED_MOTION);
     for (let d = 0; d <= maxDepth; d++) {
       const at = (windup + d * step) / 1000;
@@ -3923,7 +3915,7 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(fitLine(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : soCloseText({ hp: s.hp, maxHp: s.maxHp, stage: s.stage, totalDamage: s.stats.totalDamage, merges: s.stats.merges }, this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5), W - 120));
+    c.add(fitLine(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : soCloseText({ hp: s.hp, maxHp: s.maxHp, stage: s.stage, playerDamage: s.stats.dmgBy.player ?? 0, merges: s.stats.merges }, this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5), W - 120));
     // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
     if (!won && this.hasArt('defeat')) {
       const im = this.fitVisible(this.add.image(W / 2, top + 296, 'defeat'), 240);
