@@ -57,7 +57,7 @@ import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { CRATE } from '../core/screwObject';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
-import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
+import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, OD_LABEL, stageHudText, TUTORIAL, unitsTitle } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
 import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
@@ -254,6 +254,7 @@ export class GameScene extends Phaser.Scene {
   shieldG!: Phaser.GameObjects.Graphics;
   odGauge!: Phaser.GameObjects.Graphics;
   boltIcon?: Phaser.GameObjects.Image;
+  odLabel?: Phaser.GameObjects.Text;
   flames: Phaser.GameObjects.Image[] = [];
   face!: Phaser.GameObjects.Image;
   faceUntil = 0;
@@ -422,6 +423,8 @@ export class GameScene extends Phaser.Scene {
     this.odGauge = this.add.graphics();
     this.steadyText = this.add.text(544, 72, 'STEADY', { fontFamily: 'Arial Black', fontSize: '14px', color: '#3b2533' }).setOrigin(0, 0.5).setVisible(false);
     if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
+    // F8: the lightning meter is Overdrive, not the Bolts currency: it carries its own caption
+    this.odLabel = this.add.text(384 + 77, 70, OD_LABEL, { fontFamily: 'Arial Black', fontSize: '12px', color: '#8a5a2a' }).setOrigin(0.5).setVisible(false);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
     // stage backdrop (per opponent) in a rounded window behind the target
@@ -808,7 +811,7 @@ export class GameScene extends Phaser.Scene {
       // r37: the first stage explains its HUD once (clock ring left, machine counter right), before anything moves
       if (this.s.stage && !this.meta.tips.stage_hud)
         this.explain('stage_hud', [
-          { text: `${this.stageCount()!.n} MACHINES to beat!\nBeat them all before this ring runs out.`, spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
+          { text: stageHudText(this.s.stage), spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
         ]);
     }
     tlog.log('intro_end', { skipped });
@@ -1870,6 +1873,7 @@ Now beat the real level.`, this.coachY());
       return;
     }
     const pair = this.tutorialPair(step);
+    this.demoKilled = false;
     this.coach.say(step.text, pair ? this.nearY([cellXY(pair[0]), cellXY(pair[1])]) : this.coachY());
     if (!pair) {
       this.tutorialStep++;
@@ -1884,6 +1888,8 @@ Now beat the real level.`, this.coachY());
   }
 
   tutorialWaiting = false;
+  /** F7: the current tutorial step's merge smashed the demo can (its `afterKill` copy replaces `after`). */
+  demoKilled = false;
   /** After a tutorial merge: the explanation waits for GOT IT (r24: players never looked up), then the next step. */
   onTutorialMerge() {
     const step = GameScene.TUTORIAL[this.tutorialStep];
@@ -1912,7 +1918,7 @@ Now beat the real level.`, this.coachY());
         pts = this.s.grid.flatMap((g, i) => (g && Math.floor(i / COLS) === row ? [cellXY(i)] : []));
       }
       this.tutorialWaiting = true;
-      this.coach.say(step.after!, step.focus === 'target' ? this.coachY() + 120 : this.nearY(pts), {
+      this.coach.say(this.demoKilled && step.afterKill ? step.afterKill : step.after!, step.focus === 'target' ? this.coachY() + 120 : this.nearY(pts), {
         next: {
           page: '',
           label: 'GOT IT',
@@ -2027,7 +2033,7 @@ Now beat the real level.`, this.coachY());
     // clarity pass 3: the Overdrive lesson also runs in boss levels and when chains (not merges) fill the meter
     const odSoon = odByChain() ? s.odCharge >= odNeeded(s) * 0.7 : s.odCharge === odNeeded(s) - 1;
     if (odSoon && s.odLeft <= 0 && !(s.level !== undefined && s.level < 3) && s.target >= 0)
-      this.tip('overdrive', `${odByChain() ? 'Chains fill' : 'One more merge fills'} the bolt meter (top):\nfull = OVERDRIVE, Cannons fire super fast\nfor a few seconds. Pause > Machine guide.`, { x: 384 + 70, y: 46 });
+      this.tip('overdrive', `${odByChain() ? 'Chains fill' : 'One more merge fills'} the OVERDRIVE meter (top):\nfull = OVERDRIVE, Cannons fire super fast\nfor a few seconds. Pause > Machine guide.`, { x: 384 + 70, y: 46 });
     if (this.realBoss) return; // r22: boss levels keep the stage clear (own explainers only)
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 5 && s.elapsed < 12) this.tip('delivery', 'NEXT brings another gadget.\nMatch its machine and number.', { x: BX + 150, y: TRAY_Y - 30 });
@@ -2203,6 +2209,7 @@ Now beat the real level.`, this.coachY());
     const charged = Math.floor((s.odCharge * need) / odNeeded(s));
     const gx = 384;
     this.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo && !early).setAngle(s.odLeft > 0 ? Math.sin(this.time.now / 60) * 12 : 0);
+    this.odLabel?.setVisible(!demo && !early);
     const active = s.odLeft > 0;
     const gaugeArt = this.hasArt('gauge_off') && this.hasArt('gauge_on');
     if (gaugeArt && !this.gaugeImgs.length) for (let i = 0; i < 6; i++) this.gaugeImgs.push(this.add.image(0, 46, 'gauge_off').setDisplaySize(24, 34));
@@ -2367,7 +2374,7 @@ Now beat the real level.`, this.coachY());
                 TUNING.kickbackFuse
                   ? { text: `Your big chain (${TUNING.bigCascade}+) shook\na part loose from the monster!`, spots: [tgtSpot] }
                   : { text: `A big chain (${TUNING.bigCascade}+) or a broken monster panel\n(every 25% of HP: the marks on the HP bar)\nshook a part loose!`, spots: [tgtSpot, hpSpot] },
-                { text: 'It shook a part loose.\nThe ring showed where it lands: this cell.\n(A DOUBLE ring = it lands on its match and merges.)', spots: [cellXY(landedAt)] },
+                { text: 'The ring showed where it lands: this cell.\n(A DOUBLE ring = it lands on its match and merges.)', spots: [cellXY(landedAt)] },
                 { text: 'This one waits for you.\nMerge it with the same gadget\nand the same number!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
               ]);
             }
@@ -2390,6 +2397,7 @@ Now beat the real level.`, this.coachY());
           break;
         case 'kill':
           if (!e.demo) tlog.log('kill', { target: e.target, at: +this.s.elapsed.toFixed(1) });
+          else this.demoKilled = true;
           if (e.final) this.playBossDefeat();
           else this.playKill(e.final, e.demo);
           break;
@@ -3171,7 +3179,7 @@ Now beat the real level.`, this.coachY());
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
             { text: 'Your merge fired this gadget.\nIt hit the monster.', spots: [cellXY(r.rootIdx)] },
-            { text: 'It woke these other gadgets.\nCoils zap; Bells ring their lines.\nThey wake OTHER families.', spots: [], draw: () => this.chainArrows(r, 3, true) },
+            { text: chainWakeText(this.s.grid.flatMap((g) => (g ? [g.family] : []))), spots: [], draw: () => this.chainArrows(r, 3, true) },
             { text: `Those fired too: a CHAIN of ${r.count}!\nMove gadgets next to each other\nto connect their reach.`, spots: [], draw: () => this.chainArrows(r, 3, false) },
           ]),
         );
@@ -3895,7 +3903,9 @@ Now beat the real level.`, this.coachY());
     const rowObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
     if (s.stats.biggestChain >= 2 && n >= 2) rowObjs.push(this.add.text(0, 0, `Biggest chain x${s.stats.biggestChain}`, big));
     if (bolts > 0) {
-      if (this.hasArt('icon_bolt')) rowObjs.push(this.fitVisible(this.add.image(0, 0, 'icon_bolt'), 46));
+      // F8: the Bolts currency icon (the wallet's), not the Overdrive lightning
+      const bk = this.hasArt('bolt') ? 'bolt' : 'icon_bolt';
+      if (this.hasArt(bk)) rowObjs.push(this.fitVisible(this.add.image(0, 0, bk), 46));
       rowObjs.push(this.add.text(0, 0, `+${bolts} BOLTS`, { ...big, color: '#b06a1a' }));
     }
     // the icon hugs its number; separate items get a wide gap
@@ -4203,7 +4213,9 @@ Now beat the real level.`, this.coachY());
     else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
     cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 40, 'MONSTER BOUNTIES', { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0, 0.5));
     if (!list) {
-      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 90, 'Beat 3 bosses or mini-bosses to unlock\ndaily bounties.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6 }));
+      // F8: locked like the other EVENTS cards (text under the title + a dimmed LOCKED button)
+      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 72, BOUNTY_LOCKED.text(new Set(this.beatenBossIds()).size), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6 }));
+      this.button(cc, (W - 50) / 2 - 130, h / 2 - 56, 200, 'LOCKED', 0x8e58c9, () => this.showToast(BOUNTY_LOCKED.toast), 0.72).setAlpha(0.5);
       c.add(cc);
       return;
     }
@@ -5390,6 +5402,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     m.tutorialDone = true;
     store(META_KEY, JSON.stringify(m));
     tlog.log('level_start', { level: n, jumpstart });
+    // F7: the warm-up's last lane banner (e.g. "x4 CHAIN") must not carry into the level
+    this.laneMsg.until = 0;
+    this.laneText?.setText('').setAlpha(0);
     // r38 trial: today's featured unit takes its slot at TRIAL_LEVEL for TRIAL_BATTLES battles
     const tu = this.trialActive();
     const td = tu ? unitDef(tu) : undefined;
@@ -6237,7 +6252,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     bg.setScale(Math.max(W / bg.width, H / bg.height));
     c.add([bg, this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
     this.drawWallet(c);
-    c.add(this.add.text(W / 2, 160, 'UNITS', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, 160, unitsTitle(this.meta.units, UNITS), { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
     // crates + shop row
     const crates = this.totalCrates();
     this.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x81736c, () => (crates ? this.openNextCrate() : this.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
@@ -6256,7 +6271,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       c.add(this.unitCard(u, x, y).setScale(k0));
     });
     if (locked.length) {
-      const ly = gridTop + rows * pitch - 10;
+      // F8: the label sits under the last card row (card art is 274 tall at scale k0), not across its bottom edge
+      const ly = gridTop + (rows - 0.5) * pitch + 137 * k0 + 24;
       c.add(this.add.text(W / 2, ly, `LOCKED (${locked.length})  ·  find them in crates`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
       const per = 7, step = 92;
       locked.forEach((u, k) => {

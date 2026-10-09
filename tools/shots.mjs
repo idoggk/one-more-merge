@@ -38,6 +38,11 @@ const states = {
   tut_after: [(sc) => { const st = sc.constructor.TUTORIAL[sc.tutorialStep]; const p = sc.tutorialPair(st); if (p) sc.commitDrop(p[0], p[1], sc.s.grid[p[0]].id); }, 2200],
   l1_lesson: [(sc) => { sc.startLevel(1); }, 4200],
   guide0: [(sc) => { clearInterval(window.__bot); sc.openTitle('road'); sc.openHowTo(0); }, 1500],
+  // new-player copy fixes (t-8432ed2c): Cannon guide page, the stage HUD lesson on a goal stage, x_chain on a cannons-only board
+  guide_cannon: [(sc) => { clearInterval(window.__bot); sc.openTitle('road'); sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'cannon')); }, 1500],
+  stage_hud4: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(4); sc.finishIntro(true); }, 2500],
+  xchain_l1: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({ x_chain: false }, { get: (t, k) => k !== 'x_chain' || t.x_chain, set: (t, k, v) => ((t[k] = v), true) }); sc.startLevel(1); sc.finishIntro(true); setTimeout(() => { const s = sc.s; const g = s.grid.find(Boolean); s.grid = s.grid.map(() => null); [7, 11, 12, 13, 17].forEach((i, k) => (s.grid[i] = { ...g, id: 9000 + k, rank: 1 })); sc.reconcile(); sc.commitDrop(13, 12, 9003); }, 800); }, 4500],
+  xchain_l1_p2: [(sc) => sc.coach.nextBtn.emit('pointerup'), 900],
   guide2: [(sc) => { sc.openHowTo(2); }, 1300],
   new_rocket: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, new_rocket: false }; sc.startLevel(6); }, 4200],
   settings: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openSettings(); }, 900],
