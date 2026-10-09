@@ -183,6 +183,20 @@ export const sfx = {
     const semi = PHRASE[Math.min(beat, PHRASE.length - 1)];
     tone(440 * Math.pow(2, semi / 12), 0.12, 'triangle', 0.1, delay, undefined, true);
   },
+  /** chain ladder (rival study #4): link k plays the k-th note of a rising pentatonic scale; caps at the top note. */
+  ladder: (link: number, delay: number) => {
+    const f = note(330, Math.min(link, 12));
+    tone(f, 0.11, 'triangle', 0.07, delay, undefined, true);
+    tone(f * 2, 0.06, 'sine', 0.015, delay);
+  },
+  /** big chain (8+) final hit after the hold: deep boom + crack + a bright octave shimmer. */
+  bigFinish: () => {
+    tone(70, 0.45, 'sine', 0.3, 0, 38, true);
+    tone(160, 0.22, 'triangle', 0.2, 0, 70, true);
+    bandNoise(0.3, 0.35, 0, 500, 0.6);
+    bandNoise(0.04, 0.3, 0, 4000, 1.2);
+    for (const s of [0, 7, 12]) tone(660 * Math.pow(2, s / 12), 0.35, 'triangle', 0.05, 0.03, undefined, true);
+  },
   /** phrase resolution on the biggest shot */
   chord: (n: number) => {
     const root = 220 * (n >= 10 ? 1.5 : 1);
