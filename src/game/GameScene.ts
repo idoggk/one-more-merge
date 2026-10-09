@@ -51,7 +51,7 @@ import puzzleData from '../content/puzzles.json';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../core/sandwich';
 import { playSandwich } from './sandwichFx';
-import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
+import { dailyIndex, HELP, missedUnitText, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
 import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
 import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
@@ -5732,7 +5732,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const top = H / 2 - 320;
     const helpLine = help.showMove ? 'Stuck? NEXT MOVE shows a right merge.' : help.hint ? 'Stuck? HINT lights the part to move first.' : `A hint unlocks after ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0)} more ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0) === 1 ? 'try' : 'tries'}.`;
     c.add(this.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : this.s.puzzle.missedUnit ? missedUnitText(FAMILY_INFO[def.unit as 'cannon'].name, helpLine) : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
     const nextDrill = won && kind === 'drill' && def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
     if (nextDrill) this.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => this.startPuzzle(nextDrill, 'drill'), 0.95);
     else if (!won) {

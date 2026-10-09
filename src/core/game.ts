@@ -139,7 +139,7 @@ export interface GameState {
   rush?: { id: string; slot: number; week: number };
   /** r42 WORKSHOP PUZZLE (Ido: "like a chess puzzle - win in X moves"): merges allowed, used so far. No clock, no
    *  supply, no passive fire, no kickback: the board is fully known and only merges act. */
-  puzzle?: { moves: number; used: number; id: string; only?: Family[] };
+  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean };
   /** r40 Endless Road floor this state plays (presentation + rewards only). */
   endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
@@ -628,7 +628,14 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     if (!canMerge(a, b, s) || s.puzzle.used >= s.puzzle.moves || (s.puzzle.only && !s.puzzle.only.includes(a.family))) return { ok: false, events: ev };
     const r = merge(s, from, to);
     s.puzzle.used++;
-    if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
+    const pz = s.puzzle;
+    if (pz.unit && !pz.unitUsed) pz.unitUsed = r.events.some((e) => e.type === 'cascade' && unitActed(e.result, pz.unit!));
+    if ((s.phase as GameState['phase']) === 'won' && pz.unit && !pz.unitUsed) {
+      // owner: "i finished a drill without using the unit i took the drill for" - a drill only counts when its unit acted
+      s.phase = 'lost';
+      pz.missedUnit = true;
+      for (const e of r.events) if (e.type === 'end') e.won = false;
+    } else if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
       s.phase = 'lost';
       r.events.push({ type: 'end', won: false });
     }
@@ -942,8 +949,13 @@ export function newPuzzle(p: PuzzleDef): GameState {
   s.noKickback = true;
   s.noOverdrive = true;
   s.bag = [];
-  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}) };
+  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}), ...(p.unit ? { unit: p.unit as Family } : {}) };
   return s;
+}
+
+/** Unit drills: a part of `unit` activated in this cascade AND did something (dealt damage or reached another part). */
+export function unitActed(r: CascadeResult, unit: Family): boolean {
+  return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }
 
 /** r33: next machine of the stage (overkill carries over, capped like any hit). The goal machine has no finite HP. */

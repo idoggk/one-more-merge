@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import raw from '../src/content/puzzles.json';
 import { STARTER_UNITS } from '../src/content/units';
 import { drillsPending, drop, newPuzzle, type PuzzleDef } from '../src/core/game';
-import { allLines, DAILY_PLATEAU, dailyIndex, nextWinningMove, notePuzzleAttempt, playMove, puzzleDifficulty, puzzleHelp, puzzleReward, type PuzzleRec } from '../src/core/puzzle';
+import { allLines, DAILY_PLATEAU, dailyIndex, lineWins, missedUnitText, nextWinningMove, unitFreeBreaks, notePuzzleAttempt, playMove, puzzleDifficulty, puzzleHelp, puzzleReward, type PuzzleRec } from '../src/core/puzzle';
 
 const data = raw as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
 const all = [...data.daily, ...Object.values(data.drills).flat()];
@@ -27,6 +27,34 @@ describe('r42 workshop puzzles', () => {
     const q = newPuzzle({ ...data.daily[0], hp: 1e9 });
     for (const [f, t] of data.daily[0].solution) drop(q, f, t, q.grid[f]!.id);
     expect(q.phase).toBe('lost');
+  });
+  // owner: "in the drills i finished a drill without using the unit i took the drill for"
+  it('every drill needs its unit: no merge line breaks the machine unless the drilled unit acted', () => {
+    for (const [u, list] of Object.entries(data.drills))
+      for (const p of list) {
+        expect(p.unit, p.id).toBe(u);
+        const lines = allLines(p);
+        expect(unitFreeBreaks(lines, p.hp).map((l) => l.path), p.id).toEqual([]);
+        expect(lines.some((l) => lineWins(l, p.hp)), p.id).toBe(true);
+        const s = newPuzzle(p);
+        for (const [f, t] of p.solution) drop(s, f, t, s.grid[f]!.id);
+        expect(s.puzzle!.unitUsed, p.id).toBe(true);
+      }
+  }, 120000);
+  it('breaking a drill machine without the unit is not a solve, and says why', () => {
+    const def: PuzzleDef = { id: 'x', moves: 1, hp: 1, board: [['cannon', 2, 0, 0], ['cannon', 2, 0, 1], ['magnet', 1, 5, 4], ['magnet', 1, 5, 3]], solution: [], unit: 'magnet' };
+    const s = newPuzzle(def);
+    const r = drop(s, 0, 1, s.grid[0]!.id);
+    expect(s.hp).toBeLessThanOrEqual(0);
+    expect(s.phase).toBe('lost');
+    expect(s.puzzle!.missedUnit).toBe(true);
+    expect(r.events.filter((e) => e.type === 'end')).toEqual([{ type: 'end', won: false }]);
+    expect(missedUnitText('Magnet', '')).toContain('Use the Magnet to pass this drill');
+    // the same merge solves a drill of the unit that fired
+    const c = newPuzzle({ ...def, unit: 'cannon' });
+    drop(c, 0, 1, c.grid[0]!.id);
+    expect(c.phase).toBe('won');
+    expect(c.puzzle!.missedUnit).toBeUndefined();
   });
   it('r43: UNITS dot iff an owned unit has an unsolved drill', () => {
     const [unit, list] = Object.entries(data.drills).find(([, l]) => l.length > 0)!;
