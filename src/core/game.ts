@@ -1135,7 +1135,7 @@ type DropPlan = { idx: number; land: number; id: number };
 
 /** Choose where a loose part will land (next to a lonely match). Consumes kickRng once. */
 function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
-  const taken = new Set<number>([...reserved, ...locked(s), ...bossPendingCells(s.boss)]);
+  const taken = new Set<number>([...reserved, ...locked(s), ...bossPendingCells(s.boss), ...bossBlocked(s.boss).noDrop]);
   for (const d of s.drops) if (d.plan) taken.add(d.plan.idx).add(d.plan.land);
   const counts = new Map<string, number>();
   for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
@@ -1174,7 +1174,7 @@ export function dropReserved(s: GameState): number[] {
 /** A loose part lands next to a lonely gadget and (threshold drops) fuses with it: one bounded secondary cascade. */
 function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], fuse: boolean, planned: DropPlan | null) {
   // a fuse never upgrades the part under the finger (reserved = held cell + hover target)
-  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !(fuse && reserved.has(p.idx)) && !s.grid[p.land] && !reserved.has(p.land) && !bossPendingCells(s.boss).includes(p.land);
+  const valid = (p: DropPlan | null) => !!p && s.grid[p.idx]?.id === p.id && !(fuse && reserved.has(p.idx)) && !s.grid[p.land] && !reserved.has(p.land) && !bossPendingCells(s.boss).includes(p.land) && !bossBlocked(s.boss).noDrop.has(p.land);
   const pick = valid(planned) ? planned : planDrop(s, reserved, fuse);
   if (pick) {
     const old = s.grid[pick.idx]!;
@@ -1206,7 +1206,8 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
   s.kickRng = rng.state;
   const g = makeGadget(s, fam, 1);
   const lk = locked(s); // never drop a part into a blocked corner / locked row (bug found by the r19 fast-bot sweep)
-  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i) && !lk.has(i) && !bossPendingCells(s.boss).includes(i));
+  const frozen = bossBlocked(s.boss).noDrop; // nor into a frozen row (Fridge Overlord)
+  const slot = s.grid.findIndex((x, i) => !x && !reserved.has(i) && !lk.has(i) && !frozen.has(i) && !bossPendingCells(s.boss).includes(i));
   if (slot >= 0) {
     s.grid[slot] = g;
     ev.push({ type: 'kickback', idx: slot, into: -1, gadget: g });
