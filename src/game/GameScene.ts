@@ -54,6 +54,8 @@ import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type Run
 import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
+import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
+import { CRATE } from '../core/screwObject';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
@@ -190,6 +192,15 @@ applySpamVariant(spamVariant());
 // t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
 const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
 applyPace(qaPace());
+// t-9adea8b8 QA-only: SCREW YARD OLD (today's plates) / OBJECT (the turnable Screwdom-style object), this device only
+const YARD_MODE_KEY = 'omm_qa_screw_yard';
+const qaYardObject = () => {
+  try {
+    return localStorage.getItem(YARD_MODE_KEY) === 'object';
+  } catch {
+    return false;
+  }
+};
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -4929,6 +4940,7 @@ Now beat the real level.`, this.coachY());
   }
 
   startYard(n = nextYard(this.yardWeek())) {
+    if (qaYardObject()) return this.startObjectYard();
     const m = this.meta;
     const yd = this.yardWeek();
     if (!yardPlayable(yd, n)) n = nextYard(yd);
@@ -4956,6 +4968,27 @@ Now beat the real level.`, this.coachY());
     }; // (this scene sleeps meanwhile: its own clock is stopped)
     this.scene.launch('yard', data);
     this.scene.sleep();
+  }
+
+  /** QA SCREW YARD: OBJECT - the turnable crate (first step: one hand-built object, nothing booked to the week yet). */
+  startObjectYard() {
+    tlog.log('yard_object_start', { obj: CRATE.id });
+    this.closeModal();
+    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r) };
+    this.scene.launch('objectYard', data);
+    this.scene.sleep();
+  }
+
+  endObjectYard(r: ObjectYardResult) {
+    this.scene.wake();
+    if (r.quit) return this.openYardEvent();
+    tlog.log('yard_object_end', { won: r.won, moves: r.moves });
+    const c = this.panel(520);
+    const top = H / 2 - 260;
+    c.add(this.add.text(W / 2, top + 70, r.won ? 'CRATE TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: r.won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 170, r.won ? `Every screw out in ${r.moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    this.button(c, W / 2, top + 330, 420, r.won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.startObjectYard(), 0.9);
+    this.button(c, W / 2, top + 430, 260, 'EVENT', 0x8a6a4a, () => this.openYardEvent(), 0.75);
   }
 
   endYard(n: number, r: YardResult) {
@@ -5794,8 +5827,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** r33 QA panel: start over, jump to any level, give units / currency. */
   openQaTools(jump = this.currentLevel()) {
     this.closeModal();
-    const c = this.sheet(1180);
-    const top = H / 2 - 590;
+    const c = this.sheet(1270);
+    const top = H / 2 - 635;
     this.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
     const m = this.meta;
     const save = () => store(META_KEY, JSON.stringify(m));
@@ -5881,7 +5914,20 @@ Merge them into a RANK ${rank}!`, this.coachY());
         this.openQaTools(jump);
       }, 0.62);
     });
-    this.button(c, W / 2, top + 1100, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    // 6) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
+    c.add(this.add.text(W / 2, top + 1070, 'SCREW YARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const obj = qaYardObject();
+    (['old', 'object'] as const).forEach((id, i) => {
+      const on = (id === 'object') === obj;
+      const label = id.toUpperCase();
+      this.button(c, W / 2 + (i - 0.5) * 260, top + 1128, 340, on ? `[${label}]` : label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(YARD_MODE_KEY, id === 'old' ? null : id);
+        tlog.log('qa_screw_yard', { mode: id });
+        this.showToast(id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD');
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    this.button(c, W / 2, top + 1210, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
