@@ -2,6 +2,7 @@ import '@fontsource/lilita-one';
 import Phaser from 'phaser';
 import { computeLayout, GameScene, layoutHeight, setRenderScale, W } from './game/GameScene';
 import { ScrewScene } from './game/ScrewScene';
+import { ObjectYardScene } from './game/ObjectYardScene';
 import { startMusic, unlockAudio } from './game/audio';
 
 async function boot() {
@@ -45,7 +46,7 @@ async function boot() {
     audio: { noAudio: true },
     // dev aid: ?timer keeps the loop running in hidden/background tabs (automated checks)
     fps: new URLSearchParams(location.search).has('timer') || (window as unknown as { __OMM_TIMER?: boolean }).__OMM_TIMER ? { forceSetTimeOut: true, target: 60 } : undefined,
-    scene: [GameScene, ScrewScene],
+    scene: [GameScene, ScrewScene, ObjectYardScene],
   });
   // iOS Safari only lets a gesture's END (touchend / pointerup / click) unlock audio; the scene unlocks on pointerdown
   for (const ev of ['pointerup', 'touchend'])
