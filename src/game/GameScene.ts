@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyUnitsB0, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnitsB0, UNITS_B0_KEY, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -59,6 +59,7 @@ import { CRATE } from '../core/screwObject';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
 import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
+import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 export { localDate };
 
 export const W = 720;
@@ -201,6 +202,9 @@ const qaYardObject = () => {
     return false;
   }
 };
+// t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
+const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
+applyUnitsB0(qaUnitsB0());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -1176,6 +1180,7 @@ export class GameScene extends Phaser.Scene {
       this.moved = true;
       this.lift = p.wasTouch ? DRAG_LIFT_TOUCH : DRAG_LIFT;
       sfx.pickup();
+      haptic(5); // light lift tick
       this.dragView.setDepth(55).setVisible(true);
       this.tweens.killTweensOf(this.dragView);
       this.tweens.add({ targets: this.dragView, scale: 1.08, duration: 75, ease: 'Cubic.Out' });
@@ -1280,19 +1285,50 @@ export class GameScene extends Phaser.Scene {
     this.hoverIdx = -1;
     this.dragView = null; // must be cleared BEFORE commitDrop so reconcile() animates this piece into its new cell
     if (view) view.setDepth(10);
-    if (scrap) {
-      const g = this.s.grid[from];
-      const needsHold = g && g.rank >= 3;
-      if (!needsHold || this.scrapHold >= 0.25) this.doScrap(from, id);
-      else this.snapBack(view, from);
-    } else if (dest >= 0 && dest !== from) {
-      if (!this.commitDrop(from, dest, id)) this.snapBack(view, from);
-    } else this.snapBack(view, from);
+    const plan = planDrop({ from, dest, scrap, rank: ga?.rank ?? 0, scrapHold: this.scrapHold });
+    if (plan.k === 'scrap') this.doScrap(from, id);
+    else if (plan.k === 'commit') {
+      if (!this.commitDrop(from, dest, id)) this.rejectDrop(view, from, 'refused');
+    } else this.rejectDrop(view, from, plan.why);
     this.reconcile(); // belt and braces: every sprite returns to its model cell
     this.scrapHold = 0;
     this.overScrapFlag = false;
     this.drawHeld();
   }
+
+  /** The ONE path for a drop that does nothing (off the board, back on its own cell, an early SCRAP, or a target the
+   *  game refused): the part snaps home with a soft 'nope', a light haptic (we are still inside the finger-up handler,
+   *  where iOS allows it), and a short rate-limited hint by the part. `refused` targets explain themselves already. */
+  rejectDrop(view: GadgetView | null, from: number, why: DropReject) {
+    this.snapBack(view, from);
+    sfx.nope();
+    haptic(8);
+    this.dropRejects++;
+    tlog.log('drop_reject', { why });
+    const text = DROP_HINT[why];
+    if (!text || !this.hintGate.allow(text, this.time.now)) return;
+    const real = view ? this.s.grid.findIndex((g) => g?.id === view.gid) : from;
+    const { x, y } = cellXY(real >= 0 ? real : from);
+    this.dropHint(x, y - 72, text);
+  }
+  /** Reject drops seen (read by tools/touch-test.mjs). */
+  dropRejects = 0;
+  hintGate = new HintGate();
+  /** Small hint above a cell; reduced motion: it fades in place instead of popping and drifting. */
+  dropHint(x: number, y: number, text: string) {
+    const t = this.add.text(x, y, text, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center' }).setOrigin(0.5).setDepth(70);
+    t.setX(Phaser.Math.Clamp(x, t.width / 2 + 8, W - t.width / 2 - 8));
+    this.lastDropHint = text;
+    if (REDUCED_MOTION) {
+      t.setAlpha(0);
+      this.tweens.chain({ targets: t, tweens: [{ alpha: 1, duration: 120 }, { alpha: 0, delay: 900, duration: 300 }], onComplete: () => t.destroy() });
+    } else {
+      t.setScale(0.6);
+      this.tweens.add({ targets: t, scale: 1, duration: 140, ease: 'Back.Out' });
+      this.tweens.add({ targets: t, y: y - 24, alpha: 0, delay: 900, duration: 350, ease: 'Quad.In', onComplete: () => t.destroy() });
+    }
+  }
+  lastDropHint = '';
 
   snapBack(view: GadgetView | null, idx: number) {
     this.dragShadow?.setVisible(false);
@@ -1366,10 +1402,7 @@ export class GameScene extends Phaser.Scene {
 
   commitDrop(from: number, to: number, id: number): boolean {
     if (this.guided) {
-      if (from !== this.guided.from || to !== this.guided.to) {
-        sfx.invalid();
-        return false;
-      }
+      if (from !== this.guided.from || to !== this.guided.to) return false; // rejectDrop() plays the 'nope'
       this.endGuidedDodge();
     }
     const a = this.s.grid[from];
@@ -1378,7 +1411,6 @@ export class GameScene extends Phaser.Scene {
     const merging = canMerge(a, b, this.s);
     // ChatGPT r13: an occupied mismatch BOUNCES (silent swaps punished the exact mistake Ido reported). Swapping is opt-in.
     if (a && b && !merging && !this.meta.swapMismatch) {
-      sfx.invalid();
       tlog.log('mismatch_bounce', { a: `${a.family}${a.rank}`, b: `${b.family}${b.rank}` });
       const msg = a.family === b.family ? `Rank ${a.rank} ≠ Rank ${b.rank}: merge the SAME number` : 'Merge the SAME gadget with the SAME number';
       this.showEvent(msg, '#ffd2c8', 1600);
@@ -1394,7 +1426,6 @@ export class GameScene extends Phaser.Scene {
     const prevBest = this.s.stats.bestRank;
     const res = recordCommand(this.runLog, this.s, { k: 'drop', from, to, id });
     if (!res.ok) {
-      sfx.invalid();
       tlog.log('invalid');
       return false;
     }
@@ -1890,7 +1921,6 @@ Now beat the real level.`, this.coachY());
     const step = GameScene.TUTORIAL[this.tutorialStep];
     const a = this.s.grid[from], b = this.s.grid[to];
     if (this.s.phase !== 'tutorial' || !a || !b || a.family !== b.family || a.rank === b.rank) return false;
-    sfx.invalid();
     for (const id of [a.id, b.id]) this.pulseRank(id, 1.7, 150, 2);
     this.showEvent(`Rank ${a.rank} ≠ Rank ${b.rank}: no merge`, '#ffd2c8', 2200);
     if (step?.kind === 'mismatch') {
@@ -5270,6 +5300,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
     else if (td?.slot === 'helper') toys = [td.id];
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
+    applyUnitsB0(qaUnitsB0()); // QA UNITS B0 switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -5890,11 +5921,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
     }, 0.8);
     // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
-    c.add(this.add.text(W / 2, top + 790, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 775, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const cur = spamVariant();
     SPAM_VARIANTS.forEach((v, i) => {
       const on = v.id === cur;
-      this.button(c, W / 2 + (i - 1.5) * 162, top + 850, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1.5) * 162, top + 830, 240, on ? `[${v.label}]` : v.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(SPAM_KEY, v.id === 'off' ? null : v.id);
         applySpamVariant(v.id);
         tlog.log('qa_spam_variant', { variant: v.id });
@@ -5903,31 +5934,43 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }, 0.62);
     });
     // 5) t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
-    c.add(this.add.text(W / 2, top + 935, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 895, 'PACE (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const curPace = qaPace();
     PACES.forEach((p, i) => {
       const on = p.id === curPace;
-      this.button(c, W / 2 + (i - 1) * 210, top + 995, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(PACE_KEY, p.id === 'today' ? null : p.id);
         tlog.log('qa_pace', { pace: p.id });
         this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });
-    // 6) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
-    c.add(this.add.text(W / 2, top + 1070, 'SCREW YARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    // 6) t-a8c886ad units B0 (this device only; applies when the next level starts)
+    c.add(this.add.text(W / 2, top + 1015, 'UNITS B0 (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    const curB0 = qaUnitsB0();
+    [false, true].forEach((on, i) => {
+      const sel = on === curB0, label = on ? 'B0' : 'OFF';
+      this.button(c, W / 2 + (i - 0.5) * 210, top + 1070, 300, sel ? `[${label}]` : label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(UNITS_B0_KEY, on ? 'on' : null);
+        tlog.log('qa_units_b0', { on });
+        this.showToast(on ? 'UNITS B0  ·  START A LEVEL' : 'UNITS B0 OFF (live game)  ·  NEXT LEVEL');
+        this.openQaTools(jump);
+      }, 0.62);
+    });
+    // 7) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
+    c.add(this.add.text(W / 2, top + 1120, 'SCREW YARD', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const obj = qaYardObject();
     (['old', 'object'] as const).forEach((id, i) => {
       const on = (id === 'object') === obj;
       const label = id.toUpperCase();
-      this.button(c, W / 2 + (i - 0.5) * 260, top + 1128, 340, on ? `[${label}]` : label, on ? 0x5fbf4a : 0x8a6a4a, () => {
+      this.button(c, W / 2 + (i - 0.5) * 260, top + 1168, 340, on ? `[${label}]` : label, on ? 0x5fbf4a : 0x8a6a4a, () => {
         store(YARD_MODE_KEY, id === 'old' ? null : id);
         tlog.log('qa_screw_yard', { mode: id });
         this.showToast(id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD');
         this.openQaTools(jump);
       }, 0.62);
     });
-    this.button(c, W / 2, top + 1210, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
+    this.button(c, W / 2, top + 1232, 260, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.75);
   }
 
   /** r28: every monster, mini-boss and boss with the first level you meet it (built from levels.json). */
