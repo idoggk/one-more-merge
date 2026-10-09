@@ -24,17 +24,19 @@ describe('t-2fd7bb86 staggered unlocks', () => {
     expect(isUnlocked(m, 'gems')).toBe(false);
   });
 
-  it('TEAM opens with the first non-starter unit or helper toy; Gems with the first gem', () => {
+  it('TEAM opens with the first non-starter unit or helper toy, not before L8; Gems with the first gem', () => {
     const m = fresh();
     migrateUnlocks(m, 0);
-    expect(earned(m, 'team', 0)).toBe(false); // the starter Fan alone is not a new unit
+    expect(earned(m, 'team', 7)).toBe(false); // the starter Fan alone is not a new unit
     m.units!.rocket = { level: 1, cards: 0 };
-    expect(refreshUnlocks(m, 2)).toEqual(['team']);
+    expect(refreshUnlocks(m, 2)).toEqual([]); // t-0a294f99: TEAM waits for level 8
+    expect(refreshUnlocks(m, 7)).toEqual(['team']);
     const t = fresh();
     t.toys.magnet = true;
-    expect(earned(t, 'team', 0)).toBe(true);
+    expect(earned(t, 'team', 0)).toBe(false);
+    expect(earned(t, 'team', 7)).toBe(true);
     m.gems = 3;
-    expect(refreshUnlocks(m, 2)).toEqual(['gems']);
+    expect(refreshUnlocks(m, 7)).toEqual(['gems']);
   });
 
   it('unlocks are sticky and carry a NEW cue until first opened', () => {

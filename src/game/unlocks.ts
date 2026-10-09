@@ -1,4 +1,6 @@
+import { CHALLENGES } from '../content/sceneCopy';
 import { STARTER_UNITS } from '../content/units';
+import type { Family } from '../core/types';
 
 /**
  * t-2fd7bb86 staggered unlocks (owner: "fewer unlocks in levels 2-6"). Before this, clearing level 5 set
@@ -32,11 +34,51 @@ export interface UnlockMeta {
   unlockSeen?: Partial<Record<Feature, boolean>>;
 }
 
+/**
+ * t-0a294f99 (walkthrough F2): helper toys (NEW TOY toasts) and TEAM wait until the player reaches this saga level.
+ * Before, an accidental 3-cannon chain in L1 unlocked the Magnet and opened TEAM.
+ */
+export const TOY_LEVEL = 8;
+/** May toy challenges unlock helpers now (`level` = highest saga level reached)? */
+export const toysOpen = (level: number) => level >= TOY_LEVEL;
+
+/**
+ * The toy whose challenge this cascade beats, or null. `level` = highest saga level reached (nothing before TOY_LEVEL).
+ * Challenges run in order (the first toy not yet owned): 3 cannons in one chain, merge a Magnet-pulled gadget, a Battery discharge.
+ */
+export function toyEarned(
+  level: number,
+  toys: Partial<Record<string, boolean>>,
+  r: { activations: { family: string }[]; discharged: unknown[] },
+  kickback: boolean,
+  pulledMerge: boolean,
+): Family | null {
+  if (!toysOpen(level)) return null;
+  const ch = CHALLENGES.find((c) => !(c.toy in toys));
+  if (!ch) return null;
+  if (ch.toy === 'magnet' && !kickback && r.activations.filter((a) => a.family === 'cannon').length >= 3) return 'magnet';
+  if (ch.toy === 'battery' && !kickback && pulledMerge) return 'battery';
+  if (ch.toy === 'fan' && r.discharged.length) return 'fan';
+  return null;
+}
+
+/**
+ * A toy challenge was beaten: the toy joins the collection. The player's selection never changes silently: the new toy
+ * is switched on only when no toy is on, and the toast says which way it went. Returns null if already owned.
+ */
+export function grantToy(toys: Partial<Record<string, boolean>>, toy: string, name: (t: string) => string): { on: boolean; text: string } | null {
+  if (toy in toys) return null;
+  const current = Object.keys(toys).find((k) => toys[k]);
+  toys[toy] = !current;
+  const n = name(toy).toUpperCase();
+  return { on: !current, text: current ? `NEW TOY: ${n}  ·  ${name(current).toUpperCase()} stays your helper (swap in TEAM)` : `NEW TOY: ${n}  ·  it's ON for your next run` };
+}
+
 const ownsSpecialUnit = (m: UnlockMeta) => Object.entries(m.units ?? {}).some(([id, v]) => v.level >= 1 && !(STARTER_UNITS as string[]).includes(id));
 
 /** Has the player reached this feature's step right now (`cleared` = saga levels cleared)? */
 export function earned(m: UnlockMeta, f: Feature, cleared: number): boolean {
-  if (f === 'team') return ownsSpecialUnit(m) || Object.keys(m.toys).length > 0;
+  if (f === 'team') return toysOpen(cleared + 1) && (ownsSpecialUnit(m) || Object.keys(m.toys).length > 0);
   if (f === 'gems') return (m.gems ?? 0) > 0;
   return cleared >= UNLOCK_LEVEL[f]!;
 }

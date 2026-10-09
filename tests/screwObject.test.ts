@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { fitSlot } from '../src/core/screw';
-import { AUTO_JUMP, coveredBy, CRATE, greedyPick, newObject, objectRules, reachable, reachableAny, ROW_SIZE, solveObject, tapRow, tapScrew, useBroom, useDrill, useHammer, viewOf, type ObjectDef, type ObjectState, type View } from '../src/core/screwObject';
+import { AUTO_JUMP, cloneObject, coveredBy, CRATE, facing, greedyPick, newObject, objectRules, projectPt, reachable, reachableAny, ROW_SIZE, screenPick, screwSpot3, shownFaces, solveObject, tapRow, tapScrew, useBroom, useDrill, useHammer, viewFor, viewOf, type ObjectDef, type ObjectState, type View } from '../src/core/screwObject';
 
 /** A small test object: two blocks in a row front-to-back, so the back block's front screw hides behind the front one. */
 const PAIR: ObjectDef = {
@@ -21,7 +21,10 @@ const PAIR: ObjectDef = {
   ],
   queue: [0, 1],
 };
-const play = (st: ObjectState, sid: number) => tapScrew(st, sid, viewOf(st.lvl.screws[sid].face, 0));
+const play = (st: ObjectState, sid: number) => {
+  const v = viewFor(st, sid);
+  return tapScrew(st, sid, v === -1 ?viewOf(st.lvl.screws[sid].face, 0) : v);
+};
 const randomTapper = (lvl: ObjectDef, seed: number, row = ROW_SIZE) => {
   const r = new Rng(seed);
   const st = newObject(lvl, objectRules(row));
@@ -213,6 +216,85 @@ describe('Screw Yard A: THE CRATE', () => {
     }
     expect(st.lost).toBe(true);
   });
+
+  // t-18c1b8a9: screws 26/27/29 were drawn bright but a tap missed them (or took another screw) after blocks 1/4 fell,
+  // and greedy looped on them forever. Bright / tappable / "the solver may pick it" are now one screen fact.
+  const views: View[] = [0, 1, 2, 3];
+  /** Every view: bright ⇔ a tap on its drawn spot picks exactly it ⇔ tapScrew takes exactly it. */
+  const agree = (st: ObjectState) => {
+    for (const v of views) {
+      const faces = shownFaces(st, v);
+      for (const sc of st.lvl.screws) {
+        if (st.removed[sc.id]) continue;
+        const s = projectPt(screwSpot3(st.lvl, sc.id), v);
+        const bright = reachable(st, sc.id, v);
+        const pk = screenPick(st, v, s.x, s.y, faces);
+        expect(bright, `screw ${sc.id} view ${v}`).toBe(pk.sid === sc.id);
+        // a tap that takes no screw always says why
+        if (pk.sid === null) expect(pk.reason, `screw ${sc.id} view ${v}`).toBeDefined();
+        const nx = cloneObject(st);
+        const r = tapScrew(nx, sc.id, v);
+        expect(r.ok).toBe(bright && !st.won && !st.lost);
+        if (r.ok) expect(nx.removed.filter((x, i) => x !== st.removed[i])).toEqual([true]);
+      }
+    }
+  };
+
+  it('bright ⇔ a tap at its spot takes it, in all 4 views after every block falls', () => {
+    let falls = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const r = new Rng(seed);
+      const st = newObject(CRATE, objectRules(8)); // a roomy row so runs go deep
+      agree(st);
+      while (!st.won && !st.lost) {
+        const free = CRATE.screws.filter((s) => reachableAny(st, s.id));
+        expect(free.length).toBeGreaterThan(0);
+        const res = play(st, free[r.int(free.length)].id);
+        expect(res.ok).toBe(true);
+        if (res.fell.length) {
+          falls++;
+          agree(st);
+        }
+      }
+    }
+    expect(falls).toBeGreaterThan(50);
+    let overhang = 0;
+    // the walkthrough case: blocks 1 and 4 gone (each alone and both) - hammer them out
+    for (const out of [[1], [4], [1, 4], [4, 1], [10], [1, 4, 10]]) {
+      const st = newObject(CRATE, objectRules(30), { broom: 0, hammer: 9, drill: 0 });
+      for (const b of out) expect(useHammer(st, b).ok).toBe(true);
+      agree(st);
+      // the old axis rule (facing + nothing straight out from the face) called some of these free; the screen doesn't
+      for (const id of [26, 27, 28, 29]) {
+        const axisFree = views.filter((v) => !st.removed[id] && coveredBy(st, id) < 0 && facing(CRATE.screws[id].face, v));
+        overhang += axisFree.filter((v) => !reachable(st, id, v)).length;
+      }
+    }
+    expect(overhang).toBeGreaterThan(0);
+  }, 30000);
+
+  it('greedy and the solver only pick screen-tappable screws and always finish', () => {
+    for (const row of [5, 4, 8]) {
+      for (let seed = 0; seed <= 30; seed++) {
+        const r = new Rng(seed);
+        const st = newObject(CRATE, objectRules(row));
+        // a few random taps first, then greedy to the end
+        for (let k = 0; k < seed % 7 && !st.won && !st.lost; k++) {
+          const free = CRATE.screws.filter((s) => reachableAny(st, s.id));
+          play(st, free[r.int(free.length)].id);
+        }
+        for (let k = 0; k < 40 && !st.won && !st.lost; k++) {
+          const sid = greedyPick(st);
+          expect(sid).not.toBeNull();
+          expect(views.some((v) => reachable(st, sid!, v))).toBe(true);
+          expect(play(st, sid!).ok).toBe(true);
+        }
+        expect(st.won || st.lost).toBe(true);
+      }
+      const path = solveObject(CRATE, objectRules(row));
+      expect(path).not.toBeNull();
+    }
+  }, 30000);
 
   it('is deterministic: the same taps give the same state', () => {
     const a = randomTapper(CRATE, 7), b = randomTapper(CRATE, 7);
