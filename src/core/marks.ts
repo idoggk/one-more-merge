@@ -13,7 +13,16 @@ export type Meaning = 'merge' | 'boost' | 'charge' | 'powerup' | 'max' | 'attack
 export type MarkIcon = 'ring' | 'arrow' | 'bolt' | 'badge' | 'crown' | 'attack' | 'lock' | 'glow' | 'part' | 'drop';
 export const PALETTE: Record<Meaning, { label: string; hue: number; icon: MarkIcon; text: string; now?: string }> = {
   merge: { label: 'YOUR MERGE', hue: 0xffffff, icon: 'ring', text: 'White = your move: the part you hold, the parts it can merge with, and what that merge will fire.' },
-  boost: { label: 'BOOSTED', hue: 0xd2b4ff, icon: 'arrow', text: 'Amplifier (x1.3) or Beacon (x1.15): its next hit is stronger. Used when it fires or merges.' },
+  boost: {
+    label: 'BOOSTED', hue: 0xd2b4ff, icon: 'arrow',
+    // units B1: one shared mark for every helper boost (the board shows its xN)
+    get text() {
+      const b = TUNING.b1;
+      return TUNING.unitsB1
+        ? `BOOSTED xN: this shooter's next hit is xN. Battery x${b.battery} (touching), Amplifier x${b.amp} (2 cells), Beacon x${b.beacon} (anywhere). Used when it fires or merges.`
+        : 'Amplifier (x1.3) or Beacon (x1.15): its next hit is stronger. Used when it fires or merges.';
+    },
+  },
   charge: { label: 'CHARGED', hue: 0x9be05a, icon: 'bolt', text: "From a Battery: this shooter's next chain shot is x1.5. Used when it fires or merges." },
   powerup: { label: 'POWER-UP', hue: 0xff4fd8, icon: 'badge', text: 'From your tray. The dots are uses left. It moves to the new machine when you merge.' },
   max: { label: 'MAX', hue: 0xffcf33, icon: 'crown', text: "Top rank: it can't merge any higher. In levels, two MAX parts squash into one." },
@@ -123,7 +132,7 @@ export function inspectMarks(s: GameState, idx: number): { marks: MarkLine[]; me
     else if (d.fuse && d.plan.idx === idx && g) marks.push({ key: 'kick', label: PALETTE.kickback.label, text: `In ${secs(d.t)}s a matching loose part lands on this machine: a free merge and chain.` });
   }
   if (g?.amp) {
-    marks.push({ key: 'amp', label: PALETTE.boost.label, text: `Its next hit is ${fmtMult(g.amp)} (from an Amplifier or Signal Beacon).` });
+    marks.push({ key: 'amp', label: TUNING.unitsB1 ? `${PALETTE.boost.label} ${fmtMult(g.amp)}` : PALETTE.boost.label, text: `Its next hit is ${fmtMult(g.amp)} (from ${TUNING.unitsB1 ? 'a Battery, Amplifier or Beacon' : 'an Amplifier or Signal Beacon'}).` });
     now.push(`${fmtMult(g.amp)} boost used on this merge`);
   }
   if (g?.primed) {
@@ -194,8 +203,12 @@ export function mergePreview(s: GameState, from: number, to: number): { count: n
   const res = ev.result;
   const merged = s.nextId; // the merged part takes the next id; marks on a and b move onto it
   const pre = new Map(s.grid.filter((g): g is Gadget => !!g).map((g) => [g.id, g]));
-  const before = (id: number) => (id === merged ? { amp: Math.max(a.amp ?? 0, b.amp ?? 0) || undefined, primed: !!(a.primed || b.primed), item: b.item ?? a.item } : pre.get(id));
+  // TUNING.mergeRule prototype: a sandwich also folds two neighbours into the merged part
+  const sw = r.events.find((e): e is Extract<GameEvent, { type: 'sandwich' }> => e.type === 'sandwich');
+  const all = [a, b, ...(sw?.ids ?? []).map((id) => pre.get(id)!)];
+  const before = (id: number) => (id === merged ? { amp: Math.max(...all.map((g) => g.amp ?? 0)) || undefined, primed: all.some((g) => g.primed), item: b.item ?? a.item ?? all.find((g) => g.item)?.item } : pre.get(id));
   const chips: PreviewChip[] = [{ meaning: 'merge', text: `CHAIN ${res.count}` }];
+  if (sw) chips.unshift({ meaning: 'merge', text: 'SANDWICH!', sub: `RANK ${sw.rank}` });
   const placed = new Map((res.amps ?? []).map((m) => [m.id, m.mult]));
   for (const id of res.ampsUsed ?? []) {
     const had = before(id)?.amp;
@@ -216,8 +229,10 @@ export function mergePreview(s: GameState, from: number, to: number): { count: n
   if (newAmps) chips.push({ meaning: 'boost', text: `+${newAmps}`, sub: 'BOOST' });
   const newPrimes = res.primes.filter((id) => !res.discharged.includes(id)).length;
   if (newPrimes) chips.push({ meaning: 'charge', text: `+${newPrimes}`, sub: 'CHARGE' });
-  const parts = (c.owed ?? 0) - (s.owed ?? 0);
+  // units B1: a Magnet's fetched part counts as an earned part; a Fan's clear shows as CLEARED
+  const parts = (c.owed ?? 0) - (s.owed ?? 0) + (res.fetch ?? 0);
   if (parts > 0) chips.push({ meaning: 'parts', text: `+${parts}`, sub: parts === 1 ? 'PART' : 'PARTS' });
+  if (res.clears?.length) chips.push({ meaning: 'locked', text: 'CLEAR', sub: res.clears.length > 1 ? `FAN ×${res.clears.length}` : 'FAN' });
   if (ev.overdriveStart) chips.push({ meaning: 'overdrive', text: 'OVERDRIVE!' });
   else if (c.odCharge > s.odCharge) chips.push({ meaning: 'overdrive', text: `+${c.odCharge - s.odCharge}`, sub: `OVERDRIVE ${c.odCharge}/${odNeeded(c)}` });
   // identical chips fold into one ("BOOST x2") so a big chain stays a short row

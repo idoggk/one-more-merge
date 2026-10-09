@@ -1,4 +1,36 @@
 import type { PerkId } from '../core/types';
+import { TUNING, unitsB0On } from './tuning';
+
+/** Units B0 / B1 (QA UNITS row): the plain-words copy for units whose rules change; null = today's copy. One source for
+ *  the inspect card (FAMILY_INFO) and the guide pages (sceneCopy GUIDE), read live so the QA switch needs no reload. */
+export function unitsCopy(key: string): { text: string; tryThis: string } | null {
+  const b = TUNING.b1;
+  if (key === 'mortar' && unitsB0On()) {
+    const o = TUNING.unitsB1 ? b : TUNING.b0;
+    return { text: `Never shoots by itself. The LATER it fires in a chain, the harder it hits: x${o.orderBase}, +${o.orderStep} for every machine that fired before it (up to x${TUNING.b0.orderCap}).`, tryThis: 'Put it at the far end of your longest chain.' };
+  }
+  if (!TUNING.unitsB1) return null;
+  const pass = b.helperPass ? ' Then it passes the chain on to the machines touching it.' : '';
+  const boost = (who: string, m: number) => `When it fires it BOOSTS ${who}: that shooter's next hit is x${m}.${pass}`;
+  const copy: Record<string, { text: string; tryThis: string }> = {
+    battery: { text: boost('the strongest shooter touching it', b.battery), tryThis: 'Park it beside your biggest shooter.' },
+    amplifier: { text: boost('the strongest shooter up to 2 cells away', b.amp), tryThis: 'Keep it near your shooters.' },
+    signal_beacon: { text: boost('your strongest shooter anywhere on the board', b.beacon), tryThis: 'It works from anywhere: park it out of the way.' },
+    fan: { text: `When it fires it clears one junk block, frost, lock or incoming attack touching it${b.fanPush ? ' (nothing to clear: it pushes a machine one cell away)' : ''}.${pass}`, tryThis: 'Bring it to boss levels: park it where attacks land.' },
+    magnet: { text: `When it fires it calls in a matching part: it lands next to a lonely machine of the same kind and number, ready to merge.${pass}`, tryThis: 'More parts = more merges.' },
+    horn: { text: `Hits the monster and wakes every OTHER kind of machine in its column${b.hornSides ? ', and on its left and right' : ''}.`, tryThis: 'Stack shooters above and below it.' },
+    fuse_box: { text: `Hits the monster and wakes the OTHER kinds of machines on its diagonals, up to ${b.fuseReach} cells out.`, tryThis: 'Build a checkerboard around it.' },
+  };
+  return copy[key] ?? null;
+}
+/** A copy row whose text / tryThis follow unitsCopy(key) while a units experiment is on. */
+export function liveCopy<T extends { text: string; tryThis: string }>(key: string, row: T): T {
+  const { text, tryThis, ...rest } = row;
+  return Object.defineProperties({ ...rest } as T, {
+    text: { get: () => unitsCopy(key)?.text ?? text, enumerable: true },
+    tryThis: { get: () => unitsCopy(key)?.tryThis ?? tryThis, enumerable: true },
+  });
+}
 
 export const PERKS: Record<PerkId, { name: string; text: string; icon: string }> = {
   twin: { name: 'TWIN BURST', text: 'Chain cannon shots +40%', icon: 'cannon' },
@@ -9,7 +41,7 @@ export const PERKS: Record<PerkId, { name: string; text: string; icon: string }>
 };
 
 /** One role word, one power sentence, one hint per family (ChatGPT r14 clarity ruleset: fixed shapes, rank = damage). */
-export const FAMILY_INFO = {
+const FAMILY_INFO_TODAY = {
   cannon: { name: 'Cannon', color: 0xe8452c, role: 'SHOOTER', text: 'Shoots by itself, weakly. Woken by a chain it fires a FULL shot. Wakes nobody.', tryThis: 'Put Cannons where Coils and Bells can reach them.' },
   coil: { name: 'Coil', color: 0x27c4e0, role: 'RELAY', text: 'Hits the monster and wakes OTHER gadgets up to 2 cells away: up, down, left, right.', tryThis: 'Put Cannons inside its cross.' },
   bell: { name: 'Bell', color: 0xf2b521, role: 'RELAY', text: 'Hits the monster and wakes every OTHER gadget in its row.', tryThis: 'Fill its row with Cannons and Coils.' },
@@ -24,6 +56,9 @@ export const FAMILY_INFO = {
   signal_beacon: { name: 'Signal Beacon', color: 0xf05030, role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere: their next hits are x1.15.', tryThis: 'Fire it early in a chain.' },
   magnet: { name: 'Magnet', color: 0xc23fd1, role: 'MOVER', text: 'Pulls one gadget along a straight line into the empty cell beside it.', tryThis: 'Use it to bring pairs together.' },
 } as const;
+export const FAMILY_INFO = Object.fromEntries(Object.entries(FAMILY_INFO_TODAY).map(([k, v]) => [k, liveCopy(k, v)])) as unknown as {
+  [K in keyof typeof FAMILY_INFO_TODAY]: Omit<(typeof FAMILY_INFO_TODAY)[K], 'text' | 'tryThis'> & { text: string; tryThis: string };
+};
 
 export const TARGET_NAMES = ['TIN CAN', 'MAD FRIDGE', 'JUNKZILLA', 'VACUUM VIPER', 'TOASTER TWINS', 'PIANO-SAURUS'];
 /** Short HUD names (ChatGPT r16: the header has room for ~10 characters). */
