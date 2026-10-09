@@ -16,7 +16,7 @@ export function addOddsButton(scene: Phaser.Scene, parent: Phaser.GameObjects.Co
   b.add(scene.add.circle(0, 0, 26, INK).setStrokeStyle(4, 0xffffff, 1));
   b.add(scene.add.text(0, 1, 'i', { fontFamily: 'Georgia, serif', fontStyle: 'bold italic', fontSize: '34px', color: '#ffffff' }).setOrigin(0.5));
   b.add(scene.add.text(0, 40, 'ODDS', { fontFamily: FONT, fontSize: '16px', color: '#3b2533' }).setOrigin(0.5));
-  b.setSize(64, 80).setInteractive({ useHandCursor: true });
+  b.setSize(96, 96).setInteractive({ useHandCursor: true });
   b.on('pointerup', onTap);
   parent.add(b);
   return b;

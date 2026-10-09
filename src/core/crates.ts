@@ -52,9 +52,10 @@ export function rollCrate(kind: CrateKind, owned: ReadonlySet<Family>, seed: num
     if (!owned.has(unit)) used.add(unit);
     picks.push(unit);
   });
-  // new-unit pity: replace the best slot with any missing unit
+  // new-unit pity: replace the first non-Epic slot with any missing unit (never the forced/only Epic: the odds panel
+  // promises it)
   const allMissing = UNITS.filter((u) => !owned.has(u.id)).map((u) => u.id);
-  if (!picks.some((u) => !owned.has(u)) && allMissing.length && pity.dry + 1 >= NEW_UNIT_PITY) picks[0] = allMissing[rng.int(allMissing.length)];
+  if (!picks.some((u) => !owned.has(u)) && allMissing.length && pity.dry + 1 >= NEW_UNIT_PITY) picks[Math.max(0, picks.findIndex((u) => rarityOf(u) !== 'epic'))] = allMissing[rng.int(allMissing.length)];
   // pity bookkeeping
   const gotEpic = picks.some((u) => rarityOf(u) === 'epic');
   pity.epic = gotEpic ? 0 : pity.epic + EPIC_PITY[kind];

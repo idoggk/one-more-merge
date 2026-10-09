@@ -98,6 +98,7 @@ export function pityLines(pity: PityView): string[] {
   const n = newUnitPityIn(pity.dry, pity.missing);
   return [
     n === null ? 'You own every unit.' : n === 1 ? 'Your next crate brings a NEW unit.' : `A NEW unit guaranteed within ${n} crates.`,
+    ...(n === null ? [] : ["When the NEW-unit guarantee fires, one card is swapped for a unit you don't have (any rarity)."]),
     `Epic pity: no Epic in an Iron crate +${EPIC_PITY.iron}, in a Gold crate +${EPIC_PITY.gold}; at ${EPIC_PITY.at} the next Iron or Gold brings one. Now ${Math.min(pity.epic, EPIC_PITY.at)}/${EPIC_PITY.at}.`,
   ];
 }

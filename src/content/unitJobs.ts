@@ -8,7 +8,7 @@ import { helperMult } from './units';
 export const UNIT_JOB: Record<string, { job: string; merged: (level: number) => string }> = {
   cannon: { job: 'FIRE', merged: () => 'Full shot + wakes the 4 parts touching it' },
   rocket: { job: 'HEAVY', merged: () => 'Big shot (x1.3 a Cannon) + wakes the 4 touching' },
-  mortar: { job: 'DEPTH', merged: () => 'Weak shot (x0.9) + wakes the 4 touching' },
+  mortar: { job: 'DEPTH', merged: () => 'Weak shot (x0.9) + wakes the 4 touching. Deeper in a chain: up to x1.65' },
   arc_welder: { job: 'ARC', merged: () => 'Light shot (x0.75), wakes the 4 touching + 1 corner part' },
   coil: { job: 'REACH', merged: () => 'Hits, wakes the 4 touching + other kinds 2 cells out' },
   bell: { job: 'ROW', merged: () => 'Hits, wakes the 4 touching + other kinds in its row' },
@@ -16,7 +16,7 @@ export const UNIT_JOB: Record<string, { job: string; merged: (level: number) => 
   fuse_box: { job: 'DIAGONAL', merged: () => 'Hits, wakes the 4 touching + other kinds on its corners' },
   battery: { job: 'CHARGE', merged: (l) => `No hit. Wakes the 4 touching; a touching shooter hits x${+helperMult.battery(l).toFixed(2)}` },
   amplifier: { job: 'MARK', merged: (l) => `No hit. Wakes the 4 touching; the best touching one hits x${+helperMult.amplifier(l).toFixed(2)}` },
-  signal_beacon: { job: 'SPREAD', merged: (l) => `No hit. Wakes the 4 touching; nearest shooter + relay x${+helperMult.signal_beacon(l).toFixed(2)}` },
+  signal_beacon: { job: 'SPREAD', merged: (l) => `No hit. Wakes the 4 touching; marks nearest shooter + relay x${+helperMult.signal_beacon(l).toFixed(2)} (unused marks stay)` },
   magnet: { job: 'PULL', merged: () => 'No hit. Wakes the 4 touching; pulls a part in beside it' },
   fan: { job: 'PUSH', merged: () => 'No hit. Wakes the 4 touching. It pushes only when woken' },
 };

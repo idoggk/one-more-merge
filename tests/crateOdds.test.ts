@@ -100,6 +100,44 @@ describe('crate odds panel = the real roll', () => {
     expect(newUnitPityIn(5, 0)).toBeNull();
   });
 
+  it('"Epic GUARANTEED" holds when the NEW-unit pity fires too (player missing units)', () => {
+    const epics = UNITS.filter((u) => u.rarity === 'epic').map((u) => u.id);
+    // own both Epics, miss one unit of each other rarity (Magnet = Rare, Horn = Common), and a few at once
+    const gaps: Family[][] = [['magnet'], ['horn'], ['magnet', 'horn', 'cannon']];
+    for (const gap of gaps) {
+      const owned = new Set<Family>(UNITS.map((u) => u.id).filter((u) => !gap.includes(u)));
+      expect(epics.every((e) => owned.has(e))).toBe(true);
+      for (const kind of ['iron', 'gold'] as const) {
+        const view = pityView({ pity: { epic: 6, dry: 2 }, units: Object.fromEntries([...owned].map((u) => [u, { level: 1 }])) });
+        expect(crateOddsLines(kind, view).rows).toContain('Epic GUARANTEED in this crate');
+        expect(newUnitPityIn(view.dry, view.missing)).toBe(1);
+        for (let i = 1; i <= 3000; i++) {
+          const cards = rollCrate(kind, owned, seedOf(i), { epic: 6, dry: 2 });
+          expect(cards.some((c) => rarityOf(c.unit) === 'epic')).toBe(true);
+          expect(cards.some((c) => c.isNew)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('both countdowns hold for a player who is still missing units', () => {
+    for (let run = 0; run < 40; run++) {
+      const owned = new Set<Family>(STARTER_UNITS);
+      const pity: PityState = { epic: run % 7, dry: run % 3 };
+      for (let i = 1; i <= 30; i++) {
+        const kind: CrateKind = (['wood', 'iron', 'gold'] as const)[(i + run) % 3];
+        const missing = UNITS.filter((u) => !owned.has(u.id)).length;
+        const ownsEpic = UNITS.some((u) => u.rarity === 'epic' && owned.has(u.id));
+        if (kind === 'gold' && !ownsEpic) pity.epic = Math.max(pity.epic, 6); // GameScene.openCrate does this
+        const epicLeft = epicPityIn(kind, pity.epic, ownsEpic), newLeft = newUnitPityIn(pity.dry, missing);
+        const cards = rollCrate(kind, owned, seedOf(run * 1000 + i), pity);
+        if (epicLeft === 1) expect(cards.some((c) => rarityOf(c.unit) === 'epic')).toBe(true);
+        if (newLeft === 1) expect(cards.some((c) => c.isNew)).toBe(true);
+        for (const c of cards) owned.add(c.unit as Family);
+      }
+    }
+  });
+
   it('the pity view reads the save', () => {
     const v = pityView({ pity: { epic: 4, dry: 1 }, units: { cannon: { level: 2 }, horn: { level: 1 }, arc_welder: { level: 0 } } });
     expect(v).toEqual({ epic: 4, dry: 1, ownsEpic: false, missing: UNITS.length - 2, hornFirst: false });
