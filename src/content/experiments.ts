@@ -50,3 +50,16 @@ export function applyPace(p: Pace) {
   Object.assign(TUNING, TUNING.paces[p] ?? TUNING.paces.today, { pace: TUNING.paces[p] ? p : 'today' });
   applySpamVariant(spam);
 }
+
+/** QA panel UNITS B0 row (t-a8c886ad, units option B stage B0; this device only, not in the save); missing = OFF. */
+export const UNITS_B0_KEY = 'omm_qa_units_b0';
+export function storedUnitsB0(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUnitsB0(on: boolean) {
+  TUNING.unitsB0 = on;
+}

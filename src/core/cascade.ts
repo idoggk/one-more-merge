@@ -61,6 +61,16 @@ function mortarMult(a: Activation, level: number, nth: number) {
   return Math.min(level >= 3 && a.rank >= 4 ? 1.8 : 1.65, 0.9 + 0.15 * (d - 1));
 }
 
+/** Units B0 Mortar: x(0.8 + 0.1 per machine already fired earlier in this chain), cap x2.0 (+0.15 L3 Bigger Shell, rank 4+);
+ *  L6 High Arc counts 2 more machines on every 6th fire, L9 Siege Shot (rank 7-8) counts at least 4. */
+export function mortarOrderMult(a: Activation, level: number, nth: number, before: number) {
+  const B = TUNING.b0;
+  let n = before;
+  if (level >= 6 && nth > 0 && nth % 6 === 0) n += 2;
+  if (level >= 9 && a.rank >= 7) n = Math.max(n, 4);
+  return Math.min(B.orderCap + (level >= 3 && a.rank >= 4 ? B.capPerk : 0), B.orderBase + B.orderStep * n);
+}
+
 /** r32 relay milestone geometry (extra cells a relay wakes; same-family / fired filters still apply). */
 function relayPerkCells(idx: number, a: Activation, level: number, nth: number): number[] {
   const [r, c] = rc(idx);
@@ -180,6 +190,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   // live primer state during the cascade: starts from the board, batteries add, cannon payloads consume
   const primedNow = new Set(input.filter((g) => g?.primed).map((g) => g!.id));
   const fired = new Set<number>(); // ids dequeued (activated) so far
+  const orderOf = new Map<number, number>(); // id -> machines fired before it in this cascade (units B0 Mortar)
   const bonus = new Set<number>(); // cannon ids whose payload consumed a primer
   const discharged: number[] = [];
   const root = grid[rootIdx];
@@ -282,6 +293,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if (++guard > ROWS * COLS + 1) throw new Error('cascade bound violated');
     const idx = queue.shift()!;
     const a = visited.get(idx)!;
+    orderOf.set(a.id, fired.size);
     fired.add(a.id);
     fires[a.family] = (fires[a.family] ?? 0) + 1;
     nthOf.set(a.id, (opts.fireBase?.[a.family] ?? 0) + fires[a.family]);
@@ -312,7 +324,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
             if (!inside(r0 + dr, c0 + dc)) continue;
             const n = at(r0 + dr, c0 + dc);
             const g = grid[n];
-            if (!g || visited.has(n) || blockSet.has(n) || lockedSet.has(n)) continue;
+            if (!g || visited.has(n) || blockSet.has(n) || lockedSet.has(n) || (TUNING.unitsB0 && g.family === 'arc_welder')) continue;
             if (opts.splitB !== undefined && c0 <= opts.splitB !== (n % COLS) <= opts.splitB) continue;
             if (best < 0 || g.rank > grid[best]!.rank || (g.rank === grid[best]!.rank && n < best)) best = n;
           }
@@ -448,7 +460,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const hot = isShooter(a.family) && opts.hotCol !== undefined && a.idx % COLS === opts.hotCol ? 0.5 : 1;
     const oc = overcharged.has(a.id) ? 2 : 1;
     // r32 Mortar: deeper in the chain = harder hit (x0.9 at depth 1 ... x1.65 cap); Arc Welder hits x0.75
-    const deep = a.family === 'mortar' ? mortarMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0) : a.family === 'arc_welder' ? (hasPerk('arc_welder', 3, 4, a) ? 0.9 : 0.75) : 1;
+    // units B0: Mortar scales with chain ORDER (machines fired before it) instead of depth
+    const deep = a.family === 'mortar' ? (TUNING.unitsB0 ? mortarOrderMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0, orderOf.get(a.id) ?? 0) : mortarMult(a, lvl('mortar'), nthOf.get(a.id) ?? 0)) : a.family === 'arc_welder' ? (hasPerk('arc_welder', 3, 4, a) ? 0.9 : 0.75) : 1;
     // shooter milestones: Cannon L3 Heavy Barrel / L6 Lucky Eight; Rocket L3 Warhead / L6 Sixth Salvo / L9 Deep Burn
     const ms =
       a.family === 'cannon' ? (hasPerk('cannon', 3, 4, a) ? 1.2 : 1) * (nthEvery('cannon', 6, 8, a) ? 2 : 1)
