@@ -73,6 +73,8 @@ const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-
 const SNAP_CUE_GAP = 120;
 const BX = (W - CELL * COLS) / 2;
 const SCRAP_X = W - 92;
+/** Smallest tap height in design px: 44 pt on a 390 pt-wide phone (W = 720). */
+const TAP_MIN = 82;
 /** r38: player-facing durations are m:ss (ChatGPT review: never raw seconds on cards). */
 /** Mix a 0xRRGGBB colour toward white by t (0..1). */
 const lighten = (c: number, t: number) => [16, 8, 0].reduce((n, sh) => n | (Math.round(((c >> sh) & 255) + (255 - ((c >> sh) & 255)) * t) << sh), 0);
@@ -110,12 +112,14 @@ export const layoutHeight = (viewW: number, viewH: number) => Math.round(Math.mi
 
 export function computeLayout(viewW: number, viewH: number) {
   H = layoutHeight(viewW, viewH);
+  // UI audit (375x667): the stage shrank to a thin strip; short layouts tighten the gaps around the board to give it back
+  const t = H < 1380 ? 1 : 0;
   TRAY_Y = H - 66;
-  BY = TRAY_Y - 58 - CELL * ROWS;
-  EVENT_Y = BY - 34;
-  HP_Y = EVENT_Y - 54;
-  const top = 96;
-  const avail = HP_Y - 34 - top;
+  BY = TRAY_Y - 58 + t * 8 - CELL * ROWS;
+  EVENT_Y = BY - 34 + t * 2;
+  HP_Y = EVENT_Y - 54 + t * 6;
+  const top = 96 - t * 4;
+  const avail = HP_Y - 34 + t * 10 - top;
   STAGE_H = Math.min(450, avail);
   STAGE_TOP = top + (avail - STAGE_H) / 2;
   TARGET_Y = STAGE_TOP + STAGE_H / 2 + 4;
@@ -579,7 +583,9 @@ export class GameScene extends Phaser.Scene {
       if (nowT) c.add(nowT.setOrigin(0, 1).setPosition(L, ch / 2 - 14));
     }
     const role = info.role.toLowerCase();
-    if (this.hasArt(`role_${role}`)) {
+    // UI audit: the SHOOTER role icon is a rocket, so Cannon's card showed a Rocket; the header shows the part itself
+    if (this.textures.exists(`${g.family}_${g.rank}`)) c.add(this.fitVisible(this.add.image(L + 30, -ch / 2 + 50, `${g.family}_${g.rank}`), 60));
+    else if (this.hasArt(`role_${role}`)) {
       const ic = this.add.image(L + 30, -ch / 2 + 50, `role_${role}`);
       ic.setScale(56 / Math.max(ic.width, ic.height));
       c.add(ic);
@@ -590,8 +596,9 @@ export class GameScene extends Phaser.Scene {
     c.add(this.add.text(L, -ch / 2 + 92, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: textW }, lineSpacing: 4 }));
     const raw = rawDamage(g.family, g.rank);
     const dmg = g.family === 'cannon' ? `Auto shot ${Math.round(raw * TUNING.passiveMult)}  ·  Chain shot ${Math.round(raw)}` : raw > 0 ? `Hits for ${Math.round(raw)} in a chain` : 'No damage: it helps the others';
-    c.add(this.add.text(L, -ch / 2 + ch0 - 96, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
-    c.add(this.add.text(L, -ch / 2 + ch0 - 56, `Try: ${info.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '21px', color: '#7a5a4a', wordWrap: { width: cw - 70 } }));
+    c.add(this.add.text(L, -ch / 2 + ch0 - 110, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
+    // wraps short of the CLOSE button (UI audit: long tips ran under it and were cut off)
+    c.add(this.add.text(L, -ch / 2 + ch0 - 72, `Try: ${info.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '21px', color: '#6e5646', wordWrap: { width: cw - 230 } }));
     // reach diagram: 5x5 mini board centred on this gadget
     const mc = 30, ox = cw / 2 - 30 - mc * 5, oy = -ch / 2 + 86;
     const dg = this.add.graphics();
@@ -882,17 +889,18 @@ export class GameScene extends Phaser.Scene {
     const label = String(g.rank); // r17: the numeral always shows; the crown alone marks the cap
     let t = this.add.text(BX0, BY0 - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
     let parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
-    const dice = `dice_${g.rank}`;
-    if (this.hasArt(dice)) {
-      // ChatGPT round 8: neutral plate, numeral left + standard dice pips right (same for every family); bottom-left slot (clarity pass 1)
+    if (this.hasArt(`dice_${g.rank}`)) {
+      // ChatGPT round 8 neutral plate (same for every family), bottom-left slot. UI audit: the dice pips smeared at ranks 5-8
+      // and the plate hung over the cell below, so it is now numeral-only and sits fully inside the cell.
       t.destroy();
       badgeArt?.destroy();
       badge.clear();
-      const PX = -26;
-      const plate = this.add.image(PX, 48, dice);
-      plate.setScale(78 / plate.width);
-      t = this.add.text(PX - 39 + 18, 46, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '35px', color: '#2a2233' }).setOrigin(0.5);
-      parts = [img, plate, t];
+      const pw = 46, ph = 40, px = BX0 - pw / 2, py = BY0 - ph / 2 - 2;
+      badge.fillStyle(0x3a2030, 1).fillRoundedRect(px - 3, py - 3, pw + 6, ph + 6, 12);
+      badge.fillStyle(0xc99a3a, 1).fillRoundedRect(px - 1, py - 1, pw + 2, ph + 2, 10);
+      badge.fillStyle(0xfdf3dc, 1).fillRoundedRect(px + 2, py + 2, pw - 4, ph - 4, 8);
+      t = this.add.text(BX0, BY0 - 2, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#2a2233' }).setOrigin(0.5);
+      parts = [img, badge, t];
     }
     t.setName('rank');
     if (g.rank >= capOf(this.s, g.family) && this.hasArt('crown')) {
@@ -2824,6 +2832,12 @@ Now beat the real level.`, this.coachY());
     this.laneBg.setAlpha(a * 0.95);
   }
 
+  /** Start height for a number floating over the monster: it rises 70 as it fades, so on a short stage it must start
+   *  low enough to stay inside the frame (UI audit: at 375x667 damage numbers drifted out over the header). */
+  stageFloatY(y: number) {
+    return Math.max(STAGE_TOP + 74, y);
+  }
+
   floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
     const label = this.add.text(0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
     const t = this.add.container(x, y).setDepth(70);
@@ -3005,7 +3019,7 @@ Now beat the real level.`, this.coachY());
       const hx = this.target.x + Phaser.Math.Between(-60, 60), hy = this.target.y + Phaser.Math.Between(-40, 30);
       this.sparks.setParticleTint(0xffc0a0);
       this.sparks.explode(4, hx, hy);
-      if (dmg >= 1) this.floatText(hx, hy - 30, `${Math.round(dmg)}`, '#ffd0b8', 22).setAlpha(0.85);
+      if (dmg >= 1) this.floatText(hx, this.stageFloatY(hy - 30),`${Math.round(dmg)}`, '#ffd0b8', 22).setAlpha(0.85);
       this.passiveAcc = 0;
     });
   }
@@ -3146,7 +3160,7 @@ Now beat the real level.`, this.coachY());
       // damage number beside the opponent, never on its face
       const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
       if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
-      if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.target.y - 40, capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
+      if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.stageFloatY(this.target.y - 40), capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });
   }
 
@@ -3411,7 +3425,12 @@ Now beat the real level.`, this.coachY());
           })()
         : this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-w / 2, -40, w, 86, 26).fillStyle(color, 1).fillRoundedRect(-w / 2 + 5, -36, w - 10, 74, 22);
     const t = this.add.text(0, 0, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5);
-    b.add([g, t]).setSize(w, 86).setInteractive({ useHandCursor: true });
+    // UI audit: long labels ran past the pill ('SWAP ON DROP: OFF'), so they shrink to fit; small buttons keep a
+    // finger-sized hit height (44 pt on a 390 pt-wide phone is ~82 design px) whatever their scale
+    // (a pill-art image is height-limited, so its face can be narrower than w; its rivet caps take ~12% a side)
+    const face = g instanceof Phaser.GameObjects.Image ? Math.min(w - 44, g.displayWidth * 0.76) : w - 44;
+    if (t.width > face) t.setScale(face / t.width);
+    b.add([g, t]).setSize(w, Math.max(86, TAP_MIN / size)).setInteractive({ useHandCursor: true });
     b.on('pointerdown', () => {
       unlockAudio();
       startMusic();
@@ -3426,6 +3445,14 @@ Now beat the real level.`, this.coachY());
     });
     c.add(b);
     return b;
+  }
+
+  /** Makes a text link tappable with a finger-sized hit box (TAP_MIN tall, padded sideways) instead of the bare glyphs. */
+  tapLink(t: Phaser.GameObjects.Text, cb: () => void) {
+    const h = Math.max(t.height, TAP_MIN);
+    t.setInteractive({ hitArea: new Phaser.Geom.Rectangle(-20, (t.height - h) / 2, t.width + 40, h), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true });
+    t.on('pointerup', cb);
+    return t;
   }
 
   openChoice() {
@@ -3836,7 +3863,13 @@ Now beat the real level.`, this.coachY());
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${this.stageCount()!.at} of ${this.stageCount()!.n}  ·  ${this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
-    for (let k = 0; k < 3; k++) {
+    // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
+    if (!won && this.hasArt('defeat')) {
+      const im = this.fitVisible(this.add.image(W / 2, top + 296, 'defeat'), 240);
+      const sc = im.scale;
+      c.add(im.setScale(0));
+      this.tweens.add({ targets: im, scale: sc, duration: 300, delay: 150, ease: 'Back.Out' });
+    } else for (let k = 0; k < 3; k++) {
       const st = this.add.image(W / 2 + (k - 1) * 130, top + 270 + (k === 1 ? -14 : 0), 'star');
       const sc = (k === 1 ? 120 : 100) / Math.max(st.width, st.height);
       st.setScale(0).setAlpha(k < got ? 1 : 0.22);
@@ -3844,9 +3877,29 @@ Now beat the real level.`, this.coachY());
       this.tweens.add({ targets: st, scale: sc, duration: 260, delay: 200 + k * 220, ease: 'Back.Out', onStart: () => k < got && sfx.star(k) });
     }
     if (won && got < 3) c.add(this.add.text(W / 2, top + 360, `Next star: clear in ${starGoals(def)[got === 1 ? 0 : 1]}s`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 410, [s.stats.biggestChain >= 2 && n >= 2 ? `Biggest chain x${s.stats.biggestChain}` : '', bolts > 0 ? `+${bolts} BOLTS` : ''].filter(Boolean).join('    '), { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0.5));
+    // reward row: chain, then a bolt icon + the bolts (UI audit: rewards read as plain text)
+    const big = { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#3b2533' };
+    const rowObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
+    if (s.stats.biggestChain >= 2 && n >= 2) rowObjs.push(this.add.text(0, 0, `Biggest chain x${s.stats.biggestChain}`, big));
+    if (bolts > 0) {
+      if (this.hasArt('icon_bolt')) rowObjs.push(this.fitVisible(this.add.image(0, 0, 'icon_bolt'), 46));
+      rowObjs.push(this.add.text(0, 0, `+${bolts} BOLTS`, { ...big, color: '#b06a1a' }));
+    }
+    // the icon hugs its number; separate items get a wide gap
+    const gapAt = (i: number) => (i === 0 ? 0 : rowObjs[i - 1] instanceof Phaser.GameObjects.Image ? 8 : 40);
+    // the icon is centred on its visible pixels by fitVisible, so it takes a fixed 46 px slot
+    const wOf = (o: Phaser.GameObjects.Text | Phaser.GameObjects.Image) => (o instanceof Phaser.GameObjects.Text ? o.width : 46);
+    const rowW = rowObjs.reduce((w, o, i) => w + gapAt(i) + wOf(o), 0);
+    let rx0 = W / 2 - rowW / 2;
+    rowObjs.forEach((o, i) => {
+      rx0 += gapAt(i);
+      if (o instanceof Phaser.GameObjects.Text) o.setOrigin(0, 0.5).setPosition(rx0, top + 410);
+      else o.setPosition(rx0 + 23, top + 410);
+      c.add(o);
+      rx0 += wOf(o);
+    });
     if (bolts > 0) this.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
-    if (parts.length) c.add(this.add.text(W / 2, top + 448, parts.join('  \u00b7  '), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5));
+    if (parts.length) c.add(this.add.text(W / 2, top + 452, parts.join('  \u00b7  '), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
     if (lines.length) {
       // r40: long reward lists (mastery, screwdriver, milestones) compress instead of running into the buttons
       const lh = lines.length > 3 ? 27 : 36;
@@ -5791,7 +5844,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       ['SWAP ON DROP', () => !!m.swapMismatch, () => (m.swapMismatch = !m.swapMismatch)],
     ];
     toggles.forEach(([label, get, flip], i) => {
-      const b = this.button(c, W / 2, top + 180 + i * 110, 420, `${label}: ${get() ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
+      const b = this.button(c, W / 2, top + 180 + i * 110, 460, `${label}: ${get() ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
         flip();
         store(META_KEY, JSON.stringify(m));
         (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
@@ -5807,15 +5860,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
     } else c.add(this.add.text(W / 2, top + 580, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
     this.button(c, W / 2 - 150, top + 640, 360, 'COPY SAVE CODE', 0x5fbf4a, () => this.copySaveCode(), 0.78);
     this.button(c, W / 2 + 150, top + 640, 360, 'PASTE SAVE CODE', 0x27a4c0, () => this.openPasteCode(), 0.78);
-    const pd = this.add.text(W / 2, top + 710, 'Playtest stats', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    pd.on('pointerup', () => this.openPlaytestStats());
-    c.add(pd);
-    const rt = this.add.text(W / 2, top + 762, 'Replay tutorial', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    rt.on('pointerup', () => this.startTutorial());
-    c.add(rt);
+    // the two text links share one row so each gets a finger-sized hit box (they were 52 px apart, one above the other)
+    const link = { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' };
+    c.add(this.tapLink(this.add.text(W / 2 - 150, top + 722, 'Playtest stats', link).setOrigin(0.5), () => this.openPlaytestStats()));
+    c.add(this.tapLink(this.add.text(W / 2 + 150, top + 722, 'Replay tutorial', link).setOrigin(0.5), () => this.startTutorial()));
     // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
-    this.button(c, W / 2, top + 828, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
-    this.button(c, W / 2, top + 905, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    this.button(c, W / 2, top + 808, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
+    this.button(c, W / 2, top + 900, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
   }
 
   /** r33 QA panel: start over, jump to any level, give units / currency. */
@@ -6070,10 +6121,13 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.button(c, W / 2 + 150, 232, 260, 'SHOP', 0x8e58c9, () => this.openUnitShop(), 0.7);
     this.collectionStrip(c, 304);
     // 3-column card grid
-    // 13 units: 4 columns of slightly smaller cards
+    // 13 units: 4 columns of slightly smaller cards. UI audit (375x667): the last row hid under the bottom nav, so the
+    // rows fit between the collection strip and the nav (cards shrink a little on short phones)
+    const rows = Math.ceil(UNITS.length / 4), gridTop = 342;
+    const pitch = Math.min(232, (H - 122 - gridTop) / rows), k0 = Math.min(0.8, (pitch - 12) / 274);
     UNITS.forEach((u, k) => {
-      const x = W / 2 + ((k % 4) - 1.5) * 172, y = 438 + Math.floor(k / 4) * 232;
-      c.add(this.unitCard(u, x, y).setScale(0.8));
+      const x = W / 2 + ((k % 4) - 1.5) * 172, y = gridTop + (Math.floor(k / 4) + 0.5) * pitch;
+      c.add(this.unitCard(u, x, y).setScale(k0));
     });
     this.drawNav(c, 'units');
   }
@@ -6152,7 +6206,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
         cc.add(up);
         this.tweens.add({ targets: up, y: -118, duration: 500, yoyo: true, repeat: -1 });
       }
-    } else cc.add(this.add.text(0, 116, 'find it in crates', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#ffffff' }).setOrigin(0.5));
+    } else {
+      // UI audit: the loose Arial caption spilled past the frame onto '???'; it now sits in the same pill as the owned card's bar
+      cc.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-84, 108, 168, 20, 10));
+      cc.add(this.add.text(0, 118, 'IN CRATES', { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
+    }
     cc.setSize(204, 268).setInteractive({ useHandCursor: true });
     cc.on('pointerup', () => (sfx.click(), this.openUnitDetail(u)));
     return cc;
@@ -6172,12 +6230,17 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (owned && gi) {
       this.machineDemo(c, W / 2, top + 330, u.id);
       c.add(this.add.text(W / 2, top + 520, gi.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
-    } else c.add(this.add.text(W / 2, top + 330, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
-    // r32 milestone perks: L3 / L6 / L9, lit when reached
+    } else {
+      // UI audit: the locked page was an empty cream sheet; show the same dark silhouette as the collection card
+      const art = this.unitPortrait(u.id);
+      if (this.textures.exists(art)) c.add(this.fitVisible(this.add.image(W / 2, top + 300, art), 220).setTint(0x2b1d2e).setAlpha(0.6));
+      c.add(this.add.text(W / 2, top + 500, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+    }
+    // r32 milestone perks: L3 / L6 / L9, lit when reached (unreached lines darker brown: light grey on cream was unreadable)
     (UNIT_PERKS[u.id] ?? []).forEach(([name, txt], i) => {
       const need = [3, 6, 9][i];
       const got = owned && st!.level >= need;
-      c.add(this.add.text(W / 2, top + 660 + i * 44, `LV${need}  ${name}: ${txt}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '21px', color: got ? '#2a8a3a' : '#9a8a7a' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2, top + 660 + i * 44, `LV${need}  ${name}: ${txt}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: got ? '#2a8a3a' : '#6e5646', wordWrap: { width: W - 140 }, align: 'center' }).setOrigin(0.5));
     });
     if (owned) {
       const lv = st!.level;
@@ -7007,6 +7070,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     }
     const mon = this.fitVisible(this.add.image(cx, cy - (ROWS_D * cs) / 2 - 30, 'target_0'), 70);
     c.add(mon);
+    // UI audit: the little can floated unexplained above every grid; it is the monster the shots fly to
+    c.add(this.add.text(cx + 48, mon.y, '← MONSTER', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0, 0.5));
     const imgs = d.pieces.map(([f, r, k]) => {
       const im = this.fitVisible(this.add.image(at(r, k).x, at(r, k).y, `${f}_1`), cs - 14);
       c.add(im);
@@ -7408,9 +7473,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
       store(META_KEY, JSON.stringify(this.meta));
       (mus.list[1] as Phaser.GameObjects.Text).setText(`MUSIC: ${this.meta.music ? 'ON' : 'OFF'}`);
     });
-    this.button(c, W / 2 + 108, top + 520, 200, 'RESTART', 0xe8452c, () => this.retry());
-    this.button(c, W / 2 - 108, top + 520, 200, 'HOME', 0x27a4c0, () => this.quitHome());
-    const ex = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 740 : 640), 'export playtest log', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    // UI audit: at +-108 the two pills overlapped; +-125 leaves a clear gap between them
+    this.button(c, W / 2 + 125, top + 520, 200, 'RESTART', 0xe8452c, () => this.retry());
+    this.button(c, W / 2 - 125, top + 520, 200, 'HOME', 0x27a4c0, () => this.quitHome());
+    const ex = this.add.text(W / 2, top + (this.s.phase === 'tutorial' ? 796 : 684), 'export playtest log', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     ex.on('pointerup', () => {
       try {
         const blob = new Blob([tlog.exportText()], { type: 'application/json' });
@@ -7424,12 +7490,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       }
     });
     c.add(ex);
-    const linkY = top + (this.s.phase === 'tutorial' ? 700 : 596);
-    const shk = this.add
-      .text(W / 2 + 140, linkY, `Shake: ${this.meta.shake === false ? 'OFF' : 'ON'}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    shk.on('pointerup', () => {
+    const linkY = top + (this.s.phase === 'tutorial' ? 720 : 612);
+    const shk = this.add.text(W / 2 + 140, linkY, `Shake: ${this.meta.shake === false ? 'OFF' : 'ON'}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);
+    this.tapLink(shk, () => {
       sfx.click();
       this.meta.shake = this.meta.shake === false;
       store(META_KEY, JSON.stringify(this.meta));
@@ -7437,8 +7500,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (this.meta.shake) this.shake(90, 0.003);
     });
     c.add(shk);
-    const how = this.add.text(W / 2 - 120, linkY, 'Machine guide', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    how.on('pointerup', () => {
+    const how = this.add.text(W / 2 - 120, linkY, 'Machine guide', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);
+    this.tapLink(how, () => {
       sfx.click();
       this.openHowTo(0, () => this.openPause());
     });
