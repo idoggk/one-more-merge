@@ -261,6 +261,8 @@ export class GameScene extends Phaser.Scene {
   lastSec = -1;
   starChase: Phaser.GameObjects.Text | null = null;
   shieldChip: Phaser.GameObjects.Text | null = null;
+  /** time.now until which a banner_chain banner sits over the top HUD row (the chips fade out under it). */
+  bannerUntil = 0;
   shieldG!: Phaser.GameObjects.Graphics;
   odGauge!: Phaser.GameObjects.Graphics;
   boltIcon?: Phaser.GameObjects.Image;
@@ -2200,6 +2202,8 @@ Now beat the real level.`, this.coachY());
       if (this.starChase.text !== rule) textColor(this.starChase.setText(rule), '#d9c2ff');
       this.starChase.setVisible(true);
     } else this.starChase.setVisible(false);
+    const hudA = this.time.now < this.bannerUntil ? Math.max(0, this.starChase.alpha - dms / 120) : Math.min(1, this.starChase.alpha + dms / 250);
+    this.starChase.setAlpha(hudA);
 
     // smooth HP (goal levels: the bar fills with goal progress instead, r23)
     this.shownHp += (s.hp - this.shownHp) * Math.min(1, dms / 120);
@@ -2219,12 +2223,14 @@ Now beat the real level.`, this.coachY());
     this.drawPace(bw);
     // r23 chain shield chip + bubble on the monster
     if (!this.shieldChip) {
-      this.shieldChip = this.add.text(W - 92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(1, 0.5).setDepth(22);
+      this.shieldChip = this.add.text(W - 92, STAGE_TOP + 34, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6, align: 'right', lineSpacing: -4 }).setOrigin(1, 0.5).setDepth(22);
       this.shieldG = this.add.graphics().setDepth(4);
     }
     const sh = s.shieldUntil !== undefined && s.phase === 'playing';
     const open = sh && s.elapsed < s.shieldUntil!;
-    this.shieldChip.setVisible(sh).setText(open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s` : 'SHIELD  \u00b7  chain of 4 opens it');
+    const shTxt = open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s\nfull damage` : 'SHIELD CLOSED  \u00b7  x0.75\nchain of 4 opens it';
+    if (this.shieldChip.text !== shTxt) textColor(this.shieldChip.setText(shTxt), open ? '#8ef08a' : '#9fe8ff');
+    this.shieldChip.setVisible(sh).setAlpha(hudA);
     this.shieldG.clear();
     if (sh && !open) {
       const rr = Math.min(STAGE_H * 0.46, 170);
@@ -2683,6 +2689,14 @@ Now beat the real level.`, this.coachY());
         case 'shield':
           sfx.panelBreak(1);
           this.showEvent('SHIELD OPEN!  full damage', '#9fe8ff', 1400);
+          // FIX 8: the chain that broke it gets a pop on the monster and on the chip
+          this.floatText(W / 2, this.stageFloatY(this.target.y - 90), 'SHIELD BROKEN!', '#9fe8ff', 44, 300);
+          this.ring(this.target.x, this.target.y, 0x9fe8ff, Math.min(STAGE_H * 0.46, 170), 12, 380);
+          if (this.shieldChip) {
+            this.tweens.killTweensOf(this.shieldChip);
+            this.shieldChip.setScale(1.35);
+            this.tweens.add({ targets: this.shieldChip, scale: 1, duration: 260, ease: 'Back.Out' });
+          }
           break;
         case 'end':
           tlog.log('end', { won: e.won, targets: e.won ? 3 : this.s.target, elapsed: +this.s.elapsed.toFixed(1), chain: this.s.stats.biggestChain });
@@ -2909,6 +2923,8 @@ Now beat the real level.`, this.coachY());
   floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
     const label = this.add.text(0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
     const t = this.add.container(x, y).setDepth(70);
+    // walkthrough 3: the top-row HUD chips (star chase, shield) fade while a stage banner crosses them
+    if (banner === 'banner_chain') this.bannerUntil = Math.max(this.bannerUntil, this.time.now + 160 + 220 + hold + 700);
     if (banner && this.hasArt(banner)) {
       const b = this.add.image(0, 4, banner);
       b.setScale(Math.max((label.width + size * 2.2) / b.width, (label.height + size * 1.2) / b.height));

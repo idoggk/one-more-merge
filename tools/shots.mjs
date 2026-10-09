@@ -396,6 +396,11 @@ const states = {
   wf_result10: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), medals: {}, backupNudged: {}, grants: {}, levelStars: Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 3])) }); sc.startLevel(10); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; sc.s.phase = 'won'; sc.s.elapsed = 52.3; sc.s.stats.biggestChain = 9; sc.openLevelResult(true); }, 600); }, 1800],
   wf_next_tap: [(sc) => { const b = sc.modal.list.find((o) => o.list?.some?.((t) => t.text?.startsWith?.('NEXT'))); b.emit('pointerdown'); b.emit('pointerup'); }, 1600],
   wf_chest_tap: [(sc) => { const o = sc.children.list.filter((c) => c.depth === 140).pop(); o.list[0].emit('pointerdown'); o.list[0].emit('pointerup'); }, 900],
+  // t-bb50f69f FIX 2: a stage banner over the top HUD row (the star chase must fade under it); FIX 8: shield closed / broken
+  banner17: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(17); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; sc.introTarget(); }, 2500); }, 4500],
+  banner20: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(20); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; sc.introTarget(); }, 2500); }, 4500],
+  shield11: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(11); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; }, 300); }, 3500],
+  shield11_open: [(sc) => { sc.s.shieldUntil = sc.s.elapsed + 6; sc.handleEvents([{ type: 'shield', open: true, until: sc.s.shieldUntil }]); }, 350],
   wf_backup_tap: [(sc) => { const o = sc.children.list.filter((c) => c.depth === 140).pop(); o.list[0].emit('pointerdown'); o.list[0].emit('pointerup'); }, 900],
 };
 const only = args.slice(1);
