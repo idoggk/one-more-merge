@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, applyUnits, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -6208,9 +6208,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     PACES.forEach((p, i) => {
       const on = p.id === curPace;
       this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(PACE_KEY, p.id === 'today' ? null : p.id);
+        store(PACE_KEY, p.id === DEFAULT_PACE ? null : p.id);
         tlog.log('qa_pace', { pace: p.id });
-        this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
+        this.showToast(p.id === DEFAULT_PACE ? `PACE ${p.label} (live game)  ·  NEXT LEVEL` : `PACE ${p.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });

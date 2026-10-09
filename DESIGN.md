@@ -377,3 +377,9 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Old saves: a one-time migration (no `meta.unlocks` yet) keeps every feature the old rules already showed, without NEW tags. `hardUnlocked` is still set but no longer opens features.
 - Units tab: owned cards only, the rest as a row of small locked silhouettes. Machine guide: rule pages reached so far + machines owned or already met on the road, then one LOCKED MACHINES page.
 - QA TOOLS: UNLOCK ALL opens every feature.
+
+### PACE = CALM ships, HP/star refit (owner pick 2026-10-09, t-4cd9e27b; level report t-77594cd4)
+- CALM is the game's pace (`DEFAULT_PACE` in `src/content/experiments.ts`); the QA PACE switch still offers TODAY / CALM / MANIA. The TUNING literal stays the TODAY block (tests and tools apply a pace explicitly).
+- levels.json is fitted under CALM with the tools only: chapter 1 `sim-levels.ts --every 3.5` (random bot, onboarding stays near-sure); levels 11-80 `sim-levels.ts --fit-smart --every 3 [--trim 0.85 for 21-80]` (the thinker, best previewed merge every 3 s, wins the authored ramp + 3 points; HP is only lowered, capped at x0.85 in chapters 3-8). Boss stages: boss = 50% of the stage HP (was 35%, bosses had 0.54x their minions).
+- Stars (`star-times.ts --write`): 3 stars = the thinker's median clear, 2 stars = a random merge every 2.5 s (median), at least 4 s / 10% looser, <= 0.8T; chapter 1 keeps easy 3 stars. Mean 3-star line 0.66T.
+- Why not the plain random-bot fit: under CALM it cut HP to x0.64 and left the thinker at 100%; an upward smart fit ran chapter 2 to x2-x4 HP because the thinker's damage snowballs late in a level.

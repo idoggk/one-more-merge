@@ -34,14 +34,16 @@ export const PACES: { id: Pace; label: string }[] = [
   { id: 'mania', label: 'MANIA' },
 ];
 
-/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = TODAY. */
+/** t-4cd9e27b (owner, 2026-10-09): CALM ships as the game's pace; TODAY / MANIA stay on the QA switch. */
+export const DEFAULT_PACE: Pace = 'calm';
+/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = DEFAULT_PACE. */
 export const PACE_KEY = 'omm_qa_pace';
 export function storedPace(read: () => string | null): Pace {
   try {
     const v = read();
-    return PACES.some((x) => x.id === v) ? (v as Pace) : 'today';
+    return PACES.some((x) => x.id === v) ? (v as Pace) : DEFAULT_PACE;
   } catch {
-    return 'today';
+    return DEFAULT_PACE;
   }
 }
 
