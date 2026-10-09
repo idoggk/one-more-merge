@@ -26,25 +26,24 @@ import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
-import { DAILY_SEEDS, DAILY_VERSION } from '../content/dailySeeds';
+import { DAILY_VERSION } from '../content/dailySeeds';
 import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals, starsFor } from '../content/levels';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
-import { applyBundle, exportCode, importCode, isQuotaError, lockSaves, mergeMeta, META_KEY, readBundle, readPreimport, restorePreimport, safeStorage, SAVE_KEY, storeTo, type SaveBundle } from '../platform/backup';
-import { warnStorageFull } from '../platform/storageWarn';
+import { applyBundle, exportCode, importCode, lockSaves, META_KEY, readBundle, readPreimport, restorePreimport, safeStorage, SAVE_KEY, type SaveBundle } from '../platform/backup';
 import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
-import { itemFits, type ItemKind } from '../core/types';
+import { itemFits } from '../core/types';
 import { ATTACK_TINT, CELL_COPY, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
-import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, type PityState } from '../core/crates';
+import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
-import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts, type YardWeekRec } from '../core/yardWeek';
+import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
@@ -56,6 +55,9 @@ import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, pace
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
 import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
+import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
+import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
+export { localDate };
 
 export const W = 720;
 const CELL = 124;
@@ -120,121 +122,6 @@ export function computeLayout(viewW: number, viewH: number) {
 }
 
 
-interface Meta {
-  tutorialDone: boolean;
-  bestTime: number | null;
-  bestChain: number;
-  runs: number;
-  wins: number;
-  sound: boolean;
-  hints: boolean;
-  music: boolean;
-  /** Equipped MACHINE-tab stage backdrop (r18 Bolt sink). */
-  stage?: string | null;
-  /** Equipped hero ornament (r17 Bolt sink). */
-  ornament?: string | null;
-  /** Bolts balance at the last Workshop visit (new-item dot). */
-  workshopSeenBolts?: number;
-  /** Chapter medals earned (chapter number -> true), r17. */
-  medals?: Record<string, boolean>;
-  /** r43 "Back up your progress?" nudge already shown after this chapter clear. */
-  backupNudged?: Record<string, boolean>;
-  /** One-time road / card / booster lessons (r17 onboarding). */
-  lessons?: Record<string, boolean>;
-  /** SAGA progress: best stars per level number, dynamic resources, one-time grants. */
-  levelStars?: Record<string, number>;
-  /** r46 ghost pace: the fastest win of each level as a compact progress curve (core/pace). */
-  levelPace?: Record<string, PaceCurve>;
-  kits?: number;
-  capsules?: number;
-  grants?: Record<string, boolean>;
-  failPaid?: Record<string, string>;
-  /** Team shooter slot (Cannon, or Rocket once unlocked by the first full clear). */
-  shooter?: Family;
-  /** Simplified configuration for the stranger playtest (ChatGPT r21). */
-  playtestMode?: boolean;
-  /** r32 unit collection: level + spare duplicate cards per unit; premium Gems; unopened crates; crate roll counter. */
-  units?: Record<string, { level: number; cards: number }>;
-  gems?: number;
-  crates?: Partial<Record<CrateKind, number>>;
-  crateSeq?: number;
-  pity?: PityState;
-  unitChoiceDone?: boolean;
-  /** r32 squad relays (slot A unlocks in chapter 2, slot B in chapter 3). */
-  relays?: [string, string];
-  /** r30 Monster Bounties: per-date record (won / mastered slots), mastery stars per opponent, milestones paid. */
-  bounty?: Record<string, { won: number[]; mastered: number[] }>;
-  bossMastery?: Record<string, number>;
-  /** r35 trophies on display beside the machine (max 4 boss ids; a trophy is won at TROPHY_AT mastery stars). */
-  trophies?: string[];
-  /** r36 screwdrivers (one per yard attempt). Unused since Screw Yard 2.0 (yards are free); kept so old saves load. */
-  screwdrivers?: number;
-  /** Screw Yard 2.0 earned boosters (never sold). */
-  yardBoosters?: BoosterCounts;
-  /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
-  trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
-  /** r42 Workshop Puzzles: daily streak + solved drills. */
-  puzzles?: PuzzleRec;
-  /** r41 Workshop Season record. */
-  season?: SeasonRec;
-  /** r40 Saga Mastery medals: level -> contract indexes completed. */
-  sagaMedals?: Record<string, number[]>;
-  /** r40 Endless Road: the next floor to play and the best floor cleared. */
-  endless?: { floor: number; best: number };
-  /** r38 collection milestones claimed (index into COLLECTION_GOALS). */
-  collClaimed?: number;
-  yard?: YardWeekRec;
-  masteryPaid?: number;
-  /** r29 Boss Rush: this week's course, Bolts granted this week, gold stamps, medal, completed weeks. */
-  rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[]; run?: { i: number; times: number[] } };
-  /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
-  swapMismatch?: boolean;
-  /** Camera shake on big hits (pause-menu toggle; default on). */
-  shake?: boolean;
-  hardUnlocked: boolean;
-  bestTimeHard: number | null;
-  /** Unlocked toys and whether each is switched on for runs. */
-  toys: Partial<Record<Family, boolean>>;
-  /** Remix fastest wins keyed by opponent + helper loadout. */
-  remixBest: Record<string, number>;
-  /** First-time contextual tips already shown. */
-  tips: Record<string, boolean>;
-  /** Bolts wallet (the only spendable resource; cosmetics only). */
-  bolts?: number;
-  owned?: string[];
-  finish?: string | null;
-  nameIdx?: number;
-  /** One-time entitlements / settlement guards. */
-  onboarded?: boolean;
-  dailyPaid?: Record<string, boolean>;
-  lastSettle?: string;
-  /** Mastery as last seen on the home page (improved modules get a highlight). */
-  homeSeen?: Partial<Record<Family, number>>;
-  /** Highest rank ever created per family by a player merge or Kickback fuse: builds YOUR MACHINE. */
-  mastery?: Partial<Record<Family, number>>;
-  /** Daily Bench personal bests by local date (only recent days kept). */
-  daily?: Record<string, DailyBest>;
-}
-
-/** Daily Bench result, ordered: more opponents beaten > (cleared: faster) > more damage on the opponent reached. */
-interface DailyBest {
-  v: number;
-  targets: number;
-  time: number | null;
-  dmg: number;
-  attempts: number;
-}
-const dailyBetter = (a: DailyBest, b: DailyBest | undefined) =>
-  !b || a.targets > b.targets || (a.targets === b.targets && (a.targets === 3 ? (a.time ?? 1e9) < (b.time ?? 1e9) : a.dmg > b.dmg));
-export function localDate(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-function dailySeed(date: string) {
-  const [y, m, d] = date.split('-').map(Number);
-  const day = Math.floor(Date.UTC(y, m - 1, d) / 86400000);
-  return DAILY_SEEDS[day % DAILY_SEEDS.length];
-}
-
 /** Which stage backdrop the Workshop preview shows: the previewed stage item, else the equipped one. */
 const it0Stage = (preview: string | null, equipped: string | null) => (preview && CATALOG.find((x) => x.id === preview)?.slot === 'stage' ? preview : equipped);
 /** Telegraph icon per attack (v17 boss icons + v19 mini-boss icons). */
@@ -289,21 +176,6 @@ const textBg = (t: Phaser.GameObjects.Text, bg: string, px: number, py: number) 
   return t;
 };
 
-function loadMeta(): Meta {
-  const d: Meta = { tutorialDone: false, bestTime: null, bestChain: 0, runs: 0, wins: 0, sound: true, hints: true, music: true, hardUnlocked: false, bestTimeHard: null, toys: {}, remixBest: {}, tips: {} };
-  try {
-    return mergeMeta(d, JSON.parse(localStorage.getItem(META_KEY) || '{}'));
-  } catch {
-    return d;
-  }
-}
-const store = (k: string, v: string | null) => {
-  try {
-    storeTo(localStorage, k, v);
-  } catch (e) {
-    if (isQuotaError(e)) warnStorageFull(); // else: storage unavailable
-  }
-};
 // t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
 const SPAM_KEY = 'omm_qa_spam_variant';
 const spamVariant = (): SpamVariant => {
@@ -1898,15 +1770,7 @@ Now beat the real level.`, this.coachY());
 
   // ---------- guided tutorial (playtest: "I was missing a good tutorial") ----------
 
-  // Script from ChatGPT round 8 (6 hands-on steps on the real start board, idx = row*5+col).
-  static TUTORIAL: { kind: 'merge' | 'mismatch'; pair: [number, number]; fam: Family; text: string; after?: string; focus?: 'target' | 'chain' | 'row' }[] = [
-    { kind: 'merge', pair: [21, 22], fam: 'cannon', text: 'Same machine. Same number.\nDrag onto its match.', after: 'It got stronger and FIRED!\nNow smash the can!', focus: 'target' },
-    { kind: 'merge', pair: [6, 16], fam: 'coil', text: 'Merge to fire. Coils zap nearby\nmachines into a CHAIN.', after: 'That was a CHAIN: one merge\nset off its neighbours!', focus: 'chain' },
-    { kind: 'merge', pair: [8, 17], fam: 'bell', text: 'Bells wake machines across\ntheir whole row. Watch the cannon!', after: 'The bell rang its row\nand woke that cannon!', focus: 'row' },
-    { kind: 'mismatch', pair: [5, 22], fam: 'cannon', text: 'Different numbers can NOT merge.\nTry dragging this 1 onto the 2.' },
-    { kind: 'merge', pair: [5, 19], fam: 'cannon', text: 'Cannons fire alone, slowly.\nIn a chain they hit much harder!' },
-    { kind: 'merge', pair: [19, 22], fam: 'cannon', text: 'Two 2s make a 3! Bigger number,\nbigger blast.', after: 'Now clear levels on the road:\none monster, one clock. LET\'S PLAY!' },
-  ];
+  static TUTORIAL = TUTORIAL;
 
   /** r24: bubble centre just above the given points (or below them when there is no room above). */
   nearY(pts: { x: number; y: number }[]) {
@@ -2785,11 +2649,7 @@ Now beat the real level.`, this.coachY());
   itemG!: Phaser.GameObjects.Graphics;
   itemBadges = new Map<number, Phaser.GameObjects.Container>();
 
-  static ITEM_COPY: Record<ItemKind, { name: string; how: string; wrong: string }> = {
-    overcharge: { name: 'OVERCHARGE', how: 'Put this on a shooter.\nIts next two chain shots hit DOUBLE.', wrong: 'Use it on a Cannon or Rocket' },
-    spark: { name: 'SPARK', how: 'Put this on a shooter.\nThe next 2 times it fires in a chain,\nit wakes the machines next to it.', wrong: 'Use it on a Cannon or Rocket' },
-    corner: { name: 'CORNER KIT', how: 'Put this on a Bell.\nThe next 2 times it rings, it also wakes\nits diagonal neighbours.', wrong: 'Use it on a Bell' },
-  };
+  static ITEM_COPY = ITEM_COPY;
 
   /** r25: attach the tray item to the machine in `idx` (if it fits), else explain why and keep the item. */
   tryApplyItem(idx: number) {
@@ -3005,13 +2865,7 @@ Now beat the real level.`, this.coachY());
     this.tweens.add({ targets: c, scale: REDUCED_MOTION ? size / 16 : (size * 1.6) / 16, alpha: 0, duration: 140, onComplete: () => c.destroy() });
   }
 
-  /** Face patches (face_<target>_<hit|angry|dizzy>) cover the sprite's own face; offsets are fractions of the sprite box. */
-  // calibrated against ChatGPT's sprites (fractions of the 512px target box; patch boxes are 256px with ~0.83 fill)
-  static FACE = [
-    { x: 0.02, y: 0.0, w: 0.58 },
-    { x: -0.07, y: -0.075, w: 0.59 },
-    { x: 0.235, y: -0.255, w: 0.5 },
-  ];
+  static FACE = FACE;
 
   showFace(mood: 'hit' | 'angry' | 'dizzy' | null, ms = 0) {
     const ti = this.s.target;
@@ -4184,12 +4038,7 @@ Now beat the real level.`, this.coachY());
     return (Object.entries(this.meta.toys) as [Family, boolean][]).filter(([, on]) => on).map(([f]) => f);
   }
 
-  /** Discovery challenges (ChatGPT's meta plan): one toy unlocks the next. */
-  static CHALLENGES: { toy: Family; text: string }[] = [
-    { toy: 'magnet', text: 'Wake 3 cannons in one chain' },
-    { toy: 'battery', text: 'Merge a gadget your Magnet pulled' },
-    { toy: 'fan', text: 'Fire a Battery-primed cannon' },
-  ];
+  static CHALLENGES = CHALLENGES;
   pulledIds = new Set<number>();
   pulledMerge = false;
 
@@ -4711,8 +4560,7 @@ Now beat the real level.`, this.coachY());
     });
   }
 
-  /** Chapter collection identity (r17): the medal portrait for chapters 1-6. */
-  static CHAPTER_MONSTER = [0, 1, 3, 4, 5, 2];
+  static CHAPTER_MONSTER = CHAPTER_MONSTER;
 
   /** A chapter medal: the empty medal plate with the chapter's monster portrait and numeral composited in code. */
   medalIcon(x: number, y: number, size: number, chapter: number, earned: boolean): Phaser.GameObjects.Container {
@@ -6938,28 +6786,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** Illustrated rules, reachable from title + pause (playtest: wanted everything explained). */
   /** r24 MACHINE GUIDE (Ido: "a better explanation of the different units"): one page per machine with a looping
    *  mini-board that shows exactly what it does, plus how chains work. Locked machines say where you meet them. */
-  static GUIDE: { key: string; title: string; role: string; text: string; tryThis: string; unlock: number }[] = [
-    { key: 'chain', title: 'HOW CHAINS WORK', role: 'THE RULE', text: 'Merge two SAME machines with the SAME number. The new machine fires and wakes OTHER machines in its reach. Every machine that fires hits the monster.', tryThis: 'Bigger chain = bigger hit. Build machines next to each other.', unlock: 0 },
-    { key: 'cannon', title: 'CANNON', role: 'SHOOTER', text: 'Shoots by itself, weakly. When a merge or a chain wakes it, it fires a FULL shot. It wakes nobody.', tryThis: 'Park Cannons where Coils and Bells can reach them.', unlock: 0 },
-    { key: 'coil', title: 'COIL', role: 'RELAY', text: 'Zaps up to 2 cells away: up, down, left, right. Wakes every OTHER kind of machine it reaches.', tryThis: 'Put Cannons inside its cross.', unlock: 0 },
-    { key: 'bell', title: 'BELL', role: 'RELAY', text: 'Rings its whole row. Wakes every OTHER kind of machine in that row.', tryThis: 'Fill its row with Cannons and Coils.', unlock: 0 },
-    { key: 'rocket', title: 'ROCKET', role: 'SHOOTER', text: 'Never shoots by itself. When a chain wakes it, it fires a BIG shot: 1.3x a Cannon.', tryThis: 'Pack Rockets into your longest chains.', unlock: 6 },
-    { key: 'magnet', title: 'MAGNET', role: 'MOVER', text: 'When it fires, it pulls one machine along its line into the empty cell next to it.', tryThis: 'Use it to bring a pair together.', unlock: 12 },
-    { key: 'fan', title: 'FAN', role: 'MOVER', text: 'When it fires, it blows the first machine next to it one cell further away (if that cell is empty).', tryThis: 'Use it to push a machine into a relay\'s reach.', unlock: 23 },
-    { key: 'mortar', title: 'MORTAR', role: 'SHOOTER', text: 'Never shoots by itself. Woken DEEP in a chain it hits harder: x0.9 at the first link, up to x1.65 six links in.', tryThis: 'Put it at the far end of your longest chain.', unlock: 999 },
-    { key: 'arc_welder', title: 'ARC WELDER', role: 'SHOOTER', text: 'Woken by a chain it fires a lighter shot (x0.75) and arcs into the strongest machine touching it, waking it too.', tryThis: 'Surround it with machines it can wake.', unlock: 999 },
-    { key: 'horn', title: 'HORN', role: 'RELAY', text: 'Blasts its whole column: wakes every OTHER kind of machine above and below it.', tryThis: 'Stack shooters above and below it.', unlock: 999 },
-    { key: 'fuse_box', title: 'FUSE BOX', role: 'RELAY', text: 'Sparks its four diagonal corners: wakes the OTHER kinds of machines there.', tryThis: 'Build a checkerboard around it.', unlock: 999 },
-    { key: 'amplifier', title: 'AMPLIFIER', role: 'SUPPORT', text: 'When it fires it marks the strongest shooter or relay touching it. That machine\'s next hit is x1.3 (the mark waits until it fires).', tryThis: 'Park it beside your biggest machine.', unlock: 999 },
-    { key: 'signal_beacon', title: 'SIGNAL BEACON', role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere on the board: their next hits are x1.15.', tryThis: 'Fire it early in a chain.', unlock: 999 },
-    { key: 'items', title: 'POWER-UPS', role: 'SPECIAL', text: 'Get halfway through a level and a power-up capsule drops into your tray. Drag it onto a machine: OVERCHARGE (shooter: next 2 chain shots x2), SPARK (shooter: wakes its neighbours, 2 times), CORNER KIT (Bell: wakes its diagonals, 2 times).', tryThis: 'A machine keeps its power-up when you merge it.', unlock: 13 },
-    { key: 'battery', title: 'BATTERY', role: 'SUPPORT', text: 'Charges a shooter next to it (Cannon, Rocket, Mortar, Arc Welder): that shooter\'s next chain shot hits x1.5.', tryThis: 'Park it beside your biggest shooter.', unlock: 17 },
-    // clarity pass 1 legend: every mark drawn with the board's own code (see marksLegend)
-    { key: 'marks', title: 'BOARD MARKS', role: 'SPECIAL', text: '', tryThis: 'Tap any machine to see its marks and what a merge does with them.', unlock: 0 },
-    // clarity pass 3: what empty cells, the HP bar, the clock ring and the bolt meter show
-    { key: 'marks2', title: 'CELLS & METERS', role: 'SPECIAL', text: '', tryThis: 'Tap a marked empty cell or a junk block to see what it does.', unlock: 0 },
-    { key: 'overdrive', title: 'OVERDRIVE', role: 'SPECIAL', text: 'Merges fill the bolt meter at the top (in some modes, chain links do). Full: OVERDRIVE! For a few seconds your Cannons fire super fast, every chain hits x1.5 and the board glows orange. Then the meter starts again.', tryThis: 'When the meter is one short, save a big merge for it.', unlock: 0 },
-  ];
+  static GUIDE = GUIDE;
 
   /** Board marks legend: a mini cell per mark, drawn with the same functions / art as the board, one sentence each. */
   marksLegend(c: Phaser.GameObjects.Container, top: number, page2 = false): number {
