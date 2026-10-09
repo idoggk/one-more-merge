@@ -135,6 +135,11 @@ export const TUNING = {
    *  right neighbours (hornSides). Mortar order multiplier orderBase + orderStep per machine. Sims: DESIGN.md (units B1). */
   unitsB1: false,
   b1: { toyBag: 1, helperPass: true, battery: 2, amp: 1.6, beacon: 1.3, fanPush: true, fuseReach: 2, hornSides: true, orderBase: 0.85, orderStep: 0.12 },
+  /** PROTOTYPE (t-1effe0bf, src/core/sandwich.ts), default 'today': a player merge whose landing cell touches 2+ more
+   *  same-rank parts of its family absorbs two of them. 'sandwich2' = rank +2 (capped); 'sandwichBonus' = +1 as today
+   *  plus sandwichOdShare of the Overdrive meter. Puzzles and kickback fuses never sandwich. */
+  mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
+  sandwichOdShare: 1 / 3,
 };
 
 /** Units B0 rules are on (B0 itself, or B1, which builds on them). */
