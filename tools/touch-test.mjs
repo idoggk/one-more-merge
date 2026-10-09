@@ -230,9 +230,12 @@ check('merge lands exactly, one sprite per gadget', st.cells[24] === 'b3' && st.
 await drag(24, 23, { x: 35, y: 35 }, 4); // fast flick
 st = await state();
 check('fast short flick still lands exactly', st.cells[23] === 'b3' && !st.off.length, st);
+const rejects = () => page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); return { n: sc.dropRejects, hint: sc.lastDropHint }; });
+let rj0 = await rejects();
 await drag(23, 23, { x: 10, y: 10 }, 6); // pick up and put back
 st = await state();
-check('pick up and drop on itself returns home', st.cells[23] === 'b3' && !st.off.length, st);
+let rj = await rejects();
+check('pick up and drop on itself returns home (one reject, match hint)', st.cells[23] === 'b3' && !st.off.length && rj.n === rj0.n + 1 && rj.hint === 'DROP ON A MATCHING PART', { st, rj0, rj });
 
 // --- merge-flow audit (t-0ed230cd) ---
 // 6) a second legal merge right after the first (a fast flick; the old 100 ms merge cooldown refused these) lands
@@ -395,6 +398,15 @@ await wait(200);
 await fingerPath([await cellScreen(27), sf.both ?? sf.scrap]);
 st = await state();
 check('no merge under the piece: shown SCRAP zone scraps it', st.live === 1 && st.cells[BR] === 'c2' && clean(st), st);
+// 12b) a rank 3 part dropped on SCRAP without the hold: rejected (snaps home), with the hold-to-scrap hint
+await setBoard({ 27: 'c3' });
+await wait(200);
+await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); sc.hintGate = new sc.hintGate.constructor(); });
+rj0 = await rejects();
+await fingerPath([await cellScreen(27), sf.scrap]);
+st = await state();
+rj = await rejects();
+check('early SCRAP drop of a rank 3 part: kept, one reject, hold-to-scrap hint', st.cells[27] === 'c3' && st.live === 1 && clean(st) && rj.n === rj0.n + 1 && rj.hint === 'HOLD TO SCRAP', { st, rj0, rj });
 
 // 13) background/foreground mid-touch (the touchend never comes): the next drag still works
 const ghostTouch = (i, id) =>
