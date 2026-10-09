@@ -1,6 +1,6 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1] [--set b1.toyBag=2,b1.amp=1.6]
+// Usage: npx vite-node tools/squad-swap.ts [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
 import { levelMult, unitDef } from '../src/content/units';
@@ -178,8 +178,10 @@ console.log(`squad-swap: levels ${defs.map((d) => d.level).join(',')}  n=${N}/le
 interface Agg { win: number; clr: number; mean: number; clrAll: number; chainMed: number; chainP90: number; share: Partial<Record<Family, number>>; passive: number; deep: number; acts: number; wakes: Partial<Record<Family, number>>; helper: string }
 const results = new Map<string, Agg>();
 for (const sq of SQUADS) {
-  // --only KEY[,KEY...]: substring match on the squad key (BASE always runs: it is the reference)
+  // --only KEY[,KEY...]: substring match on the squad key (BASE always runs: it is the reference, unless --nobase for
+  // split runs, where deltas are worked out against a separate BASE run)
   if (ONLY && sq.key !== 'BASE' && !ONLY.toUpperCase().split(',').some((k) => sq.key.includes(k))) continue;
+  if (sq.key === 'BASE' && args.includes('--nobase')) continue;
   for (const bot of BOTS) {
     const runs: Run[] = [];
     // the smart bot is deterministic: vary the level's supply seed per run (same seeds for every squad, so runs pair up)
@@ -213,7 +215,7 @@ for (const sq of SQUADS) {
       helper,
     };
     results.set(`${sq.key}|${bot.name}`, a);
-    const b = results.get(`BASE|${bot.name}`)!;
+    const b = results.get(`BASE|${bot.name}`) ?? a;
     const dWin = (a.win - b.win) * 100, dClr = ((a.clr - b.clr) / b.clr) * 100, dMean = ((a.mean - b.mean) / b.mean) * 100;
     console.log(
       `${sq.key.padEnd(16)} ${bot.name.padEnd(6)} win ${pct(a.win)}% (${dWin >= 0 ? '+' : ''}${dWin.toFixed(1)})  clr ${pct(a.clr)}% (${dClr >= 0 ? '+' : ''}${dClr.toFixed(1)}%) mean ${pct(a.mean)}% (${dMean >= 0 ? '+' : ''}${dMean.toFixed(1)}%) all ${pct(a.clrAll)}%  chain ${a.chainMed}/${a.chainP90}  dmg ${fams.map((f) => `${f} ${pct(share[f]!)}`).join(' ')} oth ${pct(other)}  passive ${pct(a.passive)}  d3+ ${pct(a.deep)}  acts ${a.acts.toFixed(0)}  wakes ${sq.relays.map((f) => `${f} ${a.wakes[f]!.toFixed(2)}`).join(' ')}${helper}`,
