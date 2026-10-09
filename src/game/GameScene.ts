@@ -63,6 +63,9 @@ import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '.
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
 import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
+import { bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
+import { PartReact } from './fx/partReact';
+import { fitLine, soCloseText } from './fx/soClose';
 export { localDate };
 
 export const W = 720;
@@ -1755,6 +1758,7 @@ Now beat the real level.`, this.coachY());
     this.updateHints();
     this.drawHud(dms);
     this.animateIdle();
+    this.partReact.update(this, dms);
     this.updateFace();
     this.coach.update(this.time.now);
     this.checkTips();
@@ -1773,6 +1777,7 @@ Now beat the real level.`, this.coachY());
   idleNext = 0;
   idleBeat = 0;
   idleActs = new Map<number, number>();
+  partReact = new PartReact(REDUCED_MOTION);
   animateIdle() {
     const t = this.time.now / 1000;
     if (this.target && !this.tweens.isTweening(this.target) && this.s.phase === 'playing') this.target.setAngle(Math.sin((t * Math.PI * 2) / 2.4) * 0.5);
@@ -3127,10 +3132,10 @@ Now beat the real level.`, this.coachY());
         this.time.delayedCall(windup + d * step, () => this.showEvent(`CHAIN  x${n}`, n >= 10 ? '#ffd24a' : '#fff0cf', 900));
       }
     }
+    playChainLadder(this, r.activations, windup, step, root, REDUCED_MOTION);
     for (let d = 0; d <= maxDepth; d++) {
       const at = (windup + d * step) / 1000;
       const acts = r.activations.filter((a) => a.depth === d);
-      if (d > 0) sfx.cascadeStep(Math.min(d - 1, 3), at);
       if (acts.some((a) => a.family === 'coil')) sfx.zap(at);
       const bell = acts.find((a) => a.family === 'bell');
       if (bell) sfx.bell(bell.rank, at);
@@ -3171,9 +3176,10 @@ Now beat the real level.`, this.coachY());
       });
       this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
     });
-    const end = windup + maxDepth * step + 260;
+    const end = windup + maxDepth * step + 260 + chainHoldMs(r.count);
     this.time.delayedCall(end, () => {
       this.hitTarget(true, r.count >= 10 ? 1 : 0);
+      bigFinish(this, r.count);
       if (r.count >= 3) {
         sfx.chord(Math.min(r.count, 20));
         duckMusic();
@@ -3894,7 +3900,7 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${this.stageCount()!.at} of ${this.stageCount()!.n}  ·  ${this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${this.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
+    c.add(fitLine(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : soCloseText({ hp: s.hp, maxHp: s.maxHp, stage: s.stage, totalDamage: s.stats.totalDamage, merges: s.stats.merges }, this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5), W - 120));
     // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
     if (!won && this.hasArt('defeat')) {
       const im = this.fitVisible(this.add.image(W / 2, top + 296, 'defeat'), 240);

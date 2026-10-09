@@ -367,6 +367,12 @@ const states = {
     },
     600,
   ],
+  // merge juice v2 (rival study #4/#10/#11): a held part with its matches leaning in, the idle pair blink, a big chain's
+  // counter in its hold, and the 'so close' lose line. Run alone: node tools/shots.mjs shots fx_drag fx_idle fx_chain fx_lose
+  fx_drag: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = true; const s = sc.s; let pick = -1; for (let i = 0; i < 30 && pick < 0; i++) for (let j = 0; j < 30; j++) if (i !== j && s.grid[i] && s.grid[j] && s.grid[i].family === s.grid[j].family && s.grid[i].rank === s.grid[j].rank) { pick = i; break; } if (pick < 0) return; const m = s.grid.findIndex((g, j) => j !== pick && g && g.family === s.grid[pick].family && g.rank === s.grid[pick].rank); if (m >= 0) s.grid[m].primed = true; sc.input.activePointer.isDown = true; sc.dragIdx = pick; sc.dragId = s.grid[pick].id; sc.dragView = sc.views.get(sc.dragId); sc.moved = true; sc.dragView.setDepth(55).setPosition(sc.dragView.x + 150, sc.dragView.y - 60); }, 900); }, 1700],
+  fx_idle: [(sc) => { sc.input.activePointer.isDown = false; sc.dragIdx = -1; sc.dragView = null; sc.moved = false; sc.reconcile(true); sc.paused = false; sc.idleTime = 6.5; sc.partReact.blinkFrom = sc.time.now - 1600 * 3 - 260; }, 60],
+  fx_chain: [(sc) => { sc.paused = false; const s = sc.s; const cells = s.grid.map((g, i) => (g ? i : -1)).filter((i) => i >= 0).slice(0, 10); const acts = cells.map((idx, k) => ({ id: s.grid[idx].id, idx, family: s.grid[idx].family, rank: s.grid[idx].rank, depth: Math.min(k, 6), parent: -1, charge: 1, contribution: 10 })); sc.playCascade({ rootIdx: cells[0], activations: acts, edges: [], count: acts.length, total: 120 }, false, false); }, 760],
+  fx_lose: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = false; const s = sc.s; if (s.stage) { s.stage.i = s.stage.hps.length - 1; s.maxHp = s.stage.hps[s.stage.i]; } s.hp = Math.round(s.maxHp * 0.08); s.stats.merges = 20; s.stats.totalDamage = Math.round(s.maxHp * 0.045 * 20); s.timeLeft = 0.05; }, 600); }, 3600],
   result_win: [
     (sc) => {
       sc.coach.clear();
