@@ -16,6 +16,11 @@ const INK = 0x2b1d2e;
 const WOOD = [0xc98d4e, 0xb47838];
 const LIGHT = norm([-0.45, 0.8, 0.55]);
 const TURN_MS = 260;
+/** Screw ring segments: full detail in the idle snapshot, fewer while the live redraw runs every turning frame. */
+const RING_IDLE = 18;
+const RING_TURN = 10;
+
+type Bakeable = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Visible;
 
 function norm(v: V3): V3 {
   const l = Math.hypot(...v);
@@ -43,6 +48,23 @@ export class ObjectYardScene extends Phaser.Scene {
   ended = false;
   hammerArmed = false;
   obj!: Phaser.GameObjects.Graphics;
+  /** Still pictures (see bake): the object (obj stays live only while turning), the header + boxes + row band, and
+   *  the turn arrows + helper bar band. Phaser re-triangulates every Graphics each frame, which cost ~60 ms a frame on
+   *  a throttled phone even when nothing moved; a baked band is one quad. */
+  snap!: Phaser.GameObjects.RenderTexture;
+  topSnap!: Phaser.GameObjects.RenderTexture;
+  botSnap!: Phaser.GameObjects.RenderTexture;
+  topStatic: Bakeable[] = [];
+  botStatic: Bakeable[] = [];
+  /** Pieces that animate on their own (pulsing rings): never baked. */
+  live = new Set<Phaser.GameObjects.GameObject>();
+  /** Reused Vector2s for face corners / screw rings (fillPoints copies them, so one buffer per size is enough). */
+  vbuf = new Map<string, Phaser.Math.Vector2[]>();
+  buf(key: string, n: number) {
+    let b = this.vbuf.get(key);
+    if (!b || b.length !== n) this.vbuf.set(key, (b = Array.from({ length: n }, () => new Phaser.Math.Vector2())));
+    return b;
+  }
   ui!: Phaser.GameObjects.Container;
   bar!: Phaser.GameObjects.Container;
   viewLabel!: Phaser.GameObjects.Text;
@@ -75,8 +97,12 @@ export class ObjectYardScene extends Phaser.Scene {
       bg.setScale(Math.max(W / bg.width, H / bg.height));
     } else this.add.rectangle(W / 2, H / 2, W, H, 0xe8cfa6);
     // header
-    this.add.graphics().fillStyle(INK, 0.9).fillRoundedRect(16, 18, W - 32, 76, 24);
-    this.add.text(W / 2, 56, `SCREW YARD  ·  ${this.st.lvl.name}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#ffcf33' }).setOrigin(0.5);
+    this.live.clear();
+    this.topStatic = [
+      this.add.graphics().fillStyle(INK, 0.9).fillRoundedRect(16, 18, W - 32, 76, 24),
+      this.add.text(W / 2, 56, `SCREW YARD  ·  ${this.st.lvl.name}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#ffcf33' }).setOrigin(0.5),
+    ];
+    this.botStatic = [];
     const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     back.on('pointerup', () => this.finish(false, true));
     // the object fills the space between the row and the turn controls
@@ -84,10 +110,14 @@ export class ObjectYardScene extends Phaser.Scene {
     this.cy = (top + bottom) / 2 + 20;
     this.S = Math.min(150, (bottom - top) / 3.1, (W - 60) / 4.2);
     this.obj = this.add.graphics();
+    this.snap = this.band(this.cy - this.S * 3, this.cy + this.S * 2.4);
+    // the baked bands sit where their live pieces did in the draw order (the label / hint stay on top)
+    const ty = H - 205;
+    this.topSnap = this.band(0, this.rowY + 130);
+    this.botSnap = this.band(ty - 60, H);
     this.ui = this.add.container(0, 0);
     this.bar = this.add.container(0, 0);
     // turn controls: ◀ VIEW ▶ (swipe left / right on the object does the same)
-    const ty = H - 205;
     this.viewLabel = this.add.text(W / 2, ty - 14, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', backgroundColor: '#2b1d2ecc', padding: { x: 14, y: 4 } }).setOrigin(0.5);
     this.hint = this.add.text(W / 2, ty + 30, 'Swipe or ◀ ▶ to turn it', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#fff0cf', backgroundColor: '#2b1d2eaa', padding: { x: 10, y: 3 } }).setOrigin(0.5);
     this.arrow(84, ty, '◀', -1);
@@ -107,10 +137,30 @@ export class ObjectYardScene extends Phaser.Scene {
     });
   }
 
+  /** A screen band [y0, y1) baked at the canvas resolution (the camera zooms by RS). */
+  band(y0: number, y1: number) {
+    y0 = Math.max(0, Math.floor(y0));
+    y1 = Math.min(H, Math.ceil(y1));
+    const rt = this.add.renderTexture(0, y0, Math.ceil(W * RS), Math.ceil((y1 - y0) * RS)).setOrigin(0, 0).setScale(1 / RS);
+    rt.camera.setOrigin(0, 0).setZoom(RS).setScroll(0, y0);
+    return rt;
+  }
+
+  /** Paint the still pieces into rt once and hide them, so idle frames draw one quad. Tappable, zone and pulsing
+   *  pieces stay live (hit tests never look at the band). */
+  bake(rt: Phaser.GameObjects.RenderTexture, items: Bakeable[]) {
+    rt.clear();
+    for (const o of items) {
+      if (o.input || this.live.has(o) || o.type === 'Zone') continue;
+      rt.draw(o.setVisible(true));
+      o.setVisible(false);
+    }
+  }
+
   arrow(x: number, y: number, label: string, dir: 1 | -1) {
     const g = this.add.graphics();
     g.fillStyle(INK, 0.92).fillCircle(x, y, 52).fillStyle(0x8a6a4a, 1).fillCircle(x, y, 45).lineStyle(4, 0xfff0cf, 0.9).strokeCircle(x, y, 45);
-    this.add.text(x + dir * 3, y, label, { fontFamily: 'Arial', fontSize: '44px', color: '#ffffff' }).setOrigin(0.5);
+    this.botStatic.push(g, this.add.text(x + dir * 3, y, label, { fontFamily: 'Arial', fontSize: '44px', color: '#ffffff' }).setOrigin(0.5));
     this.add.zone(x, y, 116, 116).setInteractive({ useHandCursor: true }).on('pointerup', () => this.rotate(dir));
   }
 
@@ -134,7 +184,8 @@ export class ObjectYardScene extends Phaser.Scene {
     const st = this.st;
     for (const { block: bid, face, n, k, pts: q } of faces) {
       const b = st.lvl.blocks[bid];
-      const pts = q.map((s) => new Phaser.Math.Vector2(this.cx + s.x * this.S + off.x, this.cy + s.y * this.S + off.y));
+      const pts = this.buf('face', q.length);
+      q.forEach((s, i) => pts[i].set(this.cx + s.x * this.S + off.x, this.cy + s.y * this.S + off.y));
       const r = turnDir(n, this.turn);
       const lit = Math.max(0, r[0] * LIGHT[0] + r[1] * LIGHT[1] + r[2] * LIGHT[2]);
       const base = Phaser.Display.Color.IntegerToColor(WOOD[b.tint % WOOD.length]);
@@ -158,12 +209,13 @@ export class ObjectYardScene extends Phaser.Scene {
     const c: V3 = [p[0] + n[0] * SCREW_OUT, p[1] + n[1] * SCREW_OUT, p[2] + n[2] * SCREW_OUT];
     const u: V3 = n[1] !== 0 ? [1, 0, 0] : [-n[2], 0, n[0]];
     const v: V3 = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
+    const N = this.turning ? RING_TURN : RING_IDLE;
     const ring = (r: number) => {
-      const pts: Phaser.Math.Vector2[] = [];
-      for (let i = 0; i < 18; i++) {
-        const a = (i / 18) * Math.PI * 2;
+      const pts = this.buf('ring', N);
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
         const s = this.project([c[0] + (u[0] * Math.cos(a) + v[0] * Math.sin(a)) * r, c[1] + (u[1] * Math.cos(a) + v[1] * Math.sin(a)) * r, c[2] + (u[2] * Math.cos(a) + v[2] * Math.sin(a)) * r]);
-        pts.push(new Phaser.Math.Vector2(s.x + off.x, s.y + off.y));
+        pts[i].set(s.x + off.x, s.y + off.y);
       }
       return pts;
     };
@@ -187,6 +239,15 @@ export class ObjectYardScene extends Phaser.Scene {
     g.fillStyle(INK, 0.22).fillEllipse(this.cx, this.cy + this.S * 1.45, this.S * 4.2, this.S * 0.9);
     this.paintFaces(g, shownFaces(this.st, this.turn));
     this.viewLabel?.setText(`${VIEW_NAMES[this.view]}  ·  ${this.view + 1}/4`);
+    if (this.turning) {
+      g.setVisible(true);
+      this.snap.setVisible(false);
+      return;
+    }
+    // still: bake it, then drop the commands
+    this.bake(this.snap, [g]);
+    g.clear();
+    this.snap.setVisible(true);
   }
 
   rotate(dir: 1 | -1) {
@@ -259,6 +320,7 @@ export class ObjectYardScene extends Phaser.Scene {
 
   drawUi() {
     this.ui.removeAll(true);
+    this.live.clear();
     const st = this.st;
     const txt = (x: number, y: number, t: string, size: number, color = '#fff0cf') => this.ui.add(this.add.text(x, y, t, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, backgroundColor: '#2b1d2e', padding: { x: 10, y: 2 } }).setOrigin(0.5));
     st.boxes.forEach((b, slot) => this.drawBox(this.boxX(slot), this.boxY, 1, b ? b.color : null, b ? b.n : 0));
@@ -283,6 +345,7 @@ export class ObjectYardScene extends Phaser.Scene {
       if (!st.rules.autoPull && st.boxes.some((b) => b && b.color === c && b.n < BOX_SIZE)) {
         const ring = this.add.graphics().lineStyle(6, 0x8ef08a, 1).strokeCircle(x, this.rowY, 34);
         this.ui.add(ring);
+        this.live.add(ring);
         this.tweens.add({ targets: ring, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
       }
     }
@@ -296,6 +359,7 @@ export class ObjectYardScene extends Phaser.Scene {
       txt(W / 2 - 150, this.rowY + 104, 'SIDE TRAY', 18, '#ffcf33');
       st.stash.forEach((c, i) => this.ui.add(this.screwSprite(SCREW_COLORS[c], 0.5).setPosition(W / 2 - 70 + i * 30, this.rowY + 104)));
     }
+    this.bake(this.topSnap, [...this.topStatic, ...(this.ui.list as Bakeable[])]);
   }
 
   drawBar() {
@@ -316,6 +380,7 @@ export class ObjectYardScene extends Phaser.Scene {
       hit.on('pointerup', () => this.onHelper(k));
       this.bar.add([g, name, sub, badge, cnt, hit]);
     });
+    this.bake(this.botSnap, [...this.botStatic, ...(this.bar.list as Bakeable[])]);
   }
 
   // ---- input ----
