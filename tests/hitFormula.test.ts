@@ -163,8 +163,8 @@ describe('hit formula strip (rival study #3)', () => {
     }
   });
 
-  it('every legal merge on random marked boards: formula numbers = the real damage', () => {
-    const rng = new Rng(1234);
+  const randomBoards = (seed: number) => {
+    const rng = new Rng(seed);
     const fams = FAMILIES;
     let checked = 0;
     for (let trial = 0; trial < 120; trial++) {
@@ -190,6 +190,17 @@ describe('hit formula strip (rival study #3)', () => {
       }
     }
     expect(checked).toBeGreaterThan(100);
+  };
+
+  it('every legal merge on random marked boards: formula numbers = the real damage', () => randomBoards(1234));
+
+  it('units B1 prototype on: formula numbers still = the real damage', () => {
+    TUNING.unitsB1 = true;
+    try {
+      randomBoards(4321);
+    } finally {
+      TUNING.unitsB1 = false;
+    }
   });
 
   it('the strip reads "N MACHINES base × NAME factor ... = damage", each used-up mark in its registry colour', () => {
