@@ -1,29 +1,116 @@
 import Phaser from 'phaser';
 import { MAX_RANK } from '../content/tuning';
+import { LEVELS } from '../content/levels';
+import { STARTER_UNITS } from '../content/units';
+import { BOSSES, chapterBossIdx } from '../core/boss';
 import { FAMILIES, type Family } from '../core/types';
+import { META_KEY, SAVE_KEY } from '../platform/backup';
 
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
 
-/** r29: boss / cast / chapter-stage art (~half the bytes) loads in the background after the first frame. */
-const LAZY = /^(boss_|mon_|stage_ch|sy_)/;
+/**
+ * t-0f092b4b: the eager preload is only what the first screen draws; decoding ~290 images before the first frame took
+ * 9-20 s on a 4x-throttled phone CPU (the WebGL upload decodes on the main thread). Gadgets, target_0..2, bg, slot and
+ * demo_can stay eager for the families in play: ensureTextures() draws any of them that is missing, and buildStatic()
+ * draws the board HUD on every start.
+ */
+const BOARD = new RegExp(`^((${FAMILIES.join('|')})_\\d+|bg|slot|demo_can|target_[0-2]|star|bolt|hud_header|scrap_plate|tray_plate|stage_0|ui_(coach|ribbon)|(badge|debris|dice|gauge|hp|icon|item|vfx)_.*)$`);
+/** The road tab: a returning player's first screen (hero_bg, hm_cannon_1 and node_normal pick it over the legacy title). */
+const HOME = /^(hero_bg|hero_chassis|hero_socket|hm_cannon_1|res_bar|card_common|chest_closed|ui_card|btn_(green|blue|red)|(node|road|booster)_.*)$/;
+/** One tap from the road (machine tab, other buttons): fetched first after the first frame; every use is guarded. */
+const NEAR = /^(hm|btn)_/;
+/** Board art only drawn once play starts (piece badges / dice, items): held back while the road is first. Not vfx_ or debris_: buildStatic() bakes those once. */
+const IN_PLAY = /^(badge|dice|item)_/;
+/** The first-launch tutorial board (coach hand). */
+const TUTORIAL = /^ui_hand$/;
+/**
+ * r29: boss / cast / chapter-stage art loads after the first frame, as does art only rare screens draw (legacy
+ * title, cosmetics, trophies, Screw Yard). Every use of these keys is behind hasArt()/textures.exists().
+ */
+const RARE = /^(boss_|mon_|stage_ch|sy_|title$|logo$|ui_console$|hero_chassis_|stagebg_|trophy_|bg_corner$|bg_practice$|slot_old$|stage_[12]$|face_2_|orn_|keepsake$|plate_remix$|btg_)/;
 const artEntries = () => Object.entries(ART).map(([path, url]) => [path.split('/').pop()!.replace(/\.(png|webp)$/, ''), url] as const);
 
-export function preloadArt(scene: Phaser.Scene) {
-  for (const [key, url] of artEntries()) if (!LAZY.test(key)) scene.load.image(key, url);
+/** Chapter-specific art: chapter stage, cast (and hurt faces), mini-boss and chapter boss phases, boss attack tags. */
+export function chapterArt(chapter: number): Set<string> {
+  const keys = new Set([`stage_ch${chapter}`]);
+  const boss = (id: string) => {
+    for (const ph of ['intact', 'cracked', 'critical']) keys.add(`boss_${id}_${ph}`);
+    const b = BOSSES.find((x) => x.id === id);
+    for (const a of [b?.attack, b?.second]) if (a) keys.add(`btg_${a === 'hot' ? 'heat' : a}`);
+  };
+  for (const d of LEVELS.slice((chapter - 1) * 10, chapter * 10)) {
+    for (const v of [d.visual, ...(d.wave_visuals ?? [])]) if (v) keys.add(`mon_${v}`).add(`mon_${v}_dmg`);
+    if (d.behaviour) keys.add(`btg_${d.behaviour === 'hot' ? 'heat' : d.behaviour}`);
+    if (d.mini_boss) boss(d.mini_boss);
+    if (d.level % 10 === 0 && chapterBossIdx(d.level) >= 0) boss(BOSSES[chapterBossIdx(d.level)].id);
+  }
+  return keys;
 }
 
-/** Start the background load of the deferred art; `done` runs once it is all in. */
-export function loadLazyArt(scene: Phaser.Scene, done: () => void) {
-  let n = 0;
-  for (const [key, url] of artEntries())
-    if (LAZY.test(key) && !scene.textures.exists(key)) {
+/** Art not preloaded: ensureTextures() must never draw a stand-in under these keys (it would block the art). */
+const deferred = new Set<string>();
+/** First-screen art preloadArt() held back (the other first screen, other families, one tap from the road): fetched first. */
+const heldBack = new Set<string>();
+
+/**
+ * What the first screen is, from storage: a new player (no meta) starts on the tutorial board, everyone else on the
+ * road or a resumed board. Gadget art: the starters, Rocket (L6) and any family the save or the unit collection
+ * names (a resumed run's board, the team); the rest arrive with the first background batch.
+ */
+function firstScreen(): { isNew: boolean; road: boolean; fams: Set<string> } {
+  const fams = new Set<string>([...STARTER_UNITS, 'rocket']);
+  let meta = '',
+    save = '';
+  try {
+    meta = localStorage.getItem(META_KEY) ?? '';
+    save = localStorage.getItem(SAVE_KEY) ?? '';
+  } catch {
+    /* no storage: a first launch */
+  }
+  for (const f of FAMILIES) if ((meta + save).includes(`"${f}"`)) fams.add(f);
+  return { isNew: !meta, road: !!meta && !save, fams };
+}
+
+/** First-screen art only; loadLazyArt() streams the rest in once the first frame is up. */
+export function preloadArt(scene: Phaser.Scene) {
+  const { isNew, road, fams } = firstScreen();
+  for (const [key, url] of artEntries()) {
+    const first = BOARD.test(key) || HOME.test(key) || TUTORIAL.test(key);
+    const fam = /^(?:hm_)?(.+)_\d+$/.exec(key)?.[1] ?? '';
+    const inPlay = !(FAMILIES as string[]).includes(fam) || fams.has(fam);
+    const screen = isNew ? !HOME.test(key) : !TUTORIAL.test(key) && !(road && IN_PLAY.test(key));
+    if (first && inPlay && screen) {
       scene.load.image(key, url);
-      n++;
+      continue;
     }
-  if (!n) return done();
-  scene.load.once('complete', done);
-  scene.load.start();
+    deferred.add(key);
+    if (first || NEAR.test(key)) heldBack.add(key);
+  }
+}
+
+/**
+ * Background load of everything else in three batches: the first-screen art preloadArt() held back (home after the
+ * tutorial, other families' gadgets), then the common art plus the given chapter's (whatever the next levels draw),
+ * then the rare art and the other chapters' (so the service worker still caches it all for offline play). `done`
+ * runs after each batch, so on-screen fallbacks can swap to the real art.
+ */
+export function loadLazyArt(scene: Phaser.Scene, chapter: number, done: () => void) {
+  const pending = artEntries().filter(([key]) => !scene.textures.exists(key));
+  const ch = chapterArt(chapter);
+  const tier = (key: string) => (heldBack.has(key) ? 0 : ch.has(key) || !RARE.test(key) ? 1 : 2);
+  const batch = (t: number) => {
+    const list = pending.filter(([key]) => tier(key) === t);
+    const then = () => {
+      if (list.length) done();
+      if (t < 2) batch(t + 1);
+    };
+    if (!list.length) return then();
+    for (const [key, url] of list) scene.load.image(key, url);
+    scene.load.once('complete', then);
+    scene.load.start();
+  };
+  batch(0);
 }
 
 const OUT = 0x2b1d2e;
@@ -179,7 +266,7 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
 export function ensureTextures(scene: Phaser.Scene) {
   const g = scene.make.graphics({}, false);
   const gen = (key: string, w: number, h: number, draw: () => void) => {
-    if (scene.textures.exists(key)) return;
+    if (scene.textures.exists(key) || deferred.has(key)) return;
     g.clear();
     draw();
     g.generateTexture(key, w, h);

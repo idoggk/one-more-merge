@@ -342,7 +342,7 @@ export class GameScene extends Phaser.Scene {
     ensureTextures(this);
     // r29: heavy boss / cast / stage art streams in after the first frame; refresh whatever is on screen when it lands
     this.time.delayedCall(50, () =>
-      loadLazyArt(this, () => {
+      loadLazyArt(this, Math.ceil(this.currentLevel() / 10), () => {
         if (this.s?.level !== undefined && this.s.phase === 'playing') this.setTargetTexture();
       }),
     );
