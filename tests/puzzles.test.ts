@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import raw from '../src/content/puzzles.json';
+import { STARTER_UNITS } from '../src/content/units';
 import { drillsPending, drop, newPuzzle, type PuzzleDef } from '../src/core/game';
 import { allLines, DAILY_PLATEAU, dailyIndex, nextWinningMove, notePuzzleAttempt, playMove, puzzleDifficulty, puzzleHelp, puzzleReward, type PuzzleRec } from '../src/core/puzzle';
 
@@ -73,6 +74,25 @@ describe('r44 puzzle difficulty ramp', () => {
     const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
     expect(mean(s.slice(-10))).toBeGreaterThan(mean(s.slice(0, 10)) + 25);
   });
+  // r45: the owner was stuck on puzzle 1 (six tempting Bell pairs; the only win a Mortar he had never met)
+  it('puzzle 1: its stored solution wins, it uses only starter units, and the winning pair is the obvious one', () => {
+    const p = data.daily[0];
+    const s = newPuzzle(p);
+    for (const [f, t] of p.solution) expect(drop(s, f, t, s.grid[f]!.id).ok).toBe(true);
+    expect(s.phase).toBe('won');
+    for (const p of data.daily.slice(0, 8)) for (const [f] of p.board) expect(STARTER_UNITS, p.id).toContain(f);
+    for (const p of data.daily.slice(0, 3)) {
+      const st = puzzleDifficulty(p);
+      expect(st.tempting, p.id).toBe(0);
+      expect(st.greedyFails, p.id).toBe(false);
+      expect(st.deadFirst, p.id).toBeLessThanOrEqual(4);
+      // the highest-rank pair on the board wins
+      const lines = allLines(p);
+      const rank = (c: number) => p.board.find((b) => b[2] * 5 + b[3] === c)![1];
+      const top = Math.max(...lines.map((l) => rank(l.path[0][0])));
+      for (const l of lines.filter((l) => rank(l.path[0][0]) === top)) expect(l.dmg[l.dmg.length - 1], p.id).toBeGreaterThanOrEqual(p.hp);
+    }
+  });
   it('a player walks the daily list from the warm-up; a day moves on only after a solve; the tail repeats', () => {
     const rec: PuzzleRec = { streak: 0, drills: [] };
     expect(dailyIndex(rec, '2026-10-08', 40)).toBe(0);
@@ -87,7 +107,7 @@ describe('r44 puzzle difficulty ramp', () => {
 });
 
 describe('r44 graduated puzzle help', () => {
-  it('restart always; hint after 2 fails; next move after 4; skip only on drills after 6', () => {
+  it('restart always; hint after 1 fail; next move after 2; skip only on drills after 6', () => {
     const rec: PuzzleRec = { streak: 0, drills: [] };
     const steps = Array.from({ length: 7 }, () => {
       const h = puzzleHelp(rec.fails?.d1 ?? 0, 'drill');
@@ -96,9 +116,9 @@ describe('r44 graduated puzzle help', () => {
     });
     expect(steps).toEqual([
       [true, false, false, false],
-      [true, false, false, false],
       [true, true, false, false],
-      [true, true, false, false],
+      [true, true, true, false],
+      [true, true, true, false],
       [true, true, true, false],
       [true, true, true, false],
       [true, true, true, true],

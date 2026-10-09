@@ -352,6 +352,8 @@ export class GameScene extends Phaser.Scene {
   /** r34 onboarding: the clock lives beside the HP bar (where the eyes are), as a draining ring; machine counter on the right. */
   clockRing!: Phaser.GameObjects.Graphics;
   stagePips!: Phaser.GameObjects.Text;
+  /** r45: puzzles name the number on the ring (the owner didn't know what it counted). */
+  mergesLeftLabel!: Phaser.GameObjects.Text;
   lastSec = -1;
   starChase: Phaser.GameObjects.Text | null = null;
   shieldChip: Phaser.GameObjects.Text | null = null;
@@ -543,6 +545,7 @@ export class GameScene extends Phaser.Scene {
     this.clockRing = this.add.graphics().setDepth(3);
     this.timerText.setPosition(CLOCK_X, HP_Y + 1).setOrigin(0.5).setFontSize(27).setDepth(4);
     this.stagePips = this.add.text(W - CLOCK_X, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center', lineSpacing: -6 }).setOrigin(0.5).setDepth(4);
+    this.mergesLeftLabel = this.add.text(8, HP_Y - 64, 'MERGES LEFT', { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0, 0.5).setDepth(4).setVisible(false);
 
     // event lane (single place for chain results / warnings, never over the HP bar or gadgets)
     this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
@@ -2122,6 +2125,7 @@ Now beat the real level.`, this.coachY());
       return;
     }
     this.tutorialText.setText('');
+    if (this.s.puzzle && this.s.phase === 'playing') this.puzzleNudge();
     if (!this.meta.hints || this.s.phase !== 'playing') return;
     // r35: the board holds still now, so thinking is allowed: hint after 8 s, and point at the pair with the biggest chain
     // r44: never in puzzles - the biggest chain is usually the trap there; puzzles have their own graduated help
@@ -2864,6 +2868,7 @@ Now beat the real level.`, this.coachY());
     const s = this.s;
     const r = this.clockRing.clear();
     const sc = s.stage ? this.stageCount() : undefined;
+    if (this.mergesLeftLabel.visible !== !!s.puzzle) this.mergesLeftLabel.setVisible(!!s.puzzle).setY(HP_Y - 64);
     // puzzles set the pips to merges-left below: skip this text so it isn't re-rendered twice every frame
     if (!s.puzzle) this.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
     if (sc) {
@@ -5403,11 +5408,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
   puzzleDef: PuzzleDef | null = null;
   puzzleKind: 'daily' | 'drill' = 'daily';
   hintBtn: Phaser.GameObjects.Container | null = null;
-  /** r44 graduated help (owner stuck on the first puzzle): HINT after 2 fails, NEXT MOVE after 4; RESTART always. */
+  /** r44 graduated help (owner stuck on the first puzzle): HINT after 1 fail (or 20 s idle), NEXT MOVE after 2 (r45); RESTART always. */
   helpBtn: Phaser.GameObjects.Container | null = null;
   helpLabel: Phaser.GameObjects.Text | null = null;
   /** Merges of this attempt (finds the next correct merge without a search while still on the stored line). */
   puzzlePlayed: Move[] = [];
+  /** r45 idle nudge: HINT shown by idling on this puzzle (until it is left), and the nudge already ran this attempt. */
+  puzzleNudged = false;
+  nudgedThisTry = false;
   static PUZZLES = puzzleData as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
 
   puzzleRec(): PuzzleRec {
@@ -5432,7 +5440,20 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
 
   puzzleHelpNow() {
-    return puzzleHelp(this.puzzleDef ? (this.puzzleRec().fails?.[this.puzzleDef.id] ?? 0) : 0, this.puzzleKind);
+    const help = puzzleHelp(this.puzzleDef ? (this.puzzleRec().fails?.[this.puzzleDef.id] ?? 0) : 0, this.puzzleKind);
+    return { ...help, hint: help.hint || this.puzzleNudged };
+  }
+
+  /** r45: a fresh attempt left idle for HELP.idleNudge s shows the (free) HINT and pulses it once. Never mid-animation. */
+  puzzleNudge() {
+    if (this.modal || this.explaining) this.idleTime = 0; // reading a card isn't being stuck
+    if (this.nudgedThisTry || this.puzzlePlayed.length || this.idleTime < HELP.idleNudge || this.dragIdx >= 0 || this.hintPair || !this.helpBtn) return;
+    if (this.s.grid.some((g) => (g && this.views.get(g.id) ? this.tweens.isTweening(this.views.get(g.id)!) : false))) return;
+    this.nudgedThisTry = this.puzzleNudged = true;
+    this.helpBtn.setVisible(true).setScale(1);
+    this.tweens.add({ targets: this.helpBtn, scale: 1.15, duration: 260, yoyo: true, repeat: 3, ease: 'Sine.InOut', onComplete: () => this.helpBtn?.setScale(1) });
+    this.showEvent(`Stuck? Tap ${this.puzzleHelpNow().showMove ? 'NEXT MOVE' : 'HINT'}`, '#d9c2ff', 2200);
+    tlog.log('puzzle_nudge', { id: this.puzzleDef?.id });
   }
 
   /** Fresh board; puzzles are exact, so unit levels never change them. */
@@ -5441,12 +5462,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.s.unitMult = {};
     this.s.unitLevel = {};
     this.puzzlePlayed = [];
+    this.nudgedThisTry = false;
   }
 
   startPuzzle(def: PuzzleDef, kind: 'daily' | 'drill') {
     this.puzzleDef = def;
     this.puzzleKind = kind;
     tlog.log('puzzle_start', { id: def.id, kind, score: def.score });
+    this.puzzleNudged = false;
     this.resetPuzzle(def);
     const hudBtn = (x: number, w: number, color: number, label: string, onTap: () => void) => {
       const hb = this.add.container(x, TRAY_Y).setDepth(30);

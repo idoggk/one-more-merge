@@ -162,7 +162,9 @@ export function notePuzzleAttempt(rec: PuzzleRec, id: string, won: boolean) {
 }
 
 // ---- graduated help: never forced, unlocked by failed attempts on this puzzle ----
-export const HELP = { hintAfter: 2, moveAfter: 4, skipAfter: 6 } as const;
+// r45 (owner stuck on puzzle 1 again): help comes sooner. HINT after the 1st failed try, NEXT MOVE after the 2nd; a fresh
+// attempt left idle for `idleNudge` seconds shows and pulses the HINT (GameScene).
+export const HELP = { hintAfter: 1, moveAfter: 2, skipAfter: 6, idleNudge: 20 } as const;
 
 export interface PuzzleHelp {
   /** Restart is always there. */
