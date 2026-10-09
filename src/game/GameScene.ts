@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
+import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { applyPace, applySpamVariant, applyUnits, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
 import {
@@ -64,6 +64,7 @@ import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, typ
 import { FEATURE_INFO, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
+import { bossLesson, joinRewards, machineName, newToyText, OverlayQueue, rewardRows, trayEarnText } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
 export { localDate };
 
@@ -1114,10 +1115,9 @@ export class GameScene extends Phaser.Scene {
     return st ? { n: st.hps.length + (st.goal ? 1 : 0), at: st.i + 1, goal: st.i >= st.hps.length } : undefined;
   }
   monName(short = false) {
-    const v = this.castOf(this.s.level);
-    if (v) return short ? CAST[v].short : CAST[v].name;
-    const ci = this.stageClassic();
-    return (short ? SHORT_NAMES : TARGET_NAMES)[ci ?? Math.max(0, this.s.target)];
+    const lv = this.s.level;
+    const vis = this.stageVis() ?? (lv !== undefined ? LEVELS[lv - 1]?.visual : undefined);
+    return machineName(vis, this.s.target, (v) => this.hasArt(`mon_${v}`), short);
   }
 
   /** The chapter boss (not an ordinary monster's light hazard, r23). */
@@ -1987,11 +1987,15 @@ Now beat the real level.`, this.coachY());
   explainTotal = 0;
   explainOverlay: Phaser.GameObjects.GameObject[] = [];
   explaining = false;
-  /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). */
-  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]) {
-    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
+  /** F4: the open lesson teaches a boss attack, so its GOT IT restarts that attack's fuse. */
+  fuseAfterLesson = false;
+  /** F6: overlays that wait for the player to leave the level result (chapter chest, backup nudge). */
+  endQueue = new OverlayQueue();
+  /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). True when queued. */
+  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]): boolean {
+    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return false;
     // r22 (ChatGPT): boss fights show only the boss-warning lesson; other lessons stay unseen until a normal level
-    if (this.realBoss && id !== 'x_boss' && id !== 'overdrive' && !id.startsWith('xb_')) return;
+    if (this.realBoss && id !== 'x_boss' && id !== 'overdrive' && !id.startsWith('xb_')) return false;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
@@ -2001,6 +2005,12 @@ Now beat the real level.`, this.coachY());
     this.afterHold(() => {
       if (!this.explaining && this.explainQueue.length) this.nextExplain();
     });
+    return true;
+  }
+
+  /** F4: GOT IT on a boss attack's first lesson: the attack's fuse starts again (recorded, so replays match). */
+  restartFuse() {
+    if (recordCommand(this.runLog, this.s, { k: 'fuse' }).ok) tlog.log('boss_fuse_restart', { at: +this.s.elapsed.toFixed(1) });
   }
 
   nextExplain() {
@@ -2012,6 +2022,8 @@ Now beat the real level.`, this.coachY());
       this.explaining = false;
       this.paused = false;
       this.coach.clear();
+      if (this.fuseAfterLesson) this.restartFuse();
+      this.fuseAfterLesson = false;
       return;
     }
     this.explaining = true;
@@ -2280,7 +2292,7 @@ Now beat the real level.`, this.coachY());
     ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
     // r38: reactive levels say what the next merge earns (the board only changes when you merge)
     const earn = mergeEarns(s);
-    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? (earn && supplyGated(s) ? `CHAIN \u2192 +${earn}` : `MERGE \u2192 +${earn}`) : '');
+    this.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? trayEarnText(earn, !!earn && supplyGated(s)) : '');
     textBg(textColor(this.pendingText, s.pending.length ? '#9e2416' : '#3b2533'), this.pendingText.text && !s.pending.length ? '#fbe7c6' : '', this.pendingText.text && !s.pending.length ? 10 : 0, 4);
     const tut = s.phase === 'tutorial';
     this.scrapZone.setVisible(this.scrapShown());
@@ -2484,20 +2496,19 @@ Now beat the real level.`, this.coachY());
             }
           // first-ever boss warning: stop the clock and show what to do (r20)
           const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
-          if (bd && this.s.boss!.light) {
-            const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.', hot: 'Shooters in this column hit half as hard.\nMove them out.', rest: 'Bells and Coils in this row cannot\nwake neighbours. Move them out.', split: 'A divider blocks links across it.\nBuild chains on one side.', tow: 'These two are linked and move together.\nMerge either to free them.', ransom: 'Wake both marked machines\nin one chain, or lose 2 s!' }[e.attack as 'suction' | 'frost' | 'hot' | 'rest' | 'split' | 'tow' | 'ransom'] ?? bd.copy;
-            this.explain(`x_${e.attack}`, [{ text: `WATCH OUT!\n${what}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd && e.attack !== bd.attack && !this.meta.tips[`xb_${e.attack}`]) {
-            // r27: a chapter boss's new final-phase attack, explained once
-            const mini = BOSSES.find((x) => x.mini && x.attack === e.attack);
-            this.explain(`xb_${e.attack}`, [{ text: `FINAL PHASE: NEW ATTACK!\n${mini?.copy ?? ATTACK_COPY[e.attack].why}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd?.mini && !this.meta.tips[`xb_${e.attack}`]) {
-            this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && !this.holding() && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
-            // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card (never mid-drag: next clamp)
-          } else if (bd && this.meta.tips.x_boss && !this.meta.tips[`xb_${e.attack}`]) {
-            this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]); // r22: bubble in the bottom lane, clear of stage and board
+          // F4 (walkthrough 2): one lesson card per new attack (flow.bossLesson); after its GOT IT the fuse restarts
+          const mini = BOSSES.find((x) => x.mini && x.attack === e.attack);
+          const lessonFor = (canGuide: boolean) => (bd ? bossLesson(this.meta.tips, e.attack, bd, { light: !!this.s.boss!.light, finalCopy: mini?.copy ?? ATTACK_COPY[e.attack].why, canGuide }) : null);
+          let lesson = lessonFor(!this.holding());
+          // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card (never mid-drag: next clamp)
+          if (lesson?.kind === 'guided' && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) break;
+          if (lesson?.kind === 'guided') lesson = lessonFor(false);
+          if (lesson?.kind === 'card' && this.explain(lesson.key, [{ text: lesson.text, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }])) {
+            // r22: bubble in the bottom lane, clear of stage and board
+            for (const k of lesson.also) this.meta.tips[k] = true;
+            store(META_KEY, JSON.stringify(this.meta));
+            this.fuseAfterLesson = true;
+          }
           break;
         }
         case 'bossDefuse': {
@@ -2723,6 +2734,7 @@ Now beat the real level.`, this.coachY());
     this.coach.clear();
     this.meta.tips.x_boss_guided = true;
     this.meta.tips.x_boss = true;
+    this.meta.tips.xb_clamp = true; // F4: the dodge was the clamp's lesson
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('guided_dodge_done', {});
   }
@@ -3227,7 +3239,7 @@ Now beat the real level.`, this.coachY());
   /** Final blow: hit-stop, rattle with dizzy face, rolling explosions, collapse, parts rain onto your board, machine celebrates. */
   playBossDefeat() {
     const tgt = this.target;
-    const name = TARGET_NAMES[Math.max(0, this.s.target)] ?? 'BOSS';
+    const name = this.monName() ?? 'BOSS'; // F2: the machine on stage (L9: COLANDER CLATTER), not the level's base monster
     this.cancelDrag();
     this.coach.clear();
     // 1) hit-stop flash + slight zoom on the boss
@@ -3365,6 +3377,7 @@ Now beat the real level.`, this.coachY());
     // NEW! when the player has never been warned about this attack before
     const fresh = !this.meta.tips[`xb_${bd.attack}`] && !this.meta.tips[`x_${bd.attack}`];
     this.meta.tips[`xb_${bd.attack}`] = true; // the card is this attack's lesson
+    this.meta.tips.x_boss = true; // F4: and the boss lesson (no second 'BOSS ATTACK!' card at the first warning)
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('boss_wake_card', { id: bd.id, fresh });
     this.paused = true;
@@ -3386,6 +3399,7 @@ Now beat the real level.`, this.coachY());
       sfx.click();
       o.destroy();
       this.paused = false;
+      this.restartFuse(); // F4: an attack already warned while the card was up gets its full countdown back
     };
     this.button(o, W / 2, cy + ch / 2 - 52, 260, 'GOT IT', 0x5fbf4a, done, 0.8);
   }
@@ -3597,7 +3611,7 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const txt = (y: number, t: string, size: number, color: string, font = 'Lilita One, Arial Black') =>
       c.add(this.add.text(W / 2, y, t, { fontFamily: font, fontStyle: font === 'Arial' ? 'bold' : '', fontSize: `${size}px`, color, align: 'center', wordWrap: { width: W - 150 } }).setOrigin(0.5));
-    const head = this.add.text(W / 2, top + 70, won ? `${TARGET_NAMES[Math.max(0, s.target)]} DEFEATED!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
+    const head = this.add.text(W / 2, top + 70, won ? `${this.monName()} DEFEATED!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
     while (head.width > W - 140 && Number.parseInt(String(head.style.fontSize)) > 30) head.setFontSize(Number.parseInt(String(head.style.fontSize)) - 4);
     c.add(head);
     const sub = won
@@ -3958,19 +3972,37 @@ Now beat the real level.`, this.coachY());
     if (bolts > 0) this.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
     if (parts.length) c.add(this.add.text(W / 2, top + 452, parts.join('  \u00b7  '), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
     if (lines.length) {
-      // r40: long reward lists (mastery, screwdriver, milestones) compress instead of running into the buttons
-      const lh = lines.length > 3 ? 27 : 36;
-      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 24 + lines.length * lh, 18));
-      c.add(this.add.text(W / 2, top + 497 + (lines.length * lh) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: lines.length > 3 ? '20px' : '24px', color: '#b06a1a', align: 'center', lineSpacing: lines.length > 3 ? 3 : 8 }).setOrigin(0.5));
+      // F6 (walkthrough 2): one reward per row, at most 3, then '+N more' (never a wall of text over the buttons)
+      const rows = rewardRows(lines);
+      const lh = 36;
+      c.add(this.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 20 + rows.length * lh, 18));
+      rows.forEach((r, i) => {
+        const more = i === 3;
+        const t = this.add.text(W / 2, top + 503 + i * lh, r, { fontFamily: 'Lilita One, Arial Black', fontSize: more ? '20px' : '24px', color: more ? '#8a6a4a' : '#b06a1a', align: 'center' }).setOrigin(0.5);
+        if (t.width > W - 170) t.setScale((W - 170) / t.width);
+        c.add(t);
+      });
     }
-    if (chapterDone) this.time.delayedCall(700, () => this.playChapterChest(chapterDone));
-    else if (won && n % 10 !== 0 && n > 1 && lines.length <= 2) {
+    // F6: CHAPTER COMPLETE and BACK UP wait until the player leaves this screen, then show one at a time (each its
+    // own tap); the button's action runs after them, so a tap on NEXT LEVEL is never eaten by a popup
+    this.endQueue.clear();
+    if (chapterDone) {
+      this.endQueue.push((done) => this.playChapterChest(chapterDone, done));
+      this.endQueue.push((done) => this.backupNudge(chapterDone, done));
+    }
+    const leave = (fn: () => void) => () => this.endQueue.run(fn);
+    if (chapterDone) {
+      const ch = this.add.text(W / 2, top + 615, `CHAPTER ${chapterDone} COMPLETE!  Your chest is next`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5);
+      if (ch.width > W - 140) ch.setScale((W - 140) / ch.width);
+      if (lines.length <= 2) c.add(ch);
+      else ch.destroy();
+    } else if (won && n % 10 !== 0 && n > 1 && lines.length <= 2) {
       const left = 10 - (n % 10);
       c.add(this.add.text(W / 2, top + 600, `${left} level${left > 1 ? 's' : ''} until your Chapter ${Math.ceil(n / 10)} chest`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
     }
     const nextN = Math.min(LEVELS.length, n + 1);
-    if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road')), 1.1);
-    else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => this.openLevelSheet(n), 1.1);
+    if (won) this.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, leave(() => (n < LEVELS.length ? this.openLevelSheet(nextN) : this.openTitle('road'))), 1.1);
+    else this.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, leave(() => this.openLevelSheet(n)), 1.1);
     // r37: a crate to open or a unit ready to level up gets its own button here (units are the main progression)
     // r38 Upgrade Prescription (ChatGPT review): after a loss, name the squad upgrade that helps most and how close it is
     const rx = !won ? this.upgradePrescription() : null;
@@ -3983,8 +4015,8 @@ Now beat the real level.`, this.coachY());
       store(META_KEY, JSON.stringify(this.meta));
     }
     const unitCta = trialEnd ? 'KEEP BUILDING' : this.totalCrates() > 0 ? 'OPEN CRATE' : this.unitsReady() ? 'LEVEL UP \u2191' : rx ? 'GET CARDS' : '';
-    this.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => this.openTitle('road'), 0.78);
-    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => (trialEnd ? this.openUnitDetail(trialEnd) : unitCta === 'GET CARDS' ? this.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? this.openUnitDetail(rx.u) : this.openTitle('units')), 0.78);
+    this.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, leave(() => this.openTitle('road')), 0.78);
+    if (unitCta) this.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, leave(() => (trialEnd ? this.openUnitDetail(trialEnd) : unitCta === 'GET CARDS' ? this.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? this.openUnitDetail(rx.u) : this.openTitle('units'))), 0.78);
   }
 
   /** r38: the squad unit (shooter, relays, helper) closest to its next level, with what that level gives. */
@@ -4006,9 +4038,10 @@ Now beat the real level.`, this.coachY());
   }
 
   /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
-  playChapterChest(chapter: number) {
+  playChapterChest(chapter: number, done: () => void = () => this.backupNudge(chapter)) {
     const o = this.add.container(0, 0).setDepth(140);
     o.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive());
+    const shownAt = this.time.now;
     o.add(this.add.text(W / 2, H / 2 - 360, `CHAPTER ${chapter} COMPLETE!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
     const closed = this.hasArt('chest_closed') ? this.add.image(W / 2, H / 2, 'chest_closed') : null;
     const open = this.hasArt('chest_open') ? this.add.image(W / 2, H / 2, 'chest_open').setAlpha(0) : null;
@@ -4029,17 +4062,21 @@ Now beat the real level.`, this.coachY());
       this.tweens.add({ targets: medal, alpha: 1, scale: 1, y: H / 2 - 170, duration: 520, ease: 'Back.Out' });
       this.tweens.add({ targets: cap, alpha: 1, delay: 400, duration: 300 });
     });
+    // F6: its own tap: the press must start on the chest screen (not the tap that opened it), after the medal shows
+    let pressed = false;
+    o.list[0].on('pointerdown', () => (pressed = this.time.now - shownAt > 500));
     o.list[0].on('pointerup', () => {
+      if (!pressed) return;
       tlog.log('chapter_reward_presented', { chapter });
       o.destroy();
-      this.backupNudge(chapter);
+      done();
     });
   }
 
   /** r43: after a chapter clear, offer a save backup once per chapter (dismissible; never blocks the level-end panel). */
-  backupNudge(chapter: number) {
+  backupNudge(chapter: number, done: () => void = () => undefined) {
     const m = this.meta;
-    if ((m.backupNudged ??= {})[String(chapter)]) return;
+    if ((m.backupNudged ??= {})[String(chapter)]) return done();
     m.backupNudged[String(chapter)] = true;
     store(META_KEY, JSON.stringify(m));
     tlog.log('backup_nudge', { chapter });
@@ -4050,11 +4087,20 @@ Now beat the real level.`, this.coachY());
     o.add([dim, this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(40, top - 6, W - 80, PH + 12, 36).fillStyle(0xfbe7c6, 1).fillRoundedRect(46, top, W - 92, PH, 32)]);
     o.add(this.add.text(W / 2, top + 70, 'BACK UP YOUR PROGRESS?', { fontFamily: 'Lilita One, Arial Black', fontSize: '42px', color: '#3b2533' }).setOrigin(0.5));
     o.add(this.add.text(W / 2, top + 120, `Chapter ${chapter} done! Your progress lives only on this phone.\nKeep a save code in Notes to get it back anytime.`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
-    const close = () => o.destroy();
-    dim.on('pointerup', close);
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      o.destroy();
+      done();
+    };
+    // F6: its own tap: a release from the previous screen's tap never closes it
+    let pressed = false;
+    dim.on('pointerdown', () => (pressed = true));
+    dim.on('pointerup', () => pressed && close());
     this.button(o, W / 2, top + 280, 460, 'COPY SAVE CODE', 0x5fbf4a, () => {
-      close();
       this.copySaveCode();
+      close();
     }, 0.9);
     this.button(o, W / 2, top + 380, 260, 'NOT NOW', 0x8a6a4a, close, 0.75);
   }
@@ -4187,9 +4233,13 @@ Now beat the real level.`, this.coachY());
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('unlock', { toy });
     this.checkUnlocks(); // the first helper opens TEAM
+    // F8: once per toy, and it says where to turn it on
+    if (this.meta.tips[`toy_${toy}`]) return;
+    this.meta.tips[`toy_${toy}`] = true;
+    store(META_KEY, JSON.stringify(this.meta));
     this.time.delayedCall(900, () => {
       sfx.rankUp(6);
-      this.showEvent(`NEW TOY: ${FAMILY_INFO[toy].name.toUpperCase()}  ·  turn it on before your next run`, '#f0b8ff', 3200);
+      this.showEvent(newToyText(FAMILY_INFO[toy].name), '#f0b8ff', 3200);
     });
   }
 
@@ -5061,7 +5111,7 @@ Now beat the real level.`, this.coachY());
 
   rewardText(r: YardReward) {
     const bst = YARD_BOOSTERS.filter((k) => r.boosters?.[k]).map((k) => `${BOOSTER_COPY[k].name}${r.boosters![k]! > 1 ? ` x${r.boosters![k]}` : ''}`);
-    return [r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : '', ...bst].filter(Boolean).join(' + ');
+    return joinRewards([r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : '', ...bst]);
   }
 
   /** Screw Yard event panel (2.0): the star track + grand prize, the week's 10 yards with their stars, boosters, PLAY.
@@ -5935,7 +5985,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const lv = this.currentLevel();
     const items: [string, string, string, number, number, 'kits' | 'capsules', string][] = [
       ['booster_jumpstart', 'JUMPSTART KIT', 'Start a level with your 2 bottom\nshooters one rank higher.', PRICES.jumpstart_kit, BOOSTER_UNLOCK.jumpstart_kit, 'kits', 'Pick it on the level card'],
-      ['booster_time_capsule', 'TIME CAPSULE', '+15 seconds, once per level,\nwhile the clock is running.', PRICES.time_capsule, BOOSTER_UNLOCK.time_capsule, 'capsules', 'Tap +15s under the clock'],
+      ['booster_time_capsule', 'TIME CAPSULE', '+15 seconds, once per level,\nwhile the clock is running.', PRICES.time_capsule, BOOSTER_UNLOCK.time_capsule, 'capsules', 'Hold +15s in the bottom lane'],
     ];
     const CAPS = { kits: 3, capsules: 2 } as const;
     items.forEach(([icon, name, desc, price, unlock, field, how], i) => {

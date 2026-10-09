@@ -406,6 +406,18 @@ export function useTimeCapsule(s: GameState): boolean {
   return true;
 }
 
+/** Walkthrough F4: the countdown a boss attack gets again after its first lesson card (the calm warning). */
+export const LESSON_FUSE = 3.5;
+
+/** Walkthrough F4: after GOT IT on an attack's first lesson card its fuse starts again (at least LESSON_FUSE s),
+ *  so the first hit is never unfair. A recorded command, so replays stay identical. */
+export function restartBossFuse(s: GameState): boolean {
+  const p = s.boss?.pending;
+  if (!p || s.phase !== 'playing') return false;
+  p.deadline = Math.max(p.deadline, s.elapsed + Math.max(TUNING.bossWarn, LESSON_FUSE));
+  return true;
+}
+
 function makeGadget(s: GameState, family: Family, rank: number): Gadget {
   return { id: s.nextId++, family, rank, cd: family === 'cannon' ? cannonPeriod(s) : 0 };
 }

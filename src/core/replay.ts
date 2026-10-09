@@ -1,4 +1,4 @@
-import { applyItem, choosePerk, deserialize, drop, finishTutorial, scrap, serialize, tick, useTimeCapsule, type GameEvent, type GameState } from './game';
+import { applyItem, choosePerk, deserialize, drop, finishTutorial, restartBossFuse, scrap, serialize, tick, useTimeCapsule, type GameEvent, type GameState } from './game';
 import type { PerkId } from './types';
 
 /** r43 run log (best-chain replay; later a "challenge a friend" link): the state the run started from plus every
@@ -12,6 +12,7 @@ export type RunAction =
   | { t: number; k: 'perk'; perk: PerkId }
   | { t: number; k: 'capsule' }
   | { t: number; k: 'tutorial' }
+  | { t: number; k: 'fuse' }
   | { t: number; k: 'hold'; cells: number[] };
 
 export interface RunLog {
@@ -48,6 +49,8 @@ export function applyCommand(s: GameState, a: Cmd | RunAction): { ok: boolean; e
       return { ok: useTimeCapsule(s), events: [] };
     case 'tutorial':
       return { ok: true, events: finishTutorial(s) };
+    case 'fuse':
+      return { ok: restartBossFuse(s), events: [] };
     case 'hold':
       return { ok: true, events: [] };
   }
@@ -107,7 +110,7 @@ export function replayRun(log: RunLog, upTo = log.actions.length, onTick?: (s: G
 
 // ---------- compact text encoding (reusable for a later share link; not sent anywhere now) ----------
 
-const K = { drop: 'D', scrap: 'S', item: 'I', perk: 'P', capsule: 'C', tutorial: 'U', hold: 'H' } as const;
+const K = { drop: 'D', scrap: 'S', item: 'I', perk: 'P', capsule: 'C', tutorial: 'U', fuse: 'F', hold: 'H' } as const;
 const KR = Object.fromEntries(Object.entries(K).map(([a, b]) => [b, a])) as Record<string, RunAction['k']>;
 
 /** Actions as one short string: `<dt base36><KIND letter><args base36, comma-joined>` joined by `;` (dt = ticks since the previous action). */
@@ -129,7 +132,7 @@ export function decodeActions(text: string): RunAction[] | null {
   const out: RunAction[] = [];
   let t = 0;
   for (const part of text.split(';')) {
-    const m = /^([0-9a-z]+)([DSIPCUH])(.*)$/.exec(part);
+    const m = /^([0-9a-z]+)([DSIPCUFH])(.*)$/.exec(part);
     if (!m) return null;
     t += parseInt(m[1], 36);
     const k = KR[m[2]];
