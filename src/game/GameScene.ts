@@ -1671,7 +1671,7 @@ Now beat the real level.`, this.coachY());
     const key = this.chipKeyFor(src, hov);
     if (key === this.chipKey) return;
     this.chipKey = key;
-    this.formula.show(key ? hitFormula(this.s, src, hov) : null);
+    this.formula.show(key ? () => hitFormula(this.s, src, hov) : null);
     this.chipsC?.destroy();
     this.chipsC = null;
     const pv = key ? mergePreview(this.s, src, hov) : null;

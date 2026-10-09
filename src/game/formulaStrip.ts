@@ -17,6 +17,8 @@ const GAP = 9;
 const LINK_GAP = 45;
 const POP_GAP = 150;
 const HOLD = 1700;
+/** The hover strip waits for the held part to rest this long on a match, so a fast slide across matches stays cheap. */
+const DWELL = 90;
 
 interface Placed {
   tok: FormulaToken;
@@ -34,16 +36,20 @@ export class FormulaStrip {
    *  where the earlier rows of a long formula go so the HP bar stays visible. Read on every draw (layout changes). */
   constructor(private scene: Phaser.Scene, private laneX: number, private laneY: () => number, private aboveY: () => number, private reduced = false) {}
 
-  /** Hover strip: the whole formula at once. null hides the hover strip but lets a playing ribbon finish
-   *  (the hold ends right as the drop starts its ribbon). */
-  show(f: HitFormula | null) {
-    if (!f && this.mode !== 'hover') return;
+  /** Hover strip: the whole formula at once, after a short dwell (`get` runs then). null hides the hover strip but
+   *  lets a playing ribbon finish (the hold ends right as the drop starts its ribbon). */
+  show(get: (() => HitFormula | null) | null) {
+    if (!get && this.mode !== 'hover') return;
     this.clear();
-    if (!f) return;
+    if (!get) return;
     this.mode = 'hover';
-    this.c = this.build(formulaTokens(f)).c;
-    this.c.setAlpha(0);
-    this.scene.tweens.add({ targets: this.c, alpha: 1, duration: 80, ease: 'Quad.Out' });
+    this.at(DWELL, () => {
+      const f = get();
+      if (!f || this.mode !== 'hover') return;
+      this.c = this.build(formulaTokens(f)).c;
+      this.c.setAlpha(0);
+      this.scene.tweens.add({ targets: this.c, alpha: 1, duration: 80, ease: 'Quad.Out' });
+    });
   }
 
   /** Post-drop ribbon. `linkAt[i]`: ms from now when activation i of the cascade fires (same order as f.links);
