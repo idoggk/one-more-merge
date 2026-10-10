@@ -1,12 +1,12 @@
 // ROSTER B batch 1 placeholder art (t-9b28a794): procedural machines baked into `<family>_<rank>` textures (drawn by
 // textures.ts until real PNGs land in src/assets/art) and one job shape icon per unit (`job_<family>`).
 import Phaser from 'phaser';
-import type { RosterBFamily } from '../core/types';
+import type { Roster1Family } from '../core/types';
 
 const OUT = 0x2b1d2e;
 const V = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
 
-export const ROSTER_B_COLORS: Record<RosterBFamily, [number, number, number]> = {
+export const ROSTER_1_COLORS: Record<Roster1Family, [number, number, number]> = {
   nail_gun: [0x8a96a8, 0xd0d8e4, 0x4a5466],
   drill: [0xd8a020, 0xffe08a, 0x8a5a10],
   gear: [0x9a7a5a, 0xd8b890, 0x5a4030],
@@ -35,8 +35,8 @@ function saw(g: Phaser.GameObjects.Graphics, x: number, y: number, R: number, te
 }
 
 /** Draw one roster B machine into a 128x128 texture (rank grows the shape, like the other placeholders). */
-export function drawRosterB(g: Phaser.GameObjects.Graphics, fam: RosterBFamily, rank: number) {
-  const [main, light, dark] = ROSTER_B_COLORS[fam];
+export function drawRoster1(g: Phaser.GameObjects.Graphics, fam: Roster1Family, rank: number) {
+  const [main, light, dark] = ROSTER_1_COLORS[fam];
   g.lineStyle(6, OUT, 1);
   if (fam === 'nail_gun') {
     // pistol-grip nail gun pointing up; one nail per rank band in the magazine
@@ -66,8 +66,8 @@ export function drawRosterB(g: Phaser.GameObjects.Graphics, fam: RosterBFamily, 
 
 /** Job shape icons (64x64): ROW = three dots in a line, ARMOR = a drill tip through a plate, LINK = two linked cogs,
  *  EDGE = a square ring with a lit border. Drawn on the unit page next to the job word. */
-export function drawJobIcon(g: Phaser.GameObjects.Graphics, fam: RosterBFamily) {
-  const [main, light] = ROSTER_B_COLORS[fam];
+export function drawJobIcon(g: Phaser.GameObjects.Graphics, fam: Roster1Family) {
+  const [main, light] = ROSTER_1_COLORS[fam];
   g.lineStyle(4, OUT, 1);
   if (fam === 'nail_gun') for (const x of [14, 32, 50]) g.fillStyle(main).fillCircle(x, 32, 8).strokeCircle(x, 32, 8);
   else if (fam === 'drill') {

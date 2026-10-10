@@ -141,13 +141,13 @@ export const TUNING = {
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
   sandwichOdShare: 1 / 3,
   /** EXPERIMENT (t-9b28a794, roster B batch 1), default OFF: Nail Gun / Drill / Gear / Saw Blade join the collection,
-   *  crates and squad pickers (src/content/units.ts applyRosterB). OFF = no new unit anywhere. Their rules live in
-   *  src/core/rosterB.ts and only act when one of them is on the board. Nail Gun: x(1 + nailPer per other filled cell in
+   *  crates and squad pickers (src/content/units.ts applyRoster1). OFF = no new unit anywhere. Their rules live in
+   *  src/core/roster1.ts and only act when one of them is on the board. Nail Gun: x(1 + nailPer per other filled cell in
    *  its row); Drill: its share ignores a closed shield, x drillArmor vs a boss / mini-boss; Gear: wakes its 4 touching
    *  cells; a MERGED Gear (chain depth <= gearDepth) also jumps the chain to the gearLinks farthest other Gears, anywhere
    *  (sims t-9b28a794: every woken Gear linking = Coil+Gear cleared 20% faster than any squad); Saw Blade: x sawEdge on the outer ring, x sawInside inside. */
-  rosterB: false,
-  rb: { gearLinks: 2, gearDepth: 0, nailPer: 0.2, nailPerL3: 0.25, nailFullL9: 2.5, drillArmor: 2, drillArmorL9: 2.5, sawEdge: 1.5, sawEdgeL3: 1.7, sawInside: 0.7, sawCornerL9: 2.2, everyMult: 1.5 },
+  roster1: false,
+  r1: { gearLinks: 2, gearDepth: 0, nailPer: 0.2, nailPerL3: 0.25, nailFullL9: 2.5, drillArmor: 2, drillArmorL9: 2.5, sawEdge: 1.5, sawEdgeL3: 1.7, sawInside: 0.7, sawCornerL9: 2.2, everyMult: 1.5 },
 };
 
 /** Units B0 rules are on (B0 itself, or B1, which builds on them). */

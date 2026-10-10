@@ -81,10 +81,10 @@ export function storedUnits(read: () => string | null): UnitsVariant {
   }
 }
 export const unitsStoreValue = (v: UnitsVariant) => (v === 'b0' ? 'on' : v === 'b1' ? 'b1' : null);
-/** QA panel NEW 4 button (t-9b28a794, roster B batch 1; this device only, not in the save): 'on' = TUNING.rosterB,
- *  anything else / missing / unreadable = OFF. Applied with units.ts applyRosterB. */
-export const ROSTER_B_KEY = 'omm_qa_roster_b';
-export function storedRosterB(read: () => string | null): boolean {
+/** QA panel NEW 4 button (t-9b28a794, roster B batch 1; this device only, not in the save): 'on' = TUNING.roster1,
+ *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster1. */
+export const ROSTER1_KEY = 'omm_qa_roster_1';
+export function storedRoster1(read: () => string | null): boolean {
   try {
     return read() === 'on';
   } catch {

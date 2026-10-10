@@ -14,7 +14,7 @@ const CALM_CAP = 20;
 const REACT_STUCK = 2.5;
 const REACT_STUCK_NEXT = 3;
 import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
-import type { ArmorKind } from './rosterB';
+import type { ArmorKind } from './roster1';
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];

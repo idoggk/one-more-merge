@@ -1,10 +1,10 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--rosterB] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
+// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 //        [--rule today|sandwich2|sandwichBonus]   (t-1effe0bf merge rule prototype; also prints board-full time, sandwiches/run, mean chain)
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { applyRosterB, levelMult, unitDef } from '../src/content/units';
+import { applyRoster1, levelMult, unitDef } from '../src/content/units';
 import { choosePerk, drop, legalPairs, locked, newLevel, previewMerge, sandwichFor, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import { applyMergeRule, storedMergeRule } from '../src/core/sandwich';
@@ -31,9 +31,9 @@ if (args.includes('--set'))
     obj[keys[keys.length - 1]] = v === 'true' ? true : v === 'false' ? false : Number(v);
   }
 applyMergeRule(storedMergeRule(() => (args.includes('--rule') ? args[args.indexOf('--rule') + 1] : null)));
-// --rosterB: roster B batch 1 on (TUNING.rosterB) and its squads added (Nail Gun / Drill / Saw Blade shooters, Gear relays)
-const ROSTER = args.includes('--rosterB');
-applyRosterB(ROSTER);
+// --roster1: roster B batch 1 on (TUNING.roster1) and its squads added (Nail Gun / Drill / Saw Blade shooters, Gear relays)
+const ROSTER = args.includes('--roster1');
+applyRoster1(ROSTER);
 
 type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
 const SQUADS: Squad[] = [
@@ -42,7 +42,7 @@ const SQUADS: Squad[] = [
   // BELL+COIL / BELL+HORN put Coil (or Horn) in relay B: separates the unit from relay A's extra bag tokens and layout
   ...([['coil', 'horn'], ['coil', 'fuse_box'], ['horn', 'bell'], ['fuse_box', 'bell'], ['horn', 'fuse_box'], ['bell', 'coil'], ['bell', 'horn']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
   ...(['magnet', 'battery', 'fan', 'amplifier', 'signal_beacon'] as Family[]).map((h) => ({ key: `+${h.toUpperCase()}`, shooter: 'cannon' as Family, relays: ['coil', 'bell'] as [Family, Family], helper: h })),
-  // --rosterB (t-9b28a794): roster B batch 1 squads (Gear in either relay slot, the three shooters with the base relays)
+  // --roster1 (t-9b28a794): roster B batch 1 squads (Gear in either relay slot, the three shooters with the base relays)
   ...(ROSTER
     ? [
         ...(['nail_gun', 'drill', 'saw_blade'] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ['coil', 'bell'] as [Family, Family] })),

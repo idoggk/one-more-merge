@@ -217,7 +217,7 @@ export const sfx = {
   },
   /** roster B (t-9b28a794), pitched from the cannon / zap / snap voices: Nail Gun = three quick pops, Drill = a rising
    *  grind, Gear = two ratchet clicks, Saw Blade = a falling whine. */
-  rosterB: (fam: string, delay = 0) => {
+  roster1: (fam: string, delay = 0) => {
     if (fam === 'nail_gun') for (const d of [0, 0.05, 0.1]) {
       tone(vary(620), 0.04, 'square', 0.05, delay + d, 380);
       bandNoise(0.02, 0.06, delay + d, 2500, 2);

@@ -2,7 +2,7 @@
 // monetization values"). Cards come from crates (earned or bought with Gems) and Bolt packs; the first card of a
 // unit unlocks it; duplicates + Bolts level it. Numbers: ChatGPT round 32 spec (reviewed). Tune here first.
 import type { Family } from '../core/types';
-import { ROSTER_B_PERKS } from './rosterB';
+import { ROSTER_1_PERKS } from './roster1';
 import { TUNING } from './tuning';
 
 export type Rarity = 'common' | 'rare' | 'epic';
@@ -29,8 +29,8 @@ export const UNITS: UnitDef[] = [
   { id: 'arc_welder', role: 'SHOOTER', rarity: 'epic', slot: 'shooter' },
   { id: 'signal_beacon', role: 'SUPPORT', rarity: 'epic', slot: 'helper' },
 ];
-/** Roster B batch 1 (t-9b28a794): in UNITS (collection, crates, squad pickers, seasons) only while TUNING.rosterB is on. */
-export const ROSTER_B_UNITS: UnitDef[] = [
+/** Roster B batch 1 (t-9b28a794): in UNITS (collection, crates, squad pickers, seasons) only while TUNING.roster1 is on. */
+export const ROSTER_1_UNITS: UnitDef[] = [
   { id: 'nail_gun', role: 'SHOOTER', rarity: 'common', slot: 'shooter' },
   { id: 'drill', role: 'SHOOTER', rarity: 'rare', slot: 'shooter' },
   { id: 'gear', role: 'RELAY', rarity: 'rare', slot: 'relay' },
@@ -39,13 +39,13 @@ export const ROSTER_B_UNITS: UnitDef[] = [
 const BASE_UNITS = [...UNITS];
 const RARITY_ORDER: Rarity[] = ['common', 'rare', 'epic'];
 /** Switch the roster B units in or out of UNITS in place (every reader sees it live), sorted by rarity. */
-export function applyRosterB(on: boolean) {
-  TUNING.rosterB = on;
-  const all = [...BASE_UNITS, ...(on ? ROSTER_B_UNITS : [])].sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+export function applyRoster1(on: boolean) {
+  TUNING.roster1 = on;
+  const all = [...BASE_UNITS, ...(on ? ROSTER_1_UNITS : [])].sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
   UNITS.splice(0, UNITS.length, ...all);
 }
 /** Every unit id a save may hold (flag on or off), for save repair. */
-export const ALL_UNIT_IDS: string[] = [...BASE_UNITS, ...ROSTER_B_UNITS].map((u) => u.id);
+export const ALL_UNIT_IDS: string[] = [...BASE_UNITS, ...ROSTER_1_UNITS].map((u) => u.id);
 export const unitDef = (id: string) => UNITS.find((u) => u.id === id);
 export const STARTER_UNITS: Family[] = ['cannon', 'coil', 'bell', 'fan'];
 export const MAX_UNIT_LEVEL = 10;
@@ -136,6 +136,6 @@ export const UNIT_PERKS: Record<string, [string, string][]> = {
   fan: [['Strong Gust', 'Rank 4+ pushes 2 cells'], ['Double Gust', 'Every 4th fire pushes twice'], ['Launch', 'Rank 6 wakes what it pushed']],
   amplifier: [['Wide Pickup', 'Rank 4+ marks diagonal neighbours too'], ['Dual Channel', 'Every 5th fire marks two'], ['Long Range', 'Rank 6 marks 2 cells away']],
   signal_beacon: [['Third Signal', 'Rank 4+ also marks the nearest helper'], ['Broadcast Boost', 'Every 6th fire marks +0.25'], ['GO! Signal', 'Rank 6 also wakes what it marks']],
-  // roster B batch 1: job upgrades (core/rosterB.ts)
-  ...ROSTER_B_PERKS,
+  // roster B batch 1: job upgrades (core/roster1.ts)
+  ...ROSTER_1_PERKS,
 };

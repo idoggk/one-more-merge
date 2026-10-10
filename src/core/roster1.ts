@@ -1,6 +1,6 @@
-// ROSTER B batch 1 (t-9b28a794, TUNING.rosterB): the job rules of Nail Gun, Drill, Gear and Saw Blade. Pure helpers
+// ROSTER B batch 1 (t-9b28a794, TUNING.roster1): the job rules of Nail Gun, Drill, Gear and Saw Blade. Pure helpers
 // used by cascade.ts (and the inspect / tip copy). They only matter while one of these units is on the board, which
-// needs the flag (src/content/units.ts applyRosterB puts them in crates and squad pickers).
+// needs the flag (src/content/units.ts applyRoster1 puts them in crates and squad pickers).
 import { COLS, ROWS, TUNING } from '../content/tuning';
 import type { Activation, Grid } from './types';
 
@@ -37,8 +37,8 @@ export type ArmorKind = 0 | 1 | 2;
  *   x1.15. L6: monsters with a special move count as armored. L9 rank 7-8: x2.5 vs armored.
  * - Saw Blade: x1.5 on the outer ring, x0.7 inside. L3 rank 4+: ring x1.7. L6: inside x0.9. L9 rank 7-8: corners x2.2.
  */
-export function rosterBMult(a: Activation, grid: Grid, level: number, armor: ArmorKind): number {
-  const R = TUNING.rb;
+export function roster1Mult(a: Activation, grid: Grid, level: number, armor: ArmorKind): number {
+  const R = TUNING.r1;
   if (a.family === 'nail_gun') {
     let n = rowFill(grid, a.idx);
     if (level >= 9 && a.rank >= 7 && n >= COLS - 1) return R.nailFullL9;
@@ -61,7 +61,7 @@ export function rosterBMult(a: Activation, grid: Grid, level: number, armor: Arm
 }
 
 /** Gear LINK: the other Gears a merged Gear jumps the chain to: the farthest ones first (Manhattan, then row-major),
- *  never one already in the chain, at most `left` of them (TUNING.rb.gearLinks per cascade). Sims t-9b28a794: when
+ *  never one already in the chain, at most `left` of them (TUNING.r1.gearLinks per cascade). Sims t-9b28a794: when
  *  every Gear, woken or merged, linked every other Gear, a Gear squad's board became one chain. */
 export function gearLinks(grid: Grid, idx: number, taken: (i: number) => boolean, left: number): number[] {
   if (left <= 0) return [];

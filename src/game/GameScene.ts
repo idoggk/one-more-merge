@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, applyUnits, PACE_KEY, ROSTER_B_KEY, storedRosterB, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyUnits, PACE_KEY, ROSTER1_KEY, storedRoster1, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -36,11 +36,11 @@ import { closeCodeBox, copyText, openCodeBox } from './codeBox';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
-import { isRelay, isShooter as isShooterFam, itemFits, ROSTER_B } from '../core/types';
-import { goodHereText, ROSTER_B_DEMOS, ROSTER_B_GUIDE, ROSTER_B_INFO } from '../content/rosterB';
+import { isRelay, isShooter as isShooterFam, itemFits, ROSTER_1 } from '../core/types';
+import { goodHereText, ROSTER_1_DEMOS, ROSTER_1_GUIDE, ROSTER_1_INFO } from '../content/roster1';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { applyRosterB, boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { applyRoster1, boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
@@ -220,8 +220,8 @@ const qaYardObject = () => {
 const qaUnits = () => storedUnits(() => localStorage.getItem(UNITS_B0_KEY));
 applyUnits(qaUnits());
 // t-9b28a794 QA-only: roster B batch 1 (Nail Gun / Drill / Gear / Saw Blade in collection, crates and squads)
-const qaRosterB = () => storedRosterB(() => localStorage.getItem(ROSTER_B_KEY));
-applyRosterB(qaRosterB());
+const qaRoster1 = () => storedRoster1(() => localStorage.getItem(ROSTER1_KEY));
+applyRoster1(qaRoster1());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -3201,7 +3201,7 @@ Now beat the real level.`, this.coachY());
       if (acts.some((a) => a.family === 'magnet')) sfx.magnet(at);
       if (acts.some((a) => a.family === 'battery')) sfx.battery(at);
       if (acts.some((a) => a.family === 'fan')) sfx.fan(at);
-      for (const f of ROSTER_B) if (acts.some((a) => a.family === f)) sfx.rosterB(f, at);
+      for (const f of ROSTER_1) if (acts.some((a) => a.family === f)) sfx.roster1(f, at);
     }
     r.activations.forEach((a) => {
       const delay = windup + a.depth * step;
@@ -6216,12 +6216,12 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, top + 1015, 'UNITS (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const curUnits = qaUnits();
     // t-9b28a794: 4th button NEW4 toggles roster B batch 1 (Nail Gun / Drill / Gear / Saw Blade) at once
-    const rbOn = qaRosterB();
-    this.button(c, W / 2 + 1.5 * 162, top + 1070, 240, rbOn ? '[NEW4]' : 'NEW4', rbOn ? 0x5fbf4a : 0x8a6a4a, () => {
-      store(ROSTER_B_KEY, rbOn ? null : 'on');
-      applyRosterB(!rbOn);
-      tlog.log('qa_roster_b', { on: !rbOn });
-      this.showToast(rbOn ? 'NEW 4 UNITS OFF (live game)' : 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS');
+    const r1On = qaRoster1();
+    this.button(c, W / 2 + 1.5 * 162, top + 1070, 240, r1On ? '[NEW4]' : 'NEW4', r1On ? 0x5fbf4a : 0x8a6a4a, () => {
+      store(ROSTER1_KEY, r1On ? null : 'on');
+      applyRoster1(!r1On);
+      tlog.log('qa_roster_1', { on: !r1On });
+      this.showToast(r1On ? 'NEW 4 UNITS OFF (live game)' : 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS');
       this.openQaTools(jump);
     }, 0.62);
     UNITS_VARIANTS.forEach((v, i) => {
@@ -6547,9 +6547,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, top + 60, owned ? info.name.toUpperCase() : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#2a2233' }).setOrigin(0.5));
     c.add(this.add.text(W / 2, top + 112, `${u.rarity.toUpperCase()}  \u00b7  ${u.role}${owned ? `  \u00b7  LEVEL ${st!.level}` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
     // the animated mini-board explains it
-    const gi = GameScene.GUIDE.find((g) => g.key === u.id) ?? ROSTER_B_GUIDE[u.id];
+    const gi = GameScene.GUIDE.find((g) => g.key === u.id) ?? ROSTER_1_GUIDE[u.id];
     // roster B: the job shape icon + job word beside the name
-    const rb = ROSTER_B_INFO[u.id as keyof typeof ROSTER_B_INFO];
+    const rb = ROSTER_1_INFO[u.id as keyof typeof ROSTER_1_INFO];
     if (owned && rb && this.textures.exists(`job_${u.id}`)) c.add([this.add.image(W / 2 + 290, top + 60, `job_${u.id}`).setScale(0.9), this.add.text(W / 2 + 290, top + 102, rb.job, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5)]);
     if (owned && gi) {
       this.machineDemo(c, W / 2, top + 330, u.id);
@@ -7414,7 +7414,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       arc_welder: { pieces: [['coil', 1, 1], ['arc_welder', 1, 3], ['cannon', 0, 4]], links: [[0, 1, 1], [1, 2, 2]] },
       amplifier: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['amplifier', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
       signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
-      ...ROSTER_B_DEMOS,
+      ...ROSTER_1_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();

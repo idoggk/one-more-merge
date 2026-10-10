@@ -1,5 +1,5 @@
 import type { PerkId } from '../core/types';
-import { ROSTER_B_INFO } from './rosterB';
+import { ROSTER_1_INFO } from './roster1';
 import { TUNING, unitsB0On } from './tuning';
 
 /** Units B0 / B1 (QA UNITS row): the plain-words copy for units whose rules change; null = today's copy. One source for
@@ -56,8 +56,8 @@ const FAMILY_INFO_TODAY = {
   amplifier: { name: 'Amplifier', color: 0x30b0a0, role: 'SUPPORT', text: 'When it fires it marks the strongest shooter or relay touching it: that machine\'s next hit is x1.3.', tryThis: 'Park it beside your biggest machine.' },
   signal_beacon: { name: 'Signal Beacon', color: 0xf05030, role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere: their next hits are x1.15.', tryThis: 'Fire it early in a chain.' },
   magnet: { name: 'Magnet', color: 0xc23fd1, role: 'MOVER', text: 'Pulls one gadget along a straight line into the empty cell beside it.', tryThis: 'Use it to bring pairs together.' },
-  // roster B batch 1 (t-9b28a794, TUNING.rosterB): only reachable while the flag is on
-  ...ROSTER_B_INFO,
+  // roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on
+  ...ROSTER_1_INFO,
 } as const;
 export const FAMILY_INFO = Object.fromEntries(Object.entries(FAMILY_INFO_TODAY).map(([k, v]) => [k, liveCopy(k, v)])) as unknown as {
   [K in keyof typeof FAMILY_INFO_TODAY]: Omit<(typeof FAMILY_INFO_TODAY)[K], 'text' | 'tryThis'> & { text: string; tryThis: string };

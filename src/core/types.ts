@@ -1,8 +1,8 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | RosterBFamily;
-/** Roster B batch 1 (t-9b28a794, TUNING.rosterB): only reachable while the flag is on. */
-export type RosterBFamily = 'nail_gun' | 'drill' | 'gear' | 'saw_blade';
-export const ROSTER_B: RosterBFamily[] = ['nail_gun', 'drill', 'gear', 'saw_blade'];
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_B];
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family;
+/** Roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on. */
+export type Roster1Family = 'nail_gun' | 'drill' | 'gear' | 'saw_blade';
+export const ROSTER_1: Roster1Family[] = ['nail_gun', 'drill', 'gear', 'saw_blade'];
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1];
 /** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5); r32 adds Mortar + Arc Welder; roster B Nail Gun, Drill, Saw Blade. */
 export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'drill' || f === 'saw_blade';
 /** RELAY role: wakes OTHER families. r32 adds Horn (column) + Fuse Box (diagonals); roster B Gear (links to other Gears). */

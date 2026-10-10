@@ -3,13 +3,13 @@ import raw from '../src/content/puzzles.json';
 import { storedRosterB } from '../src/content/experiments';
 import { LEVELS } from '../src/content/levels';
 import { FAMILY_INFO } from '../src/content/perks';
-import { goodHereText, ROSTER_B_INFO } from '../src/content/rosterB';
+import { goodHereText, ROSTER_1_INFO } from '../src/content/roster1';
 import { TUNING } from '../src/content/tuning';
-import { applyRosterB, UNIT_PERKS, unitDef, UNITS } from '../src/content/units';
+import { applyRoster1, UNIT_PERKS, unitDef, UNITS } from '../src/content/units';
 import { resolveCascade, type CascadeOpts } from '../src/core/cascade';
 import { rollCrate } from '../src/core/crates';
 import { armorOf, drop, newLevel, newPuzzle, type PuzzleDef } from '../src/core/game';
-import { ROSTER_B, type Family, type Gadget, type Grid } from '../src/core/types';
+import { ROSTER_1, type Family, type Gadget, type Grid } from '../src/core/types';
 
 let id = 9800;
 const g = (family: Family, rank = 1): Gadget => ({ id: id++, family, rank, cd: 99 });
@@ -20,16 +20,16 @@ const board = (cells: [number, Gadget][]) => {
 };
 const run = (grid: Grid, root: number, o: Partial<CascadeOpts> = {}) => resolveCascade(grid, root, { perks: [], overdrive: false, ...o });
 const hit = (r: ReturnType<typeof run>, f: Family) => r.activations.find((a) => a.family === f)!.contribution;
-const NEW = ROSTER_B as string[];
+const NEW = ROSTER_1 as string[];
 
-afterEach(() => applyRosterB(false));
+afterEach(() => applyRoster1(false));
 
 describe('t-9b28a794 roster B batch 1: flag', () => {
   it('OFF by default: no new unit in the collection, crates or squad pickers; GOOD HERE silent', () => {
-    expect(TUNING.rosterB).toBe(false);
+    expect(TUNING.roster1).toBe(false);
     expect(UNITS).toHaveLength(13);
     expect(UNITS.some((u) => NEW.includes(u.id))).toBe(false);
-    for (const f of ROSTER_B) expect(unitDef(f)).toBeUndefined();
+    for (const f of ROSTER_1) expect(unitDef(f)).toBeUndefined();
     const owned = new Set<Family>(['cannon', 'coil', 'bell', 'fan']);
     for (let seed = 1; seed < 300; seed++) for (const c of rollCrate('gold', owned, seed)) expect(NEW).not.toContain(c.unit);
     const shieldLevel = LEVELS.find((d) => d.behaviour === 'shield')!;
@@ -39,34 +39,34 @@ describe('t-9b28a794 roster B batch 1: flag', () => {
 
   it('ON: the 4 join UNITS sorted by rarity, drop from crates, and OFF restores the exact old list', () => {
     const before = UNITS.map((u) => u.id);
-    applyRosterB(true);
-    expect(TUNING.rosterB).toBe(true);
+    applyRoster1(true);
+    expect(TUNING.roster1).toBe(true);
     expect(UNITS).toHaveLength(17);
-    expect(Object.fromEntries(ROSTER_B.map((f) => [f, unitDef(f)!.rarity]))).toEqual({ nail_gun: 'common', drill: 'rare', gear: 'rare', saw_blade: 'epic' });
+    expect(Object.fromEntries(ROSTER_1.map((f) => [f, unitDef(f)!.rarity]))).toEqual({ nail_gun: 'common', drill: 'rare', gear: 'rare', saw_blade: 'epic' });
     expect(unitDef('gear')!.slot).toBe('relay');
     const order = ['common', 'rare', 'epic'];
     expect(UNITS.map((u) => order.indexOf(u.rarity))).toEqual([...UNITS.map((u) => order.indexOf(u.rarity))].sort());
     const owned = new Set(before as Family[]);
     const got = new Set<string>();
     for (let seed = 1; seed < 200; seed++) for (const c of rollCrate('gold', owned, seed)) got.add(c.unit);
-    for (const f of ROSTER_B) expect(got.has(f), f).toBe(true);
-    applyRosterB(false);
+    for (const f of ROSTER_1) expect(got.has(f), f).toBe(true);
+    applyRoster1(false);
     expect(UNITS.map((u) => u.id)).toEqual(before);
   });
 
   it('copy: role, job word, WHEN MERGED line, L3 / L6 / L9 job upgrades for each', () => {
     const jobs = { nail_gun: 'ROW', drill: 'ARMOR', gear: 'LINK', saw_blade: 'EDGE' };
-    for (const f of ROSTER_B) {
-      expect(ROSTER_B_INFO[f].job).toBe(jobs[f]);
+    for (const f of ROSTER_1) {
+      expect(ROSTER_1_INFO[f].job).toBe(jobs[f]);
       expect(FAMILY_INFO[f].text.startsWith(`${jobs[f]}:`)).toBe(true);
-      expect(ROSTER_B_INFO[f].whenMerged).toMatch(/^WHEN MERGED: /);
+      expect(ROSTER_1_INFO[f].whenMerged).toMatch(/^WHEN MERGED: /);
       expect(UNIT_PERKS[f]).toHaveLength(3);
     }
     expect(FAMILY_INFO.gear.role).toBe('RELAY');
   });
 
   it('GOOD HERE names an owned unit that suits the level (only with the flag)', () => {
-    applyRosterB(true);
+    applyRoster1(true);
     const shield = LEVELS.find((d) => d.behaviour === 'shield')!;
     expect(goodHereText(shield, (u) => u === 'drill')).toMatch(/^GOOD HERE: DRILL \(it ignores the shield\)/);
     expect(goodHereText(shield, () => false)).toBe('');
@@ -167,7 +167,7 @@ describe('t-9b28a794 roster B batch 1: jobs', () => {
 describe('t-9b28a794 roster B batch 1: drills', () => {
   const data = raw as unknown as { drills: Record<string, PuzzleDef[]> };
   it('3 drills per new unit, built around it; Drill drills put a shield on the machine', () => {
-    for (const f of ROSTER_B) {
+    for (const f of ROSTER_1) {
       expect(data.drills[f], f).toHaveLength(3);
       for (const p of data.drills[f]) {
         expect(p.unit).toBe(f);
