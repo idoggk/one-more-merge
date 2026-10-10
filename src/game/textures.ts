@@ -4,31 +4,13 @@ import { LEVELS } from '../content/levels';
 import { STARTER_UNITS } from '../content/units';
 import { BOSSES, chapterBossIdx } from '../core/boss';
 import { FAMILIES, type Family } from '../core/types';
+import { TARGET_NAMES } from '../content/perks';
 import { META_KEY, SAVE_KEY } from '../platform/backup';
+import { artPlan, RARE, type FirstScreen } from './artPlan';
 
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
 
-/**
- * t-0f092b4b: the eager preload is only what the first screen draws; decoding ~290 images before the first frame took
- * 9-20 s on a 4x-throttled phone CPU (the WebGL upload decodes on the main thread). Gadgets, target_0..2, bg, slot and
- * demo_can stay eager for the families in play: ensureTextures() draws any of them that is missing, and buildStatic()
- * draws the board HUD on every start.
- */
-const BOARD = new RegExp(`^((${FAMILIES.join('|')})_\\d+|bg|slot|demo_can|target_[0-2]|star|bolt|hud_header|scrap_plate|tray_plate|stage_0|ui_(coach|ribbon)|(badge|debris|dice|gauge|hp|icon|item|vfx)_.*)$`);
-/** The road tab: a returning player's first screen (hero_bg, hm_cannon_1 and node_normal pick it over the legacy title). */
-const HOME = /^(hero_bg|hero_chassis|hero_socket|hm_cannon_1|res_bar|card_common|chest_closed|ui_card|btn_(green|blue|red)|(node|road|booster)_.*)$/;
-/** One tap from the road (machine tab, other buttons): fetched first after the first frame; every use is guarded. */
-const NEAR = /^(hm|btn)_/;
-/** Board art only drawn once play starts (piece badges / dice, items): held back while the road is first. Not vfx_ or debris_: buildStatic() bakes those once. */
-const IN_PLAY = /^(badge|dice|item)_/;
-/** The first-launch tutorial board (coach hand). */
-const TUTORIAL = /^ui_hand$/;
-/**
- * r29: boss / cast / chapter-stage art loads after the first frame, as does art only rare screens draw (legacy
- * title, cosmetics, trophies, Screw Yard). Every use of these keys is behind hasArt()/textures.exists().
- */
-const RARE = /^(boss_|mon_|stage_ch|sy_|title$|logo$|ui_console$|hero_chassis_|stagebg_|trophy_|bg_corner$|bg_practice$|slot_old$|stage_[12]$|face_2_|orn_|keepsake$|plate_remix$|btg_)/;
 const artEntries = () => Object.entries(ART).map(([path, url]) => [path.split('/').pop()!.replace(/\.(png|webp)$/, ''), url] as const);
 
 /** Chapter-specific art: chapter stage, cast (and hurt faces), mini-boss and chapter boss phases, boss attack tags. */
@@ -58,7 +40,7 @@ const heldBack = new Set<string>();
  * road or a resumed board. Gadget art: the starters, Rocket (L6) and any family the save or the unit collection
  * names (a resumed run's board, the team); the rest arrive with the first background batch.
  */
-function firstScreen(): { isNew: boolean; road: boolean; fams: Set<string> } {
+function firstScreen(): FirstScreen {
   const fams = new Set<string>([...STARTER_UNITS, 'rocket']);
   let meta = '',
     save = '';
@@ -74,19 +56,20 @@ function firstScreen(): { isNew: boolean; road: boolean; fams: Set<string> } {
 
 /** First-screen art only; loadLazyArt() streams the rest in once the first frame is up. */
 export function preloadArt(scene: Phaser.Scene) {
-  const { isNew, road, fams } = firstScreen();
+  const first = firstScreen();
   for (const [key, url] of artEntries()) {
-    const first = BOARD.test(key) || HOME.test(key) || TUTORIAL.test(key);
-    const fam = /^(?:hm_)?(.+)_\d+$/.exec(key)?.[1] ?? '';
-    const inPlay = !(FAMILIES as string[]).includes(fam) || fams.has(fam);
-    const screen = isNew ? !HOME.test(key) : !TUTORIAL.test(key) && !(road && IN_PLAY.test(key));
-    if (first && inPlay && screen) {
+    const plan = artPlan(key, first);
+    if (plan === 'eager') {
       scene.load.image(key, url);
       continue;
     }
     deferred.add(key);
-    if (first || NEAR.test(key)) heldBack.add(key);
+    if (plan === 'heldBack') heldBack.add(key);
   }
+  // a deferred key that fails to load (offline with a half-filled cache, a network blip) gets its procedural stand-in
+  scene.load.on('loaderror', (file: Phaser.Loader.File) => {
+    if (deferred.delete(file.key)) ensureTextures(scene);
+  });
 }
 
 /**
@@ -297,15 +280,16 @@ export function ensureTextures(scene: Phaser.Scene) {
     g.fillStyle(0xd99d63, 1).fillRoundedRect(38, 430, 644, 760, 28);
     for (let i = 0; i < 12; i++) g.fillStyle(0xc68a52, 0.25).fillRect(38, 450 + i * 64, 644, 3);
   });
-  const targetColors = [0xb9c4cc, 0xe9f3f5, 0x6fbf4a];
-  for (let i = 0; i < 3; i++)
+  const targetColors = [0xb9c4cc, 0xe9f3f5, 0x6fbf4a, 0x8a7ad0, 0xe0a050, 0x5a5a6a];
+  // every target_N: target_3+ reuse the three shapes in their own colours
+  for (let i = 0; i < TARGET_NAMES.length; i++)
     gen(`target_${i}`, 300, 300, () => {
       g.lineStyle(8, OUT, 1);
-      const c = targetColors[i];
-      if (i === 0) {
+      const c = targetColors[i % targetColors.length];
+      if (i % 3 === 0) {
         g.fillStyle(c).fillRoundedRect(80, 50, 140, 210, 20).strokeRoundedRect(80, 50, 140, 210, 20);
         g.fillStyle(0xe8452c).fillRect(80, 110, 140, 70).strokeRect(80, 110, 140, 70);
-      } else if (i === 1) {
+      } else if (i % 3 === 1) {
         g.fillStyle(c).fillRoundedRect(70, 20, 160, 270, 18).strokeRoundedRect(70, 20, 160, 270, 18);
         g.lineBetween(70, 110, 230, 110);
         g.fillStyle(0x999999).fillRect(200, 60, 10, 36).fillRect(200, 140, 10, 60);
