@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, applyUnits, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -42,27 +42,29 @@ import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
+import { crateName, popToolboxLatch, TOOLBOX_KEY, toolboxCrateKey, toolboxOn } from './fx/toolboxCrates';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
 import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import puzzleData from '../content/puzzles.json';
-import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { drillsPending, newPuzzle, thinking, type PuzzleDef } from '../core/game';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../core/sandwich';
 import { playSandwich } from './sandwichFx';
-import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
+import { dailyIndex, HELP, missedUnitText, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
 import { applyCommand, newRunLog, recordCommand, recordTick, replayRun, type RunLog } from '../core/replay';
 import { decodeCurve, ghostProgress, levelProgress, paceDelta, paceFromLog, paceLabel, updatePace, type PaceCurve } from '../core/pace';
 import { BONUS_XP, dailyTasks, rollSeason, SEASON_TIERS, seasonCount, seasonDayLeft, seasonTier, seasonUnit, TIER_XP, tierRewards, weeklyTasks, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { CRATE } from '../core/screwObject';
-import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
-import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, OD_LABEL, stageHudText, TUTORIAL, unitsTitle } from '../content/sceneCopy';
+import { BOUNTY_BOLTS, bountiesFor, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
+import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, chapterChestText, FACE, goalDoneText, GUIDE, ITEM_COPY, mergesText, OD_LABEL, relayLockNote, stageHudText, TUTORIAL, unitsTitle } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
 import { FEATURE_INFO, grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, unlockAll, UNLOCK_LEVEL, type Feature } from './unlocks';
 import { admitTip, newTipLedger } from './tips';
+import { MODE_INTRO, modeIntroFor } from './modeIntro';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
 import { bossLesson, joinRewards, machineName, OverlayQueue, rewardRows, trayEarnText } from './flow';
@@ -223,6 +225,9 @@ applyUnits(qaUnits());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
+// t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
+const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
+applyThinkBank(qaThinkBank());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -264,6 +269,8 @@ export class GameScene extends Phaser.Scene {
   lastSec = -1;
   starChase: Phaser.GameObjects.Text | null = null;
   shieldChip: Phaser.GameObjects.Text | null = null;
+  /** time.now until which a banner_chain banner sits over the top HUD row (the chips fade out under it). */
+  bannerUntil = 0;
   shieldG!: Phaser.GameObjects.Graphics;
   odGauge!: Phaser.GameObjects.Graphics;
   boltIcon?: Phaser.GameObjects.Image;
@@ -289,6 +296,7 @@ export class GameScene extends Phaser.Scene {
   tutorialText!: Phaser.GameObjects.Text;
   practiceText!: Phaser.GameObjects.Text;
   maniaBadge: Phaser.GameObjects.Text | null = null;
+  thinkBadge: Phaser.GameObjects.Text | null = null;
   modal: Phaser.GameObjects.Container | null = null;
   /** r43: this attempt's command log (best-chain replay on the results screen). */
   runLog: RunLog = newRunLog();
@@ -774,7 +782,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.puzzle ? `WIN IN ${this.s.puzzle.moves} MERGES` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.puzzle ? `WIN IN ${mergesText(this.s.puzzle.moves).toUpperCase()}` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -829,6 +837,10 @@ export class GameScene extends Phaser.Scene {
         this.explain('stage_hud', [
           { text: stageHudText(this.s.stage), spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
         ]);
+    } else {
+      // walkthrough 3: the first Challenge / Remix opens with one card (clock paused, once per mode, modeIntro.ts)
+      const mi = modeIntroFor(this.s);
+      if (mi) this.explain(mi, [{ text: MODE_INTRO[mi], spots: [{ x: SCRAP_X, y: TRAY_Y, r: 70 }] }]);
     }
     tlog.log('intro_end', { skipped });
   }
@@ -2189,6 +2201,11 @@ Now beat the real level.`, this.coachY());
     // QA PACE MANIA: label the craze rules on the HUD (top-right of the stage window)
     if (!this.maniaBadge) this.maniaBadge = this.add.text(W - 92, STAGE_TOP + 28, 'MANIA', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#c0287a', padding: { x: 12, y: 4 } }).setOrigin(1, 0.5).setDepth(22);
     this.maniaBadge.setVisible(TUNING.pace === 'mania' && s.level !== undefined && !s.puzzle && !demo);
+    // QA THINK BANK: PAUSED while the still board holds the clock, else the seconds left in the bank
+    if (!this.thinkBadge) this.thinkBadge = this.add.text(W - 92, STAGE_TOP + 70, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', padding: { x: 10, y: 3 } }).setOrigin(1, 0.5).setDepth(22);
+    const bankLeft = Math.max(0, Math.ceil(TUNING.tb.bank - (s.banked ?? 0)));
+    this.thinkBadge.setVisible(TUNING.thinkBank && s.level !== undefined && !s.puzzle && !demo && s.phase === 'playing');
+    this.thinkBadge.setText(thinking(s) ? `PAUSED · ${bankLeft}s` : `BANK ${bankLeft}s`).setBackgroundColor(thinking(s) ? '#27a4c0' : '#8a6a4a');
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
     const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
     if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
@@ -2205,6 +2222,8 @@ Now beat the real level.`, this.coachY());
       if (this.starChase.text !== rule) textColor(this.starChase.setText(rule), '#d9c2ff');
       this.starChase.setVisible(true);
     } else this.starChase.setVisible(false);
+    const hudA = this.time.now < this.bannerUntil ? Math.max(0, this.starChase.alpha - dms / 120) : Math.min(1, this.starChase.alpha + dms / 250);
+    this.starChase.setAlpha(hudA);
 
     // smooth HP (goal levels: the bar fills with goal progress instead, r23)
     this.shownHp += (s.hp - this.shownHp) * Math.min(1, dms / 120);
@@ -2224,12 +2243,14 @@ Now beat the real level.`, this.coachY());
     this.drawPace(bw);
     // r23 chain shield chip + bubble on the monster
     if (!this.shieldChip) {
-      this.shieldChip = this.add.text(W - 92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(1, 0.5).setDepth(22);
+      this.shieldChip = this.add.text(W - 92, STAGE_TOP + 34, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6, align: 'right', lineSpacing: -4 }).setOrigin(1, 0.5).setDepth(22);
       this.shieldG = this.add.graphics().setDepth(4);
     }
     const sh = s.shieldUntil !== undefined && s.phase === 'playing';
     const open = sh && s.elapsed < s.shieldUntil!;
-    this.shieldChip.setVisible(sh).setText(open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s` : 'SHIELD  \u00b7  chain of 4 opens it');
+    const shTxt = open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s\nfull damage` : 'SHIELD CLOSED  \u00b7  x0.75\nchain of 4 opens it';
+    if (this.shieldChip.text !== shTxt) textColor(this.shieldChip.setText(shTxt), open ? '#8ef08a' : '#9fe8ff');
+    this.shieldChip.setVisible(sh).setAlpha(hudA);
     this.shieldG.clear();
     if (sh && !open) {
       const rr = Math.min(STAGE_H * 0.46, 170);
@@ -2645,8 +2666,9 @@ Now beat the real level.`, this.coachY());
         case 'goal': {
           const cp = cellXY(e.idx);
           sfx.win();
-          this.floatText(cp.x, cp.y - 40, e.kind === 'rank' ? `RANK ${e.n} BUILT!` : `CHAIN x${e.n}!`, '#ffcf33', 56, 900, 'banner_destroyed');
-          this.showEvent(e.kind === 'rank' ? `RANK ${e.n} BUILT!  GOAL DONE` : `CHAIN x${e.n}!  GOAL DONE`, '#ffd24a', 3000);
+          const got = Math.max(e.n, this.s.goal?.best ?? 0); // walkthrough 3: name the rank actually built
+          this.floatText(cp.x, cp.y - 40, e.kind === 'rank' ? `RANK ${got} BUILT!` : `CHAIN x${got}!`, '#ffcf33', 56, 900, 'banner_destroyed');
+          this.showEvent(e.kind === 'rank' ? `RANK ${got} BUILT!  GOAL DONE` : `CHAIN x${got}!  GOAL DONE`, '#ffd24a', 3000);
           tlog.log('goal_done', { kind: e.kind, n: e.n, at: +this.s.elapsed.toFixed(1) });
           break;
         }
@@ -2688,6 +2710,14 @@ Now beat the real level.`, this.coachY());
         case 'shield':
           sfx.panelBreak(1);
           this.showEvent('SHIELD OPEN!  full damage', '#9fe8ff', 1400);
+          // FIX 8: the chain that broke it gets a pop on the monster and on the chip
+          this.floatText(W / 2, this.stageFloatY(this.target.y - 90), 'SHIELD BROKEN!', '#9fe8ff', 44, 300);
+          this.ring(this.target.x, this.target.y, 0x9fe8ff, Math.min(STAGE_H * 0.46, 170), 12, 380);
+          if (this.shieldChip) {
+            this.tweens.killTweensOf(this.shieldChip);
+            this.shieldChip.setScale(1.35);
+            this.tweens.add({ targets: this.shieldChip, scale: 1, duration: 260, ease: 'Back.Out' });
+          }
           break;
         case 'end':
           tlog.log('end', { won: e.won, targets: e.won ? 3 : this.s.target, elapsed: +this.s.elapsed.toFixed(1), chain: this.s.stats.biggestChain });
@@ -2914,6 +2944,8 @@ Now beat the real level.`, this.coachY());
   floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
     const label = this.add.text(0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
     const t = this.add.container(x, y).setDepth(70);
+    // walkthrough 3: the top-row HUD chips (star chase, shield) fade while a stage banner crosses them
+    if (banner === 'banner_chain') this.bannerUntil = Math.max(this.bannerUntil, this.time.now + 160 + 220 + hold + 700);
     if (banner && this.hasArt(banner)) {
       const b = this.add.image(0, 4, banner);
       b.setScale(Math.max((label.width + size * 2.2) / b.width, (label.height + size * 1.2) / b.height));
@@ -3816,6 +3848,7 @@ Now beat the real level.`, this.coachY());
     let got = 0;
     let firstClear = false;
     let chapterDone = 0;
+    const chest = { goldCrates: 0, gems: 0 }; // walkthrough 3: listed on the CHAPTER COMPLETE chest
     if (won) {
       m.wins++;
       got = starsFor(def, s.elapsed);
@@ -3888,10 +3921,12 @@ Now beat the real level.`, this.coachY());
         const kind: CrateKind | null = def.mini_boss ? 'iron' : n % 10 === 0 ? 'gold' : n % 3 === 0 ? 'wood' : null;
         if (n % 10 === 0) {
           m.gems = (m.gems ?? 0) + GEM_REWARDS.chapterBoss;
+          chest.gems += GEM_REWARDS.chapterBoss;
           lines.push(`+${GEM_REWARDS.chapterBoss} GEMS`);
         }
         if (kind) {
           this.giveCrate(kind);
+          if (kind === 'gold' && n % 10 === 0) chest.goldCrates++;
           lines.push(`+1 ${CRATES[kind].name}`);
         }
       }
@@ -3931,7 +3966,9 @@ Now beat the real level.`, this.coachY());
     const top = H / 2 - PH / 2;
     const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
     c.add(this.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(fitLine(this.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : soCloseText({ hp: s.hp, maxHp: s.maxHp, stage: s.stage, playerDamage: s.stats.dmgBy.player ?? 0, merges: s.stats.merges }, this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5), W - 120));
+    const sub = fitLine(this.add.text(W / 2, top + 140, s.goal ? (won ? `${goalDoneText(s.goal)} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${this.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${this.monName()} down in ${s.elapsed.toFixed(1)}s`) : soCloseText({ hp: s.hp, maxHp: s.maxHp, stage: s.stage, playerDamage: s.stats.dmgBy.player ?? 0, merges: s.stats.merges }, this.realBoss ? BOSSES[this.realBoss.def].name : this.monName()), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5), W - 120);
+    if (sub.width > W - 120) sub.setScale((W - 120) / sub.width); // walkthrough 3: no overflow at 390 wide
+    c.add(sub);
     // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
     if (!won && this.hasArt('defeat')) {
       const im = this.fitVisible(this.add.image(W / 2, top + 296, 'defeat'), 240);
@@ -3987,7 +4024,7 @@ Now beat the real level.`, this.coachY());
     // own tap); the button's action runs after them, so a tap on NEXT LEVEL is never eaten by a popup
     this.endQueue.clear();
     if (chapterDone) {
-      this.endQueue.push((done) => this.playChapterChest(chapterDone, done));
+      this.endQueue.push((done) => this.playChapterChest(chapterDone, done, chest));
       this.endQueue.push((done) => this.backupNudge(chapterDone, done));
     }
     const leave = (fn: () => void) => () => this.endQueue.run(fn);
@@ -4038,7 +4075,7 @@ Now beat the real level.`, this.coachY());
   }
 
   /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
-  playChapterChest(chapter: number, done: () => void = () => this.backupNudge(chapter)) {
+  playChapterChest(chapter: number, done: () => void = () => this.backupNudge(chapter), chest = { goldCrates: 0, gems: 0 }) {
     const o = this.add.container(0, 0).setDepth(140);
     o.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive());
     const shownAt = this.time.now;
@@ -4052,6 +4089,31 @@ Now beat the real level.`, this.coachY());
     o.add(medal);
     const cap = this.add.text(W / 2, H / 2 + 260, `Chapter ${chapter} medal added to your MACHINE\n(tap to continue)`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', align: 'center' }).setOrigin(0.5).setAlpha(0);
     o.add(cap);
+    // walkthrough 3: the chest lists what is in it, and OPEN NOW opens the gold crate, then carries on to the level card
+    const inside = chapterChestText(chest);
+    const contents = this.add.text(W / 2, H / 2 + 185, inside, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6, align: 'center' }).setOrigin(0.5).setAlpha(0);
+    if (contents.width > W - 80) contents.setScale((W - 80) / contents.width);
+    o.add(contents);
+    let leaving = false;
+    const leave = (fn: () => void) => {
+      if (leaving) return;
+      leaving = true;
+      tlog.log('chapter_reward_presented', { chapter });
+      o.destroy();
+      fn();
+    };
+    const canOpen = () => chest.goldCrates > 0 && (this.meta.crates?.gold ?? 0) > 0;
+    this.time.delayedCall(1100, () => {
+      if (!o.active) return;
+      this.tweens.add({ targets: contents, alpha: 1, duration: 300 });
+      if (canOpen())
+        this.button(o, W / 2, H / 2 + 380, 380, 'OPEN NOW', 0x5fbf4a, () => leave(() => {
+          if (!canOpen()) return done();
+          this.meta.crates!.gold! -= 1;
+          this.crateReturn = () => (this.closeModal(), done());
+          this.openCrate('gold');
+        }));
+    });
     sfx.chestShake();
     if (closed) this.tweens.add({ targets: closed, angle: { from: -4, to: 4 }, duration: 90, yoyo: true, repeat: 4 });
     this.time.delayedCall(700, () => {
@@ -4065,13 +4127,11 @@ Now beat the real level.`, this.coachY());
     // F6: its own tap: the press must start on the chest screen (not the tap that opened it), after the medal shows
     let pressed = false;
     o.list[0].on('pointerdown', () => (pressed = this.time.now - shownAt > 500));
-    o.list[0].on('pointerup', () => {
-      if (!pressed) return;
-      tlog.log('chapter_reward_presented', { chapter });
-      o.destroy();
-      done();
-    });
+    o.list[0].on('pointerup', () => pressed && leave(done));
   }
+
+  /** Walkthrough 3: set while a crate opened from the chapter chest is on screen; its button goes back to the level flow. */
+  crateReturn: (() => void) | null = null;
 
   /** r43: after a chapter clear, offer a save backup once per chapter (dismissible; never blocks the level-end panel). */
   backupNudge(chapter: number, done: () => void = () => undefined) {
@@ -4313,7 +4373,7 @@ Now beat the real level.`, this.coachY());
         im.setScale(110 / Math.max(im.width, im.height));
         slot.add(im);
       }
-      slot.add(this.add.text(0, 52, TWIST_TEXT[b.twist], { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
+      slot.add(this.add.text(0, 52, twistText(b.twist, this.ownsUnit('rocket')), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
       if (done) slot.add(this.add.text(70, -62, mast ? '★' : '✓', { fontFamily: 'Arial Black', fontSize: '34px', color: mast ? '#e0a020' : '#2a8a3a', stroke: '#fff0cf', strokeThickness: 5 }).setOrigin(0.5));
       slot.setSize(190, 175).setInteractive({ useHandCursor: true });
       slot.on('pointerup', () => (sfx.click(), this.startBounty(k)));
@@ -5064,7 +5124,7 @@ Now beat the real level.`, this.coachY());
     const pz = this.puzzleRec();
     const solvedToday = pz.lastSolved === localDate();
     const dp = this.dailyPuzzle();
-    const dcard = card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${dp.moves} merges${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : UNLOCK_LEVEL.puzzles!, () => (this.seen('puzzles'), this.startPuzzle(dp, 'daily')), ['Other modes \u203a', () => this.openOtherModes(), modesOpen]);
+    const dcard = card(330, 220, solvedToday ? 'DAILY PUZZLE ✓' : 'DAILY PUZZLE', [`Win in ${mergesText(dp.moves)}${dp.only ? '  ·  special rule' : ''}  ·  streak ${pz.streak}`, solvedToday ? 'Solved! New puzzle tomorrow' : 'Reward: 40 Bolts + 3 Gems'], 0x8e58c9, dailyOpen, m.playtestMode ? 10 : UNLOCK_LEVEL.puzzles!, () => (this.seen('puzzles'), this.startPuzzle(dp, 'daily')), ['Other modes \u203a', () => this.openOtherModes(), modesOpen]);
     if (dailyOpen && isNew(m, 'puzzles')) this.newTag(dcard, 70, -70);
     if (modesOpen && modesNew) this.newTag(dcard, -(W - 50) / 2 + 220, 110 - 50 - 18, 0.8);
     if (m.playtestMode) {
@@ -5497,6 +5557,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
     applyUnits(qaUnits()); // QA UNITS switch, same
     applyMergeRule(qaMergeRule()); // QA MERGE RULE switch, same
+    applyThinkBank(qaThinkBank()); // QA THINK BANK switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -5680,7 +5741,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const top = H / 2 - 320;
     const helpLine = help.showMove ? 'Stuck? NEXT MOVE shows a right merge.' : help.hint ? 'Stuck? HINT lights the part to move first.' : `A hint unlocks after ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0)} more ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0) === 1 ? 'try' : 'tries'}.`;
     c.add(this.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+    c.add(this.add.text(W / 2, top + 150, won ? lines.join('\n') : this.s.puzzle.missedUnit ? missedUnitText(FAMILY_INFO[def.unit as 'cannon'].name, helpLine) : `The machine had ${fmt(Math.max(0, Math.round(this.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
     const nextDrill = won && kind === 'drill' && def.unit ? (GameScene.PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
     if (nextDrill) this.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => this.startPuzzle(nextDrill, 'drill'), 0.95);
     else if (!won) {
@@ -6119,17 +6180,30 @@ Merge them into a RANK ${rank}!`, this.coachY());
       tlog.log('qa_unlock_all');
       this.showToast('ALL FEATURES UNLOCKED');
     }, 0.75);
-    this.button(c, W / 2, top + 620, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
+    this.button(c, W / 2 - 150, top + 620, 360, '+2000 BOLTS +500 GEMS', 0xe0a020, () => {
       m.bolts = (m.bolts ?? 0) + 2000;
       m.gems = (m.gems ?? 0) + 500;
       save();
       this.showToast('+2000 BOLTS  +500 GEMS');
-    }, 0.8);
-    this.button(c, W / 2, top + 710, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
+    }, 0.68);
+    // t-4208f149 THINK BANK prototype OFF / ON (this device only; applies when the next level starts)
+    this.button(c, W / 2 + 150, top + 620, 360, qaThinkBank() ? 'THINK BANK: ON' : 'THINK BANK: OFF', qaThinkBank() ? 0x5fbf4a : 0x8a6a4a, () => {
+      store(THINK_BANK_KEY, qaThinkBank() ? null : 'on');
+      tlog.log('qa_think_bank', { on: qaThinkBank() });
+      this.showToast(qaThinkBank() ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL');
+      this.openQaTools(jump);
+    }, 0.68);
+    this.button(c, W / 2 - 150, top + 710, 360, '+3 CRATES', 0xb06a1a, () => {
       for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) this.giveCrate(k);
       save();
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
-    }, 0.8);
+    }, 0.75);
+    // t-33f4fe2e crate look: OLD crates (live) / TOOLBOX (Tool Bag, Toolbox, Tool Chest), this device only
+    this.button(c, W / 2 + 150, top + 710, 360, toolboxOn() ? 'CRATES: TOOLBOX' : 'CRATES: OLD', toolboxOn() ? 0x5fbf4a : 0x8a6a4a, () => {
+      store(TOOLBOX_KEY, toolboxOn() ? null : 'toolbox');
+      tlog.log('qa_crates', { look: toolboxOn() ? 'toolbox' : 'old' });
+      this.openQaTools(jump);
+    }, 0.75);
     // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
     c.add(this.add.text(W / 2, top + 775, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const cur = spamVariant();
@@ -6149,9 +6223,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     PACES.forEach((p, i) => {
       const on = p.id === curPace;
       this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(PACE_KEY, p.id === 'today' ? null : p.id);
+        store(PACE_KEY, p.id === DEFAULT_PACE ? null : p.id);
         tlog.log('qa_pace', { pace: p.id });
-        this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
+        this.showToast(p.id === DEFAULT_PACE ? `PACE ${p.label} (live game)  ·  NEXT LEVEL` : `PACE ${p.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });
@@ -6601,13 +6675,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.closeModal();
     const c = this.panel(1000);
     const top = H / 2 - 500;
-    c.add(this.add.text(W / 2, top + 60, title ?? CRATES[kind].name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 60, title ?? crateName(kind), { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
     const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
     const box = this.add.container(W / 2, top + 260);
     // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
     // No closed gold crate yet: the iron crate tinted gold stands in.
     this.seasonEv('crateOpen');
-    const ck = this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
+    const tbx = toolboxOn(); // t-33f4fe2e QA: baked procedural toolbox crates
+    const ck = tbx ? toolboxCrateKey(this, kind) : this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
     let crateIm: Phaser.GameObjects.Image | null = null;
     if (ck) {
       const im = this.add.image(0, 0, ck);
@@ -6621,7 +6696,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.tweens.add({ targets: box, angle: { from: -6, to: 6 }, duration: 90, yoyo: true, repeat: 5, onComplete: () => {
       sfx.chestOpen?.();
       const openKey = `crate_${kind}_open`;
-      if (crateIm && this.hasArt(openKey)) {
+      if (crateIm && tbx) popToolboxLatch(this, box, crateIm, kind);
+      else if (crateIm && this.hasArt(openKey)) {
         crateIm.clearTint().setTexture(openKey);
         crateIm.setScale(240 / Math.max(crateIm.width, crateIm.height));
       }
@@ -6652,7 +6728,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const cols = cards.length > 6 ? 4 : 3, rows = Math.ceil(cards.length / cols);
       const by = Math.min(top + 920, top + (cols === 4 ? 220 : 250) + (rows - 1) * (cols === 4 ? 190 : 250) + (cols === 4 ? 175 : 200));
       if (more) this.button(c, W / 2 - 150, by, 260, `NEXT (${more})`, 0x5fbf4a, () => this.openNextCrate(), 0.8);
-      this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
+      const back = this.crateReturn;
+      if (back) this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'CONTINUE', 0x27a4c0, () => ((this.crateReturn = null), back()), 0.8);
+      else this.button(c, more ? W / 2 + 150 : W / 2, by, 260, 'UNITS', 0x27a4c0, () => this.openTitle('units'), 0.8);
     });
   }
 
@@ -6706,7 +6784,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     };
     this.button(c, 330, top + 266, 220, `x1  ${FEATURED_CRATE.gems1} GEMS`, 0x8e58c9, () => buyFeatured(1, FEATURED_CRATE.gems1), 0.6);
     this.button(c, 520, top + 266, 220, `x5  ${FEATURED_CRATE.gems5} GEMS`, 0x8e58c9, () => buyFeatured(5, FEATURED_CRATE.gems5), 0.6);
-    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
+    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, crateName(g.kind), `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
     const ownedNow = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
     const feat = featuredUnit(localDate(), ownedNow);
     SHOP.boltPacks.forEach((p, i) =>
@@ -6813,8 +6891,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const lv = this.currentLevel();
     const slots: { label: string; fam: Family | null; role: string; note: string; tap: () => void }[] = [
       { label: 'SHOOTER', fam: this.teamShooter(), role: 'shooter', note: 'tap to change', tap: () => this.openSlotPicker('shooter', 0) },
-      { label: 'RELAY A', fam: ra, role: 'relay', note: lv > 10 ? 'tap to change' : 'opens in chapter 2', tap: () => (lv > 10 ? this.openSlotPicker('relay', 0) : this.showToast('RELAY A OPENS IN CHAPTER 2')) },
-      { label: 'RELAY B', fam: rb, role: 'relay', note: lv > 20 ? 'tap to change' : 'opens in chapter 3', tap: () => (lv > 20 ? this.openSlotPicker('relay', 1) : this.showToast('RELAY B OPENS IN CHAPTER 3')) },
+      { label: 'RELAY A', fam: ra, role: 'relay', note: lv > 10 ? 'tap to change' : relayLockNote(FAMILY_INFO[ra as 'coil'].name, 2), tap: () => (lv > 10 ? this.openSlotPicker('relay', 0) : this.showToast('RELAY A OPENS IN CHAPTER 2')) },
+      { label: 'RELAY B', fam: rb, role: 'relay', note: lv > 20 ? 'tap to change' : relayLockNote(FAMILY_INFO[rb as 'coil'].name, 3), tap: () => (lv > 20 ? this.openSlotPicker('relay', 1) : this.showToast('RELAY B OPENS IN CHAPTER 3')) },
       { label: 'HELPER', fam: m.playtestMode ? null : helper, role: helper ? FAMILY_INFO[helper as 'cannon'].role.toLowerCase() : 'support', note: 'tap to change', tap: () => (m.playtestMode ? this.showToast('HELPERS ARE OFF IN THIS PLAYTEST') : this.openSlotPicker('helper', 0)) },
     ];
     slots.forEach((sl, i) => {
@@ -6824,9 +6902,10 @@ Merge them into a RANK ${rank}!`, this.coachY());
       const plate = this.hasArt('ui_team_slot') ? this.add.image(0, 0, 'ui_team_slot').setDisplaySize(280, 210) : this.add.graphics().fillStyle(0xffffff, 1).fillRoundedRect(-140, -105, 280, 210, 22);
       card.add(plate);
       card.add(this.add.text(0, -78, sl.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+      const long = sl.note.length > 20;
       if (sl.fam && this.textures.exists(`${sl.fam}_1`)) {
-        const im = this.add.image(0, -8, `${sl.fam}_1`);
-        im.setScale(96 / Math.max(im.width, im.height));
+        const im = this.add.image(0, long ? -16 : -8, `${sl.fam}_1`);
+        im.setScale((long ? 80 : 96) / Math.max(im.width, im.height));
         card.add(im);
       } else card.add(this.add.text(0, -8, 'none', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));
       if (this.hasArt(`role_${sl.role}`)) {
@@ -6834,8 +6913,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
         ri.setScale(34 / Math.max(ri.width, ri.height));
         card.add(ri);
       }
-      card.add(this.add.text(0, 52, sl.fam ? FAMILY_INFO[sl.fam as keyof typeof FAMILY_INFO].name : 'No helper', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#3b2533' }).setOrigin(0.5));
-      card.add(this.add.text(0, 86, sl.note, { fontFamily: 'Lilita One, Arial Black', fontSize: '19px', color: '#fff0cf' }).setOrigin(0.5));
+      // walkthrough 3: a locked relay's note is two wrapped lines, so the unit and its name sit a little higher
+      card.add(this.add.text(0, long ? 40 : 52, sl.fam ? FAMILY_INFO[sl.fam as keyof typeof FAMILY_INFO].name : 'No helper', { fontFamily: 'Lilita One, Arial Black', fontSize: long ? '25px' : '28px', color: '#3b2533' }).setOrigin(0.5));
+      card.add(this.add.text(0, long ? 80 : 86, sl.note, { fontFamily: 'Lilita One, Arial Black', fontSize: long ? '16px' : '19px', color: '#fff0cf', align: 'center', wordWrap: { width: 250 } }).setOrigin(0.5));
       card.setSize(280, 210).setInteractive({ useHandCursor: true });
       card.on('pointerup', sl.tap);
       c.add(card);

@@ -253,6 +253,8 @@ export const META_SHAPES: Record<string, Fix> = {
   remixBest: nums,
   tips: flags,
   tipQueue: list(str),
+  unlocks: flags,
+  unlockSeen: flags,
   stage: orNull(str),
   ornament: orNull(str),
   workshopSeenBolts: num,

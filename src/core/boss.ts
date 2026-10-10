@@ -91,6 +91,8 @@ export interface BossState {
   t0?: number;
   /** r27: final-phase alternation counter (even = second signature next). */
   alt?: number;
+  /** A def.attack (the wake card's lesson) has been warned: the final-phase alternation may start. */
+  taught?: boolean;
   /** r27 junk blocks on the board (inert; expire at `until`). */
   blocks?: { cell: number; until: number }[];
 }
@@ -441,13 +443,17 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
   if (!quiet && TUNING.bossAttacks && elapsed >= due - 1e-9) {
     b.next++;
     if (!b.pending && !b.active) {
-      // r27 final phase: alternate the chapter's mini-boss attack (second first), never overlapping a persistent hazard
-      const useSecond = !!def.second && !b.light && ph === 2 && (b.alt ?? 0) % 2 === 0;
+      // r27 final phase: alternate the chapter's mini-boss attack (second first), never overlapping a persistent hazard.
+      // The wake card teaches def.attack, so the alternation waits until one def.attack has been warned (a boss can
+      // already be in its final phase when it wakes).
+      const finalAlt = !!def.second && !b.light && ph === 2 && !!b.taught;
+      const useSecond = finalAlt && (b.alt ?? 0) % 2 === 0;
       const atk = useSecond ? def.second! : def.attack;
       const hazardLeft = useSecond && (b.blocks?.length ?? 0) > 0;
       const t = hazardLeft ? null : pick(atk, grid, new Set([...blocked, ...bossBlockCells(b)]), b.mini ? 0 : ph, b);
       if (t) {
-        if (def.second && ph === 2 && !b.light) b.alt = (b.alt ?? 0) + 1;
+        if (finalAlt) b.alt = (b.alt ?? 0) + 1;
+        if (!useSecond) b.taught = true;
         b.pending = { ...t, attack: atk, deadline: elapsed + TUNING.bossWarn, phase: b.mini ? 0 : ph };
         ev.push({ type: 'bossWarn', attack: atk, target: t, deadline: b.pending.deadline });
       }

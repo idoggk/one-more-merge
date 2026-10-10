@@ -34,14 +34,16 @@ export const PACES: { id: Pace; label: string }[] = [
   { id: 'mania', label: 'MANIA' },
 ];
 
-/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = TODAY. */
+/** t-4cd9e27b (owner, 2026-10-09): CALM ships as the game's pace; TODAY / MANIA stay on the QA switch. */
+export const DEFAULT_PACE: Pace = 'calm';
+/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = DEFAULT_PACE. */
 export const PACE_KEY = 'omm_qa_pace';
 export function storedPace(read: () => string | null): Pace {
   try {
     const v = read();
-    return PACES.some((x) => x.id === v) ? (v as Pace) : 'today';
+    return PACES.some((x) => x.id === v) ? (v as Pace) : DEFAULT_PACE;
   } catch {
-    return 'today';
+    return DEFAULT_PACE;
   }
 }
 
@@ -63,6 +65,19 @@ export function storedUnitsB0(read: () => string | null): boolean {
 export function applyUnitsB0(on: boolean) {
   TUNING.unitsB0 = on;
   TUNING.unitsB1 = false;
+}
+
+/** QA panel THINK BANK button (t-4208f149, TUNING.thinkBank; this device only, not in the save); missing = OFF. */
+export const THINK_BANK_KEY = 'omm_qa_think_bank';
+export function storedThinkBank(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyThinkBank(on: boolean) {
+  TUNING.thinkBank = on;
 }
 
 /** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF). */

@@ -139,7 +139,7 @@ export interface GameState {
   rush?: { id: string; slot: number; week: number };
   /** r42 WORKSHOP PUZZLE (Ido: "like a chess puzzle - win in X moves"): merges allowed, used so far. No clock, no
    *  supply, no passive fire, no kickback: the board is fully known and only merges act. */
-  puzzle?: { moves: number; used: number; id: string; only?: Family[] };
+  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean };
   /** r40 Endless Road floor this state plays (presentation + rewards only). */
   endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
@@ -163,6 +163,9 @@ export interface GameState {
   lastMergeAt?: number;
   /** PACE CALM breather: until this elapsed time after a machine breaks, no supply and no new boss warning. */
   breatherUntil?: number;
+  /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
+  idleFor?: number;
+  banked?: number;
   stats: Stats;
 }
 
@@ -366,6 +369,7 @@ export function applyItem(s: GameState, idx: number, id: number): CommandResult 
   if (s.phase !== 'playing' || !kind || !g || g.id !== id || g.item || !itemFits(kind, g.family)) return { ok: false, events: ev };
   g.item = { kind, charges: 2 };
   s.itemTray = null;
+  touched(s);
   ev.push({ type: 'itemApply', kind, idx, id });
   return { ok: true, events: ev };
 }
@@ -628,7 +632,14 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     if (!canMerge(a, b, s) || s.puzzle.used >= s.puzzle.moves || (s.puzzle.only && !s.puzzle.only.includes(a.family))) return { ok: false, events: ev };
     const r = merge(s, from, to);
     s.puzzle.used++;
-    if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
+    const pz = s.puzzle;
+    if (pz.unit && !pz.unitUsed) pz.unitUsed = r.events.some((e) => e.type === 'cascade' && unitActed(e.result, pz.unit!));
+    if ((s.phase as GameState['phase']) === 'won' && pz.unit && !pz.unitUsed) {
+      // owner: "i finished a drill without using the unit i took the drill for" - a drill only counts when its unit acted
+      s.phase = 'lost';
+      pz.missedUnit = true;
+      for (const e of r.events) if (e.type === 'end') e.won = false;
+    } else if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
       s.phase = 'lost';
       r.events.push({ type: 'end', won: false });
     }
@@ -652,6 +663,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     s.grid[to] = a;
     s.grid[pt] = pg;
     ev.push({ type: 'move', from, to, swap: false }, { type: 'move', from: pf, to: pt, swap: false });
+    touched(s);
     return { ok: true, events: ev };
   }
   // a swap would move a towed b on its own and split the pair: refuse (all-or-nothing, as for a towed a)
@@ -664,6 +676,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   s.grid[land] = a;
   s.grid[from] = b;
   ev.push({ type: 'move', from, to: land, swap: !!b });
+  touched(s);
   ev.push(...bossAfterPlayer(s.boss, land, [])); // r27: parking a machine on the bomb defuses it
   return { ok: true, events: ev };
 }
@@ -702,6 +715,7 @@ function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null =
   s.grid[to] = g;
   for (const i of sw?.cells ?? []) s.grid[i] = null;
   s.stats.merges++;
+  touched(s);
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
   const occNow = () => s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
   // Option A3: on a full board the part(s) are paid after the cascade, only for a chain of gateChain+
@@ -792,6 +806,7 @@ export function scrap(s: GameState, idx: number, id: number): CommandResult {
   if (s.phase !== 'playing' || !g || g.id !== id || locked(s).has(idx)) return { ok: false, events: [] };
   s.grid[idx] = null;
   s.stats.scraps++;
+  touched(s);
   return { ok: true, events: [{ type: 'scrap', idx, gadget: g }] };
 }
 
@@ -942,8 +957,13 @@ export function newPuzzle(p: PuzzleDef): GameState {
   s.noKickback = true;
   s.noOverdrive = true;
   s.bag = [];
-  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}) };
+  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}), ...(p.unit ? { unit: p.unit as Family } : {}) };
   return s;
+}
+
+/** Unit drills: a part of `unit` activated in this cascade AND did something (dealt damage or reached another part). */
+export function unitActed(r: CascadeResult, unit: Family): boolean {
+  return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }
 
 /** r33: next machine of the stage (overkill carries over, capped like any hit). The goal machine has no finite HP. */
@@ -994,13 +1014,33 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
   ev.push({ type: 'newTarget', target: 0 });
 }
 
+/** TUNING.thinkBank prototype: the player's last successful board command (merge, move, scrap, item). */
+function touched(s: GameState) {
+  if (TUNING.thinkBank) s.idleFor = 0;
+}
+
+/** TUNING.thinkBank prototype: the level is in its think pause now (slowed / frozen, bank not spent). */
+export const thinking = (s: GameState) =>
+  TUNING.thinkBank && s.level !== undefined && s.phase === 'playing' && !s.puzzle && (s.idleFor ?? 0) >= TUNING.tb.grace && (s.banked ?? 0) < TUNING.tb.bank;
+
 /** Advance one fixed 50 ms step. `reserved` = cells deliveries must avoid (drag in progress). */
 export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): GameEvent[] {
   const ev: GameEvent[] = [];
   if (s.puzzle) return ev; // r42: puzzles have no time
   if (s.phase !== 'playing') return ev;
   if (s.itemGrantAt !== undefined && !s.itemGranted && s.elapsed >= s.itemGrantAt) grantItem(s, ev); // r25 explicit teaching grant (goal levels have no HP thresholds)
-  const dt = Math.min(TICK, s.timeLeft);
+  let dt = Math.min(TICK, s.timeLeft);
+  // TUNING.thinkBank: a finger on the board counts as touching; a still board past the grace runs at tb.rate speed
+  if (TUNING.thinkBank && s.level !== undefined) {
+    if (reserved.size) s.idleFor = 0;
+    if (thinking(s)) {
+      const save = Math.min(dt * (1 - TUNING.tb.rate), TUNING.tb.bank - (s.banked ?? 0));
+      s.banked = (s.banked ?? 0) + save;
+      dt -= save;
+    }
+    s.idleFor = (s.idleFor ?? 0) + TICK;
+    if (dt <= 1e-9) return ev;
+  }
   s.elapsed += dt;
   s.timeLeft -= dt;
 

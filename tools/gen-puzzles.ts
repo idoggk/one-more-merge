@@ -12,7 +12,7 @@
 // strong (same rank or harder hit), and there are only a few wrong pairs.
 import { writeFileSync } from 'node:fs';
 import { newPuzzle, type PuzzleDef } from '../src/core/game';
-import { allLines, puzzleMoves, puzzleStats } from '../src/core/puzzle';
+import { allLines, breakAt, lineWins, puzzleMoves, puzzleStats, unitFreeBreaks } from '../src/core/puzzle';
 import { Rng } from '../src/core/rng';
 import type { Family } from '../src/core/types';
 import { STARTER_UNITS } from '../src/content/units';
@@ -67,7 +67,7 @@ function obvious(def: PuzzleDef, lines: ReturnType<typeof allLines>, hp: number)
     const m = l.path[0];
     const k = m.join('>');
     const f = firsts.get(k) ?? { rank: rankAt(m[0]), hit: l.dmg[0], win: false };
-    f.win ||= l.dmg[l.dmg.length - 1] >= hp;
+    f.win ||= lineWins(l, hp);
     firsts.set(k, f);
   }
   const fs = [...firsts.values()];
@@ -86,7 +86,8 @@ function obvious(def: PuzzleDef, lines: ReturnType<typeof allLines>, hp: number)
 
 function makePuzzle(id: string, rng: Rng, o: Spec): (PuzzleDef & { score: number }) | null {
   const mid = (o.band[0] + o.band[1]) / 2;
-  for (let attempt = 0; attempt < 300; attempt++) {
+  // unit drills are rarer (no line may break the machine without the unit), so they get more boards to try
+  for (let attempt = 0; attempt < (o.unit ? 3000 : 300); attempt++) {
     const board = randomBoard(rng, o.fams, o.focus, o.pairs, o.singles);
     const def: PuzzleDef = { id, moves: o.moves, hp: 1, board, solution: [], ...(o.only ? { only: o.only } : {}), ...(o.unit ? { unit: o.unit } : {}) };
     if (puzzleMoves(newPuzzle(def)).length < 3) continue; // always a real choice
@@ -101,12 +102,14 @@ function makePuzzle(id: string, rng: Rng, o: Spec): (PuzzleDef & { score: number
     for (const hp of hps) {
       const st = puzzleStats(lines, hp, o.moves);
       if (st.score < o.band[0] || st.score > o.band[1] || st.solutions < 1) continue;
+      // unit drills: no way to break the machine without the drilled unit acting (owner finished one without it)
+      if (o.unit && unitFreeBreaks(lines, hp).length) continue;
       if (o.easy && (st.tempting > 0 || st.greedyFails || !obvious(def, lines, hp))) continue;
       if (!pick || Math.abs(st.score - mid) < Math.abs(pick.score - mid)) pick = { hp, score: st.score };
     }
     if (!pick) continue;
     // stored solution: the winning line that hits hardest (all of its merges are needed: full length)
-    const sol = full.filter((l) => l.dmg[o.moves - 1] >= pick!.hp && l.dmg.slice(0, -1).every((d) => d < pick!.hp));
+    const sol = full.filter((l) => lineWins(l, pick!.hp) && breakAt(l, pick!.hp) === o.moves - 1);
     if (!sol.length) continue;
     const best = sol.reduce((a, b) => (b.dmg[o.moves - 1] > a.dmg[o.moves - 1] ? b : a));
     return { ...def, hp: pick.hp, solution: best.path, score: pick.score };
