@@ -25,6 +25,18 @@ Non-blocking notes from the same review, also fixed:
 - Signal Beacon: the chosen shooter still fires at most once per cascade. Its L6 no longer adds damage (the trio table says REACH never changes damage).
 - New "Overlap checks" list: Fan vs Blowtorch, and Magnet vs Crane vs Tilt Lever.
 
+### Review fixes (re-review of t-07325155, fixed in t-7be23b54)
+
+Blocking items:
+1. **Nail Gun L6 broke its own cap** (the extra x0.5 nail added damage past x1.8). L6's extra nail now only strips armor, and its damage counts **inside** the x1.8 cap.
+2. **Fan L9 did Blast Plate's job** (cleared a queued boss attack). Fan L9 now keeps hazards from coming back. Blowtorch L9 ("burns a boss mark early") and Tesla L9 ("strikes the boss's next attack mark") are trimmed too. New overlap check: only Blast Plate blocks or cancels boss attacks.
+
+Non-blocking notes, also fixed:
+- Tesla L6 "Support units in range count too" didn't work with off-board Support cards (Q1). It now gives 2 charges for a touching relay.
+- Capacitor's job now says its release wakes **1 touching part**, so L9's "2 instead of 1" has a base.
+- Jackhammer L9 "hits the tile behind the target" had no meaning against a boss. It now speeds up its L6 rhythm.
+- The rest went into section 7 as open questions (Q11 extended, Q15-Q20).
+
 Status (2026-10-10): **design only.** The live game still has 13 units in 3 rarities with Wood / Iron / Gold crates (`src/content/units.ts`). B0 and B1 rules sit behind `TUNING.unitsB0` / `TUNING.unitsB1` (default OFF). The toolbox crate art sits behind the QA switch `CRATES: OLD/TOOLBOX`. Monetization is design only: the premium lane stays a **MOCK**, with no real payments.
 
 Labels used below:
@@ -75,13 +87,13 @@ The Batch column says when a unit ships:
 | Unit | Type | Job | L3 | L6 | L9 | Batch |
 |---|---|---|---|---|---|---|
 | Cannon | Shooter | **FIRE**: steady hit, plus an auto-shot. [B] | Rank 4+ chain shots x1.2 [TODAY] | Every 8th chain shot x2 [TODAY] | Rank 7-8 auto-shots x2 [TODAY] | Live (starter) |
-| Nail Gun | Shooter | **ROW**: +20% per filled cell in its row, **max x1.8**. Secondary: each shot strips **1 armor pip**. Raw damage a little below Cannon (DRAFT number: x0.9). [B]+[LEAD] | Strips 2 pips on rank 4+ (DRAFT) | A full row: +1 extra nail, x0.5 (DRAFT) | Filled cells in its column count too; cap rises to **x2.2** (DRAFT) | B1 |
+| Nail Gun | Shooter | **ROW**: +20% per filled cell in its row, **max x1.8**. Secondary: each shot strips **1 armor pip**. Raw damage a little below Cannon (DRAFT number: x0.9). [B]+[LEAD] | Strips 2 pips on rank 4+ (DRAFT) | A full row: +1 extra nail that strips 1 more pip. It adds no damage past the cap: its damage counts inside x1.8 (DRAFT) | Filled cells in its column count too; cap rises to **x2.2** (DRAFT) | B1 |
 | Piston | Shooter | **OPEN SPACE**: +25% per EMPTY touching cell, max x2. The board edge does not count as empty. [X] | Empty diagonal cells count too, +10% each (still max x2) | When it fires, it pushes the nearest touching part 1 cell away (no damage) | Cap rises to **x2.2** when the board holds 8 or fewer parts (DRAFT; was x2.5) | B2 |
 | Coil | Relay | **RANGE**: wakes up to 2 cells out in each of the 4 straight directions (up to 8 cells). [B] | Rank 5+ reaches 3 cells [TODAY] | Every 6th fire also wakes its diagonals [TODAY] | Rank 7-8 reaches 4 cells [TODAY] | Live (starter) |
 | Bell | Relay | **ROW**: wakes **every other part in its row** (up to 4 on the 5-wide board). [B]+[LEAD] | Also wakes the cells above and below [B example; TODAY Side Chime] | Every 6th ring wakes the rows above and below [TODAY] | Rank 7-8 rings its row AND column [TODAY] | Live (starter) |
 | Horn | Relay | **COLUMN**: wakes **the nearest 4 parts in its column** (a 6-tall column has 5 others, so 4 keeps it even with Bell). [B]+[LEAD] | Also wakes left and right [TODAY Side Blast] | Every 6th blast wakes the side columns [TODAY] | Rank 7-8 blasts its column AND row [TODAY] | Live |
 | Spring | Relay | **HOP**: on the side opposite the entry, the chain skips exactly the next part in line and wakes the one after it. Both must be within 3 cells. The skipped part does not wake. Short-range by design; the long bridge is Belt Drive. [X]+[LEAD] | Hops both ways along the entry line (still within 3 cells) (DRAFT) | If the landing part is a Spring, it hops again (each Spring once per cascade) (DRAFT) | If the hop would leave the board, it hops 90° along the wall instead (still within 3 cells) (DRAFT) | B2 |
-| Fan | Support | **CLEAR**: tap to clear junk / frost / lock in a 3x3. [B] | 3x3 becomes a plus shape 2 long each way (DRAFT) | 2 uses per level (DRAFT) | Also clears a queued boss attack aimed into the area (DRAFT) | Live (starter) |
+| Fan | Support | **CLEAR**: tap to clear junk / frost / lock in a 3x3. [B] | 3x3 becomes a plus shape 2 long each way (DRAFT) | 2 uses per level (DRAFT) | Cleared cells can't get the same hazard again for 10 s (DRAFT; replaces "clears a queued boss attack", which was Blast Plate's job) | Live (starter) |
 | Wrench | Support | **UPGRADE**: after a rank-3+ merge, your next merge counts as **+1 rank for effects**. Its real rank does not change. [LEAD] | Rank-2+ merges arm it (DRAFT) | Holds 2 armed merges (DRAFT) | +2 ranks for effects after a rank-6+ merge (DRAFT) | B2 |
 
 ### Rare (10)
@@ -90,8 +102,8 @@ The Batch column says when a unit ships:
 |---|---|---|---|---|---|---|
 | Rocket | Shooter | **BURST**: big hit when you merge it, small when a chain wakes it. [B] | Rank 4+ hits x1.15 [TODAY] | Every 6th fire x1.5 [TODAY] | Rank 7-8 hits as if 4 links deep, x1.35 [TODAY] | Live |
 | Mortar | Shooter | **DEPTH**: x1.0, +0.12 per machine already fired in this chain, max x2. It also **breaks shield segments**. [B]+[LEAD] | Cap x2.15 (B0 `capPerk`) | Every 6th fire counts 2 links deeper [TODAY] | Rank 7-8 always hits as 4 deep [TODAY] | Live (B0 order rule flagged) |
-| Jackhammer (was Drill) | Shooter | **BYPASS**: its hits **ignore shields**. Breaking shields is Mortar's job and armor pips are Nail Gun's, so it does neither. B's "x2 vs armored" is dropped (Q3, Lead). [B]+[LEAD] | While the target's shield is up, its hits x1.3 (DRAFT) | Every 4th hit x1.5 (DRAFT) | Rank 7-8 also hits the tile behind the target (DRAFT) | B1 |
-| Blowtorch | Shooter | **HAZARDS**: the shot runs up its column and burns Frost / Junk / Clamp, x1.5 per hazard burned. [X] | Also burns Bomb / Slick | Also burns the column to its right | Once per level, burns a boss mark early | B3 |
+| Jackhammer (was Drill) | Shooter | **BYPASS**: its hits **ignore shields**. Breaking shields is Mortar's job and armor pips are Nail Gun's, so it does neither. B's "x2 vs armored" is dropped (Q3, Lead). [B]+[LEAD] | While the target's shield is up, its hits x1.3 (DRAFT) | Every 4th hit x1.5 (DRAFT) | Rank 7-8: the x1.5 hit comes every 3rd hit instead (DRAFT; replaces "hits the tile behind the target", which has no meaning against a boss) | B1 |
+| Blowtorch | Shooter | **HAZARDS**: the shot runs up its column and burns Frost / Junk / Clamp, x1.5 per hazard burned. [X] | Also burns Bomb / Slick | Also burns the column to its right | With no hazard to burn, its shot still hits x1.2 (DRAFT; replaces "burns a boss mark early", which was Blast Plate's job) | B3 |
 | Fuse Box | Relay | **DIAGONAL**: wakes 2 cells along each diagonal. Anti-loop rule applies. [B]+[LEAD] | Rank 4+ also sparks 2 more diagonal cells [TODAY] | Every 5th spark also wakes up/down/left/right [TODAY] | Rank 7-8 sparks full diagonals [TODAY] | Live (B1 reach flagged) |
 | Gear | Relay | **LINK**: any two Gears pass the chain to each other, anywhere on the board. Stays as designed. [B]+[LEAD] | A Gear also wakes its 4 touching cells (DRAFT) | A third Gear joins the link (DRAFT) | Linked Gears' shooters x1.2 (DRAFT) | B1 |
 | Pipe | Relay | **SAME FAMILY**: wakes same-family parts joined to its neighbours, max 4. [X] | Max 6 | Flows along diagonals too | The last part in the flow x1.3 | B3 |
@@ -107,7 +119,7 @@ The Batch column says when a unit ships:
 | Saw Blade | Shooter | **EDGE**: x1.5 on the outer ring, x0.7 inside. Total edge bonus capped at **+72%** (x1.72). [B]+[LEAD] | x1.6 on the ring (DRAFT) | Corners x1.25 more; total still capped at +72% (DRAFT; replaces B's "corners x2") | x0.85 inside (DRAFT) | B1 |
 | Wrecking Ball | Shooter | **DISTANCE**: x0.6 when its waker is next door, +0.3 per extra cell of distance, max x2. [X] | Max x2.3 | Knocks the part it swings over 1 cell | From 4+ cells away, also wakes the cell behind it | B5 |
 | Belt Drive (was Conveyor) | Relay | **BRIDGE**: the chain enters one side and exits at the far end of its line. The cells in between do **not** wake. [LEAD] | The far end wakes 2 deep (DRAFT) | Belt to Belt keeps going (DRAFT) | The exit part fires x1.25 (DRAFT) | B2 |
-| Capacitor | Relay | **HOLD**: stores the chain and releases it at the start of your NEXT merge. Anti-loop rule applies. [B]+[LEAD] | Shows what it holds (DRAFT) | The release adds +1 link of depth (DRAFT) | The release wakes 2 touching parts instead of 1. It still stores one chain and releases it once (DRAFT; replaces B's "stores two chains", which broke the anti-loop rule) | B4 |
+| Capacitor | Relay | **HOLD**: stores the chain and releases it at the start of your NEXT merge; the release wakes **1 touching part**. Anti-loop rule applies. [B]+[LEAD] | Shows what it holds (DRAFT) | The release adds +1 link of depth (DRAFT) | The release wakes 2 touching parts instead of 1. It still stores one chain and releases it once (DRAFT; replaces B's "stores two chains", which broke the anti-loop rule) | B4 |
 | Ladder | Relay | **STAIRCASE**: wakes the touching part exactly 1 rank above it, then the next step, and so on. [X] | The staircase may go down | May skip one rank | Top step x1.5 | B4 |
 | Amplifier | Support | **DAMAGE**: the next cascade deals **+30%** to the target. Moves Rare -> Epic. [LEAD] | +35% (DRAFT) | 2 charges (DRAFT) | Also counts the passive shots in that cascade (DRAFT) | Live (B1 job flagged) |
 | Blueprint | Support | **PLAN**: shows the next 3 deliveries; swap one. Copies arrive at **rank 1**. [B]+[LEAD] | Shows 4 (DRAFT) | Swap 2 (DRAFT) | One swapped copy arrives at rank 2 (DRAFT) | B4 |
@@ -117,7 +129,7 @@ The Batch column says when a unit ships:
 
 | Unit | Type | Job | L3 | L6 | L9 | Batch |
 |---|---|---|---|---|---|---|
-| Tesla Tower | Shooter | **STORM**: 1 charge for each relay that fires in the cascade **within 3 cells of the Tower**, then one big bolt at the end. Each charge adds +12%, max 6 charges (+72%) (DRAFT numbers). [B]+[LEAD] | Range 4 cells (DRAFT) | Support units in range count too (DRAFT) | The bolt also strikes the boss's next attack mark (DRAFT) | B3 |
+| Tesla Tower | Shooter | **STORM**: 1 charge for each relay that fires in the cascade **within 3 cells of the Tower**, then one big bolt at the end. Each charge adds +12%, max 6 charges (+72%) (DRAFT numbers). [B]+[LEAD] | Range 4 cells (DRAFT) | A relay touching the Tower gives 2 charges; still max 6 (DRAFT; replaces "Support units in range count too", see Q1) | Range 5 cells (DRAFT; replaces "strikes the boss's next attack mark", which was Blast Plate's job) | B3 |
 | Robot Arm | Shooter | **COPY**: remembers the last relay that woke it, then fires and does that relay's job. Cannot copy Legendaries. [X] | Its own shot x1.2 when it copies a Rare or Epic relay (DRAFT; replaces "copies Support effects", which didn't work with off-board Support cards) | Copies 2 jobs | Copies at the relay's L9 | B6 |
 | Crane | Relay | **LIFT**: when woken, lifts a touching part onto its matching twin, so it merges mid-chain. Acts **once per stage**. The merged part counts as **already fired** in that cascade. [B]+[LEAD] | Reaches 2 cells (DRAFT) | Once per stage plus once per boss phase (DRAFT) | The lifted merge wakes its new neighbours (DRAFT) | B5 |
 | Dynamo | Relay | **2x2 SQUARE**: in a full 2x2 block, wakes the ring of up to 12 around it; otherwise its 4 touching cells. [X] | An L-shape counts as a block | Two Dynamos make a ring 2 cells wide | Parts in the block x1.25 | B5 |
@@ -138,6 +150,7 @@ The Batch column says when a unit ships:
 - **Jackhammer vs Mortar vs Nail Gun**: Jackhammer ignores shields, Mortar breaks shield segments, Nail Gun strips armor pips (its secondary note).
 - **Fan vs Blowtorch**: Fan is a tap card that clears hazards in an area and deals no damage. Blowtorch is a shooter: it only burns hazards in its own column, and only when it fires, and the burn is what powers its hit.
 - **Magnet vs Crane vs Tilt Lever**: Magnet (tap card) brings a twin next to a part you pick, with no merge. Crane (relay) merges a touching pair mid-chain, once per stage. Tilt Lever (tap card) slides the whole board for up to 3 merges, on a long charge.
+- **Fan / Blowtorch / Tesla Tower vs Blast Plate**: only Blast Plate blocks or cancels boss attacks. Fan clears hazards, Blowtorch burns hazards in its columns, Tesla charges from relays. No other unit's level line may touch a queued boss attack or attack mark.
 
 ### Candidates for later batches [LEAD] (not in the 34; no rarity slot reserved)
 
@@ -257,8 +270,14 @@ Rules:
 7. **Exact pity sizes** per rarity per crate (only "Legendary in about 40 Toolboxes" exists), and how Featured Crate pity fits in.
 8. **Today's road debuts** (Rocket L6, Magnet L12, Battery L17, Horn from the first Wood crate) vs the unlock plan. Keep them as gifts, or crates only?
 9. **Golden Workbench price and source** in the mock economy, plus its free sources (season tier 30? endless?).
-10. **All DRAFT L3/L6/L9 lines**, and Nail Gun's exact raw damage (DRAFT x0.9).
-11. **Belt Drive's line**: is "far end" the far edge of its row or column (by entry side), or the far end of a run of joined Belts?
+10. **All DRAFT L3/L6/L9 lines**, and Nail Gun's exact raw damage (DRAFT x0.9). Note: Saw Blade L6 gains little (ring x1.6 x corner 1.25 = x2.0, cut to x1.72, so a corner gains only +7.5%).
+11. **Belt Drive's line**: is "far end" the far edge of its row or column (by entry side), or the far end of a run of joined Belts? Also, for **Spring and Belt Drive** (both need an entry side): what happens when the part is merged directly (no entry side) or woken through a Gear link? Spring L6 (Spring-to-Spring hops) can act like a long bridge with a special layout; Belt Drive should keep its edge.
 12. **Crane "once per stage"**: per boss stage or per level, for levels without stages?
 13. **Candidate twins**: Vice vs Bell/Horn, Lathe vs Saw Blade. Decide before giving them batch slots.
 14. **Wrench "+1 rank for effects"**: does it raise rank-gated perks (for example "Rank 7-8 ...") and Tesla/Mortar multipliers, or only the job's own rank scaling?
+15. **Robot Arm copy edge cases**: copying Capacitor (it would store a chain; the anti-loop rule applies), copying Gear (LINK needs two Gears), copying Belt Drive or Spring (needs an entry side).
+16. **Relay damage multipliers stack with no total cap.** Gear L9 x1.2, Belt Drive L9 x1.25, Dynamo L9 x1.25, Ladder L9 x1.5 and Pipe L9 x1.3, plus Battery and Amplifier. Set a cap across units, and say whether a shooter gets only its waker's multiplier or all of them.
+17. **Label clash**: Nail Gun (shooter) and Bell (relay) are both **ROW** (Lead kept Nail Gun = ROW). Rename Bell's label?
+18. **Signal Beacon unlock**: it is live and Legendary, so the section 6 rule lets it drop from Toolboxes (0.5% Legendary) from chapter 2, before its L50 gift. Intended?
+19. **Merges outside a normal merge** (Crane mid-chain, Tilt Lever): do they count for Wrench arming, Capacitor release, Rewind Crank and Tilt Lever charging, and Rocket's merge hit?
+20. ~~Tesla L6 "Support units in range"~~ replaced (t-7be23b54), but other lines may still assume on-board Support; recheck them once Q1 is answered.
