@@ -69,12 +69,15 @@ export class FormulaStrip {
       t = Math.max(o.t, t + LINK_GAP);
       sum += f.links[o.i] ?? 0;
       const k = ++n, part = sum;
+      // roster B: each link names its machine and its own number ("MORTAR 56") before the count settles
+      const fam = f.linkFam?.[o.i], own = f.linkHit?.[o.i] ?? 0;
       this.at(t, () => {
-        count.setText(`${k} MACHINE${k === 1 ? '' : 'S'}`).setAlpha(1);
+        count.setText(fam && own > 0 ? `${k}: ${fam.replace('_', ' ').toUpperCase()} ${fmtHit(own)}` : `${k} MACHINE${k === 1 ? '' : 'S'}`).setAlpha(1);
         base.setText(fmtHit(part)).setAlpha(1);
         this.pop([count, base], 1.18);
       });
     }
+    if (f.linkFam) this.at(t + LINK_GAP * 2, () => count.setText(`${n} MACHINE${n === 1 ? '' : 'S'}`));
     // then each multiplier, in its colour, and the hit (with MAX HIT when the cap bites)
     let at = Math.max(hitAt, t + POP_GAP);
     for (let gi = 1; gi < groups.length; gi++) {

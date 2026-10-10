@@ -6,6 +6,7 @@ import { TUNING, unitsB0On } from './tuning';
  *  the inspect card (FAMILY_INFO) and the guide pages (sceneCopy GUIDE), read live so the QA switch needs no reload. */
 export function unitsCopy(key: string): { text: string; tryThis: string } | null {
   const b = TUNING.b1;
+  if (TUNING.rosterB) return ROSTER_COPY(key);
   if (key === 'mortar' && unitsB0On()) {
     const o = TUNING.unitsB1 ? b : TUNING.b0;
     return { text: `Never shoots by itself. The LATER it fires in a chain, the harder it hits: x${o.orderBase}, +${o.orderStep} for every machine that fired before it (up to x${TUNING.b0.orderCap}).`, tryThis: 'Put it at the far end of your longest chain.' };
@@ -24,6 +25,29 @@ export function unitsCopy(key: string): { text: string; tryThis: string } | null
   };
   return copy[key] ?? null;
 }
+/** t-e91097cd roster B: one job per unit (FIRE / REACH / ROW / COLUMN / BURST / DEPTH / DIAGONAL / SPREAD) and the five
+ *  helpers as off-board Support cards (CLEAR / PAIR / PRIME / MARK / GO). */
+function ROSTER_COPY(key: string): { text: string; tryThis: string } | null {
+  const r = TUNING.rb;
+  const card = (job: string) => `SUPPORT CARD (off the board). ${job} It charges +1 for every machine in your merge chains; tap it when it is full.`;
+  const copy: Record<string, { text: string; tryThis: string }> = {
+    cannon: { text: 'FIRE: shoots by itself every few seconds. Woken by a chain it fires a full shot.', tryThis: 'Your steady damage: keep a few on the board.' },
+    rocket: { text: `BURST: the Rocket YOU merge hits x${r.rocketRoot}. Woken by a chain it only hits x${r.rocketWoken}.`, tryThis: 'Merge Rockets yourself; do not wait for a chain.' },
+    mortar: { text: `DEPTH: the later it fires in a chain, the harder it hits: x1, +${r.mortarStep} for every machine that fired before it (up to x${r.mortarCap}).`, tryThis: 'Put it at the far end of your longest chain.' },
+    arc_welder: { text: 'SPREAD: woken by a chain it fires a light shot (x0.75) and jumps to the NEAREST other shooter anywhere, waking it. Never another Arc Welder. With no other shooter kind on the board, it jumps to the nearest other machine.', tryThis: 'Mix it with Cannons, Rockets or Mortars.' },
+    coil: { text: 'REACH: wakes OTHER machines 2 cells up and down, 1 cell left and right.', tryThis: 'Stack shooters above and below it.' },
+    bell: { text: 'ROW: wakes every OTHER machine in its row.', tryThis: 'Fill its row with shooters.' },
+    horn: { text: 'COLUMN: wakes every OTHER machine in its column. From level 3 the shooters it wakes hit harder.', tryThis: 'Stack shooters above and below it.' },
+    fuse_box: { text: 'DIAGONAL: wakes OTHER machines 2 cells out along its four diagonals.', tryThis: 'Build a checkerboard around it.' },
+    fan: { text: card('CLEAR: tap a cell to clear junk, frost, locks and incoming attacks in the 3x3 around it.'), tryThis: 'Bring it to boss levels.' },
+    magnet: { text: card('PAIR: tap a part and its twin arrives next to it, ready to merge.'), tryThis: 'Pair your biggest lonely shooter.' },
+    battery: { text: card(`PRIME: tap it and your next shooter merge hits x${r.prime} (the whole chain).`), tryThis: 'Prime, then merge your best chain.' },
+    amplifier: { text: card(`MARK: tap a shooter; its next hit is x${r.mark}.`), tryThis: 'Mark the shooter your next chain will reach.' },
+    signal_beacon: { text: card('GO: pick ROW or COLUMN on the card and tap a cell: every machine on that line fires now.'), tryThis: 'Wait for a crowded line.' },
+  };
+  return copy[key] ?? null;
+}
+
 /** A copy row whose text / tryThis follow unitsCopy(key) while a units experiment is on. */
 export function liveCopy<T extends { text: string; tryThis: string }>(key: string, row: T): T {
   const { text, tryThis, ...rest } = row;

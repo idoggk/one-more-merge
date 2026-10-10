@@ -1,4 +1,4 @@
-// ROSTER B batch 1 (t-9b28a794, TUNING.roster1): the job rules of Nail Gun, Drill, Gear and Saw Blade. Pure helpers
+// ROSTER batch 1 (t-9b28a794, TUNING.roster1): the job rules of Nail Gun, Jackhammer, Gear and Saw Blade. Pure helpers
 // used by cascade.ts (and the inspect / tip copy). They only matter while one of these units is on the board, which
 // needs the flag (src/content/units.ts applyRoster1 puts them in crates and squad pickers).
 import { COLS, ROWS, TUNING } from '../content/tuning';
@@ -15,6 +15,14 @@ export function rowFill(grid: Grid, idx: number): number {
   return n;
 }
 
+/** Nail Gun L9: filled cells in its column, not counting itself. */
+export function colFill(grid: Grid, idx: number): number {
+  const [, c] = rc(idx);
+  let n = 0;
+  for (let r = 0; r < ROWS; r++) if (r * COLS + c !== idx && grid[r * COLS + c]) n++;
+  return n;
+}
+
 /** Saw Blade EDGE: the outer ring (18 of the 30 cells) and its four corners. */
 export const onRing = (idx: number) => {
   const [r, c] = rc(idx);
@@ -25,40 +33,45 @@ export const isCorner = (idx: number) => {
   return (r === 0 || r === ROWS - 1) && (c === 0 || c === COLS - 1);
 };
 
-/** Drill ARMOR: 2 = a boss or mini-boss (armored), 1 = a monster with a special move (shield, frost, ...), 0 = plain. */
-export type ArmorKind = 0 | 1 | 2;
+/** Job context for roster1Mult: `nth` = this machine's fire count (the "every Nth hit" milestones), `gearKick` = a Gear woke it. */
+export interface Roster1Ctx {
+  level: number;
+  nth: number;
+  gearKick?: boolean;
+}
 
 /**
- * Job multiplier on a roster B shooter's hit (1 for every other family). `level` = unit level (L3 / L6 / L9 job
- * upgrades), `grid` = the board as the chain ends.
- * - Nail Gun: x(1 + 0.2 per other filled cell in its row). L3 rank 4+: 0.25 per cell. L6: the cells right above and
- *   below it count too. L9 rank 7-8: a full row is x2.5.
- * - Drill: x2 vs a boss / mini-boss (its shield-piercing is applied by the game, core/game.ts drillPierce). L3 rank 4+:
- *   x1.15. L6: monsters with a special move count as armored. L9 rank 7-8: x2.5 vs armored.
- * - Saw Blade: x1.5 on the outer ring, x0.7 inside. L3 rank 4+: ring x1.7. L6: inside x0.9. L9 rank 7-8: corners x2.2.
+ * Job multiplier on a roster 1 shooter's hit (1 for every other family); docs/ROSTER.md is the source of truth.
+ * - Nail Gun ROW: x(1 + 0.2 per other filled cell in its row), max x1.8. L9: filled cells in its column count too, max x2.2.
+ *   (Armor-pip stripping, its secondary job, needs the boss defence model that does not exist yet: no damage in it.)
+ * - Jackhammer BYPASS: its share ignores a closed shield (the game applies that + the L3 x1.3, core/game.ts bypassShield).
+ *   L6: every 4th hit x1.5. L9 rank 7-8: every 3rd hit.
+ * - Saw Blade EDGE: x1.5 on the outer ring, x0.7 inside; total edge bonus at most +72% (x1.72). L3 ring x1.6. L6 corners
+ *   x1.25 more (inside the cap). L9 inside x0.85.
+ * - Gear: shooters a Gear wakes hit x1.2 at L9.
  */
-export function roster1Mult(a: Activation, grid: Grid, level: number, armor: ArmorKind): number {
+export function roster1Mult(a: Activation, grid: Grid, ctx: Roster1Ctx): number {
   const R = TUNING.r1;
+  const { level } = ctx;
   if (a.family === 'nail_gun') {
     let n = rowFill(grid, a.idx);
-    if (level >= 9 && a.rank >= 7 && n >= COLS - 1) return R.nailFullL9;
-    if (level >= 6) {
-      const [r, c] = rc(a.idx);
-      for (const rr of [r - 1, r + 1]) if (inside(rr, c) && grid[rr * COLS + c]) n++;
-    }
-    return 1 + (level >= 3 && a.rank >= 4 ? R.nailPerL3 : R.nailPer) * n;
+    if (level >= 9) n += colFill(grid, a.idx);
+    return Math.min(level >= 9 ? R.nailCapL9 : R.nailCap, 1 + R.nailPer * n) * (ctx.gearKick ? R.gearKick : 1);
   }
-  if (a.family === 'drill') {
-    const armored = armor === 2 || (armor === 1 && level >= 6);
-    return (armored ? (level >= 9 && a.rank >= 7 ? R.drillArmorL9 : R.drillArmor) : 1) * (level >= 3 && a.rank >= 4 ? 1.15 : 1);
+  if (a.family === 'jackhammer') {
+    const every = level >= 9 && a.rank >= 7 ? 3 : 4;
+    return (level >= 6 && ctx.nth > 0 && ctx.nth % every === 0 ? R.hammerBeat : 1) * (ctx.gearKick ? R.gearKick : 1);
   }
   if (a.family === 'saw_blade') {
-    if (!onRing(a.idx)) return level >= 6 ? 0.9 : R.sawInside;
-    if (level >= 9 && a.rank >= 7 && isCorner(a.idx)) return R.sawCornerL9;
-    return level >= 3 && a.rank >= 4 ? R.sawEdgeL3 : R.sawEdge;
+    const ring = onRing(a.idx);
+    const edge = ring ? (level >= 3 ? R.sawEdgeL3 : R.sawEdge) * (level >= 6 && isCorner(a.idx) ? R.sawCorner : 1) : level >= 9 ? R.sawInsideL9 : R.sawInside;
+    return Math.min(edge, R.sawCap) * (ctx.gearKick ? R.gearKick : 1);
   }
-  return 1;
+  return ctx.gearKick ? R.gearKick : 1;
 }
+
+/** Jackhammer BYPASS L3: hits x1.3 while the target's shield is closed. */
+export const bypassBonus = (level: number) => (level >= 3 ? TUNING.r1.bypassL3 : 1);
 
 /** Gear LINK: the other Gears a merged Gear jumps the chain to: the farthest ones first (Manhattan, then row-major),
  *  never one already in the chain, at most `left` of them (TUNING.r1.gearLinks per cascade). Sims t-9b28a794: when
@@ -73,14 +86,9 @@ export function gearLinks(grid: Grid, idx: number, taken: (i: number) => boolean
     .slice(0, left);
 }
 
-/** Gear job upgrades (cells past its 4 touching ones): L3 rank 4+ diagonals; L6 every 6th spin a 2-cell cross;
- *  L9 rank 7-8 always both. */
-export function gearPerkCells(idx: number, rank: number, level: number, nth: number): number[] {
+/** Gear L3: it also wakes its 4 touching cells (base Gear only LINKS). */
+export function gearPerkCells(idx: number, level: number): number[] {
   const [r, c] = rc(idx);
-  const out: number[] = [];
-  const add = (rr: number, cc: number) => inside(rr, cc) && out.push(rr * COLS + cc);
-  const top = level >= 9 && rank >= 7;
-  if (top || (level >= 3 && rank >= 4)) for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) add(r + dr, c + dc);
-  if (top || (level >= 6 && nth > 0 && nth % 6 === 0)) for (const [dr, dc] of [[-2, 0], [0, 2], [2, 0], [0, -2]]) add(r + dr, c + dc);
-  return out;
+  if (level < 3) return [];
+  return [[-1, 0], [1, 0], [0, -1], [0, 1]].flatMap(([dr, dc]) => (inside(r + dr, c + dc) ? [(r + dr) * COLS + c + dc] : []));
 }

@@ -377,6 +377,12 @@ const states = {
     },
     600,
   ],
+  // merge juice v2 (rival study #4/#10/#11): a held part with its matches leaning in, the idle pair blink, a big chain's
+  // counter in its hold, and the 'so close' lose line. Run alone: node tools/shots.mjs shots fx_drag fx_idle fx_chain fx_lose
+  fx_drag: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = true; const s = sc.s; let pick = -1; for (let i = 0; i < 30 && pick < 0; i++) for (let j = 0; j < 30; j++) if (i !== j && s.grid[i] && s.grid[j] && s.grid[i].family === s.grid[j].family && s.grid[i].rank === s.grid[j].rank) { pick = i; break; } if (pick < 0) return; const m = s.grid.findIndex((g, j) => j !== pick && g && g.family === s.grid[pick].family && g.rank === s.grid[pick].rank); if (m >= 0) s.grid[m].primed = true; sc.input.activePointer.isDown = true; sc.dragIdx = pick; sc.dragId = s.grid[pick].id; sc.dragView = sc.views.get(sc.dragId); sc.moved = true; sc.dragView.setDepth(55).setPosition(sc.dragView.x + 150, sc.dragView.y - 60); }, 900); }, 1700],
+  fx_idle: [(sc) => { sc.input.activePointer.isDown = false; sc.dragIdx = -1; sc.dragView = null; sc.moved = false; sc.reconcile(true); sc.paused = false; sc.idleTime = 6.5; sc.partReact.blinkFrom = sc.time.now - 1600 * 3 - 260; }, 60],
+  fx_chain: [(sc) => { sc.paused = false; const s = sc.s; const cells = s.grid.map((g, i) => (g ? i : -1)).filter((i) => i >= 0).slice(0, 10); const acts = cells.map((idx, k) => ({ id: s.grid[idx].id, idx, family: s.grid[idx].family, rank: s.grid[idx].rank, depth: Math.min(k, 6), parent: -1, charge: 1, contribution: 10 })); sc.playCascade({ rootIdx: cells[0], activations: acts, edges: [], count: acts.length, total: 120 }, false, false); }, 760],
+  fx_lose: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = false; const s = sc.s; if (s.stage) { s.stage.i = s.stage.hps.length - 1; s.maxHp = s.stage.hps[s.stage.i]; } s.hp = Math.round(s.maxHp * 0.08); s.stats.merges = 20; s.stats.totalDamage = Math.round(s.maxHp * 0.045 * 20); s.timeLeft = 0.05; }, 600); }, 3600],
   result_win: [
     (sc) => {
       sc.coach.clear();
@@ -402,6 +408,14 @@ const states = {
   shield11: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(11); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; }, 300); }, 3500],
   shield11_open: [(sc) => { sc.s.shieldUntil = sc.s.elapsed + 6; sc.handleEvents([{ type: 'shield', open: true, until: sc.s.shieldUntil }]); }, 350],
   wf_backup_tap: [(sc) => { const o = sc.children.list.filter((c) => c.depth === 140).pop(); o.list[0].emit('pointerdown'); o.list[0].emit('pointerup'); }, 900],
+  // t-c3964d65: job word on small cards (grid + crate reveal), tap a reveal card for its WHEN MERGED line, odds sheet
+  jobs_iron: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), unitChoiceDone: true, units: { cannon: { level: 2, cards: 0 }, coil: { level: 1, cards: 0 }, bell: { level: 1, cards: 0 }, horn: { level: 1, cards: 0 }, fan: { level: 1, cards: 0 } }, crates: { iron: 1 } }); sc.openCrate('iron'); }, 4500],
+  jobs_gold: [(sc) => { sc.closeModal(); sc.meta.crates = { gold: 1 }; sc.openCrate('gold'); }, 8000],
+  jobs_popup: [(sc) => { const c = sc.modal.list.find((o) => o.input && o.list?.length > 3); c.emit('pointerup'); }, 500],
+  jobs_mortar: [(sc) => { sc.closeModal(); Object.assign(sc.meta, { units: Object.fromEntries(['cannon','coil','bell','horn','fan','rocket','mortar','fuse_box','magnet','battery','amplifier','arc_welder','signal_beacon'].map((u) => [u, { level: 3, cards: 1 }])) }); sc.openUnitDetail({ id: 'mortar', role: 'SHOOTER', rarity: 'rare', slot: 'shooter' }); }, 1500],
+  jobs_beacon: [(sc) => { sc.openUnitDetail({ id: 'signal_beacon', role: 'HELPER', rarity: 'epic', slot: 'helper' }); }, 1500],
+  jobs_locked: [(sc) => { delete sc.meta.units.battery; sc.openUnitDetail({ id: 'battery', role: 'HELPER', rarity: 'rare', slot: 'helper' }); }, 1500],
+  jobs_odds: [(sc) => { sc.children.list.filter((c) => c.depth === 150).forEach((c) => c.destroy()); const b = sc.modal.list.find((o) => o.list?.some?.((t) => t.text === 'ODDS')); b.emit('pointerup'); }, 500],
 };
 const only = args.slice(1);
 for (const [name, [fn, ms]] of Object.entries(states)) {

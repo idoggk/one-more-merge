@@ -1,6 +1,7 @@
 // Clarity pass 1 (owner: "I see a purple thing on a unit and idk what happens after I merge on it"): plain-language
 // copy for every state a part on the board can carry. Pure: the scene draws it (NEW tips, inspect card, guide legend).
 import { COLS, TUNING } from '../content/tuning';
+import { helperMult } from '../content/units';
 import { ATTACK_COPY, castAttack, type BossAttack, type BossTarget } from './boss';
 import { canMerge, capOf, drop, odNeeded, type GameEvent, type GameState } from './game';
 import { PIANO_LOCK_S, type RemixKind } from './remix';
@@ -79,10 +80,7 @@ export interface MarkLine {
 
 export const fmtMult = (m: number) => `x${+m.toFixed(2)}`;
 /** Battery charge on a shooter: same formula as cascade.ts (level +0.03, L3 High Voltage +0.20). */
-export const primeMult = (s: Pick<GameState, 'unitLevel'>) => {
-  const lvl = s.unitLevel?.battery ?? 1;
-  return TUNING.batteryBonus + 0.03 * (lvl - 1) + (lvl >= 3 ? 0.2 : 0);
-};
+export const primeMult = (s: Pick<GameState, 'unitLevel'>) => helperMult.battery(s.unitLevel?.battery ?? 1);
 
 export const ITEM_MARK: Record<ItemKind, { name: string; does: (n: number) => string }> = {
   overcharge: { name: 'OVERCHARGE', does: (n) => `its next ${n} chain shot${n === 1 ? '' : 's'} hit x2.` },

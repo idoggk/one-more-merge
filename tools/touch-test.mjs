@@ -399,14 +399,33 @@ await fingerPath([await cellScreen(27), sf.both ?? sf.scrap]);
 st = await state();
 check('no merge under the piece: shown SCRAP zone scraps it', st.live === 1 && st.cells[BR] === 'c2' && clean(st), st);
 // 12b) a rank 3 part dropped on SCRAP without the hold: rejected (snaps home), with the hold-to-scrap hint
-await setBoard({ 27: 'c3' });
-await wait(200);
-await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); sc.hintGate = new sc.hintGate.constructor(); });
-rj0 = await rejects();
-await fingerPath([await cellScreen(27), sf.scrap]);
-st = await state();
-rj = await rejects();
-check('early SCRAP drop of a rank 3 part: kept, one reject, hold-to-scrap hint', st.cells[27] === 'c3' && st.live === 1 && clean(st) && rj.n === rj0.n + 1 && rj.hint === 'HOLD TO SCRAP', { st, rj0, rj });
+// 'Early' is measured on the scene clock: the time over SCRAP (scrapHold) is read as the drop resolves. A loaded
+// machine can stall a frame long enough to fill the 0.25 s hold, and then a scrap is right; drag again (up to 3 times)
+// until one drop lands early, and check every drop against its own hold.
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.__holdAtDrop = -1;
+  for (const k of ['doScrap', 'rejectDrop']) {
+    const orig = sc[k];
+    sc[k] = function (...a) { sc.__holdAtDrop = sc.scrapHold; return orig.apply(this, a); };
+  }
+});
+const early = [];
+for (let k = 0; k < 3 && !early.some((e) => e.hold < 0.25); k++) {
+  await setBoard({ 27: 'c3' });
+  await wait(200);
+  await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); sc.hintGate = new sc.hintGate.constructor(); sc.__holdAtDrop = -1; });
+  rj0 = await rejects();
+  await fingerPath([await cellScreen(27), sf.scrap]);
+  st = await state();
+  rj = await rejects();
+  const hold = await page.evaluate(() => window.__omm.game.scene.getScene('game').__holdAtDrop);
+  const kept = st.cells[27] === 'c3' && st.live === 1 && clean(st) && rj.n === rj0.n + 1 && rj.hint === 'HOLD TO SCRAP';
+  const scrapped = st.live === 0 && rj.n === rj0.n;
+  early.push({ hold, ok: hold >= 0 && (hold < 0.25 ? kept : scrapped), st, rj0, rj });
+}
+await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); delete sc.doScrap; delete sc.rejectDrop; });
+check('early SCRAP drop of a rank 3 part: kept, one reject, hold-to-scrap hint', early.every((e) => e.ok) && early.some((e) => e.hold < 0.25), early);
 
 // 13) background/foreground mid-touch (the touchend never comes): the next drag still works
 const ghostTouch = (i, id) =>
@@ -508,13 +527,34 @@ const cMis = (await cues()) - c0;
 await wait(200);
 await slide(8, { x: 0, y: 0 }, 2); // back onto the match after the gap: a new cue
 const cBack = (await cues()) - c0;
-await slide(7, { x: 0, y: 0 }, 1);
-await slide(8, { x: 0, y: 0 }, 1); // straight back within 120 ms: throttled
-const cFast = (await cues()) - c0;
+// throttle: hop off and straight back onto the match. The gap is measured on the SCENE clock (the one the throttle
+// uses), from the last cue to the moment the piece is back over 8: a return inside SNAP_CUE_GAP (120 ms) must stay
+// silent, a slower one must cue. A loaded machine can stretch a 'fast' wall-clock hop past the gap, so hop again
+// (up to 5 times) until at least one return lands inside it.
+await page.evaluate(() => {
+  const sc = window.__omm.game.scene.getScene('game');
+  sc.__snapArrive = -1;
+  sc.__snapProbe = () => {
+    if (sc.hoverIdx === 8 && sc.__snapPrev !== 8) sc.__snapArrive = sc.time.now;
+    sc.__snapPrev = sc.hoverIdx;
+  };
+  sc.__snapPrev = sc.hoverIdx;
+  sc.input.on('pointermove', sc.__snapProbe); // added after the scene's own onMove, so hoverIdx is already updated
+});
+const hops = [];
+for (let k = 0; k < 5 && !hops.some((h) => h.gap < 120); k++) {
+  const before = await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); return { cues: sc.snapCues, snapAt: sc.snapAt }; });
+  await slide(7, { x: 0, y: 0 }, 1);
+  await slide(8, { x: 0, y: 0 }, 1);
+  const after = await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); return { cues: sc.snapCues, arrive: sc.__snapArrive }; });
+  hops.push({ gap: after.arrive - before.snapAt, cues: after.cues - before.cues });
+}
+await page.evaluate(() => { const sc = window.__omm.game.scene.getScene('game'); sc.input.off('pointermove', sc.__snapProbe); });
+const hopsOk = hops.every((h) => h.cues === (h.gap >= 120 ? 1 : 0)) && hops.some((h) => h.gap < 120);
 m0 = (await state()).merges;
 await release();
 st = await state();
-check('snap cue: once per new match, none on empty/mismatch/same cell, throttled; the drag still merges', cEmpty === 0 && cMatch === 1 && cSame === 1 && cMis === 1 && cBack === 2 && cFast === 2 && st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st) && pageErrors.length === errsSnap, { cEmpty, cMatch, cSame, cMis, cBack, cFast, st, errs: pageErrors.slice(errsSnap) });
+check('snap cue: once per new match, none on empty/mismatch/same cell, throttled; the drag still merges', cEmpty === 0 && cMatch === 1 && cSame === 1 && cMis === 1 && cBack === 2 && hopsOk && st.cells[8] === 'b2' && st.merges === m0 + 1 && clean(st) && pageErrors.length === errsSnap, { cEmpty, cMatch, cSame, cMis, cBack, hops, st, errs: pageErrors.slice(errsSnap) });
 
 // --- iPhone safe areas: #game inset like a notched phone, so the canvas has margins the finger can slide into ---
 await page.evaluateOnNewDocument(() => {

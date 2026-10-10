@@ -1,10 +1,11 @@
 export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family;
 /** Roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on. */
-export type Roster1Family = 'nail_gun' | 'drill' | 'gear' | 'saw_blade';
-export const ROSTER_1: Roster1Family[] = ['nail_gun', 'drill', 'gear', 'saw_blade'];
+export type Roster1Family = 'nail_gun' | 'jackhammer' | 'gear' | 'saw_blade';
+export const ROSTER_1: Roster1Family[] = ['nail_gun', 'jackhammer', 'gear', 'saw_blade'];
 export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1];
+export const isRoster1 = (f: Family): f is Roster1Family => (ROSTER_1 as Family[]).includes(f);
 /** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5); r32 adds Mortar + Arc Welder; roster B Nail Gun, Drill, Saw Blade. */
-export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'drill' || f === 'saw_blade';
+export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade';
 /** RELAY role: wakes OTHER families. r32 adds Horn (column) + Fuse Box (diagonals); roster B Gear (links to other Gears). */
 export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box' || f === 'gear';
 
@@ -40,7 +41,15 @@ export interface Activation {
   parent: number; // idx of discovering gadget, -1 for root
   charge: number;
   contribution: number;
+  /** TUNING.rosterB: the job multipliers already inside `contribution` (shown in the formula strip / over the machine). */
+  jobs?: Partial<Record<JobKey, number>>;
 }
+
+/** TUNING.rosterB job multipliers: Mortar DEPTH, Rocket BURST (you merged it), Horn KICK, Arc SPREAD, Battery PRIME, Beacon GO. */
+export type JobKey = 'mortar' | 'burst' | 'kick' | 'spread' | 'prime' | 'go';
+/** TUNING.rosterB: the five helpers are off-board Support cards. */
+export const SUPPORT_FAMILIES: Family[] = ['fan', 'magnet', 'battery', 'amplifier', 'signal_beacon'];
+export const isSupport = (f: Family) => SUPPORT_FAMILIES.includes(f);
 
 export interface CascadeResult {
   rootIdx: number;

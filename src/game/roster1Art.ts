@@ -8,7 +8,7 @@ const V = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
 
 export const ROSTER_1_COLORS: Record<Roster1Family, [number, number, number]> = {
   nail_gun: [0x8a96a8, 0xd0d8e4, 0x4a5466],
-  drill: [0xd8a020, 0xffe08a, 0x8a5a10],
+  jackhammer: [0xd8a020, 0xffe08a, 0x8a5a10],
   gear: [0x9a7a5a, 0xd8b890, 0x5a4030],
   saw_blade: [0xc8d0d8, 0xffffff, 0x6a7480],
 };
@@ -45,7 +45,7 @@ export function drawRoster1(g: Phaser.GameObjects.Graphics, fam: Roster1Family, 
     g.fillStyle(light).fillRect(36, 30, 7, 42);
     g.fillStyle(OUT).fillRect(46, 10, 16, 14);
     for (let i = 0; i < Math.min(rank, 5); i++) g.fillStyle(0xdfe6ea).fillRect(84 + (i % 2) * 2, 30 + i * 10, 26, 5).strokeRect(84 + (i % 2) * 2, 30 + i * 10, 26, 5);
-  } else if (fam === 'drill') {
+  } else if (fam === 'jackhammer') {
     // body + a long spiral bit pointing up; the bit grows with rank
     const len = 44 + Math.min(rank, 6) * 4;
     g.fillStyle(main).fillRoundedRect(30, 76, 68, 40, 10).strokeRoundedRect(30, 76, 68, 40, 10);
@@ -70,7 +70,7 @@ export function drawJobIcon(g: Phaser.GameObjects.Graphics, fam: Roster1Family) 
   const [main, light] = ROSTER_1_COLORS[fam];
   g.lineStyle(4, OUT, 1);
   if (fam === 'nail_gun') for (const x of [14, 32, 50]) g.fillStyle(main).fillCircle(x, 32, 8).strokeCircle(x, 32, 8);
-  else if (fam === 'drill') {
+  else if (fam === 'jackhammer') {
     g.fillStyle(0x7a7a8a).fillRect(6, 38, 52, 10).strokeRect(6, 38, 52, 10);
     g.fillStyle(main).fillTriangle(22, 8, 42, 8, 32, 58).strokeTriangle(22, 8, 42, 8, 32, 58);
   } else if (fam === 'gear') {

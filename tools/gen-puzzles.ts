@@ -57,7 +57,7 @@ interface Spec {
   band: [number, number];
   /** r45: the obvious-start rules (1-merge dailies at the head of the ramp). */
   easy?: boolean;
-  /** Roster B Drill drills: closed chain shield on the machine. */
+  /** Roster 1 Jackhammer drills: closed chain shield on the machine. */
   shield?: boolean;
 }
 
@@ -125,9 +125,9 @@ export function dailyBand(d: number): [number, number] {
   return [Math.round(c - 3), Math.round(c + 3)];
 }
 
-// t-9b28a794 ROSTER B: `--units nail_gun,drill,gear,saw_blade` (re)builds ONLY those units' drills and keeps every other
+// t-9b28a794 ROSTER B: `--units nail_gun,jackhammer,gear,saw_blade` (re)builds ONLY those units' drills and keeps every other
 // puzzle in puzzles.json as it is (the full run below would reshuffle all of them). Each unit gets its own seeded stream,
-// mates come from the live roster, and Drill drills put a closed chain shield on the machine (its job: it ignores it).
+// mates come from the live roster, and Jackhammer drills put a closed chain shield on the machine (its job: BYPASS).
 const UNITS_ARG = process.argv.includes('--units') ? (process.argv[process.argv.indexOf('--units') + 1].split(',') as Family[]) : null;
 if (UNITS_ARG) {
   const data = JSON.parse(readFileSync('src/content/puzzles.json', 'utf8')) as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
@@ -143,7 +143,7 @@ if (UNITS_ARG) {
     ];
     const list: PuzzleDef[] = [];
     specs.forEach((sp, i) => {
-      const p = makePuzzle(`${u}_${i + 1}`, r, { fams: [u, ...mates], focus: [u], unit: u, ...(u === 'drill' ? { shield: true } : {}), ...sp });
+      const p = makePuzzle(`${u}_${i + 1}`, r, { fams: [u, ...mates], focus: [u], unit: u, ...(u === 'jackhammer' ? { shield: true } : {}), ...sp });
       if (p) list.push(p);
     });
     if (list.length === specs.length) data.drills[u] = list;

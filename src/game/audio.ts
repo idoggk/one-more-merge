@@ -183,6 +183,20 @@ export const sfx = {
     const semi = PHRASE[Math.min(beat, PHRASE.length - 1)];
     tone(440 * Math.pow(2, semi / 12), 0.12, 'triangle', 0.1, delay, undefined, true);
   },
+  /** chain ladder (rival study #4): link k plays the k-th note of a rising pentatonic scale; caps at the top note. */
+  ladder: (link: number, delay: number) => {
+    const f = note(330, Math.min(link, 12));
+    tone(f, 0.11, 'triangle', 0.07, delay, undefined, true);
+    tone(f * 2, 0.06, 'sine', 0.015, delay);
+  },
+  /** big chain (8+) final hit after the hold: deep boom + crack + a bright octave shimmer. */
+  bigFinish: () => {
+    tone(70, 0.45, 'sine', 0.3, 0, 38, true);
+    tone(160, 0.22, 'triangle', 0.2, 0, 70, true);
+    bandNoise(0.3, 0.35, 0, 500, 0.6);
+    bandNoise(0.04, 0.3, 0, 4000, 1.2);
+    for (const s of [0, 7, 12]) tone(660 * Math.pow(2, s / 12), 0.35, 'triangle', 0.05, 0.03, undefined, true);
+  },
   /** phrase resolution on the biggest shot */
   chord: (n: number) => {
     const root = 220 * (n >= 10 ? 1.5 : 1);
@@ -222,7 +236,7 @@ export const sfx = {
       tone(vary(620), 0.04, 'square', 0.05, delay + d, 380);
       bandNoise(0.02, 0.06, delay + d, 2500, 2);
     }
-    else if (fam === 'drill') {
+    else if (fam === 'jackhammer') {
       tone(vary(160), 0.24, 'sawtooth', 0.05, delay, 420);
       bandNoise(0.2, 0.08, delay, 900, 1.5);
     } else if (fam === 'gear') for (const d of [0, 0.07]) {
@@ -283,6 +297,42 @@ export const sfx = {
     tone(110, 0.18, 'sawtooth', 0.05, delay, 220);
     tone(vary(240), 0.08, 'triangle', 0.14, delay + 0.14, 160);
     bandNoise(0.04, 0.15, delay + 0.14, 900);
+  },
+  // t-e91097cd: one sound per unit, built from the same tones (no new assets)
+  /** rocket: rising whoosh + the cannon body */
+  rocket: (delay = 0) => {
+    bandNoise(0.2, 0.12, delay, 1400, 0.7);
+    tone(vary(260), 0.18, 'sawtooth', 0.04, delay, 900);
+    tone(vary(160), 0.16, 'triangle', 0.16, delay + 0.08, 70);
+  },
+  /** mortar: hollow tube thunk, then a low landing */
+  mortar: (delay = 0) => {
+    tone(vary(140), 0.12, 'triangle', 0.2, delay, 90);
+    bandNoise(0.08, 0.14, delay, 500, 1);
+    tone(70, 0.22, 'sine', 0.14, delay + 0.16, 40);
+  },
+  /** arc welder: high crackle + short zap */
+  arc: (delay = 0) => {
+    bandNoise(0.1, 0.08, delay, 6000, 4);
+    tone(vary(1100), 0.07, 'sawtooth', 0.03, delay, 500);
+  },
+  /** horn: low brass blare (the bell's partials, falling) */
+  horn: (delay = 0) => {
+    tone(vary(196), 0.3, 'sawtooth', 0.05, delay, 175);
+    tone(vary(392), 0.25, 'triangle', 0.06, delay, 350);
+  },
+  /** fuse box: two quick sparks */
+  fuse: (delay = 0) => {
+    bandNoise(0.03, 0.1, delay, 4500, 3);
+    bandNoise(0.03, 0.08, delay + 0.06, 3500, 3);
+    tone(vary(900), 0.05, 'square', 0.02, delay);
+  },
+  /** amplifier: rising sine swell */
+  amp: (delay = 0) => tone(vary(440), 0.2, 'sine', 0.08, delay, 880),
+  /** signal beacon: two-note radio beep */
+  beacon: (delay = 0) => {
+    tone(988, 0.07, 'square', 0.03, delay);
+    tone(1319, 0.09, 'square', 0.03, delay + 0.09);
   },
   /** victory_rebuild: low clunk, three bright plucks resolving into a chord, nut-click */
   win: () => {
