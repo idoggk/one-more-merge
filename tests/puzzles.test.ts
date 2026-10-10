@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import raw from '../src/content/puzzles.json';
+import { TUNING } from '../src/content/tuning';
 import { STARTER_UNITS } from '../src/content/units';
 import { drillsPending, drop, newPuzzle, type PuzzleDef } from '../src/core/game';
 import { allLines, DAILY_PLATEAU, dailyIndex, lineWins, missedUnitText, nextWinningMove, unitFreeBreaks, notePuzzleAttempt, playMove, puzzleDifficulty, puzzleHelp, puzzleReward, type PuzzleRec } from '../src/core/puzzle';
 
+TUNING.roster4 = true; // the Capacitor drills (t-1e3c8bb6) are generated and win-checked with batch 4 on; no other puzzle reads the flag
 const data = raw as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
 const all = [...data.daily, ...Object.values(data.drills).flat()];
 

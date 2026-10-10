@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -153,7 +153,7 @@ export const TUNING = {
     hornKick: 1.25, spreadHit: 1.3,
     cannonQuick: 2.4, passiveHot: 0.25,
     /** Support card charge needed (machines fired in your merge chains). */
-    need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16, blast_plate: 10 } as Record<string, number>,
+    need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16, blast_plate: 10, blueprint: 10, rewind_crank: 10 } as Record<string, number>,
     prime: 2, primeL3: 2.5, mark: 1.6, markL3: 2, goKick: 1.3,
   },
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
@@ -190,6 +190,14 @@ export const TUNING = {
    *  cells (L3 teslaRangeL3, L9 teslaRangeL9) charge it, a touching relay gives teslaTouch from L6. */
   roster3: false,
   r3: { torchPer: 1.5, torchMax: 2, torchNone: 1.2, pipeCap: 4, pipeCapL3: 6, pipeLast: 1.3, plateStun: 2, plateHits: 2, teslaPer: 0.12, teslaMax: 6, teslaRange: 3, teslaRangeL3: 4, teslaRangeL9: 5, teslaTouch: 2 },
+  /** EXPERIMENT (t-1e3c8bb6, roster B batch 4), default OFF: Capacitor / Blueprint / Ladder / Rewind Crank join the collection, crates and
+   *  squad pickers (src/content/units.ts applyRoster4). Rules: src/core/roster4.ts, docs/ROSTER.md section 11. Capacitor: banks one chain
+   *  and releases it (wakes capWake touching parts, capWakeL9 at L9; L6 one link deeper). Ladder: wakes the touching part one rank above,
+   *  then on up; stairTop x at its last step from L9. Blueprint: shows bpShow deliveries (bpShowL3 from L3), swaps bpSwap (bpSwapL6 from L6);
+   *  the copy arrives at rank 1 (rank 2 for the first copy at L9). Rewind Crank: one charge per rwMerges player merges (rwMergesL3 from L3),
+   *  holds rwHold (rwHoldL6 from L6), and only undoes a merge made within rwWindow seconds of level time. */
+  roster4: false,
+  r4: { capWake: 1, capWakeL9: 2, stairTop: 1.5, stairMax: 7, bpShow: 3, bpShowL3: 4, bpSwap: 1, bpSwapL6: 2, bpRankL9: 2, rwMerges: 10, rwMergesL3: 8, rwHold: 1, rwHoldL6: 2, rwWindow: 8 },
   r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };
 

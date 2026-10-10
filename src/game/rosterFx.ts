@@ -30,7 +30,7 @@ export function playJobTag(scene: Phaser.Scene, a: Activation, xy: { x: number; 
 }
 
 type SupportEvent = Extract<GameEvent, { type: 'support' }>;
-const WORD: Record<string, string> = { fan: 'CLEAR!', magnet: 'PAIR!', battery: 'PRIME', amplifier: 'MARK', signal_beacon: 'GO!' };
+const WORD: Record<string, string> = { fan: 'CLEAR!', magnet: 'PAIR!', battery: 'PRIME', amplifier: 'MARK', signal_beacon: 'GO!', blast_plate: 'BLOCK', blueprint: 'SWAPPED!', rewind_crank: 'UNDO' };
 
 /** Flash the cells the card acted on + its word (PRIME: centred on the board). */
 export function playSupportFx(scene: Phaser.Scene, e: SupportEvent, cellXY: (idx: number) => { x: number; y: number }, color: number, boardCentre: { x: number; y: number }) {

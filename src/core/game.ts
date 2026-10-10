@@ -17,6 +17,7 @@ import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
 import { bypassBonus } from './roster1';
 import { wrenchAfterMerge, wrenchNext, type WrenchState } from './roster2';
 import { type TorchHazard, type WardState } from './roster3';
+import { type CapBank, rewindModeOk, rewindSnapshot, rwHold, rwNeed } from './roster4';
 import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -44,6 +45,8 @@ export type GameEvent =
   | { type: 'sandwich'; idx: number; cells: number[]; ids: number[]; rank: number; plus: number; od: number }
   /** TUNING.rosterB: a Support card fired (src/core/support.ts) on these cells (a line for GO; [] for PRIME). */
   | { type: 'support'; family: Family; cells: number[]; mult?: number }
+  /** TUNING.roster4 Rewind Crank: the last merge was undone (the whole state is back; `peek` = the delivery it rewound, from L9). */
+  | { type: 'rewind'; peek?: { family: Family; rank: number } }
   | RemixEvent
   | BossEvent;
 
@@ -174,7 +177,12 @@ export interface GameState {
   wrench?: WrenchState;
   /** TUNING.roster3 Blast Plate (src/core/roster3.ts): the cells warded against the next boss attack(s), and the L9 stun. */
   wards?: WardState;
-  support?: { family: Family; charge: number; uses: number; prime?: { mult: number; left: number; any: boolean } };
+  /** TUNING.roster4 Capacitor HOLD (src/core/roster4.ts): the one chain it holds, released at the start of your next merge. */
+  cap?: CapBank;
+  /** TUNING.roster4 Blueprint: delivery swaps waiting for their turn, by shipment number (generateShipment hands the copy out instead). */
+  plan?: { over: Record<number, { family: Family; rank: number }> };
+  /** `snap` / `snapAt` / `snapCharge`: Rewind Crank's undo point (the state text before your last merge, when, and the meter then). */
+  support?: { family: Family; charge: number; uses: number; prime?: { mult: number; left: number; any: boolean }; snap?: string; snapAt?: number; snapCharge?: number };
   /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
   idleFor?: number;
   banked?: number;
@@ -236,8 +244,8 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f === 'cannon' ? shooterOf(s) : f, 1);
-  const card = TUNING.rosterB ? s.toys.find(isSupport) : TUNING.roster3 && !tutorial ? s.toys.find((f) => f === 'blast_plate') : undefined; // roster 3 Blast Plate is a card even without crates B
-  if (card === 'blast_plate' && !TUNING.roster3) s.support = undefined;
+  const card = TUNING.rosterB ? s.toys.find(isSupport) : !tutorial ? s.toys.find((f) => f === 'blast_plate' || f === 'blueprint' || f === 'rewind_crank') : undefined; // roster 3 / 4 cards (Blast Plate, Blueprint, Rewind Crank) are cards even without crates B
+  if ((card === 'blast_plate' && !TUNING.roster3) || ((card === 'blueprint' || card === 'rewind_crank') && !TUNING.roster4)) s.support = undefined;
   else if (card) s.support = { family: card, charge: 0, uses: 0 };
   if (TUNING.roster2 && !tutorial && toys.includes('wrench')) s.wrench = { armed: [], uses: 0 }; // roster 2 passive Support: never on the board
   s.supplyTimer = supplyPeriod(s);
@@ -603,7 +611,8 @@ function generateShipment(s: GameState, copy = true): Gadget {
   const mm = copy ? matchmakerPick(s, s.shipments + 1) : null;
   if (mm) {
     s.shipments++;
-    return makeGadget(s, mm.family, mm.rank);
+    const over = takePlan(s, s.shipments);
+    return over ?? makeGadget(s, mm.family, mm.rank);
   }
   if (!s.bag.length) refillBag(s);
   const fam = s.bag.shift()!;
@@ -615,7 +624,38 @@ function generateShipment(s: GameState, copy = true): Gadget {
     s.stats.rescues = (s.stats.rescues ?? 0) + 1;
     return makeGadget(s, fam, 1);
   }
-  return makeGadget(s, fam, nextShipmentRank(s, s.shipments));
+  return takePlan(s, s.shipments) ?? makeGadget(s, fam, nextShipmentRank(s, s.shipments));
+}
+
+/** TUNING.roster4 Blueprint: the copy swapped in for delivery number `ordinal` (the original part is spent; the RNG order is untouched). */
+function takePlan(s: GameState, ordinal: number): Gadget | null {
+  const o = s.plan?.over[ordinal];
+  if (!o) return null;
+  delete s.plan!.over[ordinal];
+  return makeGadget(s, o.family, o.rank);
+}
+
+/** One upcoming delivery: `pend` = its place in the tray queue (already made), `ord` = its delivery number (still to be made; swappable). */
+export interface Upcoming {
+  family: Family;
+  rank: number;
+  pend?: number;
+  ord?: number;
+}
+/** TUNING.roster4 Blueprint PLAN: the next `n` deliveries as they will come if the board stays as it is (tray queue first, then the bag
+ *  on a copy of the state, so the real random generators are never touched). */
+export function peekDeliveries(s: GameState, n: number): Upcoming[] {
+  const out: Upcoming[] = s.pending.slice(0, n).map((g, i) => ({ family: g.family, rank: g.rank, pend: i }));
+  if (out.length >= n) return out;
+  const t: GameState = { ...s, bag: s.bag.slice(), pending: s.pending.slice(), stats: { ...s.stats }, plan: s.plan ? { over: { ...s.plan.over } } : undefined };
+  for (let guard = 0; out.length < n && guard < n + 4; guard++) {
+    const k = t.pending.length;
+    const g = generateShipment(t);
+    for (const m of t.pending.slice(k)) out.push({ family: m.family, rank: m.rank }); // a rescue pair's second part comes first
+    t.pending.push(g);
+    out.push({ family: g.family, rank: g.rank, ord: t.shipments });
+  }
+  return out.slice(0, n);
 }
 
 export function supplyPeriod(s: GameState): number {
@@ -699,9 +739,12 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
     return r;
   }
   if (canMerge(a, b, s)) {
+    const crank = s.support?.family === 'rewind_crank' && rewindModeOk(s) ? s.support : undefined;
+    if (crank) [crank.snap, crank.snapAt, crank.snapCharge] = [rewindSnapshot(s), s.elapsed, crank.charge]; // roster 4 Rewind Crank: the undo point is the state right before this merge
     const r = merge(s, from, to, sandwichFor(s, from, to), true); // no cooldown: a legal second merge is never refused
-    // roster B Support card: +1 charge per machine that fired in YOUR merge chain
-    if (s.support) for (const e of r.events) if (e.type === 'cascade' && !e.kickback) s.support.charge += e.result.count;
+    // roster B Support card: +1 charge per machine that fired in YOUR merge chain (Rewind Crank: +1 per merge, holds rwHold charges)
+    if (crank) crank.charge = Math.min(crank.charge + 1, rwNeed(s.unitLevel?.rewind_crank ?? 1) * rwHold(s.unitLevel?.rewind_crank ?? 1));
+    else if (s.support && s.support.family !== 'rewind_crank') for (const e of r.events) if (e.type === 'cascade' && !e.kickback) s.support.charge += e.result.count;
     return r;
   }
   // r29 terrain + links (Oil Otter / Portal Possum / Rivet Rhino): resolve where a manual move really lands
@@ -758,6 +801,13 @@ export function sandwichFor(s: GameState, from: number, to: number): SandwichPla
 export function primeFor(s: GameState, family: Family): number | undefined {
   const p = s.support?.prime;
   return p && s.phase === 'playing' && (p.any || isShooter(family)) ? p.mult : undefined;
+}
+
+/** Roster 4 Capacitor HOLD: a bank waiting from an earlier merge releases in this player merge (the merged part inherits the bank when its Capacitor was one of the merged parts);
+ *  with no bank, a Capacitor woken in this merge may store the chain. Only your own drag merges (not Magnet SNAP IN, Kickback fuses or Beacon GO). */
+function capCascadeOpts(s: GameState, mergedId: number, partIds: number[], byPlayer: boolean): { capRelease?: { id: number }; capBank?: boolean } {
+  if (!TUNING.roster4 || !byPlayer) return {};
+  return s.cap ? { capRelease: { id: partIds.includes(s.cap.id) ? mergedId : s.cap.id } } : { capBank: true };
 }
 
 /** A merge from -> to (also roster B Magnet SNAP IN, src/core/support.ts). */
@@ -827,8 +877,12 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
 
   const primeAll = primeFor(s, g.family);
   const wrenchBonus = byPlayer ? wrenchNext(s.wrench) : 0;
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
+  const capOpts = capCascadeOpts(s, g.id, parts.map((p) => p.id), byPlayer);
+  const result = resolveCascade(s.grid, to, { ...capOpts, perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
   if (primeAll && --s.support!.prime!.left <= 0) delete s.support!.prime;
+  // roster 4 Capacitor HOLD: a bank is released once (even if its Capacitor is gone), and a Capacitor woken here may bank this chain for your next merge
+  if (capOpts.capRelease) s.cap = undefined;
+  if (result.capBanked?.length) s.cap = { id: result.capBanked[0], held: result.count };
   // roster 2 Wrench: your own merge spends the armed rank bonus it used, then arms from its own rank
   if (byPlayer && s.wrench) {
     const spent = wrenchAfterMerge(s.wrench, s.unitLevel?.wrench ?? 1, g.rank);
@@ -1281,7 +1335,7 @@ function previewNow(s: GameState, from: number, to: number): CascadeResult | nul
   grid[to] = { id: -1, family: a!.family, rank: sw ? sw.rank : a!.rank + 1, cd: 0 };
   for (const i of sw?.cells ?? []) grid[i] = null;
   const primeAll = primeFor(s, a!.family);
-  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
+  return scaleA2(s, resolveCascade(grid, to, { ...capCascadeOpts(s, -1, [a!.id, b!.id, ...(sw?.cells ?? []).map((i) => s.grid[i]!.id)], true), perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
 }
 
 export function serialize(s: GameState): string {

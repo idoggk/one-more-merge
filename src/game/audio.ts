@@ -284,6 +284,22 @@ export const sfx = {
       tone(vary(1800), 0.1, 'square', 0.03, delay + 0.14);
     }
   },
+  /** roster B batch 4 (t-1e3c8bb6), pitched from the same synth voices: Capacitor = a charging whine that clicks shut, Blueprint = a paper
+   *  flick and a pencil tick, Ladder = three rising rung taps, Rewind Crank = a ratchet winding backwards. */
+  roster4: (fam: string, delay = 0) => {
+    if (fam === 'capacitor') {
+      tone(vary(260), 0.24, 'sine', 0.06, delay, 900);
+      tone(vary(1400), 0.05, 'square', 0.04, delay + 0.24);
+    } else if (fam === 'blueprint') {
+      bandNoise(0.1, 0.05, delay, 3200, 1.5);
+      tone(vary(1000), 0.06, 'triangle', 0.05, delay + 0.08);
+    } else if (fam === 'ladder') {
+      for (let i = 0; i < 3; i++) tone(vary(330 * Math.pow(1.26, i)), 0.07, 'triangle', 0.07, delay + i * 0.07);
+    } else if (fam === 'rewind_crank') {
+      for (let i = 0; i < 4; i++) tone(vary(900 - i * 120), 0.04, 'square', 0.04, delay + i * 0.05);
+      tone(vary(160), 0.2, 'sawtooth', 0.03, delay + 0.2, 80);
+    }
+  },
   hit: (big: boolean) => {
     bandNoise(big ? 0.14 : 0.05, big ? 0.22 : 0.07, 0, 400, 0.7);
     if (big) tone(120, 0.16, 'triangle', 0.12, 0, 60);

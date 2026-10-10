@@ -33,7 +33,8 @@ import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx
 import { isRelay, isShooter as isShooterFam, itemFits } from '../core/types';
 import { ROSTER_1_DEMOS } from '../content/roster1';
 import { ROSTER_2_DEMOS } from '../content/roster2';
-import { goodHereAll3 as goodHereAll, ROSTER_3_DEMOS } from '../content/roster3';
+import { ROSTER_3_DEMOS } from '../content/roster3';
+import { goodHereAll4 as goodHereAll, ROSTER_4_DEMOS } from '../content/roster4';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -64,6 +65,7 @@ import { FormulaStrip } from './formulaStrip';
 import { playJobTag, playSupportFx } from './rosterFx';
 import { SupportCard } from './supportCard';
 import { WrenchBadge } from './ui/wrenchBadge';
+import { CapBadge } from './ui/capBadge';
 import { playBeatSounds, UNIT_SOUND } from './unitSounds';
 import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
@@ -341,6 +343,7 @@ export class GameScene extends Phaser.Scene {
     }, (msg, color) => this.showEvent(msg, color ?? '#fff0cf', 2200));
 
     this.wrench = new WrenchBadge(this, 82, () => STAGE_TOP + STAGE_H - 84); // roster 2: the passive Wrench's charge badge
+    this.capBadge = new CapBadge(this, 82, () => STAGE_TOP + STAGE_H - 214); // roster 4: what the Capacitor holds
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -1667,6 +1670,7 @@ Now beat the real level.`, this.coachY());
     this.drawItems();
     this.support?.sync(this.s);
     this.wrench?.sync(this.s);
+    this.capBadge?.sync(this.s);
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -2036,6 +2040,12 @@ Now beat the real level.`, this.coachY());
         case 'support':
           playSupportFx(this, e, cellXY, FAMILY_INFO[e.family as 'fan']?.color ?? 0xffffff, { x: W / 2, y: BY + (CELL * ROWS) / 2 });
           UNIT_SOUND[e.family](0, 1);
+          break;
+        case 'rewind':
+          // roster 4 Rewind Crank: the whole state went back; every sprite returns to its model cell
+          this.showEvent(e.peek ? `REWOUND  ·  NEXT: ${FAMILY_INFO[e.peek.family].name.toUpperCase()} ${e.peek.rank}` : 'REWOUND', '#c8b0ff', 2200);
+          UNIT_SOUND.rewind_crank(0, 1);
+          needReconcile = true;
           break;
         case 'delivery':
           spawn.set(e.gadget.id, { x: BX + 150, y: TRAY_Y });
@@ -2688,6 +2698,7 @@ Now beat the real level.`, this.coachY());
   formula!: FormulaStrip;
   support?: SupportCard;
   wrench?: WrenchBadge;
+  capBadge?: CapBadge;
   pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
@@ -5001,6 +5012,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       ...ROSTER_1_DEMOS,
       ...ROSTER_2_DEMOS,
       ...ROSTER_3_DEMOS,
+      ...ROSTER_4_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();

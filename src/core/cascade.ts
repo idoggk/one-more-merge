@@ -1,6 +1,7 @@
 import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
 import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1';
 import { beltCells, effectiveRank, entryDir, pistonMult, pistonPush, springCells } from './roster2';
+import { capDepth, capTargets, stairTop, stairWalk } from './roster4';
 import { pipeFlow, teslaCharges, teslaMult, torchMult, torchTargets, type TorchHazard } from './roster3';
 import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Grid, type JobKey, type PerkId } from './types';
 
@@ -184,6 +185,9 @@ export interface CascadeOpts {
   rankBonus?: number;
   /** Roster 3 Blowtorch: the hazards on the board now (game.ts torchOpt); a firing Blowtorch burns the ones in its column(s). */
   torch?: readonly TorchHazard[];
+  /** Roster 4 Capacitor HOLD: this Capacitor (by id) releases its bank in this cascade; `capBank` = a Capacitor woken here may bank the chain (player merges only). */
+  capRelease?: { id: number };
+  capBank?: boolean;
 }
 
 /**
@@ -337,9 +341,17 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     queue.push(n);
   }
 
-  // Root sparks to orthogonal neighbours, then its family routes (handled in the loop).
   const lockedSet = opts.locked ?? new Set<number>();
   const blockSet = new Set([...(opts.reserved ?? []), ...lockedSet]);
+  // roster4 Capacitor HOLD: the releasing Capacitor is an extra root at depth 0 (a Capacitor you merged yourself is the root already)
+  if (opts.capRelease) {
+    const rel = grid.findIndex((g) => g?.id === opts.capRelease!.id);
+    if (rel >= 0 && !visited.has(rel)) {
+      visited.set(rel, { id: grid[rel]!.id, idx: rel, family: grid[rel]!.family, rank: grid[rel]!.rank, depth: 0, parent: -1, charge: 1, contribution: 0 });
+      queue.push(rel);
+    }
+  }
+  // Root sparks to orthogonal neighbours, then its family routes (handled in the loop).
   if (!opts.wake)
     for (const n of sparkCells(rootIdx)) {
       if (!grid[n] || lockedSet.has(n)) continue;
@@ -356,6 +368,9 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const burnedH = new Set<TorchHazard>(); // hazards already burned in this cascade (each once)
   const burned: number[] = []; // one cell per burned hazard (the caller ends them)
   const pipeEnd = new Set<number>(); // roster3 Pipe L9: ids of the last part of a flow (hit x r3.pipeLast)
+  const stairEnd = new Set<number>(); // roster4 Ladder: ids of the top step of a staircase (L9: hit x r4.stairTop)
+  const capBanked: number[] = []; // roster4 Capacitor HOLD: the Capacitor that banked this cascade (at most one) / the one that released
+  let capReleased: number | undefined;
   const spread = new Set<number>();
   const held = new Set<number>();
 
@@ -681,7 +696,33 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       if (lvl('pipe') >= 9 && flow.length) pipeEnd.add(grid[flow[flow.length - 1]]!.id);
       continue;
     }
-    if (a.family === 'wrench' || a.family === 'blast_plate') continue; // Wrench / Blast Plate are passive Supports: never board parts (game.ts s.wrench / s.support)
+    if (a.family === 'capacitor') {
+      // roster4 HOLD: a Capacitor does not pass the chain on. Woken in your merge it banks it (one bank, and never in a cascade that releases);
+      // the releasing one wakes its touching part(s) now and banks nothing, so a release never stores another release and never re-triggers itself
+      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
+      if (opts.capRelease?.id === a.id) {
+        capReleased = a.id;
+        for (const to of capTargets(grid, idx, lvl('capacitor'), (i) => visited.has(i) || blockSet.has(i) || crosses(idx, i), lockedSet)) {
+          edges.push({ from: idx, to, kind: 'cap' });
+          enqueue(idx, to, a.depth + 1 + capDepth(lvl('capacitor')));
+        }
+      } else if (opts.capBank && !opts.capRelease && !capBanked.length) capBanked.push(a.id);
+      continue;
+    }
+    if (a.family === 'ladder') {
+      // roster4 STAIRCASE: wakes a touching part exactly one rank above the Ladder, then from that part one more rank up; each step must touch
+      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
+      const walk = stairWalk(grid, idx, a.rank, lvl('ladder'), (i) => visited.has(i) || blockSet.has(i), (i) => isShooter(grid[i]!.family), crosses);
+      let prev = idx;
+      walk.forEach((to, k) => {
+        edges.push({ from: prev, to, kind: 'stair' });
+        enqueue(prev, to, a.depth + 1 + k);
+        prev = to;
+      });
+      if (walk.length) stairEnd.add(grid[walk[walk.length - 1]]!.id);
+      continue;
+    }
+    if (a.family === 'wrench' || a.family === 'blast_plate' || a.family === 'blueprint' || a.family === 'rewind_crank') continue; // Wrench / Blast Plate / Blueprint / Rewind Crank are passive Supports: never board parts (game.ts s.wrench / s.support)
     const kind = a.family;
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
     const [ar, ac] = rc(idx);
@@ -717,6 +758,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const r3j: Partial<Record<JobKey, number>> = {};
     if ((torchAt.get(a.id) ?? 1) !== 1) r3j.burn = torchAt.get(a.id);
     if (pipeEnd.has(a.id)) r3j.flow = TUNING.r3.pipeLast;
+    if (stairEnd.has(a.id) && stairTop(lvl('ladder')) > 1) r3j.stair = stairTop(lvl('ladder'));
     if (a.family === 'tesla_tower') {
       const m = teslaMult(teslaCharges(relayCells, a.idx, lvl('tesla_tower')));
       if (m > 1) r3j.storm = m;
@@ -764,5 +806,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(fetch ? { fetch } : {}) };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(fetch ? { fetch } : {}) };
 }

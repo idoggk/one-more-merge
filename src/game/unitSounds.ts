@@ -29,6 +29,10 @@ export const UNIT_SOUND: Record<Family, (at: number, rank: number) => void> = {
   pipe: (at) => sfx.roster3('pipe', at),
   blast_plate: (at) => sfx.roster3('blast_plate', at),
   tesla_tower: (at) => sfx.roster3('tesla_tower', at),
+  capacitor: (at) => sfx.roster4('capacitor', at),
+  blueprint: (at) => sfx.roster4('blueprint', at),
+  ladder: (at) => sfx.roster4('ladder', at),
+  rewind_crank: (at) => sfx.roster4('rewind_crank', at),
 };
 
 /** Sounds for one presentation beat: each family that fires in it plays once (the first one's rank). */

@@ -4,6 +4,8 @@
 // the card again to switch ROW -> COLUMN -> cancel). The rules live in core/support.ts; GameScene owns one instance.
 import Phaser from 'phaser';
 import type { GameState } from '../core/game';
+import { peekDeliveries } from '../core/game';
+import { bpShow } from '../core/roster4';
 import { canUseSupport, SUPPORT_JOBS, supportCharge, supportNeed, supportReady, type Axis } from '../core/support';
 import { FAMILY_INFO } from '../content/perks';
 
@@ -17,6 +19,9 @@ export class SupportCard {
   private title: Phaser.GameObjects.Text;
   private count: Phaser.GameObjects.Text;
   private icon: Phaser.GameObjects.Image | null = null;
+  /** roster 4 Blueprint: the next deliveries, as small pictures above the card (only built for that card). */
+  private plan: Phaser.GameObjects.Image[] = [];
+  private planKey = '';
   private family = '';
   private shown = -1;
   private ready = false;
@@ -49,6 +54,7 @@ export class SupportCard {
       return;
     }
     this.c.setY(this.y());
+    if (sp.family === 'blueprint') this.syncPlan(s);
     const job = SUPPORT_JOBS[sp.family];
     const col = FAMILY_INFO[sp.family as keyof typeof FAMILY_INFO]?.color ?? 0x8a6a4a;
     if (this.family !== sp.family) {
@@ -66,7 +72,7 @@ export class SupportCard {
     if (!ready) this.aiming = false;
     const armed = sp.prime ? `x${sp.prime.mult} NEXT` : '';
     this.title.setText(this.aiming && job.aim === 'line' ? `GO ${this.axis === 'row' ? 'ROW' : 'COLUMN'}` : `${job.verb}`);
-    this.count.setText(armed || (ready ? (this.aiming ? 'TAP BOARD' : 'READY!') : `${have}/${need}`));
+    this.count.setText(armed || (ready ? (this.aiming ? 'TAP BOARD' : sp.family === 'rewind_crank' && sp.charge >= 2 * need ? 'READY x2' : 'READY!') : `${have}/${need}`));
     const pulse = ready ? 0.6 + 0.4 * Math.sin(this.scene.time.now / 160) : 1;
     this.plate.clear().fillStyle(0x2b1d2e, 1).fillRoundedRect(-CW / 2, -CH / 2, CW, CH, 18).fillStyle(col, ready ? 1 : 0.55).fillRoundedRect(-CW / 2 + 4, -CH / 2 + 4, CW - 8, CH - 8, 15);
     if (ready) this.plate.lineStyle(this.aiming ? 8 : 5, 0xffcf33, pulse).strokeRoundedRect(-CW / 2 - 4, -CH / 2 - 4, CW + 8, CH + 8, 20);
@@ -83,6 +89,23 @@ export class SupportCard {
     this.shown = have;
   }
 
+  /** Blueprint: one small picture per upcoming delivery (a rank number on each), rebuilt only when the list changes. */
+  private syncPlan(s: GameState) {
+    const next = peekDeliveries(s, bpShow(s.unitLevel?.blueprint ?? 1));
+    const key = next.map((u) => `${u.family}${u.rank}`).join(',');
+    if (key === this.planKey) return;
+    this.planKey = key;
+    for (const i of this.plan) i.destroy();
+    this.plan = [];
+    next.forEach((u, k) => {
+      const tex = `${u.family}_${u.rank}`;
+      if (!this.scene.textures.exists(tex)) return;
+      const im = this.scene.add.image(-CW / 2 + 22 + k * 30, -CH / 2 - 24, tex).setScale(26 / 128);
+      this.c.add(im);
+      this.plan.push(im);
+    });
+  }
+
   /** A pointer-down from the scene; true = the card used it (the board must ignore this tap). */
   onDown(p: Phaser.Input.Pointer, s: GameState): boolean {
     const sp = s.support;
@@ -91,11 +114,12 @@ export class SupportCard {
     const onCard = Math.abs(p.worldX - this.x) <= CW / 2 + 6 && Math.abs(p.worldY - this.c.y) <= CH / 2 + 6;
     if (onCard) {
       if (!supportReady(s)) {
-        this.say(sp.prime ? `PRIME armed: your next ${sp.prime.any ? '' : 'shooter '}merge hits x${sp.prime.mult}` : `${job.name.toUpperCase()} ${job.verb}: ${job.text}  (${supportCharge(s)}/${supportNeed(s)} charge: +1 per machine in your chains)`);
+        this.say(sp.prime ? `PRIME armed: your next ${sp.prime.any ? '' : 'shooter '}merge hits x${sp.prime.mult}` : `${job.name.toUpperCase()} ${job.verb}: ${job.text}  (${supportCharge(s)}/${supportNeed(s)} charge: ${job.chargeText ?? '+1 per machine in your chains'})`);
         return true;
       }
       if (job.aim === 'none') {
-        this.fire(-1, 'row');
+        if (canUseSupport(s, -1, 'row')) this.fire(-1, 'row');
+        else this.say('Nothing to undo yet: make a merge first', '#ffb0a0');
         return true;
       }
       if (this.aiming && job.aim === 'line' && this.axis === 'row') this.axis = 'col';

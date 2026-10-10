@@ -1,13 +1,13 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--roster3] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
+// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--roster3] [--roster4] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 //        [--rule today|sandwich2|sandwichBonus]   (t-1effe0bf merge rule prototype; also prints board-full time, sandwiches/run, mean chain)
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { applyRoster1, applyRoster2, applyRoster3, levelMult, ROSTER_3_UNITS, unitDef } from '../src/content/units';
+import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, levelMult, ROSTER_3_UNITS, unitDef } from '../src/content/units';
 import { choosePerk, drop, legalPairs, locked, newLevel, previewMerge, sandwichFor, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
-import { autoSupport, useSupport } from '../src/core/support';
+import { autoSupport, canUseSupport, supportReady, useSupport } from '../src/core/support';
 import { applyMergeRule, storedMergeRule } from '../src/core/sandwich';
 import { FAMILIES, isRelay, type CascadeResult, type Family } from '../src/core/types';
 
@@ -44,6 +44,10 @@ applyRoster2(ROSTER2);
 // Tesla Tower is Legendary and only reaches the collection with crates B, but the sim picks squads by hand, so it plays without --rb.
 const ROSTER3 = args.includes('--roster3');
 applyRoster3(ROSTER3);
+// --roster4 (t-1e3c8bb6): roster B batch 4 on (TUNING.roster4) and its squads added (Capacitor / Ladder relays, +BLUEPRINT and +REWIND_CRANK helper cards).
+// The bot taps Rewind Crank after a merge that dealt under 60% of the best move it had (then plays the best move instead).
+const ROSTER4 = args.includes('--roster4');
+applyRoster4(ROSTER4);
 
 type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
 const SQUADS: Squad[] = [
@@ -57,6 +61,13 @@ const SQUADS: Squad[] = [
     ? [
         ...(['nail_gun', 'jackhammer', 'saw_blade'] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ['coil', 'bell'] as [Family, Family] })),
         ...([['coil', 'gear'], ['gear', 'bell']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+      ]
+    : []),
+  ...(ROSTER4
+    ? [
+        ...([['capacitor', 'bell'], ['coil', 'capacitor'], ['ladder', 'bell'], ['coil', 'ladder']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+        { key: '+BLUEPRINT', shooter: 'cannon' as Family, relays: ['coil', 'bell'] as [Family, Family], helper: 'blueprint' as Family },
+        { key: '+REWIND_CRANK', shooter: 'cannon' as Family, relays: ['coil', 'bell'] as [Family, Family], helper: 'rewind_crank' as Family },
       ]
     : []),
   ...(ROSTER3
@@ -235,7 +246,18 @@ function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
         see(res.events, true);
       }
       const m = s.phase === 'playing' ? bot.pick(s, rng) : null;
-      if (m) see(drop(s, m[0], m[1], s.grid[m[0]]!.id).events, true);
+      const best = m && s.support?.family === 'rewind_crank' ? bestNow(s) : 0;
+      if (m) {
+        const res = drop(s, m[0], m[1], s.grid[m[0]]!.id);
+        see(res.events, true);
+        const dealt = res.events.reduce((t, e) => t + (e.type === 'cascade' ? e.result.total : 0), 0);
+        if (best > 0 && s.phase === 'playing' && dealt < 0.6 * best && supportReady(s) && canUseSupport(s, -1)) {
+          see(useSupport(s, -1).events, true); // undo it, then play the best move the board offers
+          r.supports++;
+          const again = ALL_BOTS[1].pick(s, rng);
+          if (again) see(drop(s, again[0], again[1], s.grid[again[0]]!.id).events, true);
+        }
+      }
     }
     see(tick(s), false);
   }

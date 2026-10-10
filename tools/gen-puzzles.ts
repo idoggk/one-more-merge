@@ -16,6 +16,7 @@ import { allLines, breakAt, lineWins, puzzleMoves, puzzleStats, unitFreeBreaks }
 import { Rng } from '../src/core/rng';
 import { isRelay, type Family } from '../src/core/types';
 import { STARTER_UNITS } from '../src/content/units';
+import { TUNING } from '../src/content/tuning';
 
 const SHOOTERS: Family[] = ['cannon', 'rocket', 'mortar', 'arc_welder'];
 const RELAYS: Family[] = ['coil', 'bell', 'horn', 'fuse_box'];
@@ -133,6 +134,7 @@ export function dailyBand(d: number): [number, number] {
 const UNITS_ARG = process.argv.includes('--units') ? (process.argv[process.argv.indexOf('--units') + 1].split(',') as Family[]) : null;
 if (UNITS_ARG) {
   const data = JSON.parse(readFileSync('src/content/puzzles.json', 'utf8')) as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+  if (UNITS_ARG.some((u) => u === 'capacitor')) TUNING.roster4 = true; // t-1e3c8bb6: a Capacitor only banks / releases with batch 4 on (Blueprint and Rewind Crank have no drill: see docs/ROSTER.md section 11)
   for (const u of UNITS_ARG) {
     const r = new Rng(20261010 ^ [...u].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0), 7));
     const pick = <T,>(a: T[], n: number) => r.shuffle([...a]).slice(0, n);

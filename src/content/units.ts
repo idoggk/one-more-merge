@@ -5,6 +5,7 @@ import type { Family } from '../core/types';
 import { ROSTER_1_PERKS } from './roster1';
 import { ROSTER_2_PERKS } from './roster2';
 import { ROSTER_3_PERKS } from './roster3';
+import { ROSTER_4_PERKS } from './roster4';
 import { TUNING } from './tuning';
 
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
@@ -56,11 +57,23 @@ export const ROSTER_3_UNITS: UnitDef[] = [
   { id: 'blast_plate', role: 'SUPPORT', rarity: 'rare', slot: 'helper' },
   { id: 'tesla_tower', role: 'SHOOTER', rarity: 'legendary', slot: 'shooter' },
 ];
+/** Roster B batch 4 (t-1e3c8bb6): in UNITS only while TUNING.roster4 is on. Blueprint and Rewind Crank are off-board Support cards (Epic, like Capacitor and Ladder). */
+export const ROSTER_4_UNITS: UnitDef[] = [
+  { id: 'capacitor', role: 'RELAY', rarity: 'epic', slot: 'relay' },
+  { id: 'blueprint', role: 'SUPPORT', rarity: 'epic', slot: 'helper' },
+  { id: 'ladder', role: 'RELAY', rarity: 'epic', slot: 'relay' },
+  { id: 'rewind_crank', role: 'SUPPORT', rarity: 'epic', slot: 'helper' },
+];
 const BASE_UNITS = [...UNITS];
 /** Rebuild UNITS in place from the live roster flags (every reader sees it live), sorted by rarity. */
 export function rebuildUnits() {
-  const all = [...BASE_UNITS, ...(TUNING.roster1 ? ROSTER_1_UNITS : []), ...(TUNING.roster2 ? ROSTER_2_UNITS : []), ...(TUNING.roster3 ? ROSTER_3_UNITS.filter((u) => u.rarity !== 'legendary' || TUNING.rosterB) : [])].sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+  const all = [...BASE_UNITS, ...(TUNING.roster1 ? ROSTER_1_UNITS : []), ...(TUNING.roster2 ? ROSTER_2_UNITS : []), ...(TUNING.roster3 ? ROSTER_3_UNITS.filter((u) => u.rarity !== 'legendary' || TUNING.rosterB) : []), ...(TUNING.roster4 ? ROSTER_4_UNITS : [])].sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
   UNITS.splice(0, UNITS.length, ...all);
+}
+/** Switch the roster B batch 4 units in or out of UNITS. */
+export function applyRoster4(on: boolean) {
+  TUNING.roster4 = on;
+  rebuildUnits();
 }
 /** Switch the roster B batch 3 units in or out of UNITS (Tesla Tower also needs TUNING.rosterB; applyUnits re-runs this). */
 export function applyRoster3(on: boolean) {
@@ -78,7 +91,7 @@ export function applyRoster1(on: boolean) {
   rebuildUnits();
 }
 /** Every unit id a save may hold (flag on or off), for save repair. */
-export const ALL_UNIT_IDS: string[] = [...BASE_UNITS, ...ROSTER_1_UNITS, ...ROSTER_2_UNITS, ...ROSTER_3_UNITS].map((u) => u.id);
+export const ALL_UNIT_IDS: string[] = [...BASE_UNITS, ...ROSTER_1_UNITS, ...ROSTER_2_UNITS, ...ROSTER_3_UNITS, ...ROSTER_4_UNITS].map((u) => u.id);
 export const unitDef = (id: string) => UNITS.find((u) => u.id === id);
 export const STARTER_UNITS: Family[] = ['cannon', 'coil', 'bell', 'fan'];
 export const MAX_UNIT_LEVEL = 10;
@@ -110,7 +123,7 @@ export const helperMult = {
 };
 /** What a level gives, in words (unit detail page). */
 export const levelPerkText = (u: UnitDef, level: number) =>
-  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : u.id === 'wrench' ? `Arms on a rank ${level >= 3 ? 2 : 3}+ merge` : u.id === 'blast_plate' ? `Blocks ${level >= 6 ? 2 : 1} attack${level >= 6 ? 's' : ''}${level >= 3 ? ', 1x2 cells' : ''}${level >= 9 ? ', stuns 2 s' : ''}` : `Level ${level}`;
+  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : u.id === 'wrench' ? `Arms on a rank ${level >= 3 ? 2 : 3}+ merge` : u.id === 'capacitor' ? `Releases ${level >= 9 ? 2 : 1} touching part${level >= 9 ? 's' : ''}${level >= 6 ? ', 1 link deeper' : ''}` : u.id === 'ladder' ? `Climbs ${level >= 6 ? 'up, may skip a number' : 'one number at a time'}${level >= 3 ? ', or down' : ''}${level >= 9 ? ', top x1.5' : ''}` : u.id === 'blueprint' ? `Shows ${level >= 3 ? 4 : 3}, swaps ${level >= 6 ? 2 : 1}` : u.id === 'rewind_crank' ? `Charges every ${level >= 3 ? 8 : 10} merges${level >= 6 ? ', holds 2' : ''}` : u.id === 'blast_plate' ? `Blocks ${level >= 6 ? 2 : 1} attack${level >= 6 ? 's' : ''}${level >= 3 ? ', 1x2 cells' : ''}${level >= 9 ? ', stuns 2 s' : ''}` : `Level ${level}`;
 
 // ---- crates ----
 /** 'bench' = Golden Workbench: only used under TUNING.rosterB (earned Gems / the MOCK premium lane, never real money). */
@@ -206,6 +219,8 @@ const UNIT_PERKS_TODAY: Record<string, [string, string][]> = {
   ...ROSTER_2_PERKS,
   // roster B batch 3 (t-e728a5a6, core/roster3.ts)
   ...ROSTER_3_PERKS,
+  // roster B batch 4 (t-1e3c8bb6, core/roster4.ts)
+  ...ROSTER_4_PERKS,
 };
 
 /** t-e91097cd roster B: levels 3 / 6 / 9 change the unit's JOB (core/cascade.ts rbRouteCells / resolveCascade, game.ts

@@ -6,10 +6,11 @@ import { BOSSES, chapterBossIdx } from '../core/boss';
 import { TARGET_NAMES } from '../content/perks';
 import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { artPlan, RARE, type FirstScreen } from './artPlan';
-import { FAMILIES, ROSTER_1, ROSTER_2, ROSTER_3, type Family, type Roster1Family, type Roster2Family, type Roster3Family } from '../core/types';
+import { FAMILIES, ROSTER_1, ROSTER_2, ROSTER_3, ROSTER_4, type Family, type Roster1Family, type Roster2Family, type Roster3Family, type Roster4Family } from '../core/types';
 import { drawJobIcon, drawRoster1 } from './roster1Art';
 import { drawJobIcon2, drawRoster2 } from './roster2Art';
 import { drawJobIcon3, drawRoster3 } from './roster3Art';
+import { drawJobIcon4, drawRoster4 } from './roster4Art';
 
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
@@ -110,7 +111,7 @@ function star(x: number, y: number, n: number, r1: number, r2: number) {
   }
   return pts;
 }
-const COLORS: Record<Exclude<Family, Roster1Family | Roster2Family | Roster3Family>, [number, number, number]> = {
+const COLORS: Record<Exclude<Family, Roster1Family | Roster2Family | Roster3Family | Roster4Family>, [number, number, number]> = {
   cannon: [0xe8452c, 0xff7a52, 0x9e2416],
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
@@ -131,7 +132,8 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
   if ((ROSTER_1 as Family[]).includes(fam)) return drawRoster1(g, fam as Roster1Family, rank);
   if ((ROSTER_2 as Family[]).includes(fam)) return drawRoster2(g, fam as Roster2Family, rank);
   if ((ROSTER_3 as Family[]).includes(fam)) return drawRoster3(g, fam as Roster3Family, rank);
-  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family | Roster2Family | Roster3Family>];
+  if ((ROSTER_4 as Family[]).includes(fam)) return drawRoster4(g, fam as Roster4Family, rank);
+  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family | Roster2Family | Roster3Family | Roster4Family>];
   const s = 128;
   g.lineStyle(6, OUT, 1);
   if (fam === 'cannon') {
@@ -264,6 +266,7 @@ export function ensureTextures(scene: Phaser.Scene) {
   for (const f of ROSTER_1) gen(`job_${f}`, 64, 64, () => drawJobIcon(g, f));
   for (const f of ROSTER_2) gen(`job_${f}`, 64, 64, () => drawJobIcon2(g, f));
   for (const f of ROSTER_3) gen(`job_${f}`, 64, 64, () => drawJobIcon3(g, f));
+  for (const f of ROSTER_4) gen(`job_${f}`, 64, 64, () => drawJobIcon4(g, f));
 
   gen('dot', 16, 16, () => g.fillStyle(0xffffff).fillCircle(8, 8, 8));
   // tutorial pointing hand (white cartoon glove), fingertip near the top-left

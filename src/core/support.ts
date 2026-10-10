@@ -10,20 +10,23 @@
 import { COLS, ROWS, TUNING } from '../content/tuning';
 import { bossAfterPlayer, bossBlocked, bossCascadeMods, bossPendingCells } from './boss';
 import { resolveCascade } from './cascade';
-import { applyB1, applyDamage, applyMoves, capOf, dropReserved, hazardCells, locked, makeGadget, merge, torchOpt, type CommandResult, type GameEvent, type GameState } from './game';
+import { applyB1, applyDamage, applyMoves, capOf, dropReserved, hazardCells, locked, makeGadget, merge, peekDeliveries, peekNext, torchOpt, type CommandResult, type GameEvent, type GameState } from './game';
 import { attackCells, wardCells, wardHits } from './roster3';
-import { isRelay, isShooter, type CascadeResult } from './types';
+import { bpRank, bpShow, bpSwap, rewindModeOk, rewindRestore, rwNeed } from './roster4';
+import { isRelay, isShooter, isSupport, type CascadeResult } from './types';
 
 export type SupportAim = 'none' | 'cell' | 'part' | 'shooter' | 'line';
 export type Axis = 'row' | 'col';
 
 /** What each card does and how you aim it (words for the card and the guide). */
-export const SUPPORT_JOBS: Record<string, { name: string; verb: string; aim: SupportAim; text: string; aimText?: string; failText?: string }> = {
+export const SUPPORT_JOBS: Record<string, { name: string; verb: string; aim: SupportAim; text: string; aimText?: string; failText?: string; chargeText?: string }> = {
   fan: { name: 'Fan', verb: 'CLEAR', aim: 'cell', text: 'Tap a cell: clears junk, frost, locks and incoming attacks in the 3x3 around it.' },
   magnet: { name: 'Magnet', verb: 'PAIR', aim: 'part', text: 'Tap a part: a twin (same kind and number) arrives next to it.' },
   battery: { name: 'Battery', verb: 'PRIME', aim: 'none', text: 'Tap the card: your next shooter merge hits x2 (the whole chain).' },
   amplifier: { name: 'Amplifier', verb: 'MARK', aim: 'shooter', text: 'Tap a shooter: its next hit is x1.6.' },
   blast_plate: { name: 'Blast Plate', verb: 'BLOCK', aim: 'cell', text: 'Tap a cell: the next boss attack that would hit it is blocked. Only the Blast Plate blocks boss attacks.', aimText: 'Tap a cell: the next boss attack that hits it is BLOCKED', failText: 'No boss to block there' },
+  blueprint: { name: 'Blueprint', verb: 'SWAP', aim: 'part', text: 'The card shows your next deliveries. Tap a part: the next delivery that is not that kind becomes a copy of it, arriving at number 1.', aimText: 'Tap a part: the next delivery becomes a copy of it (number 1)', failText: 'No delivery to swap for that part' },
+  rewind_crank: { name: 'Rewind Crank', verb: 'UNDO', aim: 'none', text: 'Tap the card: your last merge is undone. The board, the delivery queue, the monster HP and the dice all go back exactly. Charges every 10 merges. Off in puzzles, the daily and bounties.', chargeText: '+1 per merge you make' },
   signal_beacon: { name: 'Signal Beacon', verb: 'GO', aim: 'line', text: 'Pick ROW or COLUMN on the card, tap a cell: every machine on that line fires now.' },
 };
 
@@ -34,12 +37,13 @@ export function supportNeed(s: GameState): number {
   const sp = s.support;
   if (!sp) return Infinity;
   const L = lvl(s);
+  if (sp.family === 'rewind_crank') return rwNeed(L);
   const k = sp.family === 'magnet' && L >= 3 ? 0.75 : sp.family === 'signal_beacon' && L >= 9 ? 0.6 : 1;
   return Math.max(1, Math.round((TUNING.rb.need[sp.family] ?? 12) * k));
 }
 /** Charge shown on the card (capped at the need). */
 export const supportCharge = (s: GameState) => (s.support ? Math.min(s.support.charge, supportNeed(s)) : 0);
-export const supportReady = (s: GameState) => !!s.support && s.phase === 'playing' && !s.puzzle && s.support.charge >= supportNeed(s) && !(s.support.family === 'battery' && s.support.prime);
+export const supportReady = (s: GameState) => !!s.support && s.phase === 'playing' && !s.puzzle && s.support.charge >= supportNeed(s) && !(s.support.family === 'battery' && s.support.prime) && (s.support.family !== 'rewind_crank' || rewindModeOk(s));
 
 /** Cells a Fan clear at `cell` covers: 3x3 (L3 three whole rows, L9 the board). */
 export function fanArea(cell: number, level: number): number[] {
@@ -73,12 +77,19 @@ export function pairLanding(s: GameState, cell: number): number {
   return best;
 }
 
+/** Blueprint: the deliveries shown on the card (not yet that kind) a swap can turn into a copy, in order. */
+export function blueprintSwaps(s: GameState, family: string) {
+  return peekDeliveries(s, bpShow(s.unitLevel?.blueprint ?? 1)).filter((u) => (u.pend !== undefined || u.ord !== undefined) && u.family !== family);
+}
+
 /** Can the card fire at this target now? (A tap that would do nothing never spends the charge.) */
 export function canUseSupport(s: GameState, cell: number, axis: Axis = 'row'): boolean {
   if (!supportReady(s)) return false;
   const f = s.support!.family, g = s.grid[cell];
   const lk = locked(s);
   if (f === 'battery') return true;
+  if (f === 'rewind_crank') return !!s.support!.snap && s.elapsed - (s.support!.snapAt ?? -1e9) <= TUNING.r4.rwWindow;
+  if (f === 'blueprint') return !!g && !isSupport(g.family) && !lk.has(cell) && blueprintSwaps(s, g.family).length > 0;
   if (f === 'blast_plate') return !!s.boss && cell >= 0 && cell < s.grid.length && !(s.wards?.list ?? []).some((w) => wardCells(cell, lvl(s)).every((c) => w.cells.includes(c)));
   if (cell < 0 || cell >= s.grid.length) return false;
   if (f === 'fan') {
@@ -98,9 +109,26 @@ export function useSupport(s: GameState, cell: number, axis: Axis = 'row'): Comm
   const sp = s.support!;
   const f = sp.family, L = lvl(s);
   const need = supportNeed(s);
-  sp.charge = f === 'blast_plate' ? 0 : (f === 'fan' && L >= 6) || ((f === 'magnet' || f === 'amplifier') && L >= 9) ? Math.floor(need / 2) : 0;
+  if (f !== 'rewind_crank') sp.charge = f === 'blast_plate' ? 0 : (f === 'fan' && L >= 6) || ((f === 'magnet' || f === 'amplifier') && L >= 9) ? Math.floor(need / 2) : 0;
   sp.uses++;
-  if (f === 'battery') {
+  if (f === 'rewind_crank') {
+    // roster 4 UNDO: the state text taken before your last merge goes back in full (board, tray queue, bag, HP, clock, every random generator);
+    // the crank pays one charge and the undone merge does not count toward the next one
+    const back = sp.charge, snapCharge = sp.snapCharge ?? 0;
+    rewindRestore(s, sp.snap!);
+    sp.snap = sp.snapAt = sp.snapCharge = undefined;
+    sp.charge = Math.max(0, Math.min(back - need, snapCharge));
+    ev.push({ type: 'rewind', ...(L >= 9 ? { peek: peekNext(s) } : {}) });
+  } else if (f === 'blueprint') {
+    // roster 4 PLAN: the next deliveries that are not this kind become copies of it, at number 1 (the first at number 2 from L9)
+    const fam = s.grid[cell]!.family;
+    blueprintSwaps(s, fam).slice(0, bpSwap(L)).forEach((u, k) => {
+      const rank = bpRank(L, k === 0);
+      if (u.pend !== undefined) s.pending[u.pend] = makeGadget(s, fam, rank);
+      else (s.plan ??= { over: {} }).over[u.ord!] = { family: fam, rank };
+    });
+    ev.push({ type: 'support', family: f, cells: [cell] });
+  } else if (f === 'battery') {
     sp.prime = { mult: L >= 3 ? TUNING.rb.primeL3 : TUNING.rb.prime, left: L >= 6 ? 2 : 1, any: L >= 9 };
     ev.push({ type: 'support', family: f, cells: [], mult: sp.prime.mult });
   } else if (f === 'blast_plate') {
@@ -163,6 +191,16 @@ export function autoSupport(s: GameState): { cell: number; axis: Axis } | null {
     return best >= 0 ? { cell: best, axis, score: bs } : null;
   };
   if (f === 'battery') return { cell: -1, axis: 'row' };
+  if (f === 'rewind_crank') return null; // the bot decides when to undo (tools/squad-swap.ts): it needs the merge's result
+  if (f === 'blueprint') {
+    // a lonely number-1 part (odd count of its kind) gets a twin delivered; machines first
+    const n = new Map<string, number>();
+    for (const g of s.grid) if (g) n.set(g.family + g.rank, (n.get(g.family + g.rank) ?? 0) + 1);
+    return pick((i) => {
+      const g = s.grid[i]!;
+      return g.rank === 1 && n.get(g.family + 1)! % 2 ? 10 + (isShooter(g.family) || isRelay(g.family) ? 5 : 0) : 0;
+    });
+  }
   if (f === 'blast_plate') {
     // aim at what the boss has just warned about; nothing queued = keep the card charged
     const p = s.boss?.pending;
