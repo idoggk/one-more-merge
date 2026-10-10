@@ -11,7 +11,8 @@ import { deserialize, newGame, resumable, serialize, tick } from '../src/core/ga
 import { PACE_KEY, UNITS_B0_KEY } from '../src/content/experiments';
 import { MERGE_RULE_KEY } from '../src/core/sandwich';
 import { TUNING } from '../src/content/tuning';
-import { cardsFor, LEVEL_CARDS, unitDef } from '../src/content/units';
+import { applyRoster1, applyRoster2, cardsFor, LEVEL_CARDS, unitDef } from '../src/content/units';
+import { grantGifts } from '../src/core/unlockPlan';
 import { cardsAvailable } from '../src/core/spareParts';
 
 class MemStore {
@@ -331,5 +332,61 @@ describe('saves from before the Legendary rarity (ROSTER B crates)', () => {
     expect(m.pity).toBeUndefined(); // a damaged pity object is dropped and the game rebuilds it
     expect(m.crates).toEqual({ wood: 1 });
     expect(m.units).toEqual(OLD_COLLECTION.units);
+  });
+});
+
+// t-c78bf16f unlock plan (TUNING.rosterUnlocks): `meta.gifts` is one new optional field. Old saves have none and load as before;
+// owned units stay owned; gifts already given survive save -> backup code -> load.
+describe('saves and the unlock plan gifts', () => {
+  const OLD_PLAYER = {
+    tutorialDone: true, bestTime: null, bestChain: 6, runs: 40, wins: 30, sound: true, hints: true, music: true, hardUnlocked: true, bestTimeHard: null, toys: {}, remixBest: {}, tips: {},
+    levelStars: Object.fromEntries(Array.from({ length: 24 }, (_, i) => [String(i + 1), 2])),
+    units: { cannon: { level: 3, cards: 1 }, coil: { level: 1, cards: 0 }, bell: { level: 1, cards: 0 }, fan: { level: 1, cards: 0 }, nail_gun: { level: 2, cards: 3 } },
+    crates: { wood: 1 },
+  };
+
+  it('an old save has no gifts field and loads whole, flag off and on', () => {
+    for (const on of [false, true]) {
+      TUNING.rosterUnlocks = on;
+      const m = loadFrom(OLD_PLAYER);
+      expect(m).toMatchObject(OLD_PLAYER);
+      expect(m.gifts).toBeUndefined();
+    }
+    TUNING.rosterUnlocks = false;
+  });
+
+  it('a unit owned before stays owned when its gift level is cleared; the gift is only marked given', () => {
+    applyRoster1(true);
+    applyRoster2(true);
+    TUNING.rosterUnlocks = true;
+    const m = loadFrom(OLD_PLAYER);
+    const got = grantGifts(m);
+    expect(got.map((r) => [r.gift.unit, r.isNew])).toEqual([['nail_gun', false], ['wrench', true], ['jackhammer', true]]);
+    expect(m.units!.nail_gun).toEqual({ level: 2, cards: 3 });
+    expect(m.gifts).toEqual({ nail_gun: true, wrench: true, jackhammer: true });
+    applyRoster1(false);
+    applyRoster2(false);
+    TUNING.rosterUnlocks = false;
+  });
+
+  it('gifts given survive save -> backup code -> load, and a damaged gifts field is repaired', async () => {
+    const meta = { ...OLD_PLAYER, gifts: { nail_gun: true, wrench: true } };
+    expect(loadFrom(meta)).toMatchObject(meta);
+    for (const compress of [true, false]) {
+      const r = await importCode(await exportCode({ meta: structuredClone(meta) as never, run: null }, compress));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      const phone = new MemStore();
+      applyBundle(phone, r.bundle);
+      expect(loadFrom(phone.getItem(META_KEY)!)).toMatchObject(meta);
+    }
+    const bad = loadFrom({ ...OLD_PLAYER, gifts: { nail_gun: true, wrench: 'yes', gear: null } });
+    expect(bad.gifts).toEqual({ nail_gun: true });
+    expect(loadFrom({ ...OLD_PLAYER, gifts: 5 }).gifts).toBeUndefined();
+    expect(loadFrom({ ...OLD_PLAYER, gifts: 5 }).units).toEqual(OLD_PLAYER.units);
+  });
+
+  it('the QA switch never rides in a backup code', () => {
+    expect(META_KEY).not.toContain('roster_unlocks');
   });
 });

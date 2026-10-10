@@ -43,6 +43,7 @@ import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markT
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { cardsAvailable } from '../core/spareParts';
+import { clampCrate, clearedLevel } from '../core/unlockPlan';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
 import { addBoosters, nextYard, recordYard, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
@@ -4543,11 +4544,19 @@ Merge them into a RANK ${rank}!`, this.coachY());
   unitsReady() {
     return UNITS.some((u) => this.canUpgrade(u));
   }
-  giveCrate(kind: CrateKind, n = 1) {
+  /** Adds crates to the inventory. Returns the kind actually given: under TUNING.rosterUnlocks a reward is clamped to the highest crate tier the
+   *  player has opened (Tool Bag L10, Toolbox L20, Tool Chest L30, Workbench L50), and null (nothing given) while none is open. */
+  giveCrate(kind: CrateKind, n = 1): CrateKind | null {
     const m = this.meta;
+    if (TUNING.rosterUnlocks) {
+      const k = clampCrate(kind, clearedLevel(m.levelStars));
+      if (!k) return null;
+      kind = k;
+    }
     m.crates = { ...(m.crates ?? {}), [kind]: (m.crates?.[kind] ?? 0) + n };
     store(META_KEY, JSON.stringify(m));
     tlog.log('crate_grant', { kind, n });
+    return kind;
   }
 
   openUnitsTab() {

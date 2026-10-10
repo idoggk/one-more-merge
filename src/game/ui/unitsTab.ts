@@ -7,7 +7,8 @@ import { META_KEY } from '../../platform/backup';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, UNIT_PERKS, levelPerkText, MAX_UNIT_LEVEL, SHOP, UNITS, type CrateKind, type UnitDef, RARITY_COLOR, LATCH_B, CRATES_B } from '../../content/units';
 import { Rng } from '../../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, openCrateB } from '../../core/crates';
-import { localDate, store } from '../meta';
+import { localDate, store, type Meta } from '../meta';
+import { clearedLevel, openRarities } from '../../core/unlockPlan';
 import { GUIDE, unitsTitle, relayLockNote } from '../../content/sceneCopy';
 import type { GameScene } from '../GameScene';
 import { W, H, PUZZLES } from '../sceneKit';
@@ -231,6 +232,9 @@ export function openNextCrate(scene: GameScene) {
   scene.openCrate(kind);
 }
 
+/** TUNING.rosterUnlocks: the rarities crates may drop at this player's chapter (undefined = flag off, every rarity as today). */
+const planOpen = (m: Meta) => (TUNING.rosterUnlocks ? openRarities(clearedLevel(m.levelStars)) : undefined);
+
 /** Roll, apply and present a crate: shake, burst, then each card flips in; NEW units unlock on the spot. */
 export function openCrate(scene: GameScene, kind: CrateKind) {
   const m = scene.meta;
@@ -248,11 +252,11 @@ export function openCrate(scene: GameScene, kind: CrateKind) {
   let opened = kind, latchedFrom: CrateKind | undefined;
   let cards: CrateCard[];
   if (TUNING.rosterB) {
-    const r = openCrateB(kind, owned, seed, m.pity);
+    const r = openCrateB(kind, owned, seed, m.pity, planOpen(m));
     opened = r.opened;
     cards = r.cards;
     if (r.latched) latchedFrom = kind;
-  } else cards = rollCrate(kind, owned, seed, m.pity);
+  } else cards = rollCrate(kind, owned, seed, m.pity, planOpen(m));
   // ...and the first Wood crate always shows that crates unlock playable units: Horn
   if (opened === 'wood' && !owned.has('horn')) {
     const first = cards[cards.length - 1];
@@ -410,7 +414,7 @@ export function openUnitShop(scene: GameScene) {
     const all = new Map<string, CrateCard>();
     for (let k = 0; k < n; k++) {
       m.crateSeq = (m.crateSeq ?? 0) + 1;
-      for (const cd of rollFeatured(owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, fu, m.pity!)) {
+      for (const cd of rollFeatured(owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, fu, m.pity!, planOpen(m))) {
         const e = all.get(cd.unit);
         if (e) e.count += cd.count;
         else all.set(cd.unit, { ...cd });

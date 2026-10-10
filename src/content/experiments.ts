@@ -116,6 +116,20 @@ export function applyUnits(v: UnitsVariant) {
   rebuildUnits(); // Tesla Tower (Legendary, roster 3) is in the collection only while crates B is on
 }
 
+/** QA panel UNLOCK PLAN switch (t-c78bf16f, TUNING.rosterUnlocks; this device only, not in the save): 'on' = the chapter unlock plan,
+ *  anything else / missing / unreadable = OFF. */
+export const ROSTER_UNLOCKS_KEY = 'omm_qa_roster_unlocks';
+export function storedRosterUnlocks(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyRosterUnlocks(on: boolean) {
+  TUNING.rosterUnlocks = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

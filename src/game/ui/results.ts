@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../../content/perks';
-import { COLS, ROWS } from '../../content/tuning';
+import { COLS, ROWS, TUNING } from '../../content/tuning';
+import type { UnitGift } from '../../content/unlockPlan';
+import { grantGifts } from '../../core/unlockPlan';
+import { showGiftReveal } from './giftReveal';
 import { capOf, type GameState } from '../../core/game';
 import type { CascadeResult, Family } from '../../core/types';
 import { buildMachine, hasMachineArt } from '../machine';
@@ -253,6 +256,7 @@ export function openLevelResult(scene: GameScene, won: boolean) {
   let firstClear = false;
   let chapterDone = 0;
   const chest = { goldCrates: 0, gems: 0 }; // walkthrough 3: listed on the CHAPTER COMPLETE chest
+  const gifts: UnitGift[] = [];
   if (won) {
     m.wins++;
     got = starsFor(def, s.elapsed);
@@ -282,16 +286,17 @@ export function openLevelResult(scene: GameScene, won: boolean) {
         bolts += MASTERY_BOLTS;
         const total = Object.values(medals).reduce((t, v) => t + v.length, 0);
         lines.push(`MASTERY \u2713 ${contractText(ct)}  +${MASTERY_BOLTS}`);
+        // (rosterUnlocks: giveCrate returns the tier really given, or null while none is open)
         if (total % 30 === 0) {
-          scene.giveCrate('iron');
-          lines.push(`${total} MASTERY MEDALS: +1 IRON CRATE`);
+          const g = scene.giveCrate('iron');
+          if (g) lines.push(`${total} MASTERY MEDALS: +1 ${CRATES[g].name}`);
         } else if (total % 10 === 0) {
-          scene.giveCrate('wood');
-          lines.push(`${total} MASTERY MEDALS: +1 WOOD CRATE`);
+          const g = scene.giveCrate('wood');
+          if (g) lines.push(`${total} MASTERY MEDALS: +1 ${CRATES[g].name}`);
         }
         if (total === LEVELS.length * 2) {
-          scene.giveCrate('gold');
-          lines.push('EVERY MEDAL! +1 GOLD CRATE');
+          const g = scene.giveCrate('gold');
+          if (g) lines.push(`EVERY MEDAL! +1 ${CRATES[g].name}`);
         }
         tlog.log('mastery_medal', { level: n, contract: ct.kind, total });
       });
@@ -328,11 +333,16 @@ export function openLevelResult(scene: GameScene, won: boolean) {
         chest.gems += GEM_REWARDS.chapterBoss;
         lines.push(`+${GEM_REWARDS.chapterBoss} GEMS`);
       }
-      if (kind) {
-        scene.giveCrate(kind);
-        if (kind === 'gold' && n % 10 === 0) chest.goldCrates++;
-        lines.push(`+1 ${CRATES[kind].name}`);
+      const given = kind ? scene.giveCrate(kind) : null; // rosterUnlocks: a tier that is not open yet gives the highest open one (or nothing)
+      if (given) {
+        if (given === 'gold' && n % 10 === 0) chest.goldCrates++;
+        lines.push(`+1 ${CRATES[given].name}`);
       }
+    }
+    // unlock plan gifts (TUNING.rosterUnlocks): a cleared gift level hands over its unit once (tracked in meta.gifts); the reveal waits on the endQueue
+    if (TUNING.rosterUnlocks) for (const r of grantGifts(m)) if (r.isNew) {
+      lines.push(`NEW UNIT: ${FAMILY_INFO[r.gift.unit as 'cannon'].name.toUpperCase()}`);
+      gifts.push(r.gift);
     }
     if (firstClear && n % 10 === 0 && !(m.medals ??= {})[String(n / 10)]) {
       m.medals![String(n / 10)] = true;
@@ -427,6 +437,7 @@ export function openLevelResult(scene: GameScene, won: boolean) {
   // F6: CHAPTER COMPLETE and BACK UP wait until the player leaves this screen, then show one at a time (each its
   // own tap); the button's action runs after them, so a tap on NEXT LEVEL is never eaten by a popup
   scene.endQueue.clear();
+  for (const g of gifts) scene.endQueue.push((done) => showGiftReveal(scene, g, done));
   if (chapterDone) {
     scene.endQueue.push((done) => scene.playChapterChest(chapterDone, done, chest));
     scene.endQueue.push((done) => scene.backupNudge(chapterDone, done));

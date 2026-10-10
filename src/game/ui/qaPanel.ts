@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -62,6 +62,9 @@ applyRoster6(qaRoster6());
 // t-67cd7c5b QA-only: roster B batch 7 (Rivet Gun / Vice / Router / Hydraulic Press / Lathe in collection, crates and squads; none is Legendary)
 export const qaRoster7 = () => storedRoster7(() => localStorage.getItem(ROSTER7_KEY));
 applyRoster7(qaRoster7());
+// t-c78bf16f QA-only: the chapter unlock plan (gifts, crate tiers, rarity-gated crate pool), default OFF
+export const qaRosterUnlocks = () => storedRosterUnlocks(() => localStorage.getItem(ROSTER_UNLOCKS_KEY));
+applyRosterUnlocks(qaRosterUnlocks());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -314,6 +317,28 @@ export const QA_ROWS: QaRow[] = [
         }, 0.62);
         c.add(scene.add.text(x, by + 36, r.units, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '13px', color: '#7a5a4a', align: 'center', wordWrap: { width: 160 } }).setOrigin(0.5));
       });
+      // t-c78bf16f: the chapter unlock plan (gifts + crate tiers + rarity-gated crate pool), and ALL NEW UNITS = batches 1..7 + the plan, together
+      const planOn = qaRosterUnlocks();
+      const plan = (on: boolean) => {
+        store(ROSTER_UNLOCKS_KEY, on ? 'on' : null);
+        applyRosterUnlocks(on);
+        tlog.log('qa_roster_unlocks', { on });
+      };
+      scene.button(c, W / 2 + 1.5 * 170, y + 162, 230, planOn ? '[UNLOCK PLAN]' : 'UNLOCK PLAN', planOn ? 0x5fbf4a : 0x8a6a4a, () => { // the free 8th slot of the grid
+        plan(!planOn);
+        scene.showToast(planOn ? 'UNLOCK PLAN OFF (live game)' : 'UNLOCK PLAN ON  ·  GIFTS ON LEVEL 10, 13, 20, 25, 30, 35, 40, 50');
+        reopen();
+      }, 0.62);
+      const allOn = ROSTER_BATCHES.every((r) => r.on()) && planOn;
+      scene.button(c, W - 110, y + 12, 330, allOn ? '[ALL NEW UNITS]' : 'ALL NEW UNITS', allOn ? 0x5fbf4a : 0x8e58c9, () => { // beside the heading
+        for (const r of ROSTER_BATCHES) {
+          store(r.key, 'on');
+          r.apply(true);
+        }
+        plan(true);
+        scene.showToast('ALL NEW UNITS ON  ·  BATCHES 1..7 + UNLOCK PLAN');
+        reopen();
+      }, 0.5);
     },
   },
   // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)

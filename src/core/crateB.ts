@@ -2,6 +2,7 @@
 // Odds, guarantees and pity all come from CRATES_B / PITY_B; core/crateOdds.ts prints from the same tables.
 import { CRATES_B, NEW_UNIT_PITY, PITY_B, RARITY_ORDER, UNITS, type CrateKind, type Rarity } from '../content/units';
 import { slotRarityB } from './crateOdds';
+import { liftToOpen } from './unlockPlan';
 import { Rng } from './rng';
 import type { Family } from './types';
 
@@ -24,18 +25,21 @@ const rarityOf = (f: Family) => UNITS.find((u) => u.id === f)!.rarity;
  *  - guaranteed and forced cards prefer a unit you do not own yet; the NEW-unit pity swaps one non-guaranteed card for a
  *    missing unit of the same or a lower rarity, so no guarantee can be lowered by it.
  */
-export function rollPicksB(kind: CrateKind, owned: ReadonlySet<Family>, seed: number, pity: Pity): Family[] {
+export function rollPicksB(kind: CrateKind, owned: ReadonlySet<Family>, seed: number, pity: Pity, open?: ReadonlySet<Rarity>): Family[] {
   const spec = CRATES_B[kind];
   const rng = new Rng(seed >>> 0 || 1);
   const rar: Rarity[] = [];
   for (let k = 0; k < spec.cards; k++) rar.push(slotRarityB(rng.next(), spec.mins[k], spec.odds));
+  // unlock plan (TUNING.rosterUnlocks): a slot whose rarity is not open yet rolls down to the best open rarity; same rng draws, so flag-off rolls are untouched
+  const isOpen = (r: Rarity) => !open || open.has(r);
+  if (open) rar.forEach((r, k) => (rar[k] = liftToOpen(r, open)));
   const hard = new Set<number>(spec.mins.map((_, k) => k)); // slots a missing unit is preferred for, and the new-unit swap never touches
   pity.leg = pity.leg ?? 0;
-  if (PITY_B.epic.step[kind] > 0 && pity.epic + PITY_B.epic.step[kind] >= PITY_B.epic.at && !rar.includes('epic')) {
+  if (isOpen('epic') && PITY_B.epic.step[kind] > 0 && pity.epic + PITY_B.epic.step[kind] >= PITY_B.epic.at && !rar.includes('epic')) {
     const k = rar.findIndex((r) => rank(r) < rank('epic'));
     if (k >= 0) (rar[k] = 'epic'), hard.add(k);
   }
-  if (PITY_B.legendary.step[kind] > 0 && pity.leg + PITY_B.legendary.step[kind] >= PITY_B.legendary.at && !rar.includes('legendary')) {
+  if (isOpen('legendary') && PITY_B.legendary.step[kind] > 0 && pity.leg + PITY_B.legendary.step[kind] >= PITY_B.legendary.at && !rar.includes('legendary')) {
     const k = rar.map((r) => rank(r) < rank('legendary')).lastIndexOf(true);
     if (k >= 0) (rar[k] = 'legendary'), hard.add(k);
   }
@@ -52,7 +56,7 @@ export function rollPicksB(kind: CrateKind, owned: ReadonlySet<Family>, seed: nu
   if (!picks.some((u) => !owned.has(u)) && pity.dry + 1 >= NEW_UNIT_PITY) {
     const free = rar.map((r, k) => k).filter((k) => !hard.has(k)).sort((a, b) => rank(rar[a]) - rank(rar[b]) || a - b);
     for (const k of free) {
-      const cand = UNITS.filter((u) => !owned.has(u.id) && u.rarity !== 'legendary' && rank(u.rarity) >= rank(rar[k])).map((u) => u.id);
+      const cand = UNITS.filter((u) => !owned.has(u.id) && u.rarity !== 'legendary' && isOpen(u.rarity) && rank(u.rarity) >= rank(rar[k])).map((u) => u.id);
       if (!cand.length) continue;
       picks[k] = cand[rng.int(cand.length)];
       rar[k] = rarityOf(picks[k]);
@@ -61,8 +65,8 @@ export function rollPicksB(kind: CrateKind, owned: ReadonlySet<Family>, seed: nu
   }
   // pity bookkeeping (only crates that can drop the rarity move its counter)
   const has = (r: Rarity) => picks.some((u) => rarityOf(u) === r);
-  pity.epic = has('epic') ? 0 : pity.epic + PITY_B.epic.step[kind];
-  pity.leg = has('legendary') ? 0 : pity.leg + PITY_B.legendary.step[kind];
+  pity.epic = has('epic') ? 0 : pity.epic + (isOpen('epic') ? PITY_B.epic.step[kind] : 0);
+  pity.leg = has('legendary') ? 0 : pity.leg + (isOpen('legendary') ? PITY_B.legendary.step[kind] : 0);
   pity.dry = picks.some((u) => !owned.has(u)) ? 0 : pity.dry + 1;
   return picks;
 }

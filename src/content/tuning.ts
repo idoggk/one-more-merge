@@ -225,6 +225,9 @@ export const TUNING = {
    *  Hydraulic Press: x pressFull when all 4 touching cells hold parts (L9 pressFullL9), else x pressSmall (+pressPer per filled side from L3); L6 3 of 4 sides x pressNear.
    *  Lathe: on an edge x(latheBase + lathePer per step to the opposite edge), capped latheCap (latheCapL3 / latheCapL9); off the edge x latheOff (latheOffL9 at L9); L6 a clear shaft +latheClear. */
   roster7: false,
+  /** EXPERIMENT (t-c78bf16f), default OFF: the chapter unlock plan of docs/ROSTER.md section 6 (src/content/unlockPlan.ts, core/unlockPlan.ts). Boss and level gifts,
+   *  crate tiers that open by chapter (Tool Bag L10, Toolbox L20, Tool Chest L30, Workbench L50), and crates drop a unit only while its rarity's tier is open. OFF = today's game. */
+  rosterUnlocks: false,
   r7: { rivetHit: 2, rivetHitL9: 2.4, rivetNear: 1.25, viceReach: 3, viceReachL3: 4, viceCorner: 2, viceCornerL3: 3, viceGrip: 1.4, viceGripL9: 1.6, viceMax: 6, routerArm: 2, routerArm2: 2, routerArm2L3: 3, routerMax: 6, routerFirst: 2, routerFirstL3: 3, pressFull: 3, pressFullL9: 3.5, pressSmall: 0.7, pressPer: 0.1, pressNear: 1.5, latheBase: 0.7, lathePer: 0.25, lathePerL3: 0.3, latheCap: 2, latheCapL3: 2.3, latheCapL9: 2.4, latheOff: 0.5, latheOffL9: 0.8, latheClear: 0.2 },
   r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };

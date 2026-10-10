@@ -201,6 +201,7 @@ Every batch ships behind its own TUNING flag (default OFF) with balance sims (`t
 | B5 | Crane, Dynamo, Wrecking Ball | Built behind `TUNING.roster5` (default OFF, QA switch ROSTER 5), t-af818b65. See section 12 |
 | B6 | Robot Arm, Tilt Lever | Built behind `TUNING.roster6` (default OFF, QA switch ROSTER 6), t-f2cd50e4. See section 13 |
 | B7 | Rivet Gun, Vice, Router, Hydraulic Press, Lathe | Built behind `TUNING.roster7` (default OFF, QA switch BATCH 7), t-67cd7c5b. See section 14 |
+| Unlock plan | Gifts + crate tiers of section 6 | Built behind `TUNING.rosterUnlocks` (default OFF, QA rows UNLOCK PLAN and ALL NEW UNITS), t-c78bf16f. See section 15 |
 
 The B1 rules in code predate this doc. They differ from the section 2 jobs in places (for example B1 Battery = "x2 on a touching shooter"; here Battery = "chosen shooter x1.5"). See Q1.
 
@@ -283,6 +284,17 @@ Rules:
 18. **Signal Beacon unlock**: it is live and Legendary, so the section 6 rule lets it drop from Toolboxes (0.5% Legendary) from chapter 2, before its L50 gift. Intended?
 19. **Merges outside a normal merge** (Crane mid-chain, Tilt Lever): do they count for Wrench arming, Capacitor release, Rewind Crank and Tilt Lever charging, and Rocket's merge hit?
 20. ~~Tesla L6 "Support units in range"~~ replaced (t-7be23b54), but other lines may still assume on-board Support; recheck them once Q1 is answered.
+21. **Gift levels vs levels.json** (checked in t-c78bf16f; chapters and boss levels match: 80 levels, bosses on L10/20/30/40/50, L13/25/35 are ordinary levels). The section 6 rule "a gift lands where its matching boss attack or board shape first appears" does NOT hold for these gifts. Built as written, the tip points to the first level that fits:
+    - **Jackhammer (L20)**: shield levels are only L11 and L33, so L20 is after the first one and L33 is the first to use it.
+    - **Gear (L25)**: no `split` / `rest` level before L47 (`rest`) and L57 (`split`); the Gear's tip is generic ("two Gears link").
+    - **Saw Blade (L30)**: first GAPS level is L34 (then L45, L64), four levels after the gift.
+    - **Blowtorch (L35)**: hazards (`frost` L19, L25; `hot` L37) exist before and just after it; no unit-level rule names it yet.
+    - **Blast Plate (L40)**: bosses have attacked since L10, so L40 is not where attacks first appear.
+    - **Nail Gun (L10), Wrench (L13)**: ordinary levels, no matching shape. Move the gifts, or accept the generic tips?
+22. **Crate drops before the gift levels.** A tier is "open" once its level is cleared, and a tier opens every rarity it can drop (Tool Bag: Common / Rare / Epic 2%). So Epic units can come from the first Tool Bag (L10), before Saw Blade (Epic) is gifted at L30. With crates B, Legendary opens with the Toolbox (L20, 0.5%), before the L50 Signal Beacon gift (see Q18). Should Epic wait for the Toolbox and Legendary for the Tool Chest?
+23. **Crates that exist before L10.** With the plan on, level rewards are clamped to the highest open tier (the L10 boss gold crate becomes a Tool Bag, L20 an Iron / Toolbox) and no crate at all is given while none is open (no Wood crate on L3 / L6 / L9, none from the L8 mini-boss). Bounty, season, Screw Yard and collection crates are clamped the same way (`giveCrate`). Crates bought with Gems (and the Workbench) are not clamped. Intended?
+24. **Other unit sources are not gated yet**: the first Iron crate's "choose a Rare" screen, the Screw Yard grand prize (an Epic card), Featured Packs, Role Packs and Trials. The first Tool Bag still always brings a Horn (kept as today; Horn is a Common that the plan treats as a crate unit).
+25. **Today's road debuts (Q8) are unchanged.** In the live code Rocket L6 is only a migration for old saves plus a "NEW: ROCKET" starting piece on the L6 card, and Magnet L12 / Battery L17 come from toy challenges that open at L8 (`unlocks.ts`). The plan does not touch them.
 
 ---
 
@@ -406,3 +418,17 @@ Sims (squad-swap, L21-78 step 3, n 8 per level = 160 runs per bot, random + smar
 - **Vice**: with Bell level 1 random -23 win points, smart -4, 10% slower; with Coil about even with Coil + Horn (-11 win points, smart 8% faster); level 9 about even with Bell / Horn (random -1 to -4 win points, smart -5% to +3% clear time). It is a placement unit: bots do not place on purpose, so these are floor numbers.
 - **Router**: with Bell about even (level 1 smart 5% faster, random -1), with Coil 21% faster for the smart bot at level 1 and 12% at level 9. The strongest of the five but in line with the best relays (Dynamo -7% to -10%, Rewind -8% to -10%): watch Coil + Router. With every flag on (`--roster1..7 --rb`) all five still play (Press smart 95%, the others 100%).
 - No unit is dominant or dead. Likely follow-ups for the owner: Rivet Gun a little stronger, Router watched with Coil.
+
+---
+
+## 15. Unlock plan: what is built (t-c78bf16f, flag `TUNING.rosterUnlocks`, default OFF)
+
+Code: `src/content/unlockPlan.ts` (the gift list and the tier levels), `src/core/unlockPlan.ts` (pure rules), the crate pool gate in `src/core/crates.ts` / `crateB.ts` (`open` argument), `GameScene.giveCrate` (tier clamp), `src/game/ui/results.ts` (grants gifts on a win), `src/game/ui/giftReveal.ts` (the NEW UNIT reveal). QA panel, NEW UNITS group: **UNLOCK PLAN** (this switch) and **ALL NEW UNITS** (batches 1..7 and the plan together). Tests: `tests/unlockPlan.test.ts`, `tests/saveCompat.test.ts`. Flag OFF = today's game: every new path is behind `TUNING.rosterUnlocks` or an `open` argument that is `undefined`, and a test checks that a crate rolled with every rarity open equals a crate rolled without the argument.
+
+Rules as built:
+- **Gifts** (first clear, or any later win once the level is cleared and the unit's batch is on): L10 Nail Gun, L13 Wrench, L20 Jackhammer, L25 Gear, L30 Saw Blade, L35 Blowtorch, L40 Blast Plate, L50 Signal Beacon (the Legendary taste). Nothing before L10, nothing after L50. A gift joins at level 1 (a helper also opens its toy slot). A unit already owned stays as it is (level and cards kept) and the gift is marked given with no reveal.
+- **Tracked in the meta**: `meta.gifts` (unit id -> true), in `META_SHAPES` (`gifts: flags`), so a bad entry is dropped and the rest loads. A gift whose batch is off is not given and not tracked; it arrives on the next win after the batch comes on.
+- **Reveal**: the win result lists `NEW UNIT: NAME`; when you leave it the NEW UNIT card shows (rarity card, job word, the WHEN MERGED line from `unitJobs.ts`, and a GOOD HERE line naming the first level at or after the gift whose own GOOD HERE rule names the unit, else the gift's `tip`). Reveals queue on `endQueue` with the chapter chest.
+- **Crate tiers**: Tool Bag opens when L10 is cleared, Toolbox L20, Tool Chest L30, Golden Workbench L50 (`TIER_OPEN_LEVEL`). `giveCrate` turns a reward into the highest open tier at or below it and gives nothing while none is open: the L10 boss gives a Tool Bag, L20 a Toolbox. Gem and shop purchases are not clamped.
+- **Crate pool**: a unit can drop only when its batch is on (it is in `UNITS`) AND some open tier can drop its rarity (`openRarities`: the `CRATES_B` odds with crates B, otherwise every tier drops Common / Rare / Epic). A slot whose rarity is closed rolls down to the best open rarity with the same random draws; the Epic and Legendary pity counters, forced cards and the new-unit swap respect it too (a rarity that cannot drop moves no counter). Before any tier opens only Common is open. The Featured Crate does not push a unit of a closed rarity.
+- Open questions Q21-Q25 above list where the plan does not fit `levels.json` and what is not gated yet.

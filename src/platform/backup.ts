@@ -276,6 +276,7 @@ export const META_SHAPES: Record<string, Fix> = {
   pity: obj({ epic: num, dry: num }, { featured: num, leg: num }),
   spare: rec(num, RARITY_ORDER),
   unitChoiceDone: bool,
+  gifts: flags,
   relays: tuple(str, 2),
   bounty: rec(obj({ won: list(num), mastered: list(num) })),
   bossMastery: nums,

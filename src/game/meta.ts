@@ -52,6 +52,8 @@ export interface Meta {
   /** TUNING.rosterB Spare Parts: wild cards per rarity (duplicates past level 10, see core/spareParts.ts). */
   spare?: Partial<Record<Rarity, number>>;
   unitChoiceDone?: boolean;
+  /** TUNING.rosterUnlocks (t-c78bf16f): unit gifts already handed over (unit id -> true), see core/unlockPlan.ts. Tracked even when the unit was owned already. */
+  gifts?: Record<string, boolean>;
   /** r32 squad relays (slot A unlocks in chapter 2, slot B in chapter 3). */
   relays?: [string, string];
   /** r30 Monster Bounties: per-date record (won / mastered slots), mastery stars per opponent, milestones paid. */
