@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { allNewState, applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -125,7 +125,24 @@ const ROSTER_BATCHES = [
   { n: 6, key: ROSTER6_KEY, on: qaRoster6, apply: applyRoster6, units: 'Robot Arm, Tilt Lever', toastOn: 'ROSTER 6 ON  ·  BOTH ARE LEGENDARY: THEY DROP ONLY WITH CRATES B' },
   { n: 7, key: ROSTER7_KEY, on: qaRoster7, apply: applyRoster7, units: 'Rivet Vice Router Press Lathe', toastOn: 'ROSTER 7 ON  ·  CRATES, TEAM, UNITS' },
 ] as const;
-const ROSTER_GROUP_H = 250;
+const ROSTER_GROUP_H = 262;
+/** Every batch flag plus crates B ('rb' in the UNITS switch), read live. */
+const allNewNow = () => allNewState(qaUnits() === 'rb', ROSTER_BATCHES.map((r) => r.on()));
+/** ALL NEW UNITS: ON sets crates B + batches 1..7, OFF clears them (individual switches keep working afterwards). Persisted like the others. */
+const setAllNew = (on: boolean) => {
+  for (const r of ROSTER_BATCHES) {
+    store(r.key, on ? 'on' : null);
+    r.apply(on);
+  }
+  if (on) {
+    store(UNITS_B0_KEY, unitsStoreValue('rb'));
+    applyUnits('rb');
+  } else if (qaUnits() === 'rb') {
+    store(UNITS_B0_KEY, null);
+    applyUnits('off');
+  }
+  tlog.log('qa_all_new_units', { on });
+};
 
 /** QA panel rows, top to bottom. A new experiment adds one qaSwitch entry here (the sheet grows to fit). */
 export const QA_ROWS: QaRow[] = [
@@ -300,10 +317,16 @@ export const QA_ROWS: QaRow[] = [
   {
     h: ROSTER_GROUP_H,
     draw: ({ scene, c, reopen }, y) => {
-      c.add(scene.add.text(W / 2, y + 12, 'NEW UNITS: batch 1..7', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+      const all = allNewNow();
+      scene.button(c, W / 2, y + 30, 560, `ALL NEW UNITS: ${all === 'on' ? '[ON]' : all === 'mixed' ? '[MIXED]' : '[OFF]'}`, all === 'on' ? 0x5fbf4a : all === 'mixed' ? 0xd9a441 : 0x8a6a4a, () => {
+        setAllNew(all !== 'on');
+        scene.showToast(all !== 'on' ? 'ALL NEW UNITS ON  ·  CRATES B + BATCH 1..7' : 'ALL NEW UNITS OFF (live game)');
+        reopen();
+      }, 0.9);
+      c.add(scene.add.text(W / 2, y + 72, `${UNITS.length} UNITS`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: '#7a5a4a' }).setOrigin(0.5));
       ROSTER_BATCHES.forEach((r, i) => {
         const x = W / 2 + ((i % 4) - 1.5) * 170;
-        const by = y + 66 + Math.floor(i / 4) * 96;
+        const by = y + 124 + Math.floor(i / 4) * 96;
         const on = r.on();
         scene.button(c, x, by, 230, on ? `[BATCH ${r.n}]` : `BATCH ${r.n}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
           store(r.key, on ? null : 'on');
