@@ -202,7 +202,7 @@ describe('exact yard solver', () => {
       }
     }
     expect(checked).toBeGreaterThan(15);
-  });
+  }, 30_000); // heaviest test: ~1.7 s quiet, ~6.5 s under load
 
   it('is deterministic', () => {
     const lvl = generateYard2(4, 99, { plates: 9, colors: 4, swaps: 3, window: 5, cluster: 0.75 })!;

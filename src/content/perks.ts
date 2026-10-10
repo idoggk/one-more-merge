@@ -1,4 +1,61 @@
 import type { PerkId } from '../core/types';
+import { ROSTER_1_INFO } from './roster1';
+import { TUNING, unitsB0On } from './tuning';
+
+/** Units B0 / B1 (QA UNITS row): the plain-words copy for units whose rules change; null = today's copy. One source for
+ *  the inspect card (FAMILY_INFO) and the guide pages (sceneCopy GUIDE), read live so the QA switch needs no reload. */
+export function unitsCopy(key: string): { text: string; tryThis: string } | null {
+  const b = TUNING.b1;
+  if (TUNING.rosterB) return ROSTER_COPY(key);
+  if (key === 'mortar' && unitsB0On()) {
+    const o = TUNING.unitsB1 ? b : TUNING.b0;
+    return { text: `Never shoots by itself. The LATER it fires in a chain, the harder it hits: x${o.orderBase}, +${o.orderStep} for every machine that fired before it (up to x${TUNING.b0.orderCap}).`, tryThis: 'Put it at the far end of your longest chain.' };
+  }
+  if (!TUNING.unitsB1) return null;
+  const pass = b.helperPass ? ' Then it passes the chain on to the machines touching it.' : '';
+  const boost = (who: string, m: number) => `When it fires it BOOSTS ${who}: that shooter's next hit is x${m}.${pass}`;
+  const copy: Record<string, { text: string; tryThis: string }> = {
+    battery: { text: boost('the strongest shooter touching it', b.battery), tryThis: 'Park it beside your biggest shooter.' },
+    amplifier: { text: boost('the strongest shooter up to 2 cells away', b.amp), tryThis: 'Keep it near your shooters.' },
+    signal_beacon: { text: boost('your strongest shooter anywhere on the board', b.beacon), tryThis: 'It works from anywhere: park it out of the way.' },
+    fan: { text: `When it fires it clears one junk block, frost, lock or incoming attack touching it${b.fanPush ? ' (nothing to clear: it pushes a machine one cell away)' : ''}.${pass}`, tryThis: 'Bring it to boss levels: park it where attacks land.' },
+    magnet: { text: `When it fires it calls in a matching part: it lands next to a lonely machine of the same kind and number, ready to merge.${pass}`, tryThis: 'More parts = more merges.' },
+    horn: { text: `Hits the monster and wakes every OTHER kind of machine in its column${b.hornSides ? ', and on its left and right' : ''}.`, tryThis: 'Stack shooters above and below it.' },
+    fuse_box: { text: `Hits the monster and wakes the OTHER kinds of machines on its diagonals, up to ${b.fuseReach} cells out.`, tryThis: 'Build a checkerboard around it.' },
+  };
+  return copy[key] ?? null;
+}
+/** t-e91097cd roster B: one job per unit (FIRE / REACH / ROW / COLUMN / BURST / DEPTH / DIAGONAL / SPREAD) and the five
+ *  helpers as off-board Support cards (CLEAR / PAIR / PRIME / MARK / GO). */
+function ROSTER_COPY(key: string): { text: string; tryThis: string } | null {
+  const r = TUNING.rb;
+  const card = (job: string) => `SUPPORT CARD (off the board). ${job} It charges +1 for every machine in your merge chains; tap it when it is full.`;
+  const copy: Record<string, { text: string; tryThis: string }> = {
+    cannon: { text: 'FIRE: shoots by itself every few seconds. Woken by a chain it fires a full shot.', tryThis: 'Your steady damage: keep a few on the board.' },
+    rocket: { text: `BURST: the Rocket YOU merge hits x${r.rocketRoot}. Woken by a chain it only hits x${r.rocketWoken}.`, tryThis: 'Merge Rockets yourself; do not wait for a chain.' },
+    mortar: { text: `DEPTH: the later it fires in a chain, the harder it hits: x1, +${r.mortarStep} for every machine that fired before it (up to x${r.mortarCap}).`, tryThis: 'Put it at the far end of your longest chain.' },
+    arc_welder: { text: 'SPREAD: woken by a chain it fires a light shot (x0.75) and jumps to the NEAREST other shooter anywhere, waking it. Never another Arc Welder. With no other shooter kind on the board, it jumps to the nearest other machine.', tryThis: 'Mix it with Cannons, Rockets or Mortars.' },
+    coil: { text: 'REACH: wakes OTHER machines 2 cells up and down, 1 cell left and right.', tryThis: 'Stack shooters above and below it.' },
+    bell: { text: 'ROW: wakes every OTHER machine in its row.', tryThis: 'Fill its row with shooters.' },
+    horn: { text: 'COLUMN: wakes every OTHER machine in its column. From level 3 the shooters it wakes hit harder.', tryThis: 'Stack shooters above and below it.' },
+    fuse_box: { text: 'DIAGONAL: wakes OTHER machines 2 cells out along its four diagonals.', tryThis: 'Build a checkerboard around it.' },
+    fan: { text: card('CLEAR: tap a cell to clear junk, frost, locks and incoming attacks in the 3x3 around it.'), tryThis: 'Bring it to boss levels.' },
+    magnet: { text: card('PAIR: tap a part and its twin arrives next to it, ready to merge.'), tryThis: 'Pair your biggest lonely shooter.' },
+    battery: { text: card(`PRIME: tap it and your next shooter merge hits x${r.prime} (the whole chain).`), tryThis: 'Prime, then merge your best chain.' },
+    amplifier: { text: card(`MARK: tap a shooter; its next hit is x${r.mark}.`), tryThis: 'Mark the shooter your next chain will reach.' },
+    signal_beacon: { text: card('GO: pick ROW or COLUMN on the card and tap a cell: every machine on that line fires now.'), tryThis: 'Wait for a crowded line.' },
+  };
+  return copy[key] ?? null;
+}
+
+/** A copy row whose text / tryThis follow unitsCopy(key) while a units experiment is on. */
+export function liveCopy<T extends { text: string; tryThis: string }>(key: string, row: T): T {
+  const { text, tryThis, ...rest } = row;
+  return Object.defineProperties({ ...rest } as T, {
+    text: { get: () => unitsCopy(key)?.text ?? text, enumerable: true },
+    tryThis: { get: () => unitsCopy(key)?.tryThis ?? tryThis, enumerable: true },
+  });
+}
 
 export const PERKS: Record<PerkId, { name: string; text: string; icon: string }> = {
   twin: { name: 'TWIN BURST', text: 'Chain cannon shots +40%', icon: 'cannon' },
@@ -9,7 +66,7 @@ export const PERKS: Record<PerkId, { name: string; text: string; icon: string }>
 };
 
 /** One role word, one power sentence, one hint per family (ChatGPT r14 clarity ruleset: fixed shapes, rank = damage). */
-export const FAMILY_INFO = {
+const FAMILY_INFO_TODAY = {
   cannon: { name: 'Cannon', color: 0xe8452c, role: 'SHOOTER', text: 'Shoots by itself, weakly. Woken by a chain it fires a FULL shot. Wakes nobody.', tryThis: 'Put Cannons where Coils and Bells can reach them.' },
   coil: { name: 'Coil', color: 0x27c4e0, role: 'RELAY', text: 'Hits the monster and wakes OTHER gadgets up to 2 cells away: up, down, left, right.', tryThis: 'Put Cannons inside its cross.' },
   bell: { name: 'Bell', color: 0xf2b521, role: 'RELAY', text: 'Hits the monster and wakes every OTHER gadget in its row.', tryThis: 'Fill its row with Cannons and Coils.' },
@@ -23,7 +80,12 @@ export const FAMILY_INFO = {
   amplifier: { name: 'Amplifier', color: 0x30b0a0, role: 'SUPPORT', text: 'When it fires it marks the strongest shooter or relay touching it: that machine\'s next hit is x1.3.', tryThis: 'Park it beside your biggest machine.' },
   signal_beacon: { name: 'Signal Beacon', color: 0xf05030, role: 'SUPPORT', text: 'When it fires it marks the nearest shooter AND the nearest relay anywhere: their next hits are x1.15.', tryThis: 'Fire it early in a chain.' },
   magnet: { name: 'Magnet', color: 0xc23fd1, role: 'MOVER', text: 'Pulls one gadget along a straight line into the empty cell beside it.', tryThis: 'Use it to bring pairs together.' },
+  // roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on
+  ...ROSTER_1_INFO,
 } as const;
+export const FAMILY_INFO = Object.fromEntries(Object.entries(FAMILY_INFO_TODAY).map(([k, v]) => [k, liveCopy(k, v)])) as unknown as {
+  [K in keyof typeof FAMILY_INFO_TODAY]: Omit<(typeof FAMILY_INFO_TODAY)[K], 'text' | 'tryThis'> & { text: string; tryThis: string };
+};
 
 export const TARGET_NAMES = ['TIN CAN', 'MAD FRIDGE', 'JUNKZILLA', 'VACUUM VIPER', 'TOASTER TWINS', 'PIANO-SAURUS'];
 /** Short HUD names (ChatGPT r16: the header has room for ~10 characters). */

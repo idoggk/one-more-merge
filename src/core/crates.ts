@@ -1,5 +1,9 @@
 // Crate + pack opening (round 32). Pure + seeded so contents are reproducible from (seed, counter).
-import { CRATES, EPIC_PITY, FEATURED_CRATE, NEW_UNIT_PITY, RARITY_ODDS, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
+import { latchKind } from './crateOdds';
+import { slotRarity } from './crateOdds';
+import { TUNING } from '../content/tuning';
+import { rollPicksB } from './crateB';
+import { CRATES, EPIC_PITY, FEATURED_CRATE, NEW_UNIT_PITY, SHOP, STARTER_UNITS, UNITS, type CrateKind, type Rarity, type UnitDef } from '../content/units';
 import { Rng } from './rng';
 import type { Family } from './types';
 
@@ -16,6 +20,8 @@ export interface PityState {
   dry: number;
   /** r40 Featured Crates in a row without the featured unit. */
   featured?: number;
+  /** TUNING.rosterB Legendary pity points (Toolbox +1, Tool Chest +10; see PITY_B). */
+  leg?: number;
 }
 
 const pool = (r: Rarity) => UNITS.filter((u) => u.rarity === r).map((u) => u.id);
@@ -33,15 +39,12 @@ function tally(picks: Family[], owned: ReadonlySet<Family>): CrateCard[] {
  * new-unit pity (after 3 crates without a new unit, the best guaranteed slot is a missing unit). Mutates `pity`.
  */
 export function rollCrate(kind: CrateKind, owned: ReadonlySet<Family>, seed: number, pity: PityState = { epic: 0, dry: 0 }): CrateCard[] {
+  if (TUNING.rosterB) return tally(rollPicksB(kind, owned, seed, pity), owned);
   const spec = CRATES[kind];
   const rng = new Rng(seed >>> 0 || 1);
   const rar: Rarity[] = [];
-  for (let k = 0; k < spec.cards; k++) {
-    const x = rng.next();
-    rar.push(x < RARITY_ODDS.epic ? 'epic' : x < RARITY_ODDS.epic + RARITY_ODDS.rare ? 'rare' : 'common');
-  }
-  // guarantees fill the first slots
-  for (let k = 0; k < spec.rareMin; k++) if (rar[k] === 'common') rar[k] = 'rare';
+  // guarantees fill the first slots (crateOdds.ts reads the same rule for the odds panel)
+  for (let k = 0; k < spec.cards; k++) rar.push(slotRarity(rng.next(), k < spec.rareMin));
   const forcedEpic = kind !== 'wood' && pity.epic >= EPIC_PITY.at && !rar.includes('epic');
   if (forcedEpic) rar[0] = 'epic';
   const missing = (r: Rarity) => pool(r).filter((u) => !owned.has(u));
@@ -55,14 +58,22 @@ export function rollCrate(kind: CrateKind, owned: ReadonlySet<Family>, seed: num
     if (!owned.has(unit)) used.add(unit);
     picks.push(unit);
   });
-  // new-unit pity: replace the best slot with any missing unit
+  // new-unit pity: replace the first non-Epic slot with any missing unit (never the forced/only Epic: the odds panel
+  // promises it)
   const allMissing = UNITS.filter((u) => !owned.has(u.id)).map((u) => u.id);
-  if (!picks.some((u) => !owned.has(u)) && allMissing.length && pity.dry + 1 >= NEW_UNIT_PITY) picks[0] = allMissing[rng.int(allMissing.length)];
+  if (!picks.some((u) => !owned.has(u)) && allMissing.length && pity.dry + 1 >= NEW_UNIT_PITY) picks[Math.max(0, picks.findIndex((u) => rarityOf(u) !== 'epic'))] = allMissing[rng.int(allMissing.length)];
   // pity bookkeeping
   const gotEpic = picks.some((u) => rarityOf(u) === 'epic');
   pity.epic = gotEpic ? 0 : pity.epic + EPIC_PITY[kind];
   pity.dry = picks.some((u) => !owned.has(u)) ? 0 : pity.dry + 1;
   return tally(picks, owned);
+}
+
+/** TUNING.rosterB: what ONE open of `kind` does. A Tool Bag first makes its single latch roll (before any card is rolled); the
+ *  crate that opens is the upgraded kind and its own odds, guarantees and pity apply. Mutates `pity`. */
+export function openCrateB(kind: CrateKind, owned: ReadonlySet<Family>, seed: number, pity: PityState): { opened: CrateKind; latched: boolean; cards: CrateCard[] } {
+  const opened = kind === 'wood' ? latchKind(new Rng((seed ^ 0x1a7c4) >>> 0 || 1).next()) : kind;
+  return { opened, latched: opened !== kind, cards: rollCrate(opened, owned, seed, pity) };
 }
 
 /** r40: the featured unit for the 48-hour window containing `dayIndex` (days since epoch). */

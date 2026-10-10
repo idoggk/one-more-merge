@@ -28,22 +28,34 @@ export function playMove(s: GameState, m: Move): GameState {
 export interface Line {
   path: Move[];
   dmg: number[];
+  /** Unit drills: the drilled unit has acted by the end of each merge (cumulative). */
+  used?: boolean[];
 }
 
 /** Every merge sequence of the puzzle's length (or until no legal merge), with the HP lifted so nothing ends early. */
 export function allLines(def: PuzzleDef): Line[] {
   const out: Line[] = [];
-  const walk = (s: GameState, path: Move[], dmg: number[]) => {
+  const walk = (s: GameState, path: Move[], dmg: number[], used: boolean[]) => {
     const ms = path.length < def.moves ? puzzleMoves(s) : [];
-    if (!ms.length) return void out.push({ path, dmg });
+    if (!ms.length) return void out.push(def.unit ? { path, dmg, used } : { path, dmg });
     for (const m of ms) {
       const t = playMove(s, m);
-      walk(t, [...path, m], [...dmg, BIG - t.hp]);
+      walk(t, [...path, m], [...dmg, BIG - t.hp], [...used, !!t.puzzle?.unitUsed]);
     }
   };
-  walk(newPuzzle({ ...def, hp: BIG }), [], []);
+  walk(newPuzzle({ ...def, hp: BIG }), [], [], []);
   return out;
 }
+
+/** The merge (index) at which this line breaks a machine of `hp`, or -1: play stops there. */
+export const breakAt = (l: Line, hp: number) => l.dmg.findIndex((d) => d >= hp);
+/** The line wins: it breaks the machine, and in a unit drill the unit has acted by then. */
+export function lineWins(l: Line, hp: number): boolean {
+  const k = breakAt(l, hp);
+  return k >= 0 && (!l.used || l.used[k]);
+}
+/** Unit drills: lines that break the machine without the drilled unit acting (must be none in a shipped drill). */
+export const unitFreeBreaks = (lines: Line[], hp: number) => lines.filter((l) => l.used && breakAt(l, hp) >= 0 && !lineWins(l, hp));
 
 export interface PuzzleStats {
   moves: number;
@@ -64,7 +76,6 @@ export interface PuzzleStats {
 }
 
 const key = (p: Move[]) => p.map((m) => m.join('>')).join(',');
-const final = (l: Line) => (l.dmg.length ? l.dmg[l.dmg.length - 1] : 0);
 
 function permutations<T>(a: T[]): T[][] {
   if (a.length <= 1) return [a];
@@ -73,13 +84,13 @@ function permutations<T>(a: T[]): T[][] {
 
 /** Difficulty of a board for a given HP, from its full line list. */
 export function puzzleStats(lines: Line[], hp: number, moves: number): PuzzleStats {
-  const wins = lines.filter((l) => final(l) >= hp);
+  const wins = lines.filter((l) => lineWins(l, hp));
   const firsts = new Map<string, { hit: number; win: boolean }>();
   for (const l of lines) {
     if (!l.path.length) continue;
     const k = l.path[0].join('>');
     const f = firsts.get(k) ?? { hit: l.dmg[0], win: false };
-    f.win ||= final(l) >= hp;
+    f.win ||= lineWins(l, hp);
     firsts.set(k, f);
   }
   const fs = [...firsts.values()];
@@ -101,7 +112,8 @@ export function puzzleStats(lines: Line[], hp: number, moves: number): PuzzleSta
   const winKeys = new Set(wins.map((l) => key(l.path)));
   const orderFree = wins.some((l) => permutations(l.path).every((p) => winKeys.has(key(p))));
   const orderMatters = moves > 1 && !orderFree;
-  const greedyFails = greedyDmg < hp;
+  const greedyLine = lines.find((l) => key(l.path) === key(prefix));
+  const greedyFails = greedyDmg < hp || !greedyLine || !lineWins(greedyLine, hp);
   const deadFirst = fs.filter((f) => !f.win).length;
   // depth 20 + rarity of a win 40 (log2 of lines per solution, capped) + dead openers 12 + traps 10 + greedy fails 10 + order 8
   const bits = wins.length ? Math.min(10, Math.log2(lines.length / wins.length)) : 10;
@@ -175,6 +187,11 @@ export interface PuzzleHelp {
   showMove: boolean;
   /** Drills only: mark it done (no reward) and move on. The daily has a streak + reward, so no skip. */
   skip: boolean;
+}
+
+/** Result text when a drill's machine broke but its unit never acted (the drill is not solved). */
+export function missedUnitText(unitName: string, helpLine: string): string {
+  return `The machine broke, but your ${unitName}\nnever did anything.\nUse the ${unitName} to pass this drill.\n${helpLine}`;
 }
 
 export function puzzleHelp(fails: number, kind: 'daily' | 'drill'): PuzzleHelp {

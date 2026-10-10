@@ -34,14 +34,16 @@ export const PACES: { id: Pace; label: string }[] = [
   { id: 'mania', label: 'MANIA' },
 ];
 
-/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = TODAY. */
+/** t-4cd9e27b (owner, 2026-10-09): CALM ships as the game's pace; TODAY / MANIA stay on the QA switch. */
+export const DEFAULT_PACE: Pace = 'calm';
+/** QA panel PACE row (this device only, not in the save); missing / unknown / unreadable = DEFAULT_PACE. */
 export const PACE_KEY = 'omm_qa_pace';
 export function storedPace(read: () => string | null): Pace {
   try {
     const v = read();
-    return PACES.some((x) => x.id === v) ? (v as Pace) : 'today';
+    return PACES.some((x) => x.id === v) ? (v as Pace) : DEFAULT_PACE;
   } catch {
-    return 'today';
+    return DEFAULT_PACE;
   }
 }
 
@@ -62,4 +64,52 @@ export function storedUnitsB0(read: () => string | null): boolean {
 }
 export function applyUnitsB0(on: boolean) {
   TUNING.unitsB0 = on;
+  TUNING.unitsB1 = false;
+}
+
+/** QA panel THINK BANK button (t-4208f149, TUNING.thinkBank; this device only, not in the save); missing = OFF. */
+export const THINK_BANK_KEY = 'omm_qa_think_bank';
+export function storedThinkBank(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyThinkBank(on: boolean) {
+  TUNING.thinkBank = on;
+}
+
+/** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF);
+ *  t-e91097cd adds ROSTER B ('rb': TUNING.rosterB, the B jobs + Support card). */
+export type UnitsVariant = 'off' | 'b0' | 'b1' | 'rb';
+export const UNITS_VARIANTS: { id: UnitsVariant; label: string }[] = [
+  { id: 'off', label: 'OFF' },
+  { id: 'b0', label: 'B0' },
+  { id: 'b1', label: 'B1' },
+  { id: 'rb', label: 'ROSTER B' },
+];
+export function storedUnits(read: () => string | null): UnitsVariant {
+  try {
+    const v = read();
+    return v === 'on' ? 'b0' : v === 'b1' ? 'b1' : v === 'rb' ? 'rb' : 'off';
+  } catch {
+    return 'off';
+  }
+}
+export const unitsStoreValue = (v: UnitsVariant) => (v === 'b0' ? 'on' : v === 'b1' ? 'b1' : v === 'rb' ? 'rb' : null);
+/** QA panel NEW 4 button (t-9b28a794, roster B batch 1; this device only, not in the save): 'on' = TUNING.roster1,
+ *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster1. */
+export const ROSTER1_KEY = 'omm_qa_roster_1';
+export function storedRoster1(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUnits(v: UnitsVariant) {
+  TUNING.unitsB0 = v === 'b0';
+  TUNING.unitsB1 = v === 'b1';
+  TUNING.rosterB = v === 'rb';
 }

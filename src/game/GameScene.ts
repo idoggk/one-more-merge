@@ -1,8 +1,22 @@
 import Phaser from 'phaser';
-import { FAMILY_INFO, PERKS, SHORT_NAMES, TARGET_NAMES } from '../content/perks';
+import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applyUnitsB0 } from '../content/experiments';
-import { canMerge, capOf, deserialize, resumable, legalPairs, newGame, newLevel, odByChain, odNeeded, previewMerge, serialize, type GameEvent, type GameState } from '../core/game';
+import { applyPace, applyThinkBank, applyUnits } from '../content/experiments';
+import {
+  canMerge,
+  capOf,
+  deserialize,
+  resumable,
+  legalPairs,
+  newGame,
+  newLevel,
+  odByChain,
+  odNeeded,
+  previewMerge,
+  serialize,
+  type GameEvent,
+  type GameState,
+} from '../core/game';
 import type { CascadeResult, Family, Gadget, PerkId } from '../core/types';
 import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
@@ -16,16 +30,20 @@ import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
-import { itemFits } from '../core/types';
-import { ATTACK_TINT, CELL_COPY, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
+import { isRelay, isShooter as isShooterFam, itemFits } from '../core/types';
+import { goodHereText, ROSTER_1_DEMOS } from '../content/roster1';
+import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { cardsAvailable } from '../core/spareParts';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
 import { addBoosters, nextYard, recordYard, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos } from '../core/endless';
 import { contractsFor, contractText } from '../core/mastery';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { applyMergeRule } from '../core/sandwich';
+import { playSandwich } from './sandwichFx';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, type Move, type PuzzleRec } from '../core/puzzle';
 import { newRunLog, recordCommand, recordTick, type RunLog } from '../core/replay';
 import { decodeCurve, levelProgress, type PaceCurve } from '../core/pace';
@@ -33,14 +51,24 @@ import { BONUS_XP, rollSeason, seasonCount, seasonTier, seasonUnit, type SeasonE
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { CRATE } from '../core/screwObject';
-import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, type BountyTwist } from '../core/bounty';
-import { CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, TUTORIAL } from '../content/sceneCopy';
+import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
+import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, mergesText, OD_LABEL, stageHudText, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
-import { isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, type Feature } from './unlocks';
+import { grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, type Feature } from './unlocks';
+import { admitTip, newTipLedger } from './tips';
+import { MODE_INTRO, modeIntroFor } from './modeIntro';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
+import { FormulaStrip } from './formulaStrip';
+import { playJobTag, playSupportFx } from './rosterFx';
+import { SupportCard } from './supportCard';
+import { playBeatSounds, UNIT_SOUND } from './unitSounds';
+import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
+import { hitFormula, type HitFormula } from '../core/hitFormula';
+import { bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
+import { PartReact } from './fx/partReact';
 import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES } from './sceneKit';
 import * as qa from './ui/qaPanel';
-import { qaPace, qaUnitsB0, qaYardObject } from './ui/qaPanel';
+import { qaMergeRule, qaPace, qaThinkBank, qaUnits, qaYardObject } from './ui/qaPanel';
 import * as settingsUi from './ui/settings';
 import * as pauseUi from './ui/pause';
 import * as hud from './ui/hud';
@@ -94,9 +122,12 @@ export class GameScene extends Phaser.Scene {
   lastSec = -1;
   starChase: Phaser.GameObjects.Text | null = null;
   shieldChip: Phaser.GameObjects.Text | null = null;
+  /** time.now until which a banner_chain banner sits over the top HUD row (the chips fade out under it). */
+  bannerUntil = 0;
   shieldG!: Phaser.GameObjects.Graphics;
   odGauge!: Phaser.GameObjects.Graphics;
   boltIcon?: Phaser.GameObjects.Image;
+  odLabel?: Phaser.GameObjects.Text;
   flames: Phaser.GameObjects.Image[] = [];
   face!: Phaser.GameObjects.Image;
   faceUntil = 0;
@@ -118,6 +149,7 @@ export class GameScene extends Phaser.Scene {
   tutorialText!: Phaser.GameObjects.Text;
   practiceText!: Phaser.GameObjects.Text;
   maniaBadge: Phaser.GameObjects.Text | null = null;
+  thinkBadge: Phaser.GameObjects.Text | null = null;
   modal: Phaser.GameObjects.Container | null = null;
   /** r43: this attempt's command log (best-chain replay on the results screen). */
   runLog: RunLog = newRunLog();
@@ -156,7 +188,7 @@ export class GameScene extends Phaser.Scene {
     ensureTextures(this);
     // r29: heavy boss / cast / stage art streams in after the first frame; refresh whatever is on screen when it lands
     this.time.delayedCall(50, () =>
-      loadLazyArt(this, () => {
+      loadLazyArt(this, Math.ceil(this.currentLevel() / 10), () => {
         if (this.s?.level !== undefined && this.s.phase === 'playing') this.setTargetTexture();
       }),
     );
@@ -265,6 +297,8 @@ export class GameScene extends Phaser.Scene {
     this.odGauge = this.add.graphics();
     this.steadyText = this.add.text(544, 72, 'STEADY', { fontFamily: 'Arial Black', fontSize: '14px', color: '#3b2533' }).setOrigin(0, 0.5).setVisible(false);
     if (this.hasArt('icon_bolt')) this.boltIcon = this.add.image(0, 46, 'icon_bolt').setDisplaySize(40, 40);
+    // F8: the lightning meter is Overdrive, not the Bolts currency: it carries its own caption
+    this.odLabel = this.add.text(384 + 77, 70, OD_LABEL, { fontFamily: 'Arial Black', fontSize: '12px', color: '#8a5a2a' }).setOrigin(0.5).setVisible(false);
     this.practiceText = this.add.text(W - 28, 74, 'PRACTICE', { fontFamily: 'Arial Black', fontSize: '18px', color: '#8a6a4a' }).setOrigin(1, 0.5);
 
     // stage backdrop (per opponent) in a rounded window behind the target
@@ -292,6 +326,13 @@ export class GameScene extends Phaser.Scene {
     this.laneBg = this.hasArt('ui_ribbon') ? this.add.image(W / 2, EVENT_Y, 'ui_ribbon').setDisplaySize(640, 56) : this.add.rectangle(W / 2, EVENT_Y, 640, 50, 0x2a2233, 0.85);
     this.laneBg.setDepth(20).setAlpha(0);
     this.laneText = this.add.text(W / 2, EVENT_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#fff0cf' }).setOrigin(0.5).setDepth(21).setAlpha(0);
+    this.formula = new FormulaStrip(this, W / 2, () => EVENT_Y, () => HP_Y - 50, REDUCED_MOTION);
+    // t-e91097cd roster B: the off-board Support card (hidden unless the run has one)
+    this.support = new SupportCard(this, 82, () => STAGE_TOP + STAGE_H - 84, (x, y) => this.cellAt(x, y), (cell, axis) => {
+      const r = recordCommand(this.runLog, this.s, { k: 'support', cell, axis: axis === 'col' ? 1 : 0 });
+      if (r.ok) this.handleEvents(r.events);
+      return r.ok;
+    }, (msg, color) => this.showEvent(msg, color ?? '#fff0cf', 2200));
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -391,6 +432,7 @@ export class GameScene extends Phaser.Scene {
     this.acc = 0;
     this.heldQueue = []; // cards still waiting for a finger-up belong to the previous run
     if (!this.explaining) this.explainQueue = [];
+    this.tipLedger = newTipLedger(s.level !== undefined && !s.puzzle ? s.level : undefined);
     this.idleTime = 0;
     this.tutorialStep = 0;
     this.coach?.clear();
@@ -463,7 +505,7 @@ export class GameScene extends Phaser.Scene {
     // reach diagram: 5x5 mini board centred on this gadget
     const mc = 30, ox = cw / 2 - 30 - mc * 5, oy = -ch / 2 + 86;
     const dg = this.add.graphics();
-    const reach = new Set(g.family === 'coil' || g.family === 'bell' || g.family === 'horn' || g.family === 'fuse_box' ? routeCells(idx, g.family, g.rank, this.s.perks) : []);
+    const reach = new Set(isRelay(g.family) ? routeCells(idx, g.family, g.rank, this.s.perks) : []);
     const r0 = Math.floor(idx / COLS), c0 = idx % COLS;
     for (let dr = -2; dr <= 2; dr++)
       for (let dc = -2; dc <= 2; dc++) {
@@ -599,7 +641,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.puzzle ? `WIN IN ${this.s.puzzle.moves} MERGES` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.puzzle ? `WIN IN ${mergesText(this.s.puzzle.moves).toUpperCase()}` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -641,6 +683,7 @@ export class GameScene extends Phaser.Scene {
       const fam = tdef.level === 6 ? 'rocket' : (tdef.start_extra ?? []).map(([f]) => f).find((f) => f === 'magnet' || f === 'battery' || f === 'fan');
       const pageIdx = fam ? GameScene.GUIDE.findIndex((p) => p.key === fam) : -1;
       if (fam && !this.meta.tips[`new_${fam}`]) {
+        this.admitTip(`new_${fam}`, 1, true); // the guide page is this level's start card
         this.meta.tips[`new_${fam}`] = true;
         store(META_KEY, JSON.stringify(this.meta));
         this.openHowTo(pageIdx, undefined, true);
@@ -651,8 +694,12 @@ export class GameScene extends Phaser.Scene {
       // r37: the first stage explains its HUD once (clock ring left, machine counter right), before anything moves
       if (this.s.stage && !this.meta.tips.stage_hud)
         this.explain('stage_hud', [
-          { text: `${this.stageCount()!.n} MACHINES to beat!\nBeat them all before this ring runs out.`, spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
+          { text: stageHudText(this.s.stage), spots: [{ x: CLOCK_X, y: HP_Y, r: 60 }, { x: W - CLOCK_X, y: HP_Y, r: 60 }], y: BY + CELL * 2 },
         ]);
+    } else {
+      // walkthrough 3: the first Challenge / Remix opens with one card (clock paused, once per mode, modeIntro.ts)
+      const mi = modeIntroFor(this.s);
+      if (mi) this.explain(mi, [{ text: MODE_INTRO[mi], spots: [{ x: SCRAP_X, y: TRAY_Y, r: 70 }] }]);
     }
     tlog.log('intro_end', { skipped });
   }
@@ -945,10 +992,9 @@ export class GameScene extends Phaser.Scene {
     return st ? { n: st.hps.length + (st.goal ? 1 : 0), at: st.i + 1, goal: st.i >= st.hps.length } : undefined;
   }
   monName(short = false) {
-    const v = this.castOf(this.s.level);
-    if (v) return short ? CAST[v].short : CAST[v].name;
-    const ci = this.stageClassic();
-    return (short ? SHORT_NAMES : TARGET_NAMES)[ci ?? Math.max(0, this.s.target)];
+    const lv = this.s.level;
+    const vis = this.stageVis() ?? (lv !== undefined ? LEVELS[lv - 1]?.visual : undefined);
+    return machineName(vis, this.s.target, (v) => this.hasArt(`mon_${v}`), short);
   }
 
   /** The chapter boss (not an ordinary monster's light hazard, r23). */
@@ -985,6 +1031,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!this.canAct()) return;
+    if (this.support?.onDown(p, this.s)) return;
     if (this.s.itemTray && Phaser.Math.Distance.Between(p.worldX, p.worldY, ITEM_X, TRAY_Y) < 52) {
       this.itemDrag = { x: p.worldX, y: p.worldY, moved: false };
       sfx.pickup();
@@ -1279,8 +1326,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.pulledMerge = merging && (this.pulledIds.has(a!.id) || this.pulledIds.has(b!.id));
     const prevBest = this.s.stats.bestRank;
+    // the hit formula is read before the drop changes the board; playCascade() plays it as the chain ribbon
+    this.pendingFormula = merging ? hitFormula(this.s, from, to) : null;
     const res = recordCommand(this.runLog, this.s, { k: 'drop', from, to, id });
     if (!res.ok) {
+      this.pendingFormula = null;
       tlog.log('invalid');
       return false;
     }
@@ -1368,6 +1418,7 @@ Now beat the real level.`, this.coachY());
       this.reconcile();
     }
     this.handleEvents(res.events);
+    this.pendingFormula = null;
     this.save();
     return true;
   }
@@ -1413,7 +1464,7 @@ Now beat the real level.`, this.coachY());
     if (src >= 0 && this.s.grid[src]) {
       const a = this.s.grid[src]!;
       const { x: sx, y: sy } = cellXY(src);
-      if (this.moved && (a.family === 'coil' || a.family === 'bell' || a.family === 'horn' || a.family === 'fuse_box')) {
+      if (this.moved && isRelay(a.family)) {
         const at = this.hoverIdx >= 0 ? this.hoverIdx : src;
         const col = FAMILY_INFO[a.family].color;
         for (const cell of routeCells(at, a.family, a.rank, this.s.perks)) {
@@ -1481,7 +1532,7 @@ Now beat the real level.`, this.coachY());
       const f = cellXY(e.from), t = cellXY(e.to);
       g.lineStyle(10, 0xffcf33, 0.55).lineBetween(f.x, f.y, t.x, t.y).lineStyle(6, 0xffcf33, 0.8).strokeCircle(t.x, t.y, 50);
     }
-    const nk = `${a.family}_${Math.min(a.rank + 1, capOf(this.s, a.family))}`;
+    const nk = `${a.family}_${Math.min(p.activations.find((x) => x.idx === hov)?.rank ?? a.rank + 1, capOf(this.s, a.family))}`; // root rank: a sandwich shows +2
     if (this.textures.exists(nk)) {
       const c = cellXY(hov);
       this.ghost.setTexture(nk).setVisible(true);
@@ -1507,6 +1558,7 @@ Now beat the real level.`, this.coachY());
     const key = this.chipKeyFor(src, hov);
     if (key === this.chipKey) return;
     this.chipKey = key;
+    this.formula.show(key ? () => hitFormula(this.s, src, hov) : null);
     this.chipsC?.destroy();
     this.chipsC = null;
     const pv = key ? mergePreview(this.s, src, hov) : null;
@@ -1592,22 +1644,27 @@ Now beat the real level.`, this.coachY());
     this.updateHints();
     this.drawHud(dms);
     this.animateIdle();
+    this.partReact.update(this, dms);
     this.updateFace();
     this.coach.update(this.time.now);
     this.checkTips();
     this.drawRemix();
     this.drawItems();
+    this.support?.sync(this.s);
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
   /** Cannons about to auto-fire puff up a little; everything breathes slightly. */
   primeG!: Phaser.GameObjects.Graphics;
+  /** units B1: the shared BOOSTED mark shows its multiplier beside the badge (pooled, one per boosted machine). */
+  boostTexts: Phaser.GameObjects.Text[] = [];
   lastTickSec = -1;
   resultCall: Phaser.Time.TimerEvent | null = null;
   resultAt = 0;
   idleNext = 0;
   idleBeat = 0;
   idleActs = new Map<number, number>();
+  partReact = new PartReact(REDUCED_MOTION);
   animateIdle() {
     const t = this.time.now / 1000;
     if (this.target && !this.tweens.isTweening(this.target) && this.s.phase === 'playing') this.target.setAngle(Math.sin((t * Math.PI * 2) / 2.4) * 0.5);
@@ -1624,12 +1681,20 @@ Now beat the real level.`, this.coachY());
     this.primeG.clear();
     // helper marks share the top-left slot: Amplifier / Beacon boost (lavender ring + up-arrow) first, Battery charge
     // (green ring + bolt) below it when both are on; each stays until the machine fires (the model clears it on use)
+    let nBoost = 0;
     this.s.grid.forEach((g, idx) => {
       if (!g?.primed && !g?.amp) return;
       const { x, y } = cellXY(idx);
       if (g.amp) drawAmpMark(this.primeG, x, y, 0.6 + 0.4 * Math.sin(t * 6 + 1.5));
       if (g.primed) drawPrimeMark(this.primeG, x, y, 0.6 + 0.4 * Math.sin(t * 6), 1, g.amp ? SLOT.helper2 : SLOT.helper);
+      if (g.amp && TUNING.unitsB1) {
+        let tx = this.boostTexts[nBoost];
+        if (!tx?.active) tx = this.boostTexts[nBoost] = this.add.text(0, 0, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: hex(AMP_COL), stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0, 0.5).setDepth(11);
+        tx.setText(fmtMult(g.amp)).setPosition(x + SLOT.helper.x + 15, y + SLOT.helper.y).setVisible(true);
+        nBoost++;
+      }
     });
+    for (let i = nBoost; i < this.boostTexts.length; i++) if (this.boostTexts[i]?.active) this.boostTexts[i].setVisible(false);
     // idle life (ChatGPT r10 #8): only two gadgets act at once, each for ~420ms, on a 1800-2600ms cosmetic beat
     const now = this.time.now;
     const holding = this.dragIdx >= 0 && this.moved;
@@ -1713,6 +1778,7 @@ Now beat the real level.`, this.coachY());
       return;
     }
     const pair = this.tutorialPair(step);
+    this.demoKilled = false;
     this.coach.say(step.text, pair ? this.nearY([cellXY(pair[0]), cellXY(pair[1])]) : this.coachY());
     if (!pair) {
       this.tutorialStep++;
@@ -1727,6 +1793,8 @@ Now beat the real level.`, this.coachY());
   }
 
   tutorialWaiting = false;
+  /** F7: the current tutorial step's merge smashed the demo can (its `afterKill` copy replaces `after`). */
+  demoKilled = false;
   /** After a tutorial merge: the explanation waits for GOT IT (r24: players never looked up), then the next step. */
   onTutorialMerge() {
     const step = GameScene.TUTORIAL[this.tutorialStep];
@@ -1755,7 +1823,7 @@ Now beat the real level.`, this.coachY());
         pts = this.s.grid.flatMap((g, i) => (g && Math.floor(i / COLS) === row ? [cellXY(i)] : []));
       }
       this.tutorialWaiting = true;
-      this.coach.say(step.after!, step.focus === 'target' ? this.coachY() + 120 : this.nearY(pts), {
+      this.coach.say(this.demoKilled && step.afterKill ? step.afterKill : step.after!, step.focus === 'target' ? this.coachY() + 120 : this.nearY(pts), {
         next: {
           page: '',
           label: 'GOT IT',
@@ -1788,23 +1856,33 @@ Now beat the real level.`, this.coachY());
   }
   /** First-time contextual tips (once per player). */
   tip(id: string, text: string, pointAt?: { x: number; y: number }) {
-    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
-    this.meta.tips[id] = true;
-    store(META_KEY, JSON.stringify(this.meta));
-    tlog.log('tip', { id });
-    this.meta.tips[id] = false; // explain() owns the seen-flag
-    this.explain(id, [{ text, spots: pointAt ? [{ ...pointAt, r: 70 }] : [], y: pointAt ? this.nearY([pointAt]) : undefined }]);
+    if (this.explain(id, [{ text, spots: pointAt ? [{ ...pointAt, r: 70 }] : [], y: pointAt ? this.nearY([pointAt]) : undefined }])) tlog.log('tip', { id });
   }
 
   explainQueue: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[] = [];
   explainTotal = 0;
   explainOverlay: Phaser.GameObjects.GameObject[] = [];
   explaining = false;
-  /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). */
-  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]) {
-    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return;
+  /** F4: the open lesson teaches a boss attack, so its GOT IT restarts that attack's fuse. */
+  fuseAfterLesson = false;
+  /** F6: overlays that wait for the player to leave the level result (chapter chest, backup nudge). */
+  endQueue = new OverlayQueue();
+  /** t-0a294f99 per-level tip budget (tips.ts); reset by startState. */
+  tipLedger = newTipLedger();
+  /** Counts pause cards against this level's tip budget; a tip that doesn't fit stays unseen and is queued (persisted). */
+  admitTip(id: string, cards: number, atStart = this.s.elapsed < 0.5) {
+    if (this.realBoss) return true; // boss fights already show only their own lessons
+    const q = (this.meta.tipQueue ??= []), n = q.length;
+    const ok = admitTip(this.tipLedger, q, id, cards, atStart);
+    if (q.length !== n) store(META_KEY, JSON.stringify(this.meta));
+    return ok;
+  }
+  /** First-time explanation that STOPS the clock until read (auto-hiding tips were missed mid-fight). True when queued. */
+  explain(id: string, cards: { text: string; spots: { x: number; y: number; r?: number }[]; draw?: () => Phaser.GameObjects.GameObject[]; y?: number }[]): boolean {
+    if (this.meta.tips[id] || this.s.phase !== 'playing' || this.modal) return false;
     // r22 (ChatGPT): boss fights show only the boss-warning lesson; other lessons stay unseen until a normal level
-    if (this.realBoss && id !== 'x_boss' && id !== 'overdrive' && !id.startsWith('xb_')) return;
+    if (this.realBoss && id !== 'x_boss' && id !== 'overdrive' && !id.startsWith('xb_')) return false;
+    if (!this.admitTip(id, cards.length)) return false;
     this.meta.tips[id] = true;
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('explain', { id });
@@ -1814,6 +1892,12 @@ Now beat the real level.`, this.coachY());
     this.afterHold(() => {
       if (!this.explaining && this.explainQueue.length) this.nextExplain();
     });
+    return true;
+  }
+
+  /** F4: GOT IT on a boss attack's first lesson: the attack's fuse starts again (recorded, so replays match). */
+  restartFuse() {
+    if (recordCommand(this.runLog, this.s, { k: 'fuse' }).ok) tlog.log('boss_fuse_restart', { at: +this.s.elapsed.toFixed(1) });
   }
 
   nextExplain() {
@@ -1825,6 +1909,8 @@ Now beat the real level.`, this.coachY());
       this.explaining = false;
       this.paused = false;
       this.coach.clear();
+      if (this.fuseAfterLesson) this.restartFuse();
+      this.fuseAfterLesson = false;
       return;
     }
     this.explaining = true;
@@ -1870,7 +1956,7 @@ Now beat the real level.`, this.coachY());
     // clarity pass 3: the Overdrive lesson also runs in boss levels and when chains (not merges) fill the meter
     const odSoon = odByChain() ? s.odCharge >= odNeeded(s) * 0.7 : s.odCharge === odNeeded(s) - 1;
     if (odSoon && s.odLeft <= 0 && !(s.level !== undefined && s.level < 3) && s.target >= 0)
-      this.tip('overdrive', `${odByChain() ? 'Chains fill' : 'One more merge fills'} the bolt meter (top):\nfull = OVERDRIVE, Cannons fire super fast\nfor a few seconds. Pause > Machine guide.`, { x: 384 + 70, y: 46 });
+      this.tip('overdrive', `${odByChain() ? 'Chains fill' : 'One more merge fills'} the OVERDRIVE meter (top):\nfull = OVERDRIVE, Cannons fire super fast\nfor a few seconds. Pause > Machine guide.`, { x: 384 + 70, y: 46 });
     if (this.realBoss) return; // r22: boss levels keep the stage clear (own explainers only)
     const occ = s.grid.filter(Boolean).length;
     if (s.elapsed > 5 && s.elapsed < 12) this.tip('delivery', 'NEXT brings another gadget.\nMatch its machine and number.', { x: BX + 150, y: TRAY_Y - 30 });
@@ -1890,7 +1976,7 @@ Now beat the real level.`, this.coachY());
     }
     this.tutorialText.setText('');
     if (this.s.puzzle && this.s.phase === 'playing') this.puzzleNudge();
-    if (!this.meta.hints || this.s.phase !== 'playing') return;
+    if (this.meta.hints === false || this.s.phase !== 'playing') return;
     // r35: the board holds still now, so thinking is allowed: hint after 8 s, and point at the pair with the biggest chain
     // r44: never in puzzles - the biggest chain is usually the trap there; puzzles have their own graduated help
     if (this.idleTime > 8 && !this.hintPair && this.dragIdx < 0 && !this.s.puzzle) {
@@ -1927,6 +2013,13 @@ Now beat the real level.`, this.coachY());
           break;
         case 'shot':
           this.playPassiveShot(e.idx, e.damage);
+          break;
+        case 'sandwich':
+          playSandwich(this, e, cellXY);
+          break;
+        case 'support':
+          playSupportFx(this, e, cellXY, FAMILY_INFO[e.family as 'fan']?.color ?? 0xffffff, { x: W / 2, y: BY + (CELL * ROWS) / 2 });
+          UNIT_SOUND[e.family](0, 1);
           break;
         case 'delivery':
           spawn.set(e.gadget.id, { x: BX + 150, y: TRAY_Y });
@@ -1999,23 +2092,17 @@ Now beat the real level.`, this.coachY());
           const kc = events.find((x) => x.type === 'cascade' && x.kickback) as { result: CascadeResult } | undefined;
           const kChain = kc?.result.count ?? 1;
           this.time.delayedCall(520, () => {
-            if (fused)
-              this.explain('x_kick_fuse', [
-                { text: 'You broke a monster panel!\nEvery 25% of its HP one breaks\n(the marks on the HP bar).', spots: [tgtSpot, hpSpot] },
-                { text: kChain > 1 ? 'A loose part fell. The DOUBLE ring showed\nit would land on its match: it merged,\nand that free merge fired another chain!' : 'A loose part fell. The DOUBLE ring showed\nit would land on its match: it merged,\nand that free merge fired the new gadget!', spots: [cellXY(landedAt)] },
-              ]);
-            else {
-              const lg = this.s.grid[landedAt];
-              const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
-              // plain drops come from big chains; only paces without kickbackFuse (CALM) also drop them on panel breaks
-              this.explain('x_kick_plain', [
-                TUNING.kickbackFuse
-                  ? { text: `Your big chain (${TUNING.bigCascade}+) shook\na part loose from the monster!`, spots: [tgtSpot] }
-                  : { text: `A big chain (${TUNING.bigCascade}+) or a broken monster panel\n(every 25% of HP: the marks on the HP bar)\nshook a part loose!`, spots: [tgtSpot, hpSpot] },
-                { text: 'It shook a part loose.\nThe ring showed where it lands: this cell.\n(A DOUBLE ring = it lands on its match and merges.)', spots: [cellXY(landedAt)] },
-                { text: 'This one waits for you.\nMerge it with the same gadget\nand the same number!', spots: partner >= 0 ? [cellXY(landedAt), cellXY(partner)] : [cellXY(landedAt)] },
-              ]);
-            }
+            // t-0a294f99: ONE kickback card, from L5 (tips.ts); saves that saw the old two-lesson version skip it
+            if (this.meta.tips.x_kick_fuse || this.meta.tips.x_kick_plain) return;
+            const lg = this.s.grid[landedAt];
+            const partner = lg ? this.s.grid.findIndex((b, i) => i !== landedAt && !!b && b.family === lg.family && b.rank === lg.rank) : -1;
+            // plain drops come from big chains; only paces without kickbackFuse (CALM) also drop them on panel breaks
+            const why = fused ? 'You broke a monster panel (the marks on the HP bar)' : TUNING.kickbackFuse ? `Your big chain (${TUNING.bigCascade}+)` : `A big chain (${TUNING.bigCascade}+) or a broken panel`;
+            this.explain('x_kick', [
+              fused
+                ? { text: `KICKBACK! ${why}:\na loose part fell onto its match (DOUBLE ring)\nand that free merge fired ${kChain > 1 ? 'another chain' : 'the new gadget'}!`, spots: [hpSpot, cellXY(landedAt)] }
+                : { text: `KICKBACK! ${why}\nshook a part loose: it landed here (the ring).\nMerge it with the same gadget and number!`, spots: partner >= 0 ? [tgtSpot, cellXY(landedAt), cellXY(partner)] : [tgtSpot, cellXY(landedAt)] },
+            ]);
           });
           this.time.delayedCall(420, () => {
             const lg = this.s.grid[landedAt];
@@ -2035,6 +2122,7 @@ Now beat the real level.`, this.coachY());
           break;
         case 'kill':
           if (!e.demo) tlog.log('kill', { target: e.target, at: +this.s.elapsed.toFixed(1) });
+          else this.demoKilled = true;
           if (e.final) this.playBossDefeat();
           else this.playKill(e.final, e.demo);
           break;
@@ -2094,20 +2182,19 @@ Now beat the real level.`, this.coachY());
             }
           // first-ever boss warning: stop the clock and show what to do (r20)
           const bd = this.s.boss ? BOSSES[this.s.boss.def] : null;
-          if (bd && this.s.boss!.light) {
-            const what = { suction: 'It slurps marked machines.\nMove the marked one away!', frost: 'It freezes a row.\nNothing can land there for a moment.', hot: 'Shooters in this column hit half as hard.\nMove them out.', rest: 'Bells and Coils in this row cannot\nwake neighbours. Move them out.', split: 'A divider blocks links across it.\nBuild chains on one side.', tow: 'These two are linked and move together.\nMerge either to free them.', ransom: 'Wake both marked machines\nin one chain, or lose 2 s!' }[e.attack as 'suction' | 'frost' | 'hot' | 'rest' | 'split' | 'tow' | 'ransom'] ?? bd.copy;
-            this.explain(`x_${e.attack}`, [{ text: `WATCH OUT!\n${what}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd && e.attack !== bd.attack && !this.meta.tips[`xb_${e.attack}`]) {
-            // r27: a chapter boss's new final-phase attack, explained once
-            const mini = BOSSES.find((x) => x.mini && x.attack === e.attack);
-            this.explain(`xb_${e.attack}`, [{ text: `FINAL PHASE: NEW ATTACK!\n${mini?.copy ?? ATTACK_COPY[e.attack].why}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd?.mini && !this.meta.tips[`xb_${e.attack}`]) {
-            this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd && e.attack === 'clamp' && !this.meta.tips.x_boss_guided && !this.holding() && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) {
-            // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card (never mid-drag: next clamp)
-          } else if (bd && this.meta.tips.x_boss && !this.meta.tips[`xb_${e.attack}`]) {
-            this.explain(`xb_${e.attack}`, [{ text: `${bd.name}!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]);
-          } else if (bd) this.explain('x_boss', [{ text: `BOSS ATTACK!\n${bd.copy}`, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }]); // r22: bubble in the bottom lane, clear of stage and board
+          // F4 (walkthrough 2): one lesson card per new attack (flow.bossLesson); after its GOT IT the fuse restarts
+          const mini = BOSSES.find((x) => x.mini && x.attack === e.attack);
+          const lessonFor = (canGuide: boolean) => (bd ? bossLesson(this.meta.tips, e.attack, bd, { light: !!this.s.boss!.light, finalCopy: mini?.copy ?? ATTACK_COPY[e.attack].why, canGuide }) : null);
+          let lesson = lessonFor(!this.holding());
+          // r23 (ChatGPT): the first clamp is learned by DOING the dodge, not by reading a card (never mid-drag: next clamp)
+          if (lesson?.kind === 'guided' && this.startGuidedDodge(e.target.cells?.[0] ?? -1)) break;
+          if (lesson?.kind === 'guided') lesson = lessonFor(false);
+          if (lesson?.kind === 'card' && this.explain(lesson.key, [{ text: lesson.text, spots: (e.target.cells ?? []).map((c) => cellXY(c)), y: TRAY_Y }])) {
+            // r22: bubble in the bottom lane, clear of stage and board
+            for (const k of lesson.also) this.meta.tips[k] = true;
+            store(META_KEY, JSON.stringify(this.meta));
+            this.fuseAfterLesson = true;
+          }
           break;
         }
         case 'bossDefuse': {
@@ -2236,8 +2323,9 @@ Now beat the real level.`, this.coachY());
         case 'goal': {
           const cp = cellXY(e.idx);
           sfx.win();
-          this.floatText(cp.x, cp.y - 40, e.kind === 'rank' ? `RANK ${e.n} BUILT!` : `CHAIN x${e.n}!`, '#ffcf33', 56, 900, 'banner_destroyed');
-          this.showEvent(e.kind === 'rank' ? `RANK ${e.n} BUILT!  GOAL DONE` : `CHAIN x${e.n}!  GOAL DONE`, '#ffd24a', 3000);
+          const got = Math.max(e.n, this.s.goal?.best ?? 0); // walkthrough 3: name the rank actually built
+          this.floatText(cp.x, cp.y - 40, e.kind === 'rank' ? `RANK ${got} BUILT!` : `CHAIN x${got}!`, '#ffcf33', 56, 900, 'banner_destroyed');
+          this.showEvent(e.kind === 'rank' ? `RANK ${got} BUILT!  GOAL DONE` : `CHAIN x${got}!  GOAL DONE`, '#ffd24a', 3000);
           tlog.log('goal_done', { kind: e.kind, n: e.n, at: +this.s.elapsed.toFixed(1) });
           break;
         }
@@ -2279,6 +2367,14 @@ Now beat the real level.`, this.coachY());
         case 'shield':
           sfx.panelBreak(1);
           this.showEvent('SHIELD OPEN!  full damage', '#9fe8ff', 1400);
+          // FIX 8: the chain that broke it gets a pop on the monster and on the chip
+          this.floatText(W / 2, this.stageFloatY(this.target.y - 90), 'SHIELD BROKEN!', '#9fe8ff', 44, 300);
+          this.ring(this.target.x, this.target.y, 0x9fe8ff, Math.min(STAGE_H * 0.46, 170), 12, 380);
+          if (this.shieldChip) {
+            this.tweens.killTweensOf(this.shieldChip);
+            this.shieldChip.setScale(1.35);
+            this.tweens.add({ targets: this.shieldChip, scale: 1, duration: 260, ease: 'Back.Out' });
+          }
           break;
         case 'end':
           tlog.log('end', { won: e.won, targets: e.won ? 3 : this.s.target, elapsed: +this.s.elapsed.toFixed(1), chain: this.s.stats.biggestChain });
@@ -2333,6 +2429,7 @@ Now beat the real level.`, this.coachY());
     this.coach.clear();
     this.meta.tips.x_boss_guided = true;
     this.meta.tips.x_boss = true;
+    this.meta.tips.xb_clamp = true; // F4: the dodge was the clamp's lesson
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('guided_dodge_done', {});
   }
@@ -2386,6 +2483,8 @@ Now beat the real level.`, this.coachY());
   floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
     const label = this.add.text(0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
     const t = this.add.container(x, y).setDepth(70);
+    // walkthrough 3: the top-row HUD chips (star chase, shield) fade while a stage banner crosses them
+    if (banner === 'banner_chain') this.bannerUntil = Math.max(this.bannerUntil, this.time.now + 160 + 220 + hold + 700);
     if (banner && this.hasArt(banner)) {
       const b = this.add.image(0, 4, banner);
       b.setScale(Math.max((label.width + size * 2.2) / b.width, (label.height + size * 1.2) / b.height));
@@ -2569,8 +2668,15 @@ Now beat the real level.`, this.coachY());
     });
   }
 
+  formula!: FormulaStrip;
+  support?: SupportCard;
+  pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
+    // rival study #3: a player merge's chain ribbon is its hit formula, counted up link by link
+    const hf = !kickback && this.pendingFormula?.machines === r.count ? this.pendingFormula : null;
+    this.pendingFormula = null;
+    const ribbon = !!hf && (hf.machines > 1 || hf.terms.length > 0 || hf.cap !== null);
     const sig = r.edges.filter((e) => e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime').map((e) => e.kind);
     if (sig.length) tlog.log('max_signature', { kinds: sig, chain: r.count });
     const maxDepth = Math.max(...r.activations.map((a) => a.depth));
@@ -2626,26 +2732,12 @@ Now beat the real level.`, this.coachY());
     }
 
     // group activations into beats (one per depth): one phrase note + at most one zap / ring / payload per beat
-    // live chain counter in the lane: counts up beat by beat, then the final line lands on the hit
-    if (r.count > 2) {
-      let soFar = 0;
-      for (let d = 0; d <= maxDepth; d++) {
-        soFar += r.activations.filter((a) => a.depth === d).length;
-        const n = soFar;
-        this.time.delayedCall(windup + d * step, () => this.showEvent(`CHAIN  x${n}`, n >= 10 ? '#ffd24a' : '#fff0cf', 900));
-      }
-    }
+    // live chain counter: the ladder's 'xN' at the source cell (the old lane counter is gone, so only one counter shows)
+    playChainLadder(this, r.activations, windup, step, root, REDUCED_MOTION);
     for (let d = 0; d <= maxDepth; d++) {
       const at = (windup + d * step) / 1000;
       const acts = r.activations.filter((a) => a.depth === d);
-      if (d > 0) sfx.cascadeStep(Math.min(d - 1, 3), at);
-      if (acts.some((a) => a.family === 'coil')) sfx.zap(at);
-      const bell = acts.find((a) => a.family === 'bell');
-      if (bell) sfx.bell(bell.rank, at);
-      if (acts.some((a) => a.family === 'cannon')) sfx.cannon(at + 0.02, true);
-      if (acts.some((a) => a.family === 'magnet')) sfx.magnet(at);
-      if (acts.some((a) => a.family === 'battery')) sfx.battery(at);
-      if (acts.some((a) => a.family === 'fan')) sfx.fan(at);
+      playBeatSounds(acts, at); // t-e91097cd: every unit has its own sound
     }
     r.activations.forEach((a) => {
       const delay = windup + a.depth * step;
@@ -2677,11 +2769,15 @@ Now beat the real level.`, this.coachY());
           if (!this.fx('vfx_muzzle', x, y - 58, 90, { angle: -90, dur: 100, grow: 1.1 })) this.flash(x, y - 46, 40, 0xfff0a0);
         }
       });
-      this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
+      // t-e91097cd: only a machine that deals damage fires a shot at the monster
+      if (a.contribution > 0) this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
+      playJobTag(this, a, { x, y }, delay); // roster B: Mortar DEPTH x1.48, Rocket BURST x2 ... over the machine
     });
-    const end = windup + maxDepth * step + 260;
+    const end = windup + maxDepth * step + 260 + chainHoldMs(r.count);
+    if (ribbon) this.formula.play(hf!, r.activations.map((a) => windup + a.depth * step), end);
     this.time.delayedCall(end, () => {
       this.hitTarget(true, r.count >= 10 ? 1 : 0);
+      bigFinish(this, r.count);
       if (r.count >= 3) {
         sfx.chord(Math.min(r.count, 20));
         duckMusic();
@@ -2693,18 +2789,17 @@ Now beat the real level.`, this.coachY());
       const huge = r.count >= 10;
       // EXPERIMENT spam fatigue: a hurried merge's number is dimmed and says how much of its hit landed
       const tired = r.fatigue !== undefined && r.fatigue < 1 ? `  ·  RUSHED ${Math.round(r.fatigue * 100)}%` : '';
-      if (r.count > 1) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
+      if (r.count > 1 && !ribbon) this.showEvent(`x${r.count} CHAIN  ·  ${fmt(r.total)}${tired}`, tired ? '#b8a8b0' : huge ? '#ffd24a' : '#fff0cf', 1500);
       if (!kickback && r.count >= 3)
         this.time.delayedCall(500, () =>
           this.explain('x_chain', [
-            { text: 'Your merge fired this gadget.\nIt hit the monster.', spots: [cellXY(r.rootIdx)] },
-            { text: 'It woke these other gadgets.\nCoils zap; Bells ring their lines.\nThey wake OTHER families.', spots: [], draw: () => this.chainArrows(r, 3, true) },
+            { text: `Your merge fired this gadget.\n${chainWakeText(this.s.grid.flatMap((g) => (g ? [g.family] : [])))}`, spots: [cellXY(r.rootIdx)], draw: () => this.chainArrows(r, 3, true) },
             { text: `Those fired too: a CHAIN of ${r.count}!\nMove gadgets next to each other\nto connect their reach.`, spots: [], draw: () => this.chainArrows(r, 3, false) },
           ]),
         );
       // damage number beside the opponent, never on its face
       const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
-      if (capped) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
+      if (capped && !ribbon) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
       if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.stageFloatY(this.target.y - 40), capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });
   }
@@ -2712,7 +2807,7 @@ Now beat the real level.`, this.coachY());
   /** Final blow: hit-stop, rattle with dizzy face, rolling explosions, collapse, parts rain onto your board, machine celebrates. */
   playBossDefeat() {
     const tgt = this.target;
-    const name = TARGET_NAMES[Math.max(0, this.s.target)] ?? 'BOSS';
+    const name = this.monName() ?? 'BOSS'; // F2: the machine on stage (L9: COLANDER CLATTER), not the level's base monster
     this.cancelDrag();
     this.coach.clear();
     // 1) hit-stop flash + slight zoom on the boss
@@ -2850,6 +2945,7 @@ Now beat the real level.`, this.coachY());
     // NEW! when the player has never been warned about this attack before
     const fresh = !this.meta.tips[`xb_${bd.attack}`] && !this.meta.tips[`x_${bd.attack}`];
     this.meta.tips[`xb_${bd.attack}`] = true; // the card is this attack's lesson
+    this.meta.tips.x_boss = true; // F4: and the boss lesson (no second 'BOSS ATTACK!' card at the first warning)
     store(META_KEY, JSON.stringify(this.meta));
     tlog.log('boss_wake_card', { id: bd.id, fresh });
     this.paused = true;
@@ -2871,6 +2967,7 @@ Now beat the real level.`, this.coachY());
       sfx.click();
       o.destroy();
       this.paused = false;
+      this.restartFuse(); // F4: an attack already warned while the card was up gets its full countdown back
     };
     this.button(o, W / 2, cy + ch / 2 - 52, 260, 'GOT IT', 0x5fbf4a, done, 0.8);
   }
@@ -3071,6 +3168,9 @@ Now beat the real level.`, this.coachY());
     return results.playChapterChest(this, ...a);
   }
 
+  /** Walkthrough 3: set while a crate opened from the chapter chest is on screen; its button goes back to the level flow. */
+  crateReturn: (() => void) | null = null;
+
   backupNudge(...a: Tail<typeof results.backupNudge>) {
     return results.backupNudge(this, ...a);
   }
@@ -3137,30 +3237,32 @@ Now beat the real level.`, this.coachY());
   pulledMerge = false;
 
   nextChallenge() {
+    if (!toysOpen(this.currentLevel())) return undefined; // t-0a294f99: no helper teasers before L8
     return GameScene.CHALLENGES.find((c) => !(c.toy in this.meta.toys));
   }
 
   unlockToy(toy: Family) {
-    if (toy in this.meta.toys) return;
-    for (const k of Object.keys(this.meta.toys) as Family[]) this.meta.toys[k] = false;
-    this.meta.toys[toy] = true;
+    // t-0a294f99: the player's helper choice never changes silently (see grantToy)
+    const got = grantToy(this.meta.toys, toy, (t) => FAMILY_INFO[t as Family].name);
+    if (!got) return;
     store(META_KEY, JSON.stringify(this.meta));
-    tlog.log('unlock', { toy });
+    tlog.log('unlock', { toy, on: got.on });
     this.checkUnlocks(); // the first helper opens TEAM
+    // F8: once per toy, and it says where to turn it on
+    if (this.meta.tips[`toy_${toy}`]) return;
+    this.meta.tips[`toy_${toy}`] = true;
+    store(META_KEY, JSON.stringify(this.meta));
     this.time.delayedCall(900, () => {
       sfx.rankUp(6);
-      this.showEvent(`NEW TOY: ${FAMILY_INFO[toy].name.toUpperCase()}  ·  turn it on before your next run`, '#f0b8ff', 3200);
+      this.showEvent(got.text, '#f0b8ff', 3200);
     });
   }
 
   checkChallenges(r: CascadeResult, kickback: boolean) {
     for (const m of r.edges) if (m.kind === 'magnet') this.pulledIds.add(this.s.grid[m.to]?.id ?? -1);
     if (this.s.phase === 'tutorial') return;
-    const ch = this.nextChallenge();
-    if (!ch) return;
-    if (ch.toy === 'magnet' && !kickback && r.activations.filter((a) => a.family === 'cannon').length >= 3) this.unlockToy('magnet');
-    if (ch.toy === 'battery' && !kickback && this.pulledMerge) this.unlockToy('battery');
-    if (ch.toy === 'fan' && r.discharged.length) this.unlockToy('fan');
+    const toy = toyEarned(Math.max(this.currentLevel(), this.s.level ?? 0), this.meta.toys, r, kickback, this.pulledMerge);
+    if (toy) this.unlockToy(toy);
   }
   retry(hardArg?: boolean, remixArg?: number) {
     // "again" (ONE MORE / RESTART, no args) repeats the same mode; a Daily repeats today's bench
@@ -3207,7 +3309,9 @@ Now beat the real level.`, this.coachY());
     else cc.add(this.add.graphics().fillStyle(0xfbe7c6, 1).fillRoundedRect(-(W - 50) / 2, -h / 2, W - 50, h, 26));
     cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 40, 'MONSTER BOUNTIES', { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#3b2533' }).setOrigin(0, 0.5));
     if (!list) {
-      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 90, 'Beat 3 bosses or mini-bosses to unlock\ndaily bounties.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6 }));
+      // F8: locked like the other EVENTS cards (text under the title + a dimmed LOCKED button)
+      cc.add(this.add.text(-(W - 50) / 2 + 44, -h / 2 + 72, BOUNTY_LOCKED.text(new Set(this.beatenBossIds()).size), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a', lineSpacing: 6 }));
+      this.button(cc, (W - 50) / 2 - 130, h / 2 - 56, 200, 'LOCKED', 0x8e58c9, () => this.showToast(BOUNTY_LOCKED.toast), 0.72).setAlpha(0.5);
       c.add(cc);
       return;
     }
@@ -3223,7 +3327,7 @@ Now beat the real level.`, this.coachY());
         im.setScale(110 / Math.max(im.width, im.height));
         slot.add(im);
       }
-      slot.add(this.add.text(0, 52, TWIST_TEXT[b.twist], { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
+      slot.add(this.add.text(0, 52, twistText(b.twist, this.ownsUnit('rocket')), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '15px', color: '#5a3a3a', align: 'center', wordWrap: { width: 176 } }).setOrigin(0.5, 0));
       if (done) slot.add(this.add.text(70, -62, mast ? '★' : '✓', { fontFamily: 'Arial Black', fontSize: '34px', color: mast ? '#e0a020' : '#2a8a3a', stroke: '#fff0cf', strokeThickness: 5 }).setOrigin(0.5));
       slot.setSize(190, 175).setInteractive({ useHandCursor: true });
       slot.on('pointerup', () => (sfx.click(), this.startBounty(k)));
@@ -3372,7 +3476,7 @@ Now beat the real level.`, this.coachY());
       const yardReady = t === 'events' && this.currentLevel() - 1 >= YARD_UNLOCK && this.yardWeek().paid < YARD_TIERS.length;
       const collReady = t === 'units' && (() => { const gl = COLLECTION_GOALS[this.meta.collClaimed ?? 0]; if (!gl) return false; const p = this.collectionProgress(); return (gl.kind === 'own' ? p.own : p.levels) >= gl.n; })();
       // r43: UNITS also gets the dot while an owned unit has an unsolved drill
-      const drillReady = t === 'units' && drillsPending((u) => this.ownsUnit(u), GameScene.PUZZLES.drills, this.puzzleRec().drills);
+      const drillReady = t === 'units' && drillsPending((u) => !!unitDef(u) && this.ownsUnit(u), GameScene.PUZZLES.drills, this.puzzleRec().drills);
       const ready = (t === 'units' && (this.unitsReady() || this.totalCrates() > 0 || collReady || drillReady)) || yardReady;
       // t-2fd7bb86: a freshly unlocked feature tags the tab it lives on with NEW (instead of the dot)
       const lives: Partial<Record<typeof t, Feature[]>> = { machine: this.meta.playtestMode ? [] : ['team', 'workshop'], events: ['puzzles', 'challenge', 'remix'] };
@@ -3514,7 +3618,7 @@ Now beat the real level.`, this.coachY());
 
   rewardText(r: YardReward) {
     const bst = YARD_BOOSTERS.filter((k) => r.boosters?.[k]).map((k) => `${BOOSTER_COPY[k].name}${r.boosters![k]! > 1 ? ` x${r.boosters![k]}` : ''}`);
-    return [r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : '', ...bst].filter(Boolean).join(' + ');
+    return joinRewards([r.bolts ? `${r.bolts} BOLTS` : '', r.gems ? `${r.gems} GEMS` : '', r.crate ? `${r.crate.toUpperCase()} CRATE` : '', r.epic ? 'EPIC UNIT' : '', ...bst]);
   }
 
   openYardEvent() {
@@ -3556,21 +3660,15 @@ Now beat the real level.`, this.coachY());
   startObjectYard() {
     tlog.log('yard_object_start', { obj: CRATE.id });
     this.closeModal();
-    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r) };
+    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r), onResult: (r) => tlog.log('yard_object_end', { won: r.won, moves: r.moves }) };
     this.scene.launch('objectYard', data);
     this.scene.sleep();
   }
 
-  endObjectYard(r: ObjectYardResult) {
+  /** The result panel lives in the yard scene (over the yard); this only runs on EVENT / the quit button. */
+  endObjectYard(_r: ObjectYardResult) {
     this.scene.wake();
-    if (r.quit) return this.openYardEvent();
-    tlog.log('yard_object_end', { won: r.won, moves: r.moves });
-    const c = this.panel(520);
-    const top = H / 2 - 260;
-    c.add(this.add.text(W / 2, top + 70, r.won ? 'CRATE TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: r.won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 170, r.won ? `Every screw out in ${r.moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
-    this.button(c, W / 2, top + 330, 420, r.won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.startObjectYard(), 0.9);
-    this.button(c, W / 2, top + 430, 260, 'EVENT', 0x8a6a4a, () => this.openYardEvent(), 0.75);
+    this.openYardEvent();
   }
 
   endYard(n: number, r: YardResult) {
@@ -3689,7 +3787,7 @@ Now beat the real level.`, this.coachY());
     const parts = bossDef
       ? [bossDef.copy, bossDef.second ? `Final phase: also ${ATTACK_COPY[bossDef.second].what.toLowerCase()}!` : '']
       : [def.goal ? (def.waves ? `LAST MACHINE only breaks when you ${goalText(def.goal).toLowerCase()}` : `GOAL: ${goalText(def.goal)}`) : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
-    const mt = parts.filter(Boolean).join('\n');
+    const mt = [...parts, goodHereText(def, (u) => this.ownsUnit(u))].filter(Boolean).join('\n');
     // r34 onboarding: the first level with a new idea says so, big and dark (not small purple print)
     const fresh = newConcepts(n).length > 0 || !!newFam;
     if (mt && fresh) {
@@ -3844,6 +3942,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     m.tutorialDone = true;
     store(META_KEY, JSON.stringify(m));
     tlog.log('level_start', { level: n, jumpstart });
+    // F7: the warm-up's last lane banner (e.g. "x4 CHAIN") must not carry into the level
+    this.laneMsg.until = 0;
+    this.laneText?.setText('').setAlpha(0);
     // r38 trial: today's featured unit takes its slot at TRIAL_LEVEL for TRIAL_BATTLES battles
     const tu = this.trialActive();
     const td = tu ? unitDef(tu) : undefined;
@@ -3852,7 +3953,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     else if (td?.slot === 'relay') relays = [td.id, relays[1] === td.id ? relays[0] : relays[1]];
     else if (td?.slot === 'helper') toys = [td.id];
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
-    applyUnitsB0(qaUnitsB0()); // QA UNITS B0 switch, same
+    applyUnits(qaUnits()); // QA UNITS switch, same
+    applyMergeRule(qaMergeRule()); // QA MERGE RULE switch, same
+    applyThinkBank(qaThinkBank()); // QA THINK BANK switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -4176,7 +4279,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const lv = this.currentLevel();
     const items: [string, string, string, number, number, 'kits' | 'capsules', string][] = [
       ['booster_jumpstart', 'JUMPSTART KIT', 'Start a level with your 2 bottom\nshooters one rank higher.', PRICES.jumpstart_kit, BOOSTER_UNLOCK.jumpstart_kit, 'kits', 'Pick it on the level card'],
-      ['booster_time_capsule', 'TIME CAPSULE', '+15 seconds, once per level,\nwhile the clock is running.', PRICES.time_capsule, BOOSTER_UNLOCK.time_capsule, 'capsules', 'Tap +15s under the clock'],
+      ['booster_time_capsule', 'TIME CAPSULE', '+15 seconds, once per level,\nwhile the clock is running.', PRICES.time_capsule, BOOSTER_UNLOCK.time_capsule, 'capsules', 'Hold +15s in the bottom lane'],
     ];
     const CAPS = { kits: 3, capsules: 2 } as const;
     items.forEach(([icon, name, desc, price, unlock, field, how], i) => {
@@ -4350,7 +4453,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
   canUpgrade(u: UnitDef) {
     const st = this.meta.units?.[u.id];
-    return !!st && st.level < MAX_UNIT_LEVEL && st.cards >= cardsFor(u, st.level) && (this.meta.bolts ?? 0) >= boltsFor(u, st.level);
+    return !!st && st.level < MAX_UNIT_LEVEL && cardsAvailable(this.meta, u.id) >= cardsFor(u, st.level) && (this.meta.bolts ?? 0) >= boltsFor(u, st.level);
   }
   unitsReady() {
     return UNITS.some((u) => this.canUpgrade(u));
@@ -4693,7 +4796,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     ];
     const rows: Row[] = page2 ? cells : [
       { label: P.boost.label, fam: 'cannon_2', text: P.boost.text, draw: (g, x, y) => drawAmpMark(g, x, y, 1, k) },
-      { label: P.charge.label, fam: 'cannon_2', text: P.charge.text, draw: (g, x, y) => drawPrimeMark(g, x, y, 1, k) },
+      // units B1: Battery boosts too, so the CHARGED row would explain a mark that never appears
+      ...(TUNING.unitsB1 ? [] : [{ label: P.charge.label, fam: 'cannon_2', text: P.charge.text, draw: (g: Gfx, x: number, y: number) => drawPrimeMark(g, x, y, 1, k) }]),
       {
         label: P.powerup.label, fam: 'cannon_2', text: P.powerup.text,
         draw: (g, x, y) => {
@@ -4869,6 +4973,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       arc_welder: { pieces: [['coil', 1, 1], ['arc_welder', 1, 3], ['cannon', 0, 4]], links: [[0, 1, 1], [1, 2, 2]] },
       amplifier: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['amplifier', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
       signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
+      ...ROSTER_1_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();
@@ -4894,7 +4999,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     });
     const fx = this.add.graphics();
     c.add(fx);
-    const isShooter = (f: string) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder';
+    const isShooter = (f: string) => isShooterFam(f as Family);
     const base = d.pieces.map(([, r, k]) => at(r, k));
     const drawMark = () => {
       fx.clear();

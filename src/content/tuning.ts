@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -125,6 +125,58 @@ export const TUNING = {
    *  Arc Welder arcs skip other Arc Welders. */
   unitsB0: false,
   b0: { toyBag: 2, orderBase: 0.8, orderStep: 0.1, orderCap: 2.0, capPerk: 0.15 },
+  /** EXPERIMENT (t-4a966cee, units option B stage B1), default OFF; implies the B0 rules except where b1 overrides them.
+   *  Each helper gets one direct job when it fires (merged or woken): one shared BOOSTED xN mark on a shooter (the
+   *  closer the helper, the bigger: Battery x battery on a touching shooter, Amplifier x amp within 2 cells, Beacon
+   *  x beacon anywhere; the strongest shooter it would raise, never stacking); Fan clears one touching junk / frost / lock
+   *  or an attack aimed at one (else pushes as today when fanPush); Magnet fetches a matching part that lands next to a
+   *  lonely twin (a ready pair). helperPass: a helper passes the chain on to its U/R/D/L neighbours (B0: helpers were
+   *  dead ends that cost chains). Relays: Fuse Box reaches fuseReach cells along its diagonals; Horn also wakes its left /
+   *  right neighbours (hornSides). Mortar order multiplier orderBase + orderStep per machine. Sims: DESIGN.md (units B1). */
+  unitsB1: false,
+  b1: { toyBag: 1, helperPass: true, battery: 2, amp: 1.6, beacon: 1.3, fanPush: true, fuseReach: 2, hornSides: true, orderBase: 0.85, orderStep: 0.12 },
+  /** PROTOTYPE (t-1effe0bf, src/core/sandwich.ts), default 'today': a player merge whose landing cell touches 2+ more
+   *  same-rank parts of its family absorbs two of them. 'sandwich2' = rank +2 (capped); 'sandwichBonus' = +1 as today
+   *  plus sandwichOdShare of the Overdrive meter. Puzzles and kickback fuses never sandwich. */
+  /** EXPERIMENT (t-e91097cd, roster Direction B step 1), default OFF; replaces the B0 / B1 rules while on. One job per unit,
+   *  collection levels 3 / 6 / 9 change the job (src/core/cascade.ts rbRouteCells + resolveCascade):
+   *  Cannon FIRE (auto-shot; L3 quicker, L6 hotter, L9 double tap) · Coil REACH (a tall 6-cell cross) · Bell ROW · Horn
+   *  COLUMN (+ x`hornKick` on shooters it wakes from L3) · Rocket BURST (x`rocketRoot` when YOU merge it, x`rocketWoken`
+   *  when a chain wakes it) · Mortar DEPTH (x1 + `mortarStep` per machine already fired, max x`mortarCap`) · Fuse Box
+   *  DIAGONAL 2 cells · Arc Welder SPREAD (jumps to the nearest other shooter, never a welder). Helpers leave the board and
+   *  become one off-board SUPPORT card (src/core/support.ts) that charges by +1 per machine in YOUR merge chains and fires
+   *  on a tap: Fan CLEAR 3x3 · Magnet PAIR · Battery PRIME · Amplifier MARK · Signal Beacon GO. */
+  rosterB: false,
+  rb: {
+    rocketRoot: 2, rocketRootL3: 2.5, rocketWoken: 0.5, rocketWokenL9: 0.8,
+    mortarStep: 0.12, mortarCap: 2, mortarCapL3: 2.5,
+    hornKick: 1.25, spreadHit: 1.3,
+    cannonQuick: 2.4, passiveHot: 0.25,
+    /** Support card charge needed (machines fired in your merge chains). */
+    need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16 } as Record<string, number>,
+    prime: 2, primeL3: 2.5, mark: 1.6, markL3: 2, goKick: 1.3,
+  },
+  mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
+  sandwichOdShare: 1 / 3,
+  /** PROTOTYPE (t-4208f149, rival study #2 "Think Bank"), default OFF (QA switch): once the player has not touched the
+   *  board (no command, no finger down) for `grace` s, a saga-style level runs at `rate` speed (0 = frozen: clock,
+   *  supply, auto-shots, Overdrive, boss / remix timers) until `bank` s of level time have been saved this level.
+   *  Input is never blocked; the first touch resumes full speed. Sims: tools/think-bank.ts, DESIGN.md (Think Bank). */
+  thinkBank: false,
+  // probe L11-80: grace 1 / 1.5 also froze the 2.5 s tapper between taps (3★ gap 0-8 pts); 2 keeps a thinker's pause
+  // free but not a quick tapper's (3★ gap ~27 pts); rate 0.4-0.5 sat in between; the bank rarely binds (19-42 s used)
+  tb: { grace: 2, rate: 0, bank: 60 },
+  /** EXPERIMENT (t-9b28a794, roster B batch 1), default OFF: Nail Gun / Jackhammer / Gear / Saw Blade join the collection,
+   *  crates and squad pickers (src/content/units.ts applyRoster1). OFF = no new unit anywhere. Their rules live in
+   *  src/core/roster1.ts and only act when one of them is on the board. Nail Gun: x(1 + nailPer per other filled cell in
+   *  its row); Jackhammer: its share ignores a closed shield; Gear: wakes its 4 touching
+   *  cells; a MERGED Gear (chain depth <= gearDepth) also jumps the chain to the gearLinks farthest other Gears, anywhere
+   *  (sims t-9b28a794: every woken Gear linking = Coil+Gear cleared 20% faster than any squad); Saw Blade: x sawEdge on the outer ring, x sawInside inside. */
+  roster1: false,
+  r1: { gearLinks: 1, gearLinksL6: 2, gearDepth: 0, gearKick: 1.2, nailPer: 0.2, nailCap: 1.8, nailCapL9: 2.2, hammerBeat: 1.5, bypassL3: 1.3, sawEdge: 1.5, sawEdgeL3: 1.6, sawInside: 0.7, sawInsideL9: 0.85, sawCorner: 1.25, sawCap: 1.72 },
 };
+
+/** Units B0 rules are on (B0 itself, or B1, which builds on them). */
+export const unitsB0On = () => !TUNING.rosterB && (TUNING.unitsB0 || TUNING.unitsB1);
 
 export type Tuning = typeof TUNING;

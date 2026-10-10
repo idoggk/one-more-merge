@@ -38,6 +38,11 @@ const states = {
   tut_after: [(sc) => { const st = sc.constructor.TUTORIAL[sc.tutorialStep]; const p = sc.tutorialPair(st); if (p) sc.commitDrop(p[0], p[1], sc.s.grid[p[0]].id); }, 2200],
   l1_lesson: [(sc) => { sc.startLevel(1); }, 4200],
   guide0: [(sc) => { clearInterval(window.__bot); sc.openTitle('road'); sc.openHowTo(0); }, 1500],
+  // new-player copy fixes (t-8432ed2c): Cannon guide page, the stage HUD lesson on a goal stage, x_chain on a cannons-only board
+  guide_cannon: [(sc) => { clearInterval(window.__bot); sc.openTitle('road'); sc.openHowTo(sc.constructor.GUIDE.findIndex((p) => p.key === 'cannon')); }, 1500],
+  stage_hud4: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { delivery: true, overdrive: true, full: true, clock: true, next: true, x_chain: true, x_boss: true, tap_hint: true, new_fan: true, new_rocket: true, new_magnet: true, new_battery: true }; sc.startLevel(4); sc.finishIntro(true); }, 2500],
+  xchain_l1: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({ x_chain: false }, { get: (t, k) => k !== 'x_chain' || t.x_chain, set: (t, k, v) => ((t[k] = v), true) }); sc.startLevel(1); sc.finishIntro(true); setTimeout(() => { const s = sc.s; const g = s.grid.find(Boolean); s.grid = s.grid.map(() => null); [7, 11, 12, 13, 17].forEach((i, k) => (s.grid[i] = { ...g, id: 9000 + k, rank: 1 })); sc.reconcile(); sc.commitDrop(13, 12, 9003); }, 800); }, 4500],
+  xchain_l1_p2: [(sc) => sc.coach.nextBtn.emit('pointerup'), 900],
   guide2: [(sc) => { sc.openHowTo(2); }, 1300],
   new_rocket: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, new_rocket: false }; sc.startLevel(6); }, 4200],
   settings: [(sc) => { sc.closeModal(); sc.openTitle('road'); sc.openSettings(); }, 900],
@@ -348,6 +353,11 @@ const states = {
   chips_top_left: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(22); sc.finishIntro(true); const s = sc.s; const mk = (f, r, x = {}) => ({ id: s.nextId++, family: f, rank: r, cd: 30, ...x }); s.grid.fill(null); Object.assign(s.grid, { 0: mk('cannon', 2, { amp: 1.3, primed: true }), 4: mk('cannon', 2, { amp: 1.15 }), 2: mk('cannon', 2), 7: mk('coil', 2), 6: mk('bell', 1), 12: mk('cannon', 2), 1: mk('amplifier', 1), 3: mk('battery', 1) }); sc.reconcile(true); setTimeout(() => { sc.input.activePointer.isDown = true; sc.paused = true; sc.dragIdx = 12; sc.dragId = s.grid[12].id; sc.moved = true; sc.hoverIdx = 0; sc.drawHeld(); }, 700); }, 1300],
   chips_top_right: [(sc) => { sc.hoverIdx = 4; sc.drawHeld(); }, 600],
   chips_top_mid: [(sc) => { sc.hoverIdx = 2; sc.drawHeld(); }, 600],
+  // live hit formula (rival study #3): the lane strip while holding a match, the post-drop ribbon, and a long formula that wraps
+  formula_strip: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(22); sc.finishIntro(true); const s = sc.s; const mk = (f, r, x = {}) => ({ id: s.nextId++, family: f, rank: r, cd: 30, ...x }); s.grid.fill(null); Object.assign(s.grid, { 12: mk('cannon', 2, { amp: 1.3 }), 27: mk('cannon', 2), 7: mk('coil', 2), 11: mk('bell', 2), 2: mk('rocket', 2), 14: mk('cannon', 1), 13: mk('battery', 1) }); sc.reconcile(true); setTimeout(() => { sc.input.activePointer.isDown = true; sc.paused = true; sc.dragIdx = 27; sc.dragId = s.grid[27].id; sc.moved = true; sc.hoverIdx = 12; sc.drawHeld(); }, 700); }, 1300],
+  formula_ribbon: [(sc) => { const id = sc.s.grid[27].id; sc.input.activePointer.isDown = false; sc.dragIdx = -1; sc.hoverIdx = -1; sc.moved = false; sc.commitDrop(27, 12, id); sc.drawHeld(); }, 1500],
+  formula_wrap: [(sc) => { const s = sc.s; const mk = (f, r, x = {}) => ({ id: s.nextId++, family: f, rank: r, cd: 30, ...x }); s.grid.fill(null); s.odLeft = 5; s.maxHp = s.hp = 300; Object.assign(s.grid, { 12: mk('cannon', 4, { amp: 1.3, primed: true, item: { kind: 'overcharge', charges: 2 } }), 27: mk('cannon', 4), 7: mk('coil', 2), 11: mk('bell', 2), 2: mk('rocket', 2, { amp: 1.15 }), 14: mk('cannon', 1, { primed: true }), 13: mk('amplifier', 1) }); sc.reconcile(true); setTimeout(() => { sc.input.activePointer.isDown = true; sc.paused = true; sc.dragIdx = 27; sc.dragId = s.grid[27].id; sc.moved = true; sc.hoverIdx = 12; sc.chipKey = ''; sc.drawHeld(); }, 500); }, 1100],
+  formula_wrap_ribbon: [(sc) => { const id = sc.s.grid[27].id; sc.input.activePointer.isDown = false; sc.dragIdx = -1; sc.hoverIdx = -1; sc.moved = false; sc.commitDrop(27, 12, id); sc.drawHeld(); }, 2000],
   pz_label: [(sc) => { clearInterval(window.__bot); sc.input.activePointer.isDown = false; sc.paused = false; sc.dragIdx = -1; sc.hoverIdx = -1; sc.drawHeld(); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startPuzzle(sc.dailyPuzzle(), 'daily'); setTimeout(() => { if (sc.explaining) sc.nextExplain(); }, 1200); }, 2400],
   // clarity pass 3: a tap on a closed corner with a loose part about to land beside it
   cell_card: [(sc) => { sc.closeModal(); sc.meta.tips = { ...sc.meta.tips, tap_hint: true }; sc.startLevel(5); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = false; const e = sc.s.grid.map((x, i) => (x ? -1 : i)).filter((i) => i >= 0); sc.s.masked = [e[e.length - 1]]; sc.openCellCard(e[e.length - 1]); }, 500); }, 1500],
@@ -367,6 +377,12 @@ const states = {
     },
     600,
   ],
+  // merge juice v2 (rival study #4/#10/#11): a held part with its matches leaning in, the idle pair blink, a big chain's
+  // counter in its hold, and the 'so close' lose line. Run alone: node tools/shots.mjs shots fx_drag fx_idle fx_chain fx_lose
+  fx_drag: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = true; const s = sc.s; let pick = -1; for (let i = 0; i < 30 && pick < 0; i++) for (let j = 0; j < 30; j++) if (i !== j && s.grid[i] && s.grid[j] && s.grid[i].family === s.grid[j].family && s.grid[i].rank === s.grid[j].rank) { pick = i; break; } if (pick < 0) return; const m = s.grid.findIndex((g, j) => j !== pick && g && g.family === s.grid[pick].family && g.rank === s.grid[pick].rank); if (m >= 0) s.grid[m].primed = true; sc.input.activePointer.isDown = true; sc.dragIdx = pick; sc.dragId = s.grid[pick].id; sc.dragView = sc.views.get(sc.dragId); sc.moved = true; sc.dragView.setDepth(55).setPosition(sc.dragView.x + 150, sc.dragView.y - 60); }, 900); }, 1700],
+  fx_idle: [(sc) => { sc.input.activePointer.isDown = false; sc.dragIdx = -1; sc.dragView = null; sc.moved = false; sc.reconcile(true); sc.paused = false; sc.idleTime = 6.5; sc.partReact.blinkFrom = sc.time.now - 1600 * 3 - 260; }, 60],
+  fx_chain: [(sc) => { sc.paused = false; const s = sc.s; const cells = s.grid.map((g, i) => (g ? i : -1)).filter((i) => i >= 0).slice(0, 10); const acts = cells.map((idx, k) => ({ id: s.grid[idx].id, idx, family: s.grid[idx].family, rank: s.grid[idx].rank, depth: Math.min(k, 6), parent: -1, charge: 1, contribution: 10 })); sc.playCascade({ rootIdx: cells[0], activations: acts, edges: [], count: acts.length, total: 120 }, false, false); }, 760],
+  fx_lose: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.startLevel(22); sc.finishIntro(true); setTimeout(() => { sc.coach.clear(); sc.explaining = false; sc.explainQueue = []; sc.paused = false; const s = sc.s; if (s.stage) { s.stage.i = s.stage.hps.length - 1; s.maxHp = s.stage.hps[s.stage.i]; } s.hp = Math.round(s.maxHp * 0.08); s.stats.merges = 20; s.stats.totalDamage = Math.round(s.maxHp * 0.045 * 20); s.timeLeft = 0.05; }, 600); }, 3600],
   result_win: [
     (sc) => {
       sc.coach.clear();
@@ -382,6 +398,24 @@ const states = {
     },
     900,
   ],
+  // t-fe74ec39 F6: chapter-end result (reward rows, +N more), then NEXT LEVEL -> CHAPTER COMPLETE -> BACK UP -> level card
+  wf_result10: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), medals: {}, backupNudged: {}, grants: {}, levelStars: Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 3])) }); sc.startLevel(10); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; sc.s.phase = 'won'; sc.s.elapsed = 52.3; sc.s.stats.biggestChain = 9; sc.openLevelResult(true); }, 600); }, 1800],
+  wf_next_tap: [(sc) => { const b = sc.modal.list.find((o) => o.list?.some?.((t) => t.text?.startsWith?.('NEXT'))); b.emit('pointerdown'); b.emit('pointerup'); }, 1600],
+  wf_chest_tap: [(sc) => { const o = sc.children.list.filter((c) => c.depth === 140).pop(); o.list[0].emit('pointerdown'); o.list[0].emit('pointerup'); }, 900],
+  // t-bb50f69f FIX 2: a stage banner over the top HUD row (the star chase must fade under it); FIX 8: shield closed / broken
+  banner17: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(17); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; sc.introTarget(); }, 2500); }, 4500],
+  banner20: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(20); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; sc.introTarget(); }, 2500); }, 4500],
+  shield11: [(sc) => { clearInterval(window.__bot); sc.closeModal(); sc.coach.clear(); sc.meta.tips = new Proxy({}, { get: () => true, set: () => true }); sc.startLevel(11); sc.finishIntro(true); setTimeout(() => { sc.paused = false; sc.explaining = false; }, 300); }, 3500],
+  shield11_open: [(sc) => { sc.s.shieldUntil = sc.s.elapsed + 6; sc.handleEvents([{ type: 'shield', open: true, until: sc.s.shieldUntil }]); }, 350],
+  wf_backup_tap: [(sc) => { const o = sc.children.list.filter((c) => c.depth === 140).pop(); o.list[0].emit('pointerdown'); o.list[0].emit('pointerup'); }, 900],
+  // t-c3964d65: job word on small cards (grid + crate reveal), tap a reveal card for its WHEN MERGED line, odds sheet
+  jobs_iron: [(sc) => { clearInterval(window.__bot); sc.closeModal(); Object.assign(sc.meta, { tips: new Proxy({}, { get: () => true, set: () => true }), unitChoiceDone: true, units: { cannon: { level: 2, cards: 0 }, coil: { level: 1, cards: 0 }, bell: { level: 1, cards: 0 }, horn: { level: 1, cards: 0 }, fan: { level: 1, cards: 0 } }, crates: { iron: 1 } }); sc.openCrate('iron'); }, 4500],
+  jobs_gold: [(sc) => { sc.closeModal(); sc.meta.crates = { gold: 1 }; sc.openCrate('gold'); }, 8000],
+  jobs_popup: [(sc) => { const c = sc.modal.list.find((o) => o.input && o.list?.length > 3); c.emit('pointerup'); }, 500],
+  jobs_mortar: [(sc) => { sc.closeModal(); Object.assign(sc.meta, { units: Object.fromEntries(['cannon','coil','bell','horn','fan','rocket','mortar','fuse_box','magnet','battery','amplifier','arc_welder','signal_beacon'].map((u) => [u, { level: 3, cards: 1 }])) }); sc.openUnitDetail({ id: 'mortar', role: 'SHOOTER', rarity: 'rare', slot: 'shooter' }); }, 1500],
+  jobs_beacon: [(sc) => { sc.openUnitDetail({ id: 'signal_beacon', role: 'HELPER', rarity: 'epic', slot: 'helper' }); }, 1500],
+  jobs_locked: [(sc) => { delete sc.meta.units.battery; sc.openUnitDetail({ id: 'battery', role: 'HELPER', rarity: 'rare', slot: 'helper' }); }, 1500],
+  jobs_odds: [(sc) => { sc.children.list.filter((c) => c.depth === 150).forEach((c) => c.destroy()); const b = sc.modal.list.find((o) => o.list?.some?.((t) => t.text === 'ODDS')); b.emit('pointerup'); }, 500],
 };
 const only = args.slice(1);
 for (const [name, [fn, ms]] of Object.entries(states)) {

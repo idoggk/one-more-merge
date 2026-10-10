@@ -42,6 +42,8 @@ async function runLevel(p, n) {
   const { page } = p;
   p.cur = n;
   await page.evaluate((fk) => { window.__fk = fk; }, !!process.env.FASTKILL);
+  // MERGE_RULE=sandwich2|sandwichBonus: the QA MERGE RULE switch (t-1effe0bf), read when the level starts
+  await page.evaluate((rule) => (rule ? localStorage.setItem('omm_qa_merge_rule', rule) : localStorage.removeItem('omm_qa_merge_rule')), process.env.MERGE_RULE ?? '');
   await page.evaluate((lv) => {
     const sc = window.__omm.game.scene.getScene('game');
     clearInterval(window.__bot);
@@ -74,7 +76,7 @@ async function runLevel(p, n) {
     const s = window.__omm.game.scene.getScene('game').s;
     const sc = window.__omm.game.scene.getScene('game');
     const flags = process_env_debug ? ` [paused=${sc.paused} modal=${!!sc.modal} expl=${sc.explaining} intro=${sc.introActive} guided=${!!sc.guided} item=${!!sc.itemLesson} wait=${sc.tutorialWaiting} coach=${sc.coach?.waitingTap}]` : '';
-    return `${s.phase}${flags} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.stage ? ` machine ${s.stage.i + 1}/${s.stage.hps.length + (s.stage.goal ? 1 : 0)}` : ''}${s.boss && !s.boss.light ? ' BOSS' : ''}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}`;
+    return `${s.phase}${flags} t=${s.elapsed.toFixed(1)} hp=${Math.round(s.hp)}/${Math.round(s.maxHp)}${s.stage ? ` machine ${s.stage.i + 1}/${s.stage.hps.length + (s.stage.goal ? 1 : 0)}` : ''}${s.boss && !s.boss.light ? ' BOSS' : ''}${s.goal ? ` goal ${s.goal.best}/${s.goal.n}` : ''}${s.stats.sandwiches ? ` sandwiches ${s.stats.sandwiches}` : ''}`;
   }, !!process.env.DEBUGFLAGS);
   lines.set(n, `L${n} ${st}`);
   flush();

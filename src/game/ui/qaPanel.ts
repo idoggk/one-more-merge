@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyUnitsB0, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnitsB0, UNITS_B0_KEY, type SpamVariant } from '../../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, storedPace, storedRoster1, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { TUNING } from '../../content/tuning';
+import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
+import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
 import { LEVELS } from '../../content/levels';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
-import { UNITS, type CrateKind } from '../../content/units';
+import { applyRoster1, UNITS, type CrateKind } from '../../content/units';
 import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
@@ -33,9 +36,19 @@ export const qaYardObject = () => {
     return false;
   }
 };
-// t-a8c886ad QA-only: units option B stage B0 (helpers copy + 2 bag tokens, Mortar chain order, welders skip welders)
-export const qaUnitsB0 = () => storedUnitsB0(() => localStorage.getItem(UNITS_B0_KEY));
-applyUnitsB0(qaUnitsB0());
+// t-a8c886ad / t-4a966cee QA-only: units option B, OFF / B0 (helpers copy, Mortar chain order, welders skip welders) /
+// B1 (B0 + one direct job per helper, shared BOOSTED mark, Fuse Box reach)
+export const qaUnits = () => storedUnits(() => localStorage.getItem(UNITS_B0_KEY));
+applyUnits(qaUnits());
+// t-9b28a794 QA-only: roster B batch 1 (Nail Gun / Jackhammer / Gear / Saw Blade in collection, crates and squads)
+export const qaRoster1 = () => storedRoster1(() => localStorage.getItem(ROSTER1_KEY));
+applyRoster1(qaRoster1());
+// t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
+export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
+applyMergeRule(qaMergeRule());
+// t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
+export const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
+applyThinkBank(qaThinkBank());
 
 /** What a QA row draws into: the open sheet, plus the level picked in JUMP TO LEVEL (kept when the panel reopens). */
 interface QaCtx {
@@ -63,11 +76,14 @@ interface QaSwitch<T> {
   dx: number;
   gap?: number;
   h?: number;
+  /** Title font size / button scale when the row is squeezed (MERGE RULE). */
+  font?: number;
+  scale?: number;
 }
 const qaSwitch = <T>(sw: QaSwitch<T>): QaRow => ({
   h: sw.h ?? 120,
   draw: ({ scene, c, reopen }, y) => {
-    c.add(scene.add.text(W / 2, y, sw.title, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(scene.add.text(W / 2, y, sw.title, { fontFamily: 'Lilita One, Arial Black', fontSize: `${sw.font ?? 26}px`, color: '#3b2533' }).setOrigin(0.5));
     const cur = sw.current();
     sw.options.forEach(({ id, label }, i) => {
       const on = id === cur;
@@ -75,7 +91,7 @@ const qaSwitch = <T>(sw: QaSwitch<T>): QaRow => ({
         sw.pick(id);
         scene.showToast(sw.toast(id, label));
         reopen();
-      }, 0.62);
+      }, sw.scale ?? 0.62);
     });
   },
 });
@@ -157,23 +173,38 @@ const QA_ROWS: QaRow[] = [
   },
   {
     h: 90,
-    draw: ({ scene, c, save }, y) =>
-      scene.button(c, W / 2, y, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
+    draw: ({ scene, c, save, reopen }, y) => {
+      scene.button(c, W / 2 - 150, y, 360, '+2000 BOLTS +500 GEMS', 0xe0a020, () => {
         const m = scene.meta;
         m.bolts = (m.bolts ?? 0) + 2000;
         m.gems = (m.gems ?? 0) + 500;
         save();
         scene.showToast('+2000 BOLTS  +500 GEMS');
-      }, 0.8),
+      }, 0.68);
+      // t-4208f149 THINK BANK prototype OFF / ON (this device only; applies when the next level starts)
+      scene.button(c, W / 2 + 150, y, 360, qaThinkBank() ? 'THINK BANK: ON' : 'THINK BANK: OFF', qaThinkBank() ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(THINK_BANK_KEY, qaThinkBank() ? null : 'on');
+        tlog.log('qa_think_bank', { on: qaThinkBank() });
+        scene.showToast(qaThinkBank() ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL');
+        reopen();
+      }, 0.68);
+    },
   },
   {
     h: 65,
-    draw: ({ scene, c, save }, y) =>
-      scene.button(c, W / 2, y, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
-        for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) scene.giveCrate(k);
+    draw: ({ scene, c, save, reopen }, y) => {
+      scene.button(c, W / 2 - 150, y, 360, '+3 CRATES', 0xb06a1a, () => {
+        for (const k of (TUNING.rosterB ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) scene.giveCrate(k);
         save();
         scene.showToast('3 CRATES ADDED  ·  UNITS TAB');
-      }, 0.8),
+      }, 0.75);
+      // t-33f4fe2e crate look: OLD crates (live) / TOOLBOX (Tool Bag, Toolbox, Tool Chest), this device only
+      scene.button(c, W / 2 + 150, y, 360, toolboxOn() ? 'CRATES: TOOLBOX' : 'CRATES: OLD', toolboxOn() ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(TOOLBOX_KEY, toolboxOn() ? null : 'toolbox');
+        tlog.log('qa_crates', { look: toolboxOn() ? 'toolbox' : 'old' });
+        reopen();
+      }, 0.75);
+    },
   },
   // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
   qaSwitch<SpamVariant>({
@@ -195,27 +226,39 @@ const QA_ROWS: QaRow[] = [
     options: PACES,
     current: qaPace,
     pick: (id) => {
-      store(PACE_KEY, id === 'today' ? null : id);
+      store(PACE_KEY, id === DEFAULT_PACE ? null : id);
       tlog.log('qa_pace', { pace: id });
     },
-    toast: (id, label) => (id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${label}  ·  START A LEVEL`),
+    toast: (id, label) => (id === DEFAULT_PACE ? `PACE ${label} (live game)  ·  NEXT LEVEL` : `PACE ${label}  ·  START A LEVEL`),
     w: 300,
     dx: 210,
   }),
-  // 6) t-a8c886ad units B0 (this device only; applies when the next level starts)
-  qaSwitch({
-    title: 'UNITS B0 (next level)',
-    options: [{ id: false, label: 'OFF' }, { id: true, label: 'B0' }],
-    current: qaUnitsB0,
-    pick: (on) => {
-      store(UNITS_B0_KEY, on ? 'on' : null);
-      tlog.log('qa_units_b0', { on });
-    },
-    toast: (on) => (on ? 'UNITS B0  ·  START A LEVEL' : 'UNITS B0 OFF (live game)  ·  NEXT LEVEL'),
-    w: 300,
-    dx: 210,
+  // 6) t-a8c886ad / t-4a966cee units OFF / B0 / B1 (this device only; applies when the next level starts)
+  {
     h: 105,
-  }),
+    draw: ({ scene, c, reopen }, y) => {
+      c.add(scene.add.text(W / 2, y, 'UNITS (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+      const curUnits = qaUnits();
+      // t-9b28a794: 4th button NEW4 toggles roster B batch 1 (Nail Gun / Jackhammer / Gear / Saw Blade) at once
+      const r1On = qaRoster1();
+      scene.button(c, W / 2 + 1.5 * 162, y + 55, 240, r1On ? '[NEW4]' : 'NEW4', r1On ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(ROSTER1_KEY, r1On ? null : 'on');
+        applyRoster1(!r1On);
+        tlog.log('qa_roster_1', { on: !r1On });
+        scene.showToast(r1On ? 'NEW 4 UNITS OFF (live game)' : 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS');
+        reopen();
+      }, 0.62);
+      UNITS_VARIANTS.forEach((v, i) => {
+        const sel = v.id === curUnits;
+        scene.button(c, W / 2 + (i - 1.5) * 162, y + 55, 240, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+          store(UNITS_B0_KEY, unitsStoreValue(v.id));
+          tlog.log('qa_units', { units: v.id });
+          scene.showToast(v.id === 'off' ? 'UNITS OFF (live game)  ·  NEXT LEVEL' : `UNITS ${v.label}  ·  START A LEVEL`);
+          reopen();
+        }, 0.62);
+      });
+    },
+  },
   // 7) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
   qaSwitch({
     title: 'SCREW YARD',
@@ -229,7 +272,25 @@ const QA_ROWS: QaRow[] = [
     w: 340,
     dx: 260,
     gap: 48,
-    h: 112,
+    h: 91,
+  }),
+  // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
+  // (the 1280-tall small-phone screen has no room left below: BACK moved up beside the title for this row)
+  qaSwitch({
+    title: 'MERGE RULE (next level)',
+    options: MERGE_RULES,
+    current: qaMergeRule,
+    pick: (id) => {
+      store(MERGE_RULE_KEY, id === 'today' ? null : id);
+      tlog.log('qa_merge_rule', { rule: id });
+    },
+    toast: (id, label) => (id === 'today' ? 'MERGE RULE TODAY (live game)  ·  NEXT LEVEL' : `MERGE RULE ${label}  ·  START A LEVEL`),
+    w: 320,
+    dx: 200,
+    gap: 33,
+    h: 21,
+    font: 24,
+    scale: 0.55,
   }),
 ];
 /** First row anchor and the BACK button's bottom margin, from the sheet top. */
@@ -251,5 +312,5 @@ export function openQaTools(scene: GameScene, jump = scene.currentLevel()) {
     r.draw(q, y);
     y += r.h;
   }
-  scene.button(c, W / 2, top + backY, 260, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.75);
+  scene.button(c, W - 150, top + 64, 220, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.6);
 }

@@ -8,10 +8,11 @@ import { closeCodeBox, copyText, openCodeBox } from '../codeBox';
 import { store } from '../meta';
 import type { GameScene } from '../GameScene';
 import { W, H } from '../sceneKit';
+import { addBuildInfo } from './buildInfo';
 
 export function openSettings(scene: GameScene) {
   sfx.click();
-  const c = scene.sheet(960);
+  const c = scene.sheet(1090);
   const top = H / 2 - 480;
   scene.sheetTitle(c, top, 'SETTINGS');
   const m = scene.meta;
@@ -45,6 +46,7 @@ export function openSettings(scene: GameScene) {
   // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
   scene.button(c, W / 2, top + 808, 360, 'QA TOOLS', 0xe8452c, () => scene.openQaTools(), 0.8);
   scene.button(c, W / 2, top + 900, 300, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.85);
+  addBuildInfo(scene, c, W / 2, top + 990);
 }
 
 /** r43 save backup: the whole save as a code on the clipboard; a select-all text box when the clipboard is refused. */

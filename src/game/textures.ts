@@ -1,29 +1,100 @@
 import Phaser from 'phaser';
 import { MAX_RANK } from '../content/tuning';
-import { FAMILIES, type Family } from '../core/types';
+import { LEVELS } from '../content/levels';
+import { STARTER_UNITS } from '../content/units';
+import { BOSSES, chapterBossIdx } from '../core/boss';
+import { TARGET_NAMES } from '../content/perks';
+import { META_KEY, SAVE_KEY } from '../platform/backup';
+import { artPlan, RARE, type FirstScreen } from './artPlan';
+import { FAMILIES, ROSTER_1, type Family, type Roster1Family } from '../core/types';
+import { drawJobIcon, drawRoster1 } from './roster1Art';
 
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
 
-/** r29: boss / cast / chapter-stage art (~half the bytes) loads in the background after the first frame. */
-const LAZY = /^(boss_|mon_|stage_ch|sy_)/;
 const artEntries = () => Object.entries(ART).map(([path, url]) => [path.split('/').pop()!.replace(/\.(png|webp)$/, ''), url] as const);
 
-export function preloadArt(scene: Phaser.Scene) {
-  for (const [key, url] of artEntries()) if (!LAZY.test(key)) scene.load.image(key, url);
+/** Chapter-specific art: chapter stage, cast (and hurt faces), mini-boss and chapter boss phases, boss attack tags. */
+export function chapterArt(chapter: number): Set<string> {
+  const keys = new Set([`stage_ch${chapter}`]);
+  const boss = (id: string) => {
+    for (const ph of ['intact', 'cracked', 'critical']) keys.add(`boss_${id}_${ph}`);
+    const b = BOSSES.find((x) => x.id === id);
+    for (const a of [b?.attack, b?.second]) if (a) keys.add(`btg_${a === 'hot' ? 'heat' : a}`);
+  };
+  for (const d of LEVELS.slice((chapter - 1) * 10, chapter * 10)) {
+    for (const v of [d.visual, ...(d.wave_visuals ?? [])]) if (v) keys.add(`mon_${v}`).add(`mon_${v}_dmg`);
+    if (d.behaviour) keys.add(`btg_${d.behaviour === 'hot' ? 'heat' : d.behaviour}`);
+    if (d.mini_boss) boss(d.mini_boss);
+    if (d.level % 10 === 0 && chapterBossIdx(d.level) >= 0) boss(BOSSES[chapterBossIdx(d.level)].id);
+  }
+  return keys;
 }
 
-/** Start the background load of the deferred art; `done` runs once it is all in. */
-export function loadLazyArt(scene: Phaser.Scene, done: () => void) {
-  let n = 0;
-  for (const [key, url] of artEntries())
-    if (LAZY.test(key) && !scene.textures.exists(key)) {
+/** Art not preloaded: ensureTextures() must never draw a stand-in under these keys (it would block the art). */
+const deferred = new Set<string>();
+/** First-screen art preloadArt() held back (the other first screen, other families, one tap from the road): fetched first. */
+const heldBack = new Set<string>();
+
+/**
+ * What the first screen is, from storage: a new player (no meta) starts on the tutorial board, everyone else on the
+ * road or a resumed board. Gadget art: the starters, Rocket (L6) and any family the save or the unit collection
+ * names (a resumed run's board, the team); the rest arrive with the first background batch.
+ */
+function firstScreen(): FirstScreen {
+  const fams = new Set<string>([...STARTER_UNITS, 'rocket']);
+  let meta = '',
+    save = '';
+  try {
+    meta = localStorage.getItem(META_KEY) ?? '';
+    save = localStorage.getItem(SAVE_KEY) ?? '';
+  } catch {
+    /* no storage: a first launch */
+  }
+  for (const f of FAMILIES) if ((meta + save).includes(`"${f}"`)) fams.add(f);
+  return { isNew: !meta, road: !!meta && !save, fams };
+}
+
+/** First-screen art only; loadLazyArt() streams the rest in once the first frame is up. */
+export function preloadArt(scene: Phaser.Scene) {
+  const first = firstScreen();
+  for (const [key, url] of artEntries()) {
+    const plan = artPlan(key, first);
+    if (plan === 'eager') {
       scene.load.image(key, url);
-      n++;
+      continue;
     }
-  if (!n) return done();
-  scene.load.once('complete', done);
-  scene.load.start();
+    deferred.add(key);
+    if (plan === 'heldBack') heldBack.add(key);
+  }
+  // a deferred key that fails to load (offline with a half-filled cache, a network blip) gets its procedural stand-in
+  scene.load.on('loaderror', (file: Phaser.Loader.File) => {
+    if (deferred.delete(file.key)) ensureTextures(scene);
+  });
+}
+
+/**
+ * Background load of everything else in three batches: the first-screen art preloadArt() held back (home after the
+ * tutorial, other families' gadgets), then the common art plus the given chapter's (whatever the next levels draw),
+ * then the rare art and the other chapters' (so the service worker still caches it all for offline play). `done`
+ * runs after each batch, so on-screen fallbacks can swap to the real art.
+ */
+export function loadLazyArt(scene: Phaser.Scene, chapter: number, done: () => void) {
+  const pending = artEntries().filter(([key]) => !scene.textures.exists(key));
+  const ch = chapterArt(chapter);
+  const tier = (key: string) => (heldBack.has(key) ? 0 : ch.has(key) || !RARE.test(key) ? 1 : 2);
+  const batch = (t: number) => {
+    const list = pending.filter(([key]) => tier(key) === t);
+    const then = () => {
+      if (list.length) done();
+      if (t < 2) batch(t + 1);
+    };
+    if (!list.length) return then();
+    for (const [key, url] of list) scene.load.image(key, url);
+    scene.load.once('complete', then);
+    scene.load.start();
+  };
+  batch(0);
 }
 
 const OUT = 0x2b1d2e;
@@ -37,7 +108,7 @@ function star(x: number, y: number, n: number, r1: number, r2: number) {
   }
   return pts;
 }
-const COLORS: Record<Family, [number, number, number]> = {
+const COLORS: Record<Exclude<Family, Roster1Family>, [number, number, number]> = {
   cannon: [0xe8452c, 0xff7a52, 0x9e2416],
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
@@ -55,7 +126,8 @@ const COLORS: Record<Family, [number, number, number]> = {
 
 /** Draw a chunky procedural gadget into a 128x128 texture. */
 function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
-  const [main, light, dark] = COLORS[fam];
+  if ((ROSTER_1 as Family[]).includes(fam)) return drawRoster1(g, fam as Roster1Family, rank);
+  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family>];
   const s = 128;
   g.lineStyle(6, OUT, 1);
   if (fam === 'cannon') {
@@ -179,12 +251,13 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
 export function ensureTextures(scene: Phaser.Scene) {
   const g = scene.make.graphics({}, false);
   const gen = (key: string, w: number, h: number, draw: () => void) => {
-    if (scene.textures.exists(key)) return;
+    if (scene.textures.exists(key) || deferred.has(key)) return;
     g.clear();
     draw();
     g.generateTexture(key, w, h);
   };
   for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK + 2; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
+  for (const f of ROSTER_1) gen(`job_${f}`, 64, 64, () => drawJobIcon(g, f));
 
   gen('dot', 16, 16, () => g.fillStyle(0xffffff).fillCircle(8, 8, 8));
   // tutorial pointing hand (white cartoon glove), fingertip near the top-left
@@ -210,15 +283,16 @@ export function ensureTextures(scene: Phaser.Scene) {
     g.fillStyle(0xd99d63, 1).fillRoundedRect(38, 430, 644, 760, 28);
     for (let i = 0; i < 12; i++) g.fillStyle(0xc68a52, 0.25).fillRect(38, 450 + i * 64, 644, 3);
   });
-  const targetColors = [0xb9c4cc, 0xe9f3f5, 0x6fbf4a];
-  for (let i = 0; i < 3; i++)
+  const targetColors = [0xb9c4cc, 0xe9f3f5, 0x6fbf4a, 0x8a7ad0, 0xe0a050, 0x5a5a6a];
+  // every target_N: target_3+ reuse the three shapes in their own colours
+  for (let i = 0; i < TARGET_NAMES.length; i++)
     gen(`target_${i}`, 300, 300, () => {
       g.lineStyle(8, OUT, 1);
-      const c = targetColors[i];
-      if (i === 0) {
+      const c = targetColors[i % targetColors.length];
+      if (i % 3 === 0) {
         g.fillStyle(c).fillRoundedRect(80, 50, 140, 210, 20).strokeRoundedRect(80, 50, 140, 210, 20);
         g.fillStyle(0xe8452c).fillRect(80, 110, 140, 70).strokeRect(80, 110, 140, 70);
-      } else if (i === 1) {
+      } else if (i % 3 === 1) {
         g.fillStyle(c).fillRoundedRect(70, 20, 160, 270, 18).strokeRoundedRect(70, 20, 160, 270, 18);
         g.lineBetween(70, 110, 230, 110);
         g.fillStyle(0x999999).fillRect(200, 60, 10, 36).fillRect(200, 140, 10, 60);

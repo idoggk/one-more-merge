@@ -1,6 +1,6 @@
 import { DAILY_SEEDS } from '../content/dailySeeds';
 import type { Family } from '../core/types';
-import type { CrateKind } from '../content/units';
+import type { CrateKind, Rarity } from '../content/units';
 import type { PityState } from '../core/crates';
 import type { BoosterCounts, YardWeekRec } from '../core/yardWeek';
 import type { PuzzleRec } from '../core/puzzle';
@@ -49,6 +49,8 @@ export interface Meta {
   crates?: Partial<Record<CrateKind, number>>;
   crateSeq?: number;
   pity?: PityState;
+  /** TUNING.rosterB Spare Parts: wild cards per rarity (duplicates past level 10, see core/spareParts.ts). */
+  spare?: Partial<Record<Rarity, number>>;
   unitChoiceDone?: boolean;
   /** r32 squad relays (slot A unlocks in chapter 2, slot B in chapter 3). */
   relays?: [string, string];
@@ -93,6 +95,8 @@ export interface Meta {
   remixBest: Record<string, number>;
   /** First-time contextual tips already shown. */
   tips: Record<string, boolean>;
+  /** t-0a294f99: tips that did not fit a level's tip budget, waiting for a later level (see tips.ts). */
+  tipQueue?: string[];
   /** Bolts wallet (the only spendable resource; cosmetics only). */
   bolts?: number;
   owned?: string[];

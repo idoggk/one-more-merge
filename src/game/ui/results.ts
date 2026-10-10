@@ -14,7 +14,7 @@ import { RUSH_REWARDS } from '../../core/rush';
 import { CRATES, GEM_REWARDS, unitDef, type CrateKind } from '../../content/units';
 import { endlessPos, endlessReward } from '../../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../../core/mastery';
-import { HELP, notePuzzleAttempt, puzzleHelp, puzzleReward } from '../../core/puzzle';
+import { HELP, notePuzzleAttempt, puzzleHelp, puzzleReward, missedUnitText } from '../../core/puzzle';
 import { applyCommand, replayRun } from '../../core/replay';
 import { paceFromLog, updatePace } from '../../core/pace';
 import { BONUS_XP } from '../../core/season';
@@ -23,6 +23,9 @@ import { localDate, store } from '../meta';
 import { FEATURE_INFO } from '../unlocks';
 import type { GameScene } from '../GameScene';
 import { W, REDUCED_MOTION, TROPHY_AT, TROPHY_SHELF, YARD_UNLOCK, H, fmt, PUZZLES } from '../sceneKit';
+import { fitLine, soCloseText } from '../fx/soClose';
+import { goalDoneText, chapterChestText } from '../../content/sceneCopy';
+import { rewardRows } from '../flow';
 
 export function openResult(scene: GameScene, won: boolean) {
   if (scene.modal) scene.closeModal();
@@ -73,7 +76,7 @@ export function openResult(scene: GameScene, won: boolean) {
   const top = H / 2 - PH / 2;
   const txt = (y: number, t: string, size: number, color: string, font = 'Lilita One, Arial Black') =>
     c.add(scene.add.text(W / 2, y, t, { fontFamily: font, fontStyle: font === 'Arial' ? 'bold' : '', fontSize: `${size}px`, color, align: 'center', wordWrap: { width: W - 150 } }).setOrigin(0.5));
-  const head = scene.add.text(W / 2, top + 70, won ? `${TARGET_NAMES[Math.max(0, s.target)]} DEFEATED!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
+  const head = scene.add.text(W / 2, top + 70, won ? `${scene.monName()} DEFEATED!` : "TIME'S UP!", { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5);
   while (head.width > W - 140 && Number.parseInt(String(head.style.fontSize)) > 30) head.setFontSize(Number.parseInt(String(head.style.fontSize)) - 4);
   c.add(head);
   const sub = won
@@ -249,6 +252,7 @@ export function openLevelResult(scene: GameScene, won: boolean) {
   let got = 0;
   let firstClear = false;
   let chapterDone = 0;
+  const chest = { goldCrates: 0, gems: 0 }; // walkthrough 3: listed on the CHAPTER COMPLETE chest
   if (won) {
     m.wins++;
     got = starsFor(def, s.elapsed);
@@ -321,10 +325,12 @@ export function openLevelResult(scene: GameScene, won: boolean) {
       const kind: CrateKind | null = def.mini_boss ? 'iron' : n % 10 === 0 ? 'gold' : n % 3 === 0 ? 'wood' : null;
       if (n % 10 === 0) {
         m.gems = (m.gems ?? 0) + GEM_REWARDS.chapterBoss;
+        chest.gems += GEM_REWARDS.chapterBoss;
         lines.push(`+${GEM_REWARDS.chapterBoss} GEMS`);
       }
       if (kind) {
         scene.giveCrate(kind);
+        if (kind === 'gold' && n % 10 === 0) chest.goldCrates++;
         lines.push(`+1 ${CRATES[kind].name}`);
       }
     }
@@ -364,7 +370,9 @@ export function openLevelResult(scene: GameScene, won: boolean) {
   const top = H / 2 - PH / 2;
   const head = won ? `LEVEL ${n} CLEAR!` : 'OUT OF TIME!';
   c.add(scene.add.text(W / 2, top + 80, head, { fontFamily: 'Lilita One, Arial Black', fontSize: '62px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-  c.add(scene.add.text(W / 2, top + 140, s.goal ? (won ? `${s.goal.kind === 'rank' ? `Rank ${s.goal.n} built` : `Chain x${s.goal.n} fired`} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${scene.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${scene.monName()} down in ${s.elapsed.toFixed(1)}s`) : s.stage ? `Machine ${scene.stageCount()!.at} of ${scene.stageCount()!.n}  ·  ${scene.realBoss ? BOSSES[scene.realBoss.def].name : scene.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%` : `${scene.monName()} at ${Math.round((1 - s.hp / s.maxHp) * 100)}%  ·  so close!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5));
+  const sub = fitLine(scene.add.text(W / 2, top + 140, s.goal ? (won ? `${goalDoneText(s.goal)} in ${s.elapsed.toFixed(1)}s` : `Best ${s.goal.kind === 'rank' ? 'rank' : 'chain x'}${s.goal.best} of ${s.goal.n}  ·  so close!`) : won ? (s.stage ? `${scene.stageCount()!.n} machines down in ${s.elapsed.toFixed(1)}s` : `${scene.monName()} down in ${s.elapsed.toFixed(1)}s`) : soCloseText({ hp: s.hp, maxHp: s.maxHp, stage: s.stage, playerDamage: s.stats.dmgBy.player ?? 0, merges: s.stats.merges }, scene.realBoss ? BOSSES[scene.realBoss.def].name : scene.monName()), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#5a4a5a' }).setOrigin(0.5), W - 120);
+  if (sub.width > W - 120) sub.setScale((W - 120) / sub.width); // walkthrough 3: no overflow at 390 wide
+  c.add(sub);
   // UI audit: a loss showed three ghost stars over a big empty gap; it now shows the sad-cannon art there instead
   if (!won && scene.hasArt('defeat')) {
     const im = scene.fitVisible(scene.add.image(W / 2, top + 296, 'defeat'), 240);
@@ -384,7 +392,9 @@ export function openLevelResult(scene: GameScene, won: boolean) {
   const rowObjs: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
   if (s.stats.biggestChain >= 2 && n >= 2) rowObjs.push(scene.add.text(0, 0, `Biggest chain x${s.stats.biggestChain}`, big));
   if (bolts > 0) {
-    if (scene.hasArt('icon_bolt')) rowObjs.push(scene.fitVisible(scene.add.image(0, 0, 'icon_bolt'), 46));
+    // F8: the Bolts currency icon (the wallet's), not the Overdrive lightning
+    const bk = scene.hasArt('bolt') ? 'bolt' : 'icon_bolt';
+    if (scene.hasArt(bk)) rowObjs.push(scene.fitVisible(scene.add.image(0, 0, bk), 46));
     rowObjs.push(scene.add.text(0, 0, `+${bolts} BOLTS`, { ...big, color: '#b06a1a' }));
   }
   // the icon hugs its number; separate items get a wide gap
@@ -403,19 +413,37 @@ export function openLevelResult(scene: GameScene, won: boolean) {
   if (bolts > 0) scene.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
   if (parts.length) c.add(scene.add.text(W / 2, top + 452, parts.join('  \u00b7  '), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
   if (lines.length) {
-    // r40: long reward lists (mastery, screwdriver, milestones) compress instead of running into the buttons
-    const lh = lines.length > 3 ? 27 : 36;
-    c.add(scene.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 24 + lines.length * lh, 18));
-    c.add(scene.add.text(W / 2, top + 497 + (lines.length * lh) / 2, lines.join('\n'), { fontFamily: 'Lilita One, Arial Black', fontSize: lines.length > 3 ? '20px' : '24px', color: '#b06a1a', align: 'center', lineSpacing: lines.length > 3 ? 3 : 8 }).setOrigin(0.5));
+    // F6 (walkthrough 2): one reward per row, at most 3, then '+N more' (never a wall of text over the buttons)
+    const rows = rewardRows(lines);
+    const lh = 36;
+    c.add(scene.add.graphics().fillStyle(0xfff3c8, 1).fillRoundedRect(70, top + 485, W - 140, 20 + rows.length * lh, 18));
+    rows.forEach((r, i) => {
+      const more = i === 3;
+      const t = scene.add.text(W / 2, top + 503 + i * lh, r, { fontFamily: 'Lilita One, Arial Black', fontSize: more ? '20px' : '24px', color: more ? '#8a6a4a' : '#b06a1a', align: 'center' }).setOrigin(0.5);
+      if (t.width > W - 170) t.setScale((W - 170) / t.width);
+      c.add(t);
+    });
   }
-  if (chapterDone) scene.time.delayedCall(700, () => scene.playChapterChest(chapterDone));
-  else if (won && n % 10 !== 0 && n > 1 && lines.length <= 2) {
+  // F6: CHAPTER COMPLETE and BACK UP wait until the player leaves this screen, then show one at a time (each its
+  // own tap); the button's action runs after them, so a tap on NEXT LEVEL is never eaten by a popup
+  scene.endQueue.clear();
+  if (chapterDone) {
+    scene.endQueue.push((done) => scene.playChapterChest(chapterDone, done, chest));
+    scene.endQueue.push((done) => scene.backupNudge(chapterDone, done));
+  }
+  const leave = (fn: () => void) => () => scene.endQueue.run(fn);
+  if (chapterDone) {
+    const ch = scene.add.text(W / 2, top + 615, `CHAPTER ${chapterDone} COMPLETE!  Your chest is next`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5);
+    if (ch.width > W - 140) ch.setScale((W - 140) / ch.width);
+    if (lines.length <= 2) c.add(ch);
+    else ch.destroy();
+  } else if (won && n % 10 !== 0 && n > 1 && lines.length <= 2) {
     const left = 10 - (n % 10);
     c.add(scene.add.text(W / 2, top + 600, `${left} level${left > 1 ? 's' : ''} until your Chapter ${Math.ceil(n / 10)} chest`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
   }
   const nextN = Math.min(LEVELS.length, n + 1);
-  if (won) scene.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, () => (n < LEVELS.length ? scene.openLevelSheet(nextN) : scene.openTitle('road')), 1.1);
-  else scene.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, () => scene.openLevelSheet(n), 1.1);
+  if (won) scene.button(c, W / 2, top + 690, 520, n < LEVELS.length ? `NEXT  LEVEL ${nextN}` : 'ROAD', 0x5fbf4a, leave(() => (n < LEVELS.length ? scene.openLevelSheet(nextN) : scene.openTitle('road'))), 1.1);
+  else scene.button(c, W / 2, top + 690, 520, 'TRY AGAIN', 0xe8452c, leave(() => scene.openLevelSheet(n)), 1.1);
   // r37: a crate to open or a unit ready to level up gets its own button here (units are the main progression)
   // r38 Upgrade Prescription (ChatGPT review): after a loss, name the squad upgrade that helps most and how close it is
   const rx = !won ? scene.upgradePrescription() : null;
@@ -428,14 +456,15 @@ export function openLevelResult(scene: GameScene, won: boolean) {
     store(META_KEY, JSON.stringify(scene.meta));
   }
   const unitCta = trialEnd ? 'KEEP BUILDING' : scene.totalCrates() > 0 ? 'OPEN CRATE' : scene.unitsReady() ? 'LEVEL UP \u2191' : rx ? 'GET CARDS' : '';
-  scene.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, () => scene.openTitle('road'), 0.78);
-  if (unitCta) scene.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, () => (trialEnd ? scene.openUnitDetail(trialEnd) : unitCta === 'GET CARDS' ? scene.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? scene.openUnitDetail(rx.u) : scene.openTitle('units')), 0.78);
+  scene.button(c, unitCta ? W / 2 - 140 : W / 2, top + 800, 260, 'ROAD', 0x27a4c0, leave(() => scene.openTitle('road')), 0.78);
+  if (unitCta) scene.button(c, W / 2 + 140, top + 800, 260, unitCta, 0x8e58c9, leave(() => (trialEnd ? scene.openUnitDetail(trialEnd) : unitCta === 'GET CARDS' ? scene.openUnitShop() : rx && unitCta.startsWith('LEVEL') ? scene.openUnitDetail(rx.u) : scene.openTitle('units'))), 0.78);
 }
 
 /** Chapter chest (r17): closed chest -> crossfade open -> the chapter medal rises; tap to dismiss. */
-export function playChapterChest(scene: GameScene, chapter: number) {
+export function playChapterChest(scene: GameScene, chapter: number, done: () => void = () => scene.backupNudge(chapter), chest = { goldCrates: 0, gems: 0 }) {
   const o = scene.add.container(0, 0).setDepth(140);
   o.add(scene.add.rectangle(W / 2, H / 2, W, H, 0x1a0f18, 0.82).setInteractive());
+  const shownAt = scene.time.now;
   o.add(scene.add.text(W / 2, H / 2 - 360, `CHAPTER ${chapter} COMPLETE!`, { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5));
   const closed = scene.hasArt('chest_closed') ? scene.add.image(W / 2, H / 2, 'chest_closed') : null;
   const open = scene.hasArt('chest_open') ? scene.add.image(W / 2, H / 2, 'chest_open').setAlpha(0) : null;
@@ -446,6 +475,31 @@ export function playChapterChest(scene: GameScene, chapter: number) {
   o.add(medal);
   const cap = scene.add.text(W / 2, H / 2 + 260, `Chapter ${chapter} medal added to your MACHINE\n(tap to continue)`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', align: 'center' }).setOrigin(0.5).setAlpha(0);
   o.add(cap);
+  // walkthrough 3: the chest lists what is in it, and OPEN NOW opens the gold crate, then carries on to the level card
+  const inside = chapterChestText(chest);
+  const contents = scene.add.text(W / 2, H / 2 + 185, inside, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6, align: 'center' }).setOrigin(0.5).setAlpha(0);
+  if (contents.width > W - 80) contents.setScale((W - 80) / contents.width);
+  o.add(contents);
+  let leaving = false;
+  const leave = (fn: () => void) => {
+    if (leaving) return;
+    leaving = true;
+    tlog.log('chapter_reward_presented', { chapter });
+    o.destroy();
+    fn();
+  };
+  const canOpen = () => chest.goldCrates > 0 && (scene.meta.crates?.gold ?? 0) > 0;
+  scene.time.delayedCall(1100, () => {
+    if (!o.active) return;
+    scene.tweens.add({ targets: contents, alpha: 1, duration: 300 });
+    if (canOpen())
+      scene.button(o, W / 2, H / 2 + 380, 380, 'OPEN NOW', 0x5fbf4a, () => leave(() => {
+        if (!canOpen()) return done();
+        scene.meta.crates!.gold! -= 1;
+        scene.crateReturn = () => (scene.closeModal(), done());
+        scene.openCrate('gold');
+      }));
+  });
   sfx.chestShake();
   if (closed) scene.tweens.add({ targets: closed, angle: { from: -4, to: 4 }, duration: 90, yoyo: true, repeat: 4 });
   scene.time.delayedCall(700, () => {
@@ -456,17 +510,16 @@ export function playChapterChest(scene: GameScene, chapter: number) {
     scene.tweens.add({ targets: medal, alpha: 1, scale: 1, y: H / 2 - 170, duration: 520, ease: 'Back.Out' });
     scene.tweens.add({ targets: cap, alpha: 1, delay: 400, duration: 300 });
   });
-  o.list[0].on('pointerup', () => {
-    tlog.log('chapter_reward_presented', { chapter });
-    o.destroy();
-    scene.backupNudge(chapter);
-  });
+  // F6: its own tap: the press must start on the chest screen (not the tap that opened it), after the medal shows
+  let pressed = false;
+  o.list[0].on('pointerdown', () => (pressed = scene.time.now - shownAt > 500));
+  o.list[0].on('pointerup', () => pressed && leave(done));
 }
 
 /** r43: after a chapter clear, offer a save backup once per chapter (dismissible; never blocks the level-end panel). */
-export function backupNudge(scene: GameScene, chapter: number) {
+export function backupNudge(scene: GameScene, chapter: number, done: () => void = () => undefined) {
   const m = scene.meta;
-  if ((m.backupNudged ??= {})[String(chapter)]) return;
+  if ((m.backupNudged ??= {})[String(chapter)]) return done();
   m.backupNudged[String(chapter)] = true;
   store(META_KEY, JSON.stringify(m));
   tlog.log('backup_nudge', { chapter });
@@ -477,11 +530,20 @@ export function backupNudge(scene: GameScene, chapter: number) {
   o.add([dim, scene.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(40, top - 6, W - 80, PH + 12, 36).fillStyle(0xfbe7c6, 1).fillRoundedRect(46, top, W - 92, PH, 32)]);
   o.add(scene.add.text(W / 2, top + 70, 'BACK UP YOUR PROGRESS?', { fontFamily: 'Lilita One, Arial Black', fontSize: '42px', color: '#3b2533' }).setOrigin(0.5));
   o.add(scene.add.text(W / 2, top + 120, `Chapter ${chapter} done! Your progress lives only on this phone.\nKeep a save code in Notes to get it back anytime.`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
-  const close = () => o.destroy();
-  dim.on('pointerup', close);
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    o.destroy();
+    done();
+  };
+  // F6: its own tap: a release from the previous screen's tap never closes it
+  let pressed = false;
+  dim.on('pointerdown', () => (pressed = true));
+  dim.on('pointerup', () => pressed && close());
   scene.button(o, W / 2, top + 280, 460, 'COPY SAVE CODE', 0x5fbf4a, () => {
-    close();
     scene.copySaveCode();
+    close();
   }, 0.9);
   scene.button(o, W / 2, top + 380, 260, 'NOT NOW', 0x8a6a4a, close, 0.75);
 }
@@ -658,7 +720,7 @@ export function openPuzzleResult(scene: GameScene, won: boolean) {
   const top = H / 2 - 320;
   const helpLine = help.showMove ? 'Stuck? NEXT MOVE shows a right merge.' : help.hint ? 'Stuck? HINT lights the part to move first.' : `A hint unlocks after ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0)} more ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0) === 1 ? 'try' : 'tries'}.`;
   c.add(scene.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
-  c.add(scene.add.text(W / 2, top + 150, won ? lines.join('\n') : `The machine had ${fmt(Math.max(0, Math.round(scene.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+  c.add(scene.add.text(W / 2, top + 150, won ? lines.join('\n') : scene.s.puzzle.missedUnit ? missedUnitText(FAMILY_INFO[def.unit as 'cannon'].name, helpLine) : `The machine had ${fmt(Math.max(0, Math.round(scene.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
   const nextDrill = won && kind === 'drill' && def.unit ? (PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
   if (nextDrill) scene.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => scene.startPuzzle(nextDrill, 'drill'), 0.95);
   else if (!won) {

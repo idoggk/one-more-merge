@@ -124,7 +124,7 @@ function keyFor(file) {
     if (col) return `btn_${col}${/press|down/.test(n) ? '_pressed' : ''}`;
   }
   if (/practice_tin|demo|friendly/.test(n)) return 'demo_can';
-  const fam = ['cannon', 'coil', 'bell'].find((f) => n.includes(f));
+  const fam = ['cannon', 'coil', 'bell', 'nail_gun', 'jackhammer', 'gear', 'saw_blade'].find((f) => n.includes(f));
   const rank = n.match(/(?:rank|r)[_-]?0?([1-6])/)?.[1] ?? n.match(/_0?([1-6])(?:_|$)/)?.[1];
   if (fam && rank) return `${fam}_${rank}`;
   const tgt = targetOf(n);

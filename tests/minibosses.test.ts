@@ -110,13 +110,29 @@ describe('r27 mini-boss attacks', () => {
     expect(s.boss!.pending).toBeNull();
   });
 
-  it('chapter bosses alternate their second attack in the final phase (second first)', () => {
+  it('chapter bosses alternate their second attack in the final phase (second first, once the taught one was warned)', () => {
     const grid: Grid = Array(30).fill(null);
     for (let i = 0; i < 30; i += 2) grid[i] = g(i % 4 === 0 ? 'cannon' : 'coil', 1);
     const b: BossState = { def: 0, next: 0, pending: null, active: null, phaseShown: 0 };
     const atks: string[] = [];
-    for (let t = 0; t < 60; t += 0.05) for (const e of bossTick(b, grid, t, 10, 100, new Set())) if (e.type === 'bossWarn') atks.push(e.attack);
-    expect(atks[0]).toBe('bomb');
-    expect(atks.slice(0, 4)).toEqual(['bomb', 'clamp', 'bomb', 'clamp']);
+    // full HP for the first warning, then the final phase
+    for (let t = 0; t < 60; t += 0.05) for (const e of bossTick(b, grid, t, t < 9 ? 100 : 10, 100, new Set())) if (e.type === 'bossWarn') atks.push(e.attack);
+    expect(atks.slice(0, 5)).toEqual(['clamp', 'bomb', 'clamp', 'bomb', 'clamp']);
+  });
+
+  it('a boss already in its final phase at wake first warns the attack its wake card taught', () => {
+    // walkthrough 3: L20 Fridge Overlord woke at <33% HP and its first cast was the untaught CONVEYOR
+    for (const id of ['fridge_overlord', 'tin_can_king', 'viper_queen']) {
+      const grid: Grid = Array(30).fill(null);
+      for (let i = 0; i < 30; i += 2) grid[i] = g(i % 4 === 0 ? 'cannon' : 'coil', 1 + (i % 3));
+      const def = BOSSES.findIndex((x) => x.id === id);
+      const b: BossState = { def, next: 0, pending: null, active: null, phaseShown: 0, t0: 30 };
+      const ev = [];
+      for (let t = 30; t < 90; t += 0.05) ev.push(...bossTick(b, grid, t, 20, 100, new Set()));
+      const warns = ev.flatMap((e) => (e.type === 'bossWarn' ? [e.attack] : []));
+      expect(ev.find((e) => e.type === 'bossPhase')).toMatchObject({ phase: 2 });
+      expect(warns[0], id).toBe(BOSSES[def].attack);
+      expect(warns[1], id).toBe(BOSSES[def].second); // then the alternation starts, second first
+    }
   });
 });

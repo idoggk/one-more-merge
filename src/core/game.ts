@@ -1,4 +1,4 @@
-import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
+import { COLS, MAX_RANK, ROWS, TICK, TUNING, unitsB0On } from '../content/tuning';
 import { rawDamage, resolveCascade } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
@@ -13,7 +13,9 @@ const CALM_CAP = 20;
 // r38: the first earned part waits reactDelay s after the merge (the chain's payoff plays on a still board)
 const REACT_STUCK = 2.5;
 const REACT_STUCK_NEXT = 3;
-import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
+import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
+import { bypassBonus } from './roster1';
+import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
 
@@ -36,6 +38,10 @@ export type GameEvent =
   | { type: 'shield'; open: boolean; until: number }
   | { type: 'itemGrant'; kind: ItemKind; teach: boolean }
   | { type: 'itemApply'; kind: ItemKind; idx: number; id: number }
+  /** TUNING.mergeRule prototype: the merge at `idx` absorbed `ids` from `cells` (+`plus` ranks, `od` Overdrive charge). */
+  | { type: 'sandwich'; idx: number; cells: number[]; ids: number[]; rank: number; plus: number; od: number }
+  /** TUNING.rosterB: a Support card fired (src/core/support.ts) on these cells (a line for GO; [] for PRIME). */
+  | { type: 'support'; family: Family; cells: number[]; mult?: number }
   | RemixEvent
   | BossEvent;
 
@@ -52,6 +58,8 @@ export interface Stats {
   packetExtras?: number;
   /** Two-piece rescue deliveries (no legal pair and nothing lonely to copy). */
   rescues?: number;
+  /** TUNING.mergeRule prototype: player merges that sandwiched. */
+  sandwiches?: number;
 }
 
 export interface GameState {
@@ -134,7 +142,7 @@ export interface GameState {
   rush?: { id: string; slot: number; week: number };
   /** r42 WORKSHOP PUZZLE (Ido: "like a chess puzzle - win in X moves"): merges allowed, used so far. No clock, no
    *  supply, no passive fire, no kickback: the board is fully known and only merges act. */
-  puzzle?: { moves: number; used: number; id: string; only?: Family[] };
+  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean };
   /** r40 Endless Road floor this state plays (presentation + rewards only). */
   endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
@@ -158,6 +166,12 @@ export interface GameState {
   lastMergeAt?: number;
   /** PACE CALM breather: until this elapsed time after a machine breaks, no supply and no new boss warning. */
   breatherUntil?: number;
+  /** TUNING.rosterB off-board Support card (src/core/support.ts): the squad helper, its charge (+1 per machine in your
+   *  merge chains; uncapped here, support.ts caps it) and an armed Battery PRIME (x mult on the next `left` shooter merges). */
+  support?: { family: Family; charge: number; uses: number; prime?: { mult: number; left: number; any: boolean } };
+  /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
+  idleFor?: number;
+  banked?: number;
   stats: Stats;
 }
 
@@ -216,6 +230,8 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f === 'cannon' ? shooterOf(s) : f, 1);
+  const card = TUNING.rosterB ? s.toys.find(isSupport) : undefined;
+  if (card) s.support = { family: card, charge: 0, uses: 0 };
   s.supplyTimer = supplyPeriod(s);
   const opp = REMIX_OPPONENTS.find((o) => o.target === remixTarget);
   if (opp && !tutorial) {
@@ -268,7 +284,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   // r39 (ROUND_33_RULES): an authored helper extra becomes the player's selected helper (teaching levels keep theirs)
   const HELPERS = ['magnet', 'battery', 'fan', 'amplifier', 'signal_beacon'];
   const myHelper = !def.teach ? opts.toys?.find((t) => HELPERS.includes(t)) : undefined;
-  for (const [fam, rank, r, c] of def.start_extra ?? []) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
+  for (const [fam, rank, r, c] of def.start_extra ?? []) if (!(TUNING.rosterB && HELPERS.includes(fam))) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
   const mod = def.modifier;
   if (mod === 'GAPS') {
     s.masked = [idxOf(2, 1), idxOf(2, 3)];
@@ -361,6 +377,7 @@ export function applyItem(s: GameState, idx: number, id: number): CommandResult 
   if (s.phase !== 'playing' || !kind || !g || g.id !== id || g.item || !itemFits(kind, g.family)) return { ok: false, events: ev };
   g.item = { kind, charges: 2 };
   s.itemTray = null;
+  touched(s);
   ev.push({ type: 'itemApply', kind, idx, id });
   return { ok: true, events: ev };
 }
@@ -376,7 +393,27 @@ function spendItems(s: GameState, r: CascadeResult) {
 }
 
 /** Shield multiplier on all damage while closed (r23). */
-const shieldMult = (s: GameState) => (s.shieldUntil !== undefined && s.elapsed >= s.shieldUntil ? 0.75 : 1);
+/** r23 chain shield: past its open window, hits land at x0.75 (exported for the hit-formula strip). */
+export const shieldMult = (s: GameState) => (s.shieldUntil !== undefined && s.elapsed >= s.shieldUntil ? 0.75 : 1);
+
+/** Roster 1 Jackhammer BYPASS: its share of a hit ignores a closed shield (L3: and hits x1.3 while it is closed). applyDamage
+ *  puts x shieldMult on the whole total, so the Jackhammer's part is raised by 1 / shieldMult first. `player`: a player chain of 4+ opens the shield before its damage
+ *  lands (merge()), so that chain has nothing to pierce. */
+function bypassShield(s: GameState, r: CascadeResult, player = false) {
+  const m = player && s.shieldUntil !== undefined && r.count >= 4 ? 1 : shieldMult(s);
+  const sum = r.activations.reduce((n, a) => n + a.contribution, 0);
+  if (m >= 1 || sum <= 0 || !r.activations.some((a) => a.family === 'jackhammer')) return;
+  const k = r.total / sum;
+  let extra = 0;
+  for (const a of r.activations)
+    if (a.family === 'jackhammer') {
+      const add = a.contribution * ((1 / m) * bypassBonus(s.unitLevel?.jackhammer ?? 1) - 1);
+      a.contribution += add;
+      extra += add * k;
+    }
+  r.total += extra;
+  r.pierced = extra;
+}
 
 /** r23 goal check after a PLAYER merge (starters, deliveries and kickback fuses never count). */
 function checkGoal(s: GameState, ev: GameEvent[], rank: number, chain: number, idx: number) {
@@ -400,11 +437,25 @@ export function useTimeCapsule(s: GameState): boolean {
   return true;
 }
 
-function makeGadget(s: GameState, family: Family, rank: number): Gadget {
+/** Walkthrough F4: the countdown a boss attack gets again after its first lesson card (the calm warning). */
+export const LESSON_FUSE = 3.5;
+
+/** Walkthrough F4: after GOT IT on an attack's first lesson card its fuse starts again (at least LESSON_FUSE s),
+ *  so the first hit is never unfair. A recorded command, so replays stay identical. */
+export function restartBossFuse(s: GameState): boolean {
+  const p = s.boss?.pending;
+  if (!p || s.phase !== 'playing') return false;
+  p.deadline = Math.max(p.deadline, s.elapsed + Math.max(TUNING.bossWarn, LESSON_FUSE));
+  return true;
+}
+
+export function makeGadget(s: GameState, family: Family, rank: number): Gadget {
   return { id: s.nextId++, family, rank, cd: family === 'cannon' ? cannonPeriod(s) : 0 };
 }
 
-export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPeriodOverdrive : TUNING.cannonPeriod);
+export const cannonPeriod = (s: GameState) => (s.odLeft > 0 ? TUNING.cannonPeriodOverdrive : cannonBase(s));
+/** Auto-shot period outside Overdrive (roster B Cannon L3 Quick Loader: faster). */
+const cannonBase = (s: GameState) => (TUNING.rosterB && (s.unitLevel?.cannon ?? 1) >= 3 ? TUNING.rb.cannonQuick : TUNING.cannonPeriod);
 export const odByChain = () => TUNING.optionA || TUNING.optionA2 || TUNING.optionA3;
 export const odNeeded = (s: GameState) =>
   odByChain() ? Math.round((TUNING.optionA ? TUNING.optA.odChain : TUNING.odChain) * (s.perks.includes('juice') ? 5 / 6 : 1)) : s.perks.includes('juice') ? 5 : TUNING.overdriveMerges;
@@ -428,7 +479,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!matchShare()) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= capOf(s, g.family) || !(TUNING.unitsB0 || isShooter(g.family) || isRelay(g.family))) continue;
+    if (!g || g.rank >= capOf(s, g.family) || !(unitsB0On() || isShooter(g.family) || isRelay(g.family))) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -479,15 +530,18 @@ export function fatigueMult(s: GameState): number {
 export const supplyGated = (s: GameState) =>
   TUNING.optionA3 && !!s.reactive && s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0) > TUNING.optA3.gateAbove;
 
+/** Option A2/A3: the two damage factors scaleA2 applies to a player cascade of `count` (1 = none). */
+export function a2Scale(s: GameState, count: number): { chain: number; fatigue: number } {
+  if (!(TUNING.optionA2 || TUNING.optionA3) || s.phase !== 'playing' || s.goal || s.puzzle) return { chain: 1, fatigue: 1 };
+  const mult = TUNING.optionA3 ? TUNING.optA3.chainMult : TUNING.optA2.chain ? TUNING.optA2.chainMult : null;
+  return { chain: mult ? mult[Math.min(count, mult.length) - 1] : 1, fatigue: fatigueMult(s) };
+}
+
 /** Option A2/A3: scale a player cascade's damage by chain size and/or spam fatigue (in place; numbers shown match). */
 function scaleA2(s: GameState, r: CascadeResult): CascadeResult {
-  if (!(TUNING.optionA2 || TUNING.optionA3) || s.phase !== 'playing' || s.goal || s.puzzle) return r;
-  const mult = TUNING.optionA3 ? TUNING.optA3.chainMult : TUNING.optA2.chain ? TUNING.optA2.chainMult : null;
-  let k = 1;
-  if (mult) k *= mult[Math.min(r.count, mult.length) - 1];
-  const fm = fatigueMult(s);
+  const { chain, fatigue: fm } = a2Scale(s, r.count);
   if (fm < 1) r.fatigue = fm;
-  k *= fm;
+  const k = chain * fm;
   if (k === 1) return r;
   for (const a of r.activations) a.contribution = Math.round(a.contribution * k);
   r.total = Math.round(r.total * k);
@@ -514,7 +568,7 @@ export function refillBag(s: GameState) {
   const bag: Family[] = [];
   const src = s.bagOverride ?? TUNING.bag;
   for (const f of Object.keys(src) as Family[]) for (let i = 0; i < src[f]; i++) bag.push(squadFam(s, f));
-  for (const f of s.toys ?? []) for (let i = 0, n = TUNING.toyBag[f] ? (TUNING.unitsB0 ? TUNING.b0.toyBag : TUNING.toyBag[f]) : 0; i < n; i++) bag.push(f);
+  for (const f of s.toys ?? []) for (let i = 0, n = TUNING.rosterB && isSupport(f) ? 0 : TUNING.toyBag[f] ? (TUNING.unitsB1 ? TUNING.b1.toyBag : TUNING.unitsB0 ? TUNING.b0.toyBag : TUNING.toyBag[f]) : 0; i < n; i++) bag.push(f);
   rng.shuffle(bag);
   s.bag = bag;
   s.supplyRng = rng.state;
@@ -590,8 +644,24 @@ export function canMerge(a: Gadget | null, b: Gadget | null, s?: GameState): boo
   return a.rank < cap || (s?.level !== undefined && a.rank === cap);
 }
 
+/** Drills / daily puzzles were generated and win-checked with ROSTER B off (relay routes differ under it): puzzle states
+ *  always resolve with the flag off (review t-9f4e1977). */
+export function puzzleClassic<T>(s: GameState, fn: () => T): T {
+  if (!s.puzzle || !TUNING.rosterB) return fn();
+  TUNING.rosterB = false;
+  try {
+    return fn();
+  } finally {
+    TUNING.rosterB = true;
+  }
+}
+
 /** Drag gadget from `from` onto `to`: merge, move, or swap. */
 export function drop(s: GameState, from: number, to: number, fromId: number): CommandResult {
+  return puzzleClassic(s, () => dropNow(s, from, to, fromId));
+}
+
+function dropNow(s: GameState, from: number, to: number, fromId: number): CommandResult {
   const ev: GameEvent[] = [];
   if (s.phase !== 'playing' && s.phase !== 'tutorial') return { ok: false, events: ev };
   if (from === to || from < 0 || to < 0 || from >= s.grid.length || to >= s.grid.length) return { ok: false, events: ev };
@@ -607,13 +677,25 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     if (!canMerge(a, b, s) || s.puzzle.used >= s.puzzle.moves || (s.puzzle.only && !s.puzzle.only.includes(a.family))) return { ok: false, events: ev };
     const r = merge(s, from, to);
     s.puzzle.used++;
-    if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
+    const pz = s.puzzle;
+    if (pz.unit && !pz.unitUsed) pz.unitUsed = r.events.some((e) => e.type === 'cascade' && unitActed(e.result, pz.unit!));
+    if ((s.phase as GameState['phase']) === 'won' && pz.unit && !pz.unitUsed) {
+      // owner: "i finished a drill without using the unit i took the drill for" - a drill only counts when its unit acted
+      s.phase = 'lost';
+      pz.missedUnit = true;
+      for (const e of r.events) if (e.type === 'end') e.won = false;
+    } else if (s.phase === 'playing' && s.puzzle.used >= s.puzzle.moves && s.hp > 0) {
       s.phase = 'lost';
       r.events.push({ type: 'end', won: false });
     }
     return r;
   }
-  if (canMerge(a, b, s)) return merge(s, from, to); // no cooldown: a legal second merge is never refused
+  if (canMerge(a, b, s)) {
+    const r = merge(s, from, to, sandwichFor(s, from, to)); // no cooldown: a legal second merge is never refused
+    // roster B Support card: +1 charge per machine that fired in YOUR merge chain
+    if (s.support) for (const e of r.events) if (e.type === 'cascade' && !e.kickback) s.support.charge += e.result.count;
+    return r;
+  }
   // r29 terrain + links (Oil Otter / Portal Possum / Rivet Rhino): resolve where a manual move really lands
   const act = s.boss?.active;
   const atk = s.boss && act ? castAttack(s.boss, act) : null;
@@ -631,6 +713,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     s.grid[to] = a;
     s.grid[pt] = pg;
     ev.push({ type: 'move', from, to, swap: false }, { type: 'move', from: pf, to: pt, swap: false });
+    touched(s);
     return { ok: true, events: ev };
   }
   // a swap would move a towed b on its own and split the pair: refuse (all-or-nothing, as for a towed a)
@@ -643,26 +726,53 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   s.grid[land] = a;
   s.grid[from] = b;
   ev.push({ type: 'move', from, to: land, swap: !!b });
+  touched(s);
   ev.push(...bossAfterPlayer(s.boss, land, [])); // r27: parking a machine on the bomb defuses it
   return { ok: true, events: ev };
 }
 
-function merge(s: GameState, from: number, to: number): CommandResult {
+/** TUNING.mergeRule prototype: cells a sandwich may never absorb (locked, boss no-drag, towed). */
+function sandwichBlocked(s: GameState): Set<number> {
+  const out = new Set<number>([...locked(s), ...bossBlocked(s.boss).noDrag]);
+  const act = s.boss?.active;
+  if (s.boss && act && castAttack(s.boss, act) === 'tow') s.grid.forEach((g, i) => g && act.ids?.includes(g.id) && out.add(i));
+  return out;
+}
+
+/** The sandwich a player merge from -> to would make under TUNING.mergeRule (null = today's merge). Never in puzzles / tutorial. */
+export function sandwichFor(s: GameState, from: number, to: number): SandwichPlan | null {
+  const a = s.grid[from];
+  if (!a || s.puzzle || s.phase !== 'playing' || TUNING.mergeRule === 'today') return null;
+  return planSandwich(s.grid, from, to, capOf(s, a.family), sandwichBlocked(s));
+}
+
+/** roster B Battery PRIME armed on the Support card: the multiplier a merge into a `family` part gets now (or undefined). */
+export function primeFor(s: GameState, family: Family): number | undefined {
+  const p = s.support?.prime;
+  return p && s.phase === 'playing' && (p.any || isShooter(family)) ? p.mult : undefined;
+}
+
+/** A merge from -> to (also roster B Magnet SNAP IN, src/core/support.ts). */
+export function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null = null): CommandResult {
   const ev: GameEvent[] = [];
   const a = s.grid[from]!;
   const b = s.grid[to]!;
-  const g = makeGadget(s, a.family, Math.min(a.rank + 1, capOf(s, a.family)));
-  if (a.primed || b.primed) g.primed = true; // primer transfers (OR), never stacks
-  if (a.amp || b.amp) g.amp = Math.max(a.amp ?? 0, b.amp ?? 0); // r32 marks transfer, the larger survives
-  const inherit = b.item ?? a.item; // r25: one attachment transfers; with two, the destination's survives
+  const eaten = sw ? sw.cells.map((i) => s.grid[i]!) : [];
+  const parts = [a, b, ...eaten];
+  const g = makeGadget(s, a.family, sw ? sw.rank : Math.min(a.rank + 1, capOf(s, a.family)));
+  if (parts.some((p) => p.primed)) g.primed = true; // primer transfers (OR), never stacks
+  if (parts.some((p) => p.amp)) g.amp = Math.max(...parts.map((p) => p.amp ?? 0)); // r32 marks transfer, the larger survives
+  const inherit = b.item ?? a.item ?? eaten.find((p) => p.item)?.item; // r25: one attachment transfers; with two, the destination's survives
   if (inherit) g.item = { ...inherit };
   // r29: merging a towed machine releases the tow bar; ransom markers move onto the result
   const ta = s.boss?.active;
   if (s.boss && ta && castAttack(s.boss, ta) === 'tow' && ta.ids?.some((i) => i === a.id || i === b.id)) s.boss.active = null;
-  bossRelabel(s.boss, [a.id, b.id], g.id);
+  bossRelabel(s.boss, parts.map((p) => p.id), g.id);
   s.grid[from] = null;
   s.grid[to] = g;
+  for (const i of sw?.cells ?? []) s.grid[i] = null;
   s.stats.merges++;
+  touched(s);
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
   const occNow = () => s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
   // Option A3: on a full board the part(s) are paid after the cascade, only for a chain of gateChain+
@@ -689,11 +799,29 @@ function merge(s: GameState, from: number, to: number): CommandResult {
   } else {
     s.tutorialMerges++;
   }
+  if (sw) {
+    // sandwichBonus pays its Overdrive charge before the cascade (like a merge-count fill), so it can start Overdrive now
+    let od = 0;
+    if (sw.bonus && !s.noOverdrive) {
+      od = sandwichOd(odNeeded(s));
+      s.odCharge += od;
+      if (s.odCharge >= odNeeded(s)) {
+        s.odCharge = 0;
+        enterOverdrive(s, odDuration(s));
+        odStart = true;
+      }
+    }
+    s.stats.sandwiches = (s.stats.sandwiches ?? 0) + 1;
+    ev.push({ type: 'sandwich', idx: to, cells: [...sw.cells], ids: eaten.map((p) => p.id), rank: g.rank, plus: sw.plus, od });
+  }
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing' });
+  const primeAll = primeFor(s, g.family);
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}) });
+  if (primeAll && --s.support!.prime!.left <= 0) delete s.support!.prime;
   applyMoves(s, result);
+  applyB1(s, result, ev);
   spendItems(s, result);
   scaleA2(s, result);
   if (fatigueCfg() && s.phase === 'playing') s.lastMergeAt = s.elapsed;
@@ -713,6 +841,7 @@ function merge(s: GameState, from: number, to: number): CommandResult {
       }
     }
   }
+  bypassShield(s, result, true);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
   ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
@@ -737,6 +866,7 @@ export function scrap(s: GameState, idx: number, id: number): CommandResult {
   if (s.phase !== 'playing' || !g || g.id !== id || locked(s).has(idx)) return { ok: false, events: [] };
   s.grid[idx] = null;
   s.stats.scraps++;
+  touched(s);
   return { ok: true, events: [{ type: 'scrap', idx, gadget: g }] };
 }
 
@@ -770,7 +900,7 @@ function endChoice(s: GameState): GameEvent[] {
 
 // ---------- internals ----------
 
-function applyMoves(s: GameState, r: CascadeResult) {
+export function applyMoves(s: GameState, r: CascadeResult) {
   for (const m of r.moves) {
     if (s.grid[m.from]?.id !== m.id || s.grid[m.to]) throw new Error('magnet/fan move desync');
     s.grid[m.to] = s.grid[m.from];
@@ -792,16 +922,16 @@ function applyMoves(s: GameState, r: CascadeResult) {
 function enterOverdrive(s: GameState, dur: number) {
   const wasActive = s.odLeft > 0;
   s.odLeft = Math.max(s.odLeft, dur);
-  if (!wasActive) rescaleCannons(s, TUNING.cannonPeriod, TUNING.cannonPeriodOverdrive);
+  if (!wasActive) rescaleCannons(s, cannonBase(s), TUNING.cannonPeriodOverdrive);
 }
 
 function rescaleCannons(s: GameState, oldP: number, newP: number) {
   for (const g of s.grid) if (g && g.family === 'cannon') g.cd = (g.cd / oldP) * newP;
 }
 
-type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
+export type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
 
-function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
+export function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
   if (dmg <= 0) return;
   dmg = Math.round(dmg * shieldMult(s));
   if ((src === 'player' || src === 'kick') && s.level !== undefined && !s.goal) dmg = Math.min(dmg, Math.ceil(s.maxHp * TUNING.cascadeCap));
@@ -868,6 +998,8 @@ export interface PuzzleDef {
   /** r44 solver difficulty score (src/core/puzzle.ts), written by tools/gen-puzzles.ts. */
   score?: number;
   visual?: string;
+  /** Roster 1 Jackhammer drills: the machine has a closed chain shield (x0.75; a chain of 4 opens it; the Drill ignores it). */
+  shield?: boolean;
 }
 
 /** r43 UNITS nav dot: some owned unit still has an unsolved drill. */
@@ -887,8 +1019,14 @@ export function newPuzzle(p: PuzzleDef): GameState {
   s.noKickback = true;
   s.noOverdrive = true;
   s.bag = [];
-  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}) };
+  if (p.shield) s.shieldUntil = -1;
+  s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}), ...(p.unit ? { unit: p.unit as Family } : {}) };
   return s;
+}
+
+/** Unit drills: a part of `unit` activated in this cascade AND did something (dealt damage or reached another part). */
+export function unitActed(r: CascadeResult, unit: Family): boolean {
+  return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }
 
 /** r33: next machine of the stage (overkill carries over, capped like any hit). The goal machine has no finite HP. */
@@ -939,13 +1077,33 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
   ev.push({ type: 'newTarget', target: 0 });
 }
 
+/** TUNING.thinkBank prototype: the player's last successful board command (merge, move, scrap, item). */
+function touched(s: GameState) {
+  if (TUNING.thinkBank) s.idleFor = 0;
+}
+
+/** TUNING.thinkBank prototype: the level is in its think pause now (slowed / frozen, bank not spent). */
+export const thinking = (s: GameState) =>
+  TUNING.thinkBank && s.level !== undefined && s.phase === 'playing' && !s.puzzle && (s.idleFor ?? 0) >= TUNING.tb.grace && (s.banked ?? 0) < TUNING.tb.bank;
+
 /** Advance one fixed 50 ms step. `reserved` = cells deliveries must avoid (drag in progress). */
 export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): GameEvent[] {
   const ev: GameEvent[] = [];
   if (s.puzzle) return ev; // r42: puzzles have no time
   if (s.phase !== 'playing') return ev;
   if (s.itemGrantAt !== undefined && !s.itemGranted && s.elapsed >= s.itemGrantAt) grantItem(s, ev); // r25 explicit teaching grant (goal levels have no HP thresholds)
-  const dt = Math.min(TICK, s.timeLeft);
+  let dt = Math.min(TICK, s.timeLeft);
+  // TUNING.thinkBank: a finger on the board counts as touching; a still board past the grace runs at tb.rate speed
+  if (TUNING.thinkBank && s.level !== undefined) {
+    if (reserved.size) s.idleFor = 0;
+    if (thinking(s)) {
+      const save = Math.min(dt * (1 - TUNING.tb.rate), TUNING.tb.bank - (s.banked ?? 0));
+      s.banked = (s.banked ?? 0) + save;
+      dt -= save;
+    }
+    s.idleFor = (s.idleFor ?? 0) + TICK;
+    if (dt <= 1e-9) return ev;
+  }
   s.elapsed += dt;
   s.timeLeft -= dt;
 
@@ -954,7 +1112,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     s.odLeft -= dt;
     if (s.odLeft <= 0) {
       s.odLeft = 0;
-      rescaleCannons(s, TUNING.cannonPeriodOverdrive, TUNING.cannonPeriod);
+      rescaleCannons(s, TUNING.cannonPeriodOverdrive, cannonBase(s));
       ev.push({ type: 'overdriveEnd' });
     }
   }
@@ -969,10 +1127,15 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     if (g.cd <= 1e-9) {
       g.cd += cannonPeriod(s);
       const hot = bossCascadeMods(s.boss).hotCol;
-      const dmg = rawDamage('cannon', g.rank) * TUNING.passiveMult * (s.unitMult?.cannon ?? 1) * ((s.unitLevel?.cannon ?? 1) >= 9 && g.rank >= 7 ? 2 : 1) * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
-      ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
-      applyDamage(s, dmg, ev, 'passive');
-      if (s.phase !== 'playing') return ev;
+      const cl = s.unitLevel?.cannon ?? 1;
+      // roster B FIRE: L6 Hot Shells (auto shots x passiveHot), L9 Double Tap (every auto shot fires twice)
+      const rb = TUNING.rosterB;
+      const dmg = rawDamage('cannon', g.rank) * (rb && cl >= 6 ? TUNING.rb.passiveHot : TUNING.passiveMult) * (s.unitMult?.cannon ?? 1) * (!rb && cl >= 9 && g.rank >= 7 ? 2 : 1) * (hot !== undefined && idx % COLS === hot ? 0.5 : 1);
+      for (let k = 0; k < (rb && cl >= 9 ? 2 : 1); k++) {
+        ev.push({ type: 'shot', idx, id: g.id, damage: dmg });
+        applyDamage(s, dmg, ev, 'passive');
+        if (s.phase !== 'playing') return ev;
+      }
     }
   }
 
@@ -1087,13 +1250,20 @@ export function legalPairs(s: GameState): [number, number][] {
 
 /** Dry-run preview: how many gadgets would fire if `from` merged into `to`. Never mutates. */
 export function previewMerge(s: GameState, from: number, to: number): CascadeResult | null {
+  return puzzleClassic(s, () => previewNow(s, from, to));
+}
+
+function previewNow(s: GameState, from: number, to: number): CascadeResult | null {
   const a = s.grid[from];
   const b = s.grid[to];
   if (!canMerge(a, b, s)) return null;
   const grid = s.grid.slice();
+  const sw = sandwichFor(s, from, to);
   grid[from] = null;
-  grid[to] = { id: -1, family: a!.family, rank: a!.rank + 1, cd: 0 };
-  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount }));
+  grid[to] = { id: -1, family: a!.family, rank: sw ? sw.rank : a!.rank + 1, cd: 0 };
+  for (const i of sw?.cells ?? []) grid[i] = null;
+  const primeAll = primeFor(s, a!.family);
+  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}) }));
 }
 
 export function serialize(s: GameState): string {
@@ -1134,7 +1304,7 @@ export function resumable(s: GameState | null, levelCount: number): GameState | 
 type DropPlan = { idx: number; land: number; id: number };
 
 /** Choose where a loose part will land (next to a lonely match). Consumes kickRng once. */
-function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
+export function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
   const taken = new Set<number>([...reserved, ...locked(s), ...bossPendingCells(s.boss), ...bossBlocked(s.boss).noDrop]);
   for (const d of s.drops) if (d.plan) taken.add(d.plan.idx).add(d.plan.land);
   const counts = new Map<string, number>();
@@ -1166,6 +1336,57 @@ function queueDrop(s: GameState, ev: GameEvent[], fuse: boolean) {
   ev.push({ type: 'kickbackIncoming', land: plan?.land ?? -1, into: f ? (plan?.idx ?? -1) : -1 });
 }
 
+/** Units B1 Fan: cells a firing Fan may clear (junk blocks, the active clamp / frost row, a locked remix row, and the
+ *  cells an incoming boss / remix attack is aimed at). */
+export function fanHazards(s: GameState): ReadonlySet<number> | undefined {
+  return TUNING.unitsB1 ? hazardCells(s) : undefined;
+}
+/** Every hazard cell on the board now (junk blocks, clamp / frost / lock, cells an incoming attack is aimed at). */
+export function hazardCells(s: GameState): Set<number> {
+  const out = new Set<number>([...bossBlockCells(s.boss), ...lockedCells(s.remix), ...bossPendingCells(s.boss), ...(s.remix?.pending?.cells ?? [])]);
+  for (const c of fanHazardsOfActive(s)) out.add(c);
+  return out;
+}
+function fanHazardsOfActive(s: GameState): Set<number> {
+  const out = new Set<number>();
+  const a = s.boss?.active;
+  if (s.boss && a) {
+    const atk = castAttack(s.boss, a);
+    if (atk === 'clamp') for (const c of a.cells ?? []) out.add(c);
+    if (atk === 'frost' && a.row !== undefined) for (let c = 0; c < COLS; c++) out.add(a.row * COLS + c);
+  }
+  return out;
+}
+
+/** Units B1: end the hazards a Fan cleared, and queue the part a Magnet fetched (lands next to a lonely twin). */
+export function applyB1(s: GameState, r: CascadeResult, ev: GameEvent[]) {
+  for (const cell of r.clears ?? []) {
+    const b = s.boss;
+    if (b?.blocks?.some((x) => x.cell === cell)) {
+      b.blocks = b.blocks.filter((x) => x.cell !== cell);
+      ev.push({ type: 'bossDefuse', attack: 'blocks', cells: [cell] });
+    } else if (s.remix?.lock?.cells.includes(cell)) {
+      ev.push({ type: 'remixUnlock', cells: s.remix.lock.cells }, { type: 'bossDefuse', attack: 'clamp', cells: [cell] });
+      s.remix.lock = null;
+    } else if (b?.active && fanHazardsOfActive(s).has(cell)) {
+      const atk = castAttack(b, b.active);
+      b.active = null;
+      ev.push({ type: 'bossEnd', attack: atk }, { type: 'bossDefuse', attack: atk, cells: [cell] });
+    } else if (b?.pending && bossPendingCells(b).includes(cell)) {
+      ev.push({ type: 'bossDefuse', attack: castAttack(b, b.pending), cells: [cell] });
+      b.pending = null;
+    } else if (s.remix?.pending?.cells.includes(cell)) {
+      ev.push({ type: 'bossDefuse', attack: 'clamp', cells: [cell] });
+      s.remix.pending = null;
+    }
+  }
+  if (r.fetch && s.phase === 'playing' && s.target >= 0) {
+    const plan = planDrop(s, new Set(), false);
+    s.drops.push({ t: TUNING.kickbackFall, fuse: false, plan });
+    ev.push({ type: 'kickbackIncoming', land: plan?.land ?? -1, into: -1 });
+  }
+}
+
 /** Cells promised to falling parts; deliveries avoid them. */
 export function dropReserved(s: GameState): number[] {
   return s.drops.flatMap((d) => (d.plan ? [d.plan.land] : []));
@@ -1194,9 +1415,11 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), });
     applyMoves(s, result);
+    applyB1(s, result, ev);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
+    bypassShield(s, result);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
     applyDamage(s, result.total, ev, 'kick');
     return;

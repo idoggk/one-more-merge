@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, TARGET_NAMES } from '../../content/perks';
 import { COLS, ROWS, TUNING } from '../../content/tuning';
-import { odNeeded, peekNext, fatigueCfg, supplyGated, mergeEarns, supplyPeriod } from '../../core/game';
+import { odNeeded, peekNext, fatigueCfg, supplyGated, mergeEarns, supplyPeriod, thinking } from '../../core/game';
 import { BOOSTER_UNLOCK, LEVELS, starGoals } from '../../content/levels';
 import { setMusicIntensity, setMusicMode, sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
@@ -14,6 +14,7 @@ import { ghostProgress, levelProgress, paceDelta, paceLabel } from '../../core/p
 import { store } from '../meta';
 import type { GameScene } from '../GameScene';
 import { W, CELL, BX, CLOCK_X, ITEM_X, BY, TRAY_Y, HP_Y, STAGE_TOP, STAGE_H, SLOT, ITEM_COL, OD_COL, cellXY, fmt, textColor, textBg } from '../sceneKit';
+import { trayEarnText } from '../flow';
 
 export function drawHud(scene: GameScene, dms: number) {
   const s = scene.s;
@@ -82,6 +83,11 @@ export function drawHud(scene: GameScene, dms: number) {
   // QA PACE MANIA: label the craze rules on the HUD (top-right of the stage window)
   if (!scene.maniaBadge) scene.maniaBadge = scene.add.text(W - 92, STAGE_TOP + 28, 'MANIA', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#c0287a', padding: { x: 12, y: 4 } }).setOrigin(1, 0.5).setDepth(22);
   scene.maniaBadge.setVisible(TUNING.pace === 'mania' && s.level !== undefined && !s.puzzle && !demo);
+  // QA THINK BANK: PAUSED while the still board holds the clock, else the seconds left in the bank
+  if (!scene.thinkBadge) scene.thinkBadge = scene.add.text(W - 92, STAGE_TOP + 70, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', padding: { x: 10, y: 3 } }).setOrigin(1, 0.5).setDepth(22);
+  const bankLeft = Math.max(0, Math.ceil(TUNING.tb.bank - (s.banked ?? 0)));
+  scene.thinkBadge.setVisible(TUNING.thinkBank && s.level !== undefined && !s.puzzle && !demo && s.phase === 'playing');
+  scene.thinkBadge.setText(thinking(s) ? `PAUSED · ${bankLeft}s` : `BANK ${bankLeft}s`).setBackgroundColor(thinking(s) ? '#27a4c0' : '#8a6a4a');
   // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
   const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
   if (!scene.starChase) scene.starChase = scene.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
@@ -98,6 +104,8 @@ export function drawHud(scene: GameScene, dms: number) {
     if (scene.starChase.text !== rule) textColor(scene.starChase.setText(rule), '#d9c2ff');
     scene.starChase.setVisible(true);
   } else scene.starChase.setVisible(false);
+  const hudA = scene.time.now < scene.bannerUntil ? Math.max(0, scene.starChase.alpha - dms / 120) : Math.min(1, scene.starChase.alpha + dms / 250);
+  scene.starChase.setAlpha(hudA);
 
   // smooth HP (goal levels: the bar fills with goal progress instead, r23)
   scene.shownHp += (s.hp - scene.shownHp) * Math.min(1, dms / 120);
@@ -117,12 +125,14 @@ export function drawHud(scene: GameScene, dms: number) {
   scene.drawPace(bw);
   // r23 chain shield chip + bubble on the monster
   if (!scene.shieldChip) {
-    scene.shieldChip = scene.add.text(W - 92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(1, 0.5).setDepth(22);
+    scene.shieldChip = scene.add.text(W - 92, STAGE_TOP + 34, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6, align: 'right', lineSpacing: -4 }).setOrigin(1, 0.5).setDepth(22);
     scene.shieldG = scene.add.graphics().setDepth(4);
   }
   const sh = s.shieldUntil !== undefined && s.phase === 'playing';
   const open = sh && s.elapsed < s.shieldUntil!;
-  scene.shieldChip.setVisible(sh).setText(open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s` : 'SHIELD  \u00b7  chain of 4 opens it');
+  const shTxt = open ? `SHIELD OPEN  ${(s.shieldUntil! - s.elapsed).toFixed(1)}s\nfull damage` : 'SHIELD CLOSED  \u00b7  x0.75\nchain of 4 opens it';
+  if (scene.shieldChip.text !== shTxt) textColor(scene.shieldChip.setText(shTxt), open ? '#8ef08a' : '#9fe8ff');
+  scene.shieldChip.setVisible(sh).setAlpha(hudA);
   scene.shieldG.clear();
   if (sh && !open) {
     const rr = Math.min(STAGE_H * 0.46, 170);
@@ -152,6 +162,7 @@ export function drawHud(scene: GameScene, dms: number) {
   const charged = Math.floor((s.odCharge * need) / odNeeded(s));
   const gx = 384;
   scene.boltIcon?.setPosition(gx - 26, 46).setVisible(!demo && !early).setAngle(s.odLeft > 0 ? Math.sin(scene.time.now / 60) * 12 : 0);
+  scene.odLabel?.setVisible(!demo && !early);
   const active = s.odLeft > 0;
   const gaugeArt = scene.hasArt('gauge_off') && scene.hasArt('gauge_on');
   if (gaugeArt && !scene.gaugeImgs.length) for (let i = 0; i < 6; i++) scene.gaugeImgs.push(scene.add.image(0, 46, 'gauge_off').setDisplaySize(24, 34));
@@ -198,7 +209,7 @@ export function drawHud(scene: GameScene, dms: number) {
   ta.lineStyle(6, 0xfbe7c6, 0.9).beginPath().arc(BX + 150, TRAY_Y, 38, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2).strokePath();
   // r38: reactive levels say what the next merge earns (the board only changes when you merge)
   const earn = mergeEarns(s);
-  scene.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? (earn && supplyGated(s) ? `CHAIN \u2192 +${earn}` : `MERGE \u2192 +${earn}`) : '');
+  scene.pendingText.setText(s.pending.length ? (s.trayHold ? `board full · +${s.pending.length}` : `+${s.pending.length} waiting`) : s.reactive && s.phase === 'playing' ? trayEarnText(earn, !!earn && supplyGated(s)) : '');
   textBg(textColor(scene.pendingText, s.pending.length ? '#9e2416' : '#3b2533'), scene.pendingText.text && !s.pending.length ? '#fbe7c6' : '', scene.pendingText.text && !s.pending.length ? 10 : 0, 4);
   const tut = s.phase === 'tutorial';
   scene.scrapZone.setVisible(scene.scrapShown());
