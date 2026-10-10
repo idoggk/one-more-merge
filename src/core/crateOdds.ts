@@ -181,9 +181,9 @@ export const parseOddsB = (s: string) => Object.fromEntries(RARITY_ORDER.map((r)
 /** The B odds panel lines for one tier. Per-card odds and guarantees are separate rows; pity rows only for rarities the tier can drop. */
 export function crateOddsLinesB(kind: CrateKind, pity?: PityView): { title: string; rows: string[] } {
   const spec = CRATES_B[kind];
-  const rows = [`Each card: ${oddsTextB(spec.odds)}`];
+  const rows = [`Each card, before guarantees: ${oddsTextB(spec.odds)}`];
   for (const g of guaranteeGroups(kind)) rows.push(`Guaranteed: ${g.from === g.to ? `card ${g.from} is` : `cards ${g.from}-${g.to} are`} ${RARITY_NAME_B[g.min]} or better: ${oddsTextB(g.odds, false)}`);
-  if (kind === 'wood') rows.push(`Latch (one roll per open, decided before the bag opens): Toolbox or better ${pctB(LATCH_B.iron)} · Tool Chest or better ${pctB(LATCH_B.gold)} · Golden Workbench ${pctB(LATCH_B.bench)}`);
+  if (kind === 'wood') rows.push(`Latch (one roll per open, decided before the bag opens; the Tool Bag card odds above leave it out): Toolbox or better ${pctB(LATCH_B.iron)} · Tool Chest or better ${pctB(LATCH_B.gold)} · Golden Workbench ${pctB(LATCH_B.bench)}`);
   if (pity) {
     for (const r of ['epic', 'legendary'] as const) {
       const name = RARITY_NAME_B[r];

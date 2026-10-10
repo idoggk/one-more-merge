@@ -73,7 +73,24 @@ export function rollCrate(kind: CrateKind, owned: ReadonlySet<Family>, seed: num
  *  crate that opens is the upgraded kind and its own odds, guarantees and pity apply. Mutates `pity`. */
 export function openCrateB(kind: CrateKind, owned: ReadonlySet<Family>, seed: number, pity: PityState): { opened: CrateKind; latched: boolean; cards: CrateCard[] } {
   const opened = kind === 'wood' ? latchKind(new Rng((seed ^ 0x1a7c4) >>> 0 || 1).next()) : kind;
-  return { opened, latched: opened !== kind, cards: rollCrate(opened, owned, seed, pity) };
+  const cards = rollCrate(opened, owned, seed, pity);
+  // the first-Horn promise ("This Tool Bag brings a Horn") also holds when the bag latches up; an unlatched bag is
+  // handled by GameScene.openCrate (opened === 'wood')
+  return { opened, latched: opened !== kind, cards: opened !== kind && !owned.has('horn') ? withFirstHorn(cards) : cards };
+}
+
+/** The first-crate Horn: one card becomes a NEW Horn, leading the list (a Horn already rolled is folded in). */
+export function withFirstHorn(cards: CrateCard[]): CrateCard[] {
+  const rest = cards.map((c) => ({ ...c }));
+  const own = rest.findIndex((c) => c.unit === 'horn');
+  if (own >= 0) rest.splice(own, 1);
+  else {
+    const last = rest[rest.length - 1];
+    if (last.count > 1) last.count--;
+    else rest.pop();
+  }
+  const rolled = own >= 0 ? cards[own].count : 1;
+  return [{ unit: 'horn', count: rolled, isNew: true }, ...rest];
 }
 
 /** r40: the featured unit for the 48-hour window containing `dayIndex` (days since epoch). */
