@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applySpamVariant, applyUnits, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedUnits, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, SPAM_VARIANTS, storedPace, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, type SpamVariant } from '../content/experiments';
 import {
   canMerge,
   capOf,
@@ -42,13 +42,14 @@ import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
+import { crateName, popToolboxLatch, TOOLBOX_KEY, toolboxCrateKey, toolboxOn } from './fx/toolboxCrates';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
 import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos, endlessReward } from '../core/endless';
 import { contractMet, contractsFor, contractText, MASTERY_BOLTS } from '../core/mastery';
 import puzzleData from '../content/puzzles.json';
-import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { drillsPending, newPuzzle, thinking, type PuzzleDef } from '../core/game';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../core/sandwich';
 import { playSandwich } from './sandwichFx';
 import { dailyIndex, HELP, missedUnitText, nextWinningMove, notePuzzleAttempt, puzzleHelp, puzzleReward, type Move, type PuzzleRec } from '../core/puzzle';
@@ -224,6 +225,9 @@ applyUnits(qaUnits());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
+// t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
+const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
+applyThinkBank(qaThinkBank());
 
 type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
@@ -292,6 +296,7 @@ export class GameScene extends Phaser.Scene {
   tutorialText!: Phaser.GameObjects.Text;
   practiceText!: Phaser.GameObjects.Text;
   maniaBadge: Phaser.GameObjects.Text | null = null;
+  thinkBadge: Phaser.GameObjects.Text | null = null;
   modal: Phaser.GameObjects.Container | null = null;
   /** r43: this attempt's command log (best-chain replay on the results screen). */
   runLog: RunLog = newRunLog();
@@ -2202,6 +2207,11 @@ Now beat the real level.`, this.coachY());
     // QA PACE MANIA: label the craze rules on the HUD (top-right of the stage window)
     if (!this.maniaBadge) this.maniaBadge = this.add.text(W - 92, STAGE_TOP + 28, 'MANIA', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#ffffff', backgroundColor: '#c0287a', padding: { x: 12, y: 4 } }).setOrigin(1, 0.5).setDepth(22);
     this.maniaBadge.setVisible(TUNING.pace === 'mania' && s.level !== undefined && !s.puzzle && !demo);
+    // QA THINK BANK: PAUSED while the still board holds the clock, else the seconds left in the bank
+    if (!this.thinkBadge) this.thinkBadge = this.add.text(W - 92, STAGE_TOP + 70, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', padding: { x: 10, y: 3 } }).setOrigin(1, 0.5).setDepth(22);
+    const bankLeft = Math.max(0, Math.ceil(TUNING.tb.bank - (s.banked ?? 0)));
+    this.thinkBadge.setVisible(TUNING.thinkBank && s.level !== undefined && !s.puzzle && !demo && s.phase === 'playing');
+    this.thinkBadge.setText(thinking(s) ? `PAUSED · ${bankLeft}s` : `BANK ${bankLeft}s`).setBackgroundColor(thinking(s) ? '#27a4c0' : '#8a6a4a');
     // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
     const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
     if (!this.starChase) this.starChase = this.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
@@ -5561,6 +5571,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     applyPace(qaPace()); // QA PACE switch: the stored pace takes effect from this level
     applyUnits(qaUnits()); // QA UNITS switch, same
     applyMergeRule(qaMergeRule()); // QA MERGE RULE switch, same
+    applyThinkBank(qaThinkBank()); // QA THINK BANK switch, same
     this.startState(newLevel(def, { toys, shooter, jumpstart, relays }));
     if (td && m.trial) {
       this.s.unitMult = { ...(this.s.unitMult ?? {}), [td.id]: levelMult(td, TRIAL_LEVEL) };
@@ -6183,17 +6194,30 @@ Merge them into a RANK ${rank}!`, this.coachY());
       tlog.log('qa_unlock_all');
       this.showToast('ALL FEATURES UNLOCKED');
     }, 0.75);
-    this.button(c, W / 2, top + 620, 520, '+2000 BOLTS  +500 GEMS', 0xe0a020, () => {
+    this.button(c, W / 2 - 150, top + 620, 360, '+2000 BOLTS +500 GEMS', 0xe0a020, () => {
       m.bolts = (m.bolts ?? 0) + 2000;
       m.gems = (m.gems ?? 0) + 500;
       save();
       this.showToast('+2000 BOLTS  +500 GEMS');
-    }, 0.8);
-    this.button(c, W / 2, top + 710, 520, '+3 CRATES (WOOD/IRON/GOLD)', 0xb06a1a, () => {
+    }, 0.68);
+    // t-4208f149 THINK BANK prototype OFF / ON (this device only; applies when the next level starts)
+    this.button(c, W / 2 + 150, top + 620, 360, qaThinkBank() ? 'THINK BANK: ON' : 'THINK BANK: OFF', qaThinkBank() ? 0x5fbf4a : 0x8a6a4a, () => {
+      store(THINK_BANK_KEY, qaThinkBank() ? null : 'on');
+      tlog.log('qa_think_bank', { on: qaThinkBank() });
+      this.showToast(qaThinkBank() ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL');
+      this.openQaTools(jump);
+    }, 0.68);
+    this.button(c, W / 2 - 150, top + 710, 360, '+3 CRATES', 0xb06a1a, () => {
       for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) this.giveCrate(k);
       save();
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
-    }, 0.8);
+    }, 0.75);
+    // t-33f4fe2e crate look: OLD crates (live) / TOOLBOX (Tool Bag, Toolbox, Tool Chest), this device only
+    this.button(c, W / 2 + 150, top + 710, 360, toolboxOn() ? 'CRATES: TOOLBOX' : 'CRATES: OLD', toolboxOn() ? 0x5fbf4a : 0x8a6a4a, () => {
+      store(TOOLBOX_KEY, toolboxOn() ? null : 'toolbox');
+      tlog.log('qa_crates', { look: toolboxOn() ? 'toolbox' : 'old' });
+      this.openQaTools(jump);
+    }, 0.75);
     // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
     c.add(this.add.text(W / 2, top + 775, 'SPAM TEST (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
     const cur = spamVariant();
@@ -6213,9 +6237,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     PACES.forEach((p, i) => {
       const on = p.id === curPace;
       this.button(c, W / 2 + (i - 1) * 210, top + 950, 300, on ? `[${p.label}]` : p.label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(PACE_KEY, p.id === 'today' ? null : p.id);
+        store(PACE_KEY, p.id === DEFAULT_PACE ? null : p.id);
         tlog.log('qa_pace', { pace: p.id });
-        this.showToast(p.id === 'today' ? 'PACE TODAY (live game)  ·  NEXT LEVEL' : `PACE ${p.label}  ·  START A LEVEL`);
+        this.showToast(p.id === DEFAULT_PACE ? `PACE ${p.label} (live game)  ·  NEXT LEVEL` : `PACE ${p.label}  ·  START A LEVEL`);
         this.openQaTools(jump);
       }, 0.62);
     });
@@ -6665,13 +6689,14 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.closeModal();
     const c = this.panel(1000);
     const top = H / 2 - 500;
-    c.add(this.add.text(W / 2, top + 60, title ?? CRATES[kind].name, { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 60, title ?? crateName(kind), { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
     const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
     const box = this.add.container(W / 2, top + 260);
     // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
     // No closed gold crate yet: the iron crate tinted gold stands in.
     this.seasonEv('crateOpen');
-    const ck = this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
+    const tbx = toolboxOn(); // t-33f4fe2e QA: baked procedural toolbox crates
+    const ck = tbx ? toolboxCrateKey(this, kind) : this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
     let crateIm: Phaser.GameObjects.Image | null = null;
     if (ck) {
       const im = this.add.image(0, 0, ck);
@@ -6685,7 +6710,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.tweens.add({ targets: box, angle: { from: -6, to: 6 }, duration: 90, yoyo: true, repeat: 5, onComplete: () => {
       sfx.chestOpen?.();
       const openKey = `crate_${kind}_open`;
-      if (crateIm && this.hasArt(openKey)) {
+      if (crateIm && tbx) popToolboxLatch(this, box, crateIm, kind);
+      else if (crateIm && this.hasArt(openKey)) {
         crateIm.clearTint().setTexture(openKey);
         crateIm.setScale(240 / Math.max(crateIm.width, crateIm.height));
       }
@@ -6772,7 +6798,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     };
     this.button(c, 330, top + 266, 220, `x1  ${FEATURED_CRATE.gems1} GEMS`, 0x8e58c9, () => buyFeatured(1, FEATURED_CRATE.gems1), 0.6);
     this.button(c, 520, top + 266, 220, `x5  ${FEATURED_CRATE.gems5} GEMS`, 0x8e58c9, () => buyFeatured(5, FEATURED_CRATE.gems5), 0.6);
-    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, CRATES[g.kind].name, `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
+    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, crateName(g.kind), `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
     const ownedNow = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
     const feat = featuredUnit(localDate(), ownedNow);
     SHOP.boltPacks.forEach((p, i) =>

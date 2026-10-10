@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { applyPace, applySpamVariant, storedPace } from '../src/content/experiments';
+import { applyPace, applySpamVariant, DEFAULT_PACE, PACES, storedPace } from '../src/content/experiments';
 import { LEVELS } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
 import { drop, legalPairs, newLevel, serialize, tick, type GameEvent, type GameState } from '../src/core/game';
@@ -139,14 +139,17 @@ describe('t-1bef1042 PACE prototype (QA switch, default TODAY)', () => {
     expect(TUNING.bossAttacks).toBe(true);
   });
 
-  it('QA PACE toggle defaults to TODAY (missing, unknown or unreadable storage)', () => {
-    expect(storedPace(() => null)).toBe('today');
-    expect(storedPace(() => 'turbo')).toBe('today');
+  it('t-4cd9e27b: the game pace defaults to CALM (missing, unknown or unreadable storage); TODAY / MANIA stay pickable', () => {
+    expect(DEFAULT_PACE).toBe('calm');
+    expect(PACES.map((p) => p.id)).toEqual(['today', 'calm', 'mania']);
+    expect(storedPace(() => null)).toBe('calm');
+    expect(storedPace(() => 'turbo')).toBe('calm');
     expect(
       storedPace(() => {
         throw new Error('no storage');
       }),
-    ).toBe('today');
+    ).toBe('calm');
+    expect(storedPace(() => 'today')).toBe('today');
     expect(storedPace(() => 'calm')).toBe('calm');
     expect(storedPace(() => 'mania')).toBe('mania');
   });
