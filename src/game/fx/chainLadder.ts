@@ -4,6 +4,7 @@
 import type Phaser from 'phaser';
 import { sfx } from '../audio';
 import { pooledText, releaseText, textColor } from '../sceneKit';
+import type { ShakeKind } from './shake';
 
 export const BIG_CHAIN = 8;
 /** The beat before a big chain's final hit (the hit-stop). */
@@ -30,7 +31,7 @@ export function ladderPlan(acts: readonly { depth: number }[], windup: number, s
 /** Extra ms before the final hit: the hold, only for big chains. */
 export const chainHoldMs = (count: number) => (count >= BIG_CHAIN ? HOLD_MS : 0);
 
-type LadderScene = Phaser.Scene & { shake(ms: number, intensity: number): void };
+type LadderScene = Phaser.Scene & { shake(kind: ShakeKind): void };
 
 /** Plays the ladder for one cascade: notes + the source counter. Returns nothing; everything is self-cleaning. */
 export function playChainLadder(scene: LadderScene, acts: readonly { depth: number }[], windup: number, step: number, src: { x: number; y: number }, reduced: boolean) {
@@ -67,5 +68,5 @@ export function playChainLadder(scene: LadderScene, acts: readonly { depth: numb
 export function bigFinish(scene: LadderScene, count: number) {
   if (count < BIG_CHAIN) return;
   sfx.bigFinish();
-  scene.shake(180, 0.006);
+  scene.shake('chainBig');
 }

@@ -1,3 +1,4 @@
+import { getShakeLevel, nextShakeLevel, setShakeLevel } from '../fx/shake';
 import Phaser from 'phaser';
 import { audioSettings, sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
@@ -43,13 +44,13 @@ export function openPause(scene: GameScene) {
   });
   c.add(ex);
   const linkY = top + (scene.s.phase === 'tutorial' ? 720 : 612);
-  const shk = scene.add.text(W / 2 + 140, linkY, `Shake: ${scene.meta.shake === false ? 'OFF' : 'ON'}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);
+  const shakeText = () => `Shake: ${getShakeLevel(scene.meta.shake === false).toUpperCase()}`;
+  const shk = scene.add.text(W / 2 + 140, linkY, shakeText(), { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);
   scene.tapLink(shk, () => {
     sfx.click();
-    scene.meta.shake = scene.meta.shake === false;
-    store(META_KEY, JSON.stringify(scene.meta));
-    shk.setText(`Shake: ${scene.meta.shake === false ? 'OFF' : 'ON'}`);
-    if (scene.meta.shake) scene.shake(90, 0.003);
+    setShakeLevel(nextShakeLevel(getShakeLevel(scene.meta.shake === false)));
+    shk.setText(shakeText());
+    scene.shake('preview');
   });
   c.add(shk);
   const how = scene.add.text(W / 2 - 120, linkY, 'Machine guide', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' }).setOrigin(0.5);

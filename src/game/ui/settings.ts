@@ -9,6 +9,7 @@ import { store } from '../meta';
 import type { GameScene } from '../GameScene';
 import { W, H } from '../sceneKit';
 import { addBuildInfo } from './buildInfo';
+import { getShakeLevel, nextShakeLevel, setShakeLevel } from '../fx/shake';
 
 export function openSettings(scene: GameScene) {
   sfx.click();
@@ -16,17 +17,20 @@ export function openSettings(scene: GameScene) {
   const top = H / 2 - 480;
   scene.sheetTitle(c, top, 'SETTINGS');
   const m = scene.meta;
-  const toggles: [string, () => boolean, () => void][] = [
-    ['SOUND', () => m.sound, () => ((m.sound = !m.sound), (audioSettings.on = m.sound))],
-    ['MUSIC', () => m.music, () => ((m.music = !m.music), (audioSettings.music = m.music))],
-    ['SHAKE', () => m.shake !== false, () => (m.shake = m.shake === false)],
-    ['SWAP ON DROP', () => !!m.swapMismatch, () => (m.swapMismatch = !m.swapMismatch)],
+  const onOff = (v: boolean) => (v ? 'ON' : 'OFF');
+  // SCREEN SHAKE is a phone setting in its own key (not in meta, so not in the save code)
+  const shakeLabel = () => `SCREEN SHAKE: ${getShakeLevel(m.shake === false).toUpperCase()}`;
+  const toggles: [() => string, () => void][] = [
+    [() => `SOUND: ${onOff(m.sound)}`, () => ((m.sound = !m.sound), (audioSettings.on = m.sound))],
+    [() => `MUSIC: ${onOff(m.music)}`, () => ((m.music = !m.music), (audioSettings.music = m.music))],
+    [shakeLabel, () => { setShakeLevel(nextShakeLevel(getShakeLevel(m.shake === false))); scene.shake('preview'); }],
+    [() => `SWAP ON DROP: ${onOff(!!m.swapMismatch)}`, () => (m.swapMismatch = !m.swapMismatch)],
   ];
-  toggles.forEach(([label, get, flip], i) => {
-    const b = scene.button(c, W / 2, top + 180 + i * 110, 460, `${label}: ${get() ? 'ON' : 'OFF'}`, 0x27a4c0, () => {
+  toggles.forEach(([label, flip], i) => {
+    const b = scene.button(c, W / 2, top + 180 + i * 110, 460, label(), 0x27a4c0, () => {
       flip();
       store(META_KEY, JSON.stringify(m));
-      (b.list[1] as Phaser.GameObjects.Text).setText(`${label}: ${get() ? 'ON' : 'OFF'}`);
+      (b.list[1] as Phaser.GameObjects.Text).setText(label());
     });
   });
   // r43 save backup code

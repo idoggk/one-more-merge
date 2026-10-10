@@ -70,7 +70,8 @@ import { CapBadge } from './ui/capBadge';
 import { playBeatSounds, UNIT_SOUND } from './unitSounds';
 import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
-import { bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
+import { BIG_CHAIN, bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
+import { shakeCamera, type ShakeKind } from './fx/shake';
 import { PartReact } from './fx/partReact';
 import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES, pooledText, recycleWith, bakeTexture } from './sceneKit';
 import * as qa from './ui/qaPanel';
@@ -2243,7 +2244,7 @@ Now beat the real level.`, this.coachY());
             this.floatText(tc.x, tc.y - 40, 'TIME SAVED!', '#8ef08a', 44, 500);
           } else {
             sfx.invalid();
-            this.shake(140, 0.004);
+            this.shake('bossRansom');
             this.floatText(this.timerText.x - 60, this.timerText.y + 60, `-${e.cost}s`, '#ff684a', 48, 400);
             this.showEvent('TIME TAKEN!', '#ffd2c8', 1200);
           }
@@ -2260,7 +2261,7 @@ Now beat the real level.`, this.coachY());
         }
         case 'bossFinal': {
           this.showEvent('FINAL PHASE  \u00b7  NEW ATTACK', '#ffd24a', 1400);
-          this.shake(120, 0.004);
+          this.shake('bossFinal');
           tlog.log('boss_final', { second: e.second });
           break;
         }
@@ -2280,7 +2281,7 @@ Now beat the real level.`, this.coachY());
             if (c0 !== undefined) {
               const cp = cellXY(c0);
               if (e.attack === 'bomb') {
-                this.shake(140, 0.005);
+                this.shake('bomb');
                 this.ring(cp.x, cp.y, ATTACK_COL, 120, 16, 360);
                 this.chunks.explode(16, cp.x, cp.y);
               }
@@ -2823,7 +2824,8 @@ Now beat the real level.`, this.coachY());
       }
       // camera stays still (playtest 2 + ChatGPT r11); only a MAX machine gives a tiny kick, and Shake can switch it off
       const hasMax = r.activations.some((a) => a.rank >= MAX_RANK);
-      if (hasMax) this.shake(80, 0.002);
+      if (hasMax) this.shake('maxKick');
+      if (r.count >= 4 && r.count < BIG_CHAIN) this.shake('chainMid');
       if (r.count >= 10) haptic(10);
       const huge = r.count >= 10;
       // EXPERIMENT spam fatigue: a hurried merge's number is dimmed and says how much of its hit landed
@@ -3079,9 +3081,9 @@ Now beat the real level.`, this.coachY());
     this.tweens.add({ targets: r, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => r.destroy() });
   }
 
-  /** Camera shake, skipped entirely under prefers-reduced-motion. */
-  shake(ms: number, intensity: number) {
-    if (!REDUCED_MOTION && this.meta.shake !== false) this.cameras.main.shake(ms, intensity);
+  /** Camera shake: every shake goes through fx/shake.ts (SCREEN SHAKE setting: OFF / SOFT / FULL). */
+  shake(kind: ShakeKind) {
+    shakeCamera(this.cameras.main, kind, this.meta.shake === false);
   }
 
   panel(h: number) {

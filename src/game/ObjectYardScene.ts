@@ -12,6 +12,7 @@ import { H, RS, W } from './GameScene';
 import { SCREW_COLORS } from './ScrewScene';
 import { sfx } from './audio';
 import { UNIT_NAMES, YARD_UNITS, yardReward, yardStars, type YardUnit } from '../content/yardObjects';
+import { shakeCamera } from './fx/shake';
 
 const INK = 0x2b1d2e;
 const WOOD = [0xc98d4e, 0xb47838];
@@ -727,7 +728,7 @@ export class ObjectYardScene extends Phaser.Scene {
       return;
     }
     sfx.panelBreak(1);
-    this.cameras.main.shake(140, 0.006);
+    shakeCamera(this.cameras.main, 'yardHit');
     const p = this.project(this.bpos(bid));
     this.drawObject();
     const taken = r.taken ?? [];
@@ -767,7 +768,7 @@ export class ObjectYardScene extends Phaser.Scene {
     if (won) sfx.star(3);
     else {
       sfx.invalid();
-      this.cameras.main.shake(260, 0.008);
+      shakeCamera(this.cameras.main, 'yardFail');
     }
     this.data0.onResult?.({ won, quit: false, moves: this.st.moves, ...this.prize(won) });
     this.time.delayedCall(1100, () => this.resultPanel(won, tx));
