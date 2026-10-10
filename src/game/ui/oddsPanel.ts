@@ -3,12 +3,13 @@
 // uses. This file only draws; GameScene passes the player's pity state in.
 import Phaser from 'phaser';
 import { crateOddsLines, pityLines, type PityView } from '../../core/crateOdds';
+import { TUNING } from '../../content/tuning';
 import type { CrateKind } from '../../content/units';
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
 const CREAM = 0xfbe7c6;
-const TIER_COL: Record<CrateKind, number> = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 };
+const TIER_COL: Record<CrateKind, number> = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040, bench: 0xf0b020 };
 
 /** A round 'i' button inside `parent` (a modal container) that calls `onTap`. */
 export function addOddsButton(scene: Phaser.Scene, parent: Phaser.GameObjects.Container, x: number, y: number, onTap: () => void) {
@@ -41,17 +42,18 @@ export function showOddsPanel(scene: Phaser.Scene, W: number, H: number, pity: P
   line('CRATE ODDS', 44, '#3b2533', FONT, 4);
   line('Every card rolls these odds on its own.', 20, '#7a5a4a', 'Arial', 18);
   const boxes: { kind: CrateKind; y0: number; y1: number }[] = [];
-  for (const kind of ['wood', 'iron', 'gold'] as CrateKind[]) {
+  const B = TUNING.rosterB; // ROSTER B: four tiers, a little smaller type so the sheet still fits
+  for (const kind of (B ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) {
     const y0 = y;
     y += 10;
     const t = crateOddsLines(kind, pity);
-    line(t.title, 28, '#3b2533', FONT, 6);
-    for (const r of t.rows) line(r, 20, '#4a3240');
+    line(t.title, B ? 25 : 28, '#3b2533', FONT, 4);
+    for (const r of t.rows) line(r, B ? 17 : 20, '#4a3240', 'Arial', B ? 5 : 8);
     y += 6;
     boxes.push({ kind, y0, y1: y });
     y += 12;
   }
-  for (const r of pityLines(pity)) line(r, 19, '#5a3a5a');
+  for (const r of pityLines(pity)) line(r, B ? 16 : 19, '#5a3a5a', 'Arial', B ? 5 : 8);
   line('Tap anywhere to close', 20, '#9a7a6a', FONT, 0);
   const top = Math.max(20, (H - y) / 2);
   body.setY(top);

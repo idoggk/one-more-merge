@@ -10,6 +10,9 @@ import { FEATURES, isNew, markSeen, migrateUnlocks, refreshUnlocks } from '../sr
 import { deserialize, newGame, resumable, serialize, tick } from '../src/core/game';
 import { PACE_KEY, UNITS_B0_KEY } from '../src/content/experiments';
 import { MERGE_RULE_KEY } from '../src/core/sandwich';
+import { TUNING } from '../src/content/tuning';
+import { cardsFor, LEVEL_CARDS, unitDef } from '../src/content/units';
+import { cardsAvailable } from '../src/core/spareParts';
 
 class MemStore {
   map = new Map<string, string>();
@@ -273,5 +276,60 @@ describe('QA switches stay on the device', () => {
     applyBundle(other, r.bundle);
     expect(other.getItem(PACE_KEY)).toBe('mania');
     for (const k of qaKeys.filter((k) => k !== PACE_KEY)) expect(other.getItem(k)).toBeNull();
+  });
+});
+
+// t-9d5b7cd0 ROSTER B crates: a 4th rarity, a Golden Workbench crate, a Legendary pity counter and Spare Parts all arrive as
+// new optional fields, so every old collection save loads and plays the same with the flag off AND on.
+describe('saves from before the Legendary rarity (ROSTER B crates)', () => {
+  const OLD_COLLECTION = {
+    tutorialDone: true, bestTime: null, bestChain: 4, runs: 9, wins: 6, sound: true, hints: true, music: true, hardUnlocked: true, bestTimeHard: null, toys: { magnet: true }, remixBest: {}, tips: {},
+    units: { cannon: { level: 7, cards: 3 }, rocket: { level: 3, cards: 2 }, arc_welder: { level: 2, cards: 1 }, signal_beacon: { level: 5, cards: 2 } },
+    crates: { wood: 2, iron: 1, gold: 1 }, crateSeq: 14, pity: { epic: 4, dry: 1, featured: 2 }, gems: 40, bolts: 500,
+  };
+  afterEach(() => {
+    TUNING.rosterB = false;
+  });
+
+  it('loads whole, flag off and on; nothing is added until a B crate is opened', () => {
+    for (const on of [false, true]) {
+      TUNING.rosterB = on;
+      const m = loadFrom(OLD_COLLECTION);
+      expect(m).toMatchObject(OLD_COLLECTION);
+      expect(m.spare).toBeUndefined();
+      expect(m.pity?.leg).toBeUndefined();
+      expect(m.crates?.bench).toBeUndefined();
+    }
+  });
+
+  it('a Signal Beacon owned before keeps its level and cards; only its card table changes under the flag', () => {
+    const m = loadFrom(OLD_COLLECTION);
+    const st = m.units!.signal_beacon;
+    TUNING.rosterB = false;
+    expect([unitDef('signal_beacon')!.rarity, cardsFor(unitDef('signal_beacon')!, st.level)]).toEqual(['epic', LEVEL_CARDS.epic[4]]);
+    TUNING.rosterB = true;
+    expect([unitDef('signal_beacon')!.rarity, cardsFor(unitDef('signal_beacon')!, st.level), st.level, st.cards]).toEqual(['legendary', LEVEL_CARDS.legendary[4], 5, 2]);
+    expect(cardsAvailable(m, 'signal_beacon')).toBe(2); // no spare parts yet: nothing invented
+  });
+
+  it('a Workbench crate, Legendary pity and Spare Parts survive save -> backup code -> load', async () => {
+    const meta = { ...OLD_COLLECTION, crates: { wood: 1, bench: 2 }, pity: { epic: 3, dry: 0, leg: 17 }, spare: { rare: 4, legendary: 1 } };
+    expect(loadFrom(meta)).toMatchObject(meta);
+    for (const compress of [true, false]) {
+      const r = await importCode(await exportCode({ meta: structuredClone(meta) as never, run: null }, compress));
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      const phone = new MemStore();
+      applyBundle(phone, r.bundle);
+      expect(loadFrom(phone.getItem(META_KEY)!)).toMatchObject(meta);
+    }
+  });
+
+  it('damaged B fields are repaired without touching the rest of the progress', () => {
+    const m = loadFrom({ ...OLD_COLLECTION, spare: { rare: 'lots', mythic: 5, epic: 2 }, pity: { epic: 1, dry: 0, leg: 'x' }, crates: { wood: 1, bench: null, chest: 3 } });
+    expect(m.spare).toEqual({ epic: 2 }); // bad value and unknown rarity dropped
+    expect(m.pity).toBeUndefined(); // a damaged pity object is dropped and the game rebuilds it
+    expect(m.crates).toEqual({ wood: 1 });
+    expect(m.units).toEqual(OLD_COLLECTION.units);
   });
 });

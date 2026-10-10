@@ -3,18 +3,19 @@
 // Procedural: each look is drawn with Graphics ONCE and baked to a texture (`tbx_<kind>`, `tbx_<kind>_open`,
 // `tbx_latch_<kind>`); after that the crate is a plain Image, nothing is redrawn per frame. Default OFF.
 import type Phaser from 'phaser';
-import { CRATES, type CrateKind } from '../../content/units';
+import { CRATES, CRATES_B, type CrateKind } from '../../content/units';
 
 export const TOOLBOX_KEY = 'omm_qa_crates';
 /** Baked canvas size (displayed at ~220 px on the 720-wide screen). */
 const TW = 240, TH = 224;
 const INK = 0x2b1d2e;
-const NAMES: Record<CrateKind, string> = { wood: 'TOOL BAG', iron: 'TOOLBOX', gold: 'TOOL CHEST' };
+const NAMES: Record<CrateKind, string> = { wood: 'TOOL BAG', iron: 'TOOLBOX', gold: 'TOOL CHEST', bench: 'GOLDEN WORKBENCH' };
 /** Where the latch sits on each baked closed texture (texture pixels), and its colour. */
 const LATCH: Record<CrateKind, { x: number; y: number; col: number }> = {
   wood: { x: 120, y: 78, col: 0xe0b040 },
   iron: { x: 120, y: 112, col: 0xc8d2da },
   gold: { x: 120, y: 64, col: 0xfff2b0 },
+  bench: { x: 120, y: 92, col: 0xfff2b0 },
 };
 
 export const toolboxOn = () => {
@@ -26,7 +27,8 @@ export const toolboxOn = () => {
 };
 
 /** The crate's display name: the toolbox names only while the QA switch is on. */
-export const crateName = (kind: CrateKind) => (toolboxOn() ? NAMES[kind] : CRATES[kind].name);
+/** The Golden Workbench only exists under ROSTER B, so it always carries its B name (crateName(kind) still falls back for it). */
+export const crateName = (kind: CrateKind) => (toolboxOn() ? NAMES[kind] : kind === 'bench' ? CRATES_B.bench.name : CRATES[kind].name);
 
 type G = Phaser.GameObjects.Graphics;
 /** Dark outline + fill, the house style (same as the plain crate box in GameScene.presentCrate). */
@@ -166,6 +168,41 @@ function drawChest(g: G, open: boolean) {
   }
 }
 
+/** Golden Workbench: a gold bench with a pegboard of tools on top; open = the drawer-lid flips up and light pours out. */
+function drawBench(g: G, open: boolean) {
+  shadow(g);
+  // legs + shelf
+  for (const x of [44, 176]) box(g, x, 150, 20, 56, 4, 0xc8962e, 4);
+  box(g, 40, 190, 160, 12, 4, 0xa87a22, 3);
+  // pegboard back with hanging tools
+  box(g, 36, 22, 168, 62, 8, 0xb8c4cc, 5);
+  g.fillStyle(INK, 0.35);
+  for (let x = 48; x < 196; x += 18) for (const y of [34, 52, 70]) g.fillCircle(x, y, 2);
+  wrench(g, 70, 30);
+  screwdriver(g, 168, 56);
+  // the bench top (a thick gold slab) and a drawer with a pull
+  const top = (y: number) => {
+    box(g, 24, y, 192, 26, 8, 0xf2c95a, 6);
+    g.fillStyle(0xfff2b0, 1).fillRoundedRect(34, y + 5, 172, 6, 3);
+  };
+  box(g, 36, 118, 168, 36, 6, 0xe0b040, 5);
+  box(g, 120 - 24, 132, 48, 8, 4, 0xe8eef2, 3);
+  if (open) {
+    glow(g, 120, 104, 170, 20);
+    g.save();
+    g.translateCanvas(120, 98);
+    g.rotateCanvas(-0.12);
+    g.translateCanvas(-120, -98);
+    top(78);
+    g.restore();
+  } else {
+    top(92);
+    latch(g, 'bench', LATCH.bench.x, LATCH.bench.y + 28);
+  }
+  g.fillStyle(0xffffff, 0.95);
+  for (const [x, y, r] of [[30, 20, 5], [210, 30, 4], [214, 150, 4]]) g.fillTriangle(x - r * 2, y, x, y - r, x, y + r).fillTriangle(x + r * 2, y, x, y - r, x, y + r);
+}
+
 /** The latch plate, drawn centred on (x, y): baked into the closed crate and on its own for the pop. */
 function latch(g: G, kind: CrateKind, x: number, y: number) {
   const col = LATCH[kind].col;
@@ -174,7 +211,24 @@ function latch(g: G, kind: CrateKind, x: number, y: number) {
   g.fillStyle(INK, 1).fillCircle(x, y + 4, 5);
 }
 
-const DRAW: Record<CrateKind, (g: G, open: boolean) => void> = { wood: drawBag, iron: drawToolbox, gold: drawChest };
+/**
+ * Latch roll-up beat (ROSTER B): the Tool Bag's latch pops off, then the bag swaps to the bigger crate the roll decided (the roll
+ * was made before the crate opened; this only plays it). Returns how many ms it takes, so the cards can wait for it.
+ */
+export function latchRollUp(scene: Phaser.Scene, box: Phaser.GameObjects.Container, im: Phaser.GameObjects.Image, from: CrateKind, to: CrateKind): number {
+  const s = im.scaleX;
+  popToolboxLatch(scene, box, im, from);
+  const key = toolboxCrateKey(scene, to);
+  scene.time.delayedCall(420, () => {
+    if (!im.active) return;
+    im.setTexture(key);
+    scene.tweens.add({ targets: im, scale: { from: s * 0.55, to: s }, duration: 280, ease: 'Back.Out' });
+    scene.time.delayedCall(360, () => im.active && im.setTexture(`${key}_open`));
+  });
+  return 900;
+}
+
+const DRAW: Record<CrateKind, (g: G, open: boolean) => void> = { wood: drawBag, iron: drawToolbox, gold: drawChest, bench: drawBench };
 
 function bake(scene: Phaser.Scene, key: string, w: number, h: number, draw: (g: G) => void) {
   if (scene.textures.exists(key)) return;
