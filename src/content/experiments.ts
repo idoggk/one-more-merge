@@ -81,6 +81,16 @@ export function storedUnits(read: () => string | null): UnitsVariant {
   }
 }
 export const unitsStoreValue = (v: UnitsVariant) => (v === 'b0' ? 'on' : v === 'b1' ? 'b1' : null);
+/** QA panel NEW 4 button (t-9b28a794, roster B batch 1; this device only, not in the save): 'on' = TUNING.rosterB,
+ *  anything else / missing / unreadable = OFF. Applied with units.ts applyRosterB. */
+export const ROSTER_B_KEY = 'omm_qa_roster_b';
+export function storedRosterB(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
 export function applyUnits(v: UnitsVariant) {
   TUNING.unitsB0 = v === 'b0';
   TUNING.unitsB1 = v === 'b1';

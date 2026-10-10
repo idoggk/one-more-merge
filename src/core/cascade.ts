@@ -1,4 +1,5 @@
 import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
+import { gearLinks, gearPerkCells, rosterBMult, type ArmorKind } from './rosterB';
 import { isRelay, isShooter, type Activation, type CascadeResult, type Family, type Grid, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
@@ -37,6 +38,9 @@ export function routeCells(idx: number, family: Family, rank: number, perks: rea
     // r32 Fuse Box: the four diagonal corners (units B1: b1.fuseReach cells along each diagonal)
     const reach = TUNING.unitsB1 ? TUNING.b1.fuseReach : 1;
     for (let d = 1; d <= reach; d++) for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) if (inside(r + dr * d, c + dc * d)) out.push(at(r + dr * d, c + dc * d));
+  } else if (family === 'gear') {
+    // roster B Gear: its 4 touching cells (its LINK to every other Gear is added in resolveCascade, it needs the board)
+    for (const [dr, dc] of DIRS) if (inside(r + dr, c + dc)) out.push(at(r + dr, c + dc));
   } else if (family === 'bell') {
     for (let cc = 0; cc < COLS; cc++) if (cc !== c) out.push(at(r, cc));
     if (TUNING.clarity) return out; // clarity ruleset: a Bell rings its row, at every rank
@@ -102,7 +106,7 @@ function relayPerkCells(idx: number, a: Activation, level: number, nth: number):
     if (level >= 3 && a.rank >= 4) for (const [dr, dc] of [[-2, -2], [-2, 2], [2, -2], [2, 2]]) add(r + dr, c + dc);
     if (level >= 6 && nthIs(5)) for (const [dr, dc] of DIRS) add(r + dr, c + dc);
     if (level >= 9 && a.rank >= 7) for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) for (let k = 1; k < 6; k++) add(r + dr * k, c + dc * k);
-  }
+  } else if (a.family === 'gear') out.push(...gearPerkCells(idx, a.rank, level, nth));
   return out;
 }
 
@@ -127,6 +131,8 @@ export interface CascadeOpts {
   fireBase?: Record<string, number>;
   /** Units B1: cells a firing Fan may clear (junk block, clamp, frost row, locked row); caller applies `clears`. */
   hazards?: ReadonlySet<number>;
+  /** Roster B Drill: 2 = boss / mini-boss, 1 = a monster with a special move, 0 / missing = plain. */
+  armor?: ArmorKind;
 }
 
 /**
@@ -327,6 +333,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   };
 
   let guard = 0;
+  let gearJumps = 0; // roster B Gear links used in this cascade
   while (queue.length) {
     if (++guard > ROWS * COLS + 1) throw new Error('cascade bound violated');
     const idx = queue.shift()!;
@@ -521,10 +528,15 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
     const [ar, ac] = rc(idx);
     if (opts.restRow !== undefined && ar === opts.restRow) continue; // resting row: deals damage, wakes nobody
-    for (const to of [...new Set([...routeCells(idx, a.family, a.rank, opts.perks), ...relayPerkCells(idx, a, lvl(a.family), nthOf.get(a.id) ?? 0)])]) {
+    // roster B Gear LINK: a merged Gear (depth <= rb.gearDepth) jumps the chain to the rb.gearLinks farthest other Gears,
+    // anywhere (even across Junkzilla's divider); every machine still fires once
+    const links = kind === 'gear' && a.depth <= TUNING.rb.gearDepth ? gearLinks(grid, idx, (i) => visited.has(i) || lockedSet.has(i), TUNING.rb.gearLinks - gearJumps) : [];
+    gearJumps += links.length;
+    for (const to of [...new Set([...routeCells(idx, a.family, a.rank, opts.perks), ...relayPerkCells(idx, a, lvl(a.family), nthOf.get(a.id) ?? 0), ...links])]) {
       if (!grid[to] || to === idx || lockedSet.has(to)) continue;
-      if (opts.splitB !== undefined && ac <= opts.splitB !== to % COLS <= opts.splitB) continue; // Junkzilla's divider
-      if (!TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
+      const link = links.includes(to);
+      if (!link && opts.splitB !== undefined && ac <= opts.splitB !== to % COLS <= opts.splitB) continue; // Junkzilla's divider
+      if (!link && !TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
       edges.push({ from: idx, to, kind });
       if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
       enqueue(idx, to, a.depth + 1);
@@ -550,7 +562,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       : a.family === 'rocket' ? (hasPerk('rocket', 3, 4, a) ? 1.15 : 1) * (nthEvery('rocket', 6, 6, a) ? 1.5 : 1) * (hasPerk('rocket', 9, 7, a) && a.depth >= 4 ? 1.35 : 1)
       : 1;
     const amp = ampOn.get(a.id) ?? 1;
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * (opts.unitMult?.[a.family] ?? 1);
+    const job = rosterBMult(a, grid, lvl(a.family), opts.armor ?? 0); // roster B Nail Gun ROW / Drill ARMOR / Saw Blade EDGE
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * job * (opts.unitMult?.[a.family] ?? 1);
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');

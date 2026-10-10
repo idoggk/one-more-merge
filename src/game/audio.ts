@@ -215,6 +215,25 @@ export const sfx = {
     tone(f0 * 2.76, 0.18, 'sine', 0.04, delay);
     tone(f0 * 5.4, 0.08, 'sine', 0.02, delay);
   },
+  /** roster B (t-9b28a794), pitched from the cannon / zap / snap voices: Nail Gun = three quick pops, Drill = a rising
+   *  grind, Gear = two ratchet clicks, Saw Blade = a falling whine. */
+  rosterB: (fam: string, delay = 0) => {
+    if (fam === 'nail_gun') for (const d of [0, 0.05, 0.1]) {
+      tone(vary(620), 0.04, 'square', 0.05, delay + d, 380);
+      bandNoise(0.02, 0.06, delay + d, 2500, 2);
+    }
+    else if (fam === 'drill') {
+      tone(vary(160), 0.24, 'sawtooth', 0.05, delay, 420);
+      bandNoise(0.2, 0.08, delay, 900, 1.5);
+    } else if (fam === 'gear') for (const d of [0, 0.07]) {
+      tone(vary(1100), 0.03, 'square', 0.04, delay + d);
+      bandNoise(0.015, 0.06, delay + d, 3200, 3);
+    }
+    else if (fam === 'saw_blade') {
+      tone(vary(1400), 0.22, 'sawtooth', 0.035, delay, 700);
+      tone(vary(1400), 0.22, 'triangle', 0.05, delay, 700);
+    }
+  },
   hit: (big: boolean) => {
     bandNoise(big ? 0.14 : 0.05, big ? 0.22 : 0.07, 0, 400, 0.7);
     if (big) tone(120, 0.16, 'triangle', 0.12, 0, 60);

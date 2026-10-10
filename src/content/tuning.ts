@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 8, drill: 12, gear: 3, saw_blade: 10 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -140,6 +140,14 @@ export const TUNING = {
    *  plus sandwichOdShare of the Overdrive meter. Puzzles and kickback fuses never sandwich. */
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
   sandwichOdShare: 1 / 3,
+  /** EXPERIMENT (t-9b28a794, roster B batch 1), default OFF: Nail Gun / Drill / Gear / Saw Blade join the collection,
+   *  crates and squad pickers (src/content/units.ts applyRosterB). OFF = no new unit anywhere. Their rules live in
+   *  src/core/rosterB.ts and only act when one of them is on the board. Nail Gun: x(1 + nailPer per other filled cell in
+   *  its row); Drill: its share ignores a closed shield, x drillArmor vs a boss / mini-boss; Gear: wakes its 4 touching
+   *  cells; a MERGED Gear (chain depth <= gearDepth) also jumps the chain to the gearLinks farthest other Gears, anywhere
+   *  (sims t-9b28a794: every woken Gear linking = Coil+Gear cleared 20% faster than any squad); Saw Blade: x sawEdge on the outer ring, x sawInside inside. */
+  rosterB: false,
+  rb: { gearLinks: 2, gearDepth: 0, nailPer: 0.2, nailPerL3: 0.25, nailFullL9: 2.5, drillArmor: 2, drillArmorL9: 2.5, sawEdge: 1.5, sawEdgeL3: 1.7, sawInside: 0.7, sawCornerL9: 2.2, everyMult: 1.5 },
 };
 
 /** Units B0 rules are on (B0 itself, or B1, which builds on them). */

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MAX_RANK } from '../content/tuning';
-import { FAMILIES, type Family } from '../core/types';
+import { FAMILIES, ROSTER_B, type Family, type RosterBFamily } from '../core/types';
+import { drawJobIcon, drawRosterB } from './rosterBArt';
 
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
@@ -37,7 +38,7 @@ function star(x: number, y: number, n: number, r1: number, r2: number) {
   }
   return pts;
 }
-const COLORS: Record<Family, [number, number, number]> = {
+const COLORS: Record<Exclude<Family, RosterBFamily>, [number, number, number]> = {
   cannon: [0xe8452c, 0xff7a52, 0x9e2416],
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
@@ -55,7 +56,8 @@ const COLORS: Record<Family, [number, number, number]> = {
 
 /** Draw a chunky procedural gadget into a 128x128 texture. */
 function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
-  const [main, light, dark] = COLORS[fam];
+  if ((ROSTER_B as Family[]).includes(fam)) return drawRosterB(g, fam as RosterBFamily, rank);
+  const [main, light, dark] = COLORS[fam as Exclude<Family, RosterBFamily>];
   const s = 128;
   g.lineStyle(6, OUT, 1);
   if (fam === 'cannon') {
@@ -185,6 +187,7 @@ export function ensureTextures(scene: Phaser.Scene) {
     g.generateTexture(key, w, h);
   };
   for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK + 2; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
+  for (const f of ROSTER_B) gen(`job_${f}`, 64, 64, () => drawJobIcon(g, f));
 
   gen('dot', 16, 16, () => g.fillStyle(0xffffff).fillCircle(8, 8, 8));
   // tutorial pointing hand (white cartoon glove), fingertip near the top-left

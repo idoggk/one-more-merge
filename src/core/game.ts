@@ -14,6 +14,7 @@ const CALM_CAP = 20;
 const REACT_STUCK = 2.5;
 const REACT_STUCK_NEXT = 3;
 import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
+import type { ArmorKind } from './rosterB';
 import { isRelay, isShooter, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -384,6 +385,29 @@ function spendItems(s: GameState, r: CascadeResult) {
 /** r23 chain shield: past its open window, hits land at x0.75 (exported for the hit-formula strip). */
 export const shieldMult = (s: GameState) => (s.shieldUntil !== undefined && s.elapsed >= s.shieldUntil ? 0.75 : 1);
 
+/** Roster B Drill ARMOR: 2 = a chapter boss / mini-boss on the board, 1 = a monster with a special move (shield or a
+ *  light boss behaviour), 0 = plain. */
+export const armorOf = (s: GameState): ArmorKind => (s.boss && !s.boss.light ? 2 : s.boss?.light || s.shieldUntil !== undefined ? 1 : 0);
+
+/** Roster B Drill: its share of a hit ignores a closed shield. applyDamage puts x shieldMult on the whole total, so the
+ *  Drill's part is raised by 1 / shieldMult first. `player`: a player chain of 4+ opens the shield before its damage
+ *  lands (merge()), so that chain has nothing to pierce. */
+function drillPierce(s: GameState, r: CascadeResult, player = false) {
+  const m = player && s.shieldUntil !== undefined && r.count >= 4 ? 1 : shieldMult(s);
+  const sum = r.activations.reduce((n, a) => n + a.contribution, 0);
+  if (m >= 1 || sum <= 0 || !r.activations.some((a) => a.family === 'drill')) return;
+  const k = r.total / sum;
+  let extra = 0;
+  for (const a of r.activations)
+    if (a.family === 'drill') {
+      const add = a.contribution * (1 / m - 1);
+      a.contribution += add;
+      extra += add * k;
+    }
+  r.total += extra;
+  r.pierced = extra;
+}
+
 /** r23 goal check after a PLAYER merge (starters, deliveries and kickback fuses never count). */
 function checkGoal(s: GameState, ev: GameEvent[], rank: number, chain: number, idx: number) {
   const gl = s.goal;
@@ -753,7 +777,7 @@ function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null =
   // new cannon starts a full (current) period after its immediate activation
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s) });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), armor: armorOf(s) });
   applyMoves(s, result);
   applyB1(s, result, ev);
   spendItems(s, result);
@@ -775,6 +799,7 @@ function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null =
       }
     }
   }
+  drillPierce(s, result, true);
   s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
   s.stats.biggestHit = Math.max(s.stats.biggestHit, result.total);
   ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: odStart, kickback: false });
@@ -930,6 +955,8 @@ export interface PuzzleDef {
   /** r44 solver difficulty score (src/core/puzzle.ts), written by tools/gen-puzzles.ts. */
   score?: number;
   visual?: string;
+  /** Roster B Drill drills: the machine has a closed chain shield (x0.75; a chain of 4 opens it; the Drill ignores it). */
+  shield?: boolean;
 }
 
 /** r43 UNITS nav dot: some owned unit still has an unsolved drill. */
@@ -949,6 +976,7 @@ export function newPuzzle(p: PuzzleDef): GameState {
   s.noKickback = true;
   s.noOverdrive = true;
   s.bag = [];
+  if (p.shield) s.shieldUntil = -1;
   s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}), ...(p.unit ? { unit: p.unit as Family } : {}) };
   return s;
 }
@@ -1162,7 +1190,7 @@ export function previewMerge(s: GameState, from: number, to: number): CascadeRes
   grid[from] = null;
   grid[to] = { id: -1, family: a!.family, rank: sw ? sw.rank : a!.rank + 1, cd: 0 };
   for (const i of sw?.cells ?? []) grid[i] = null;
-  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s) }));
+  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), armor: armorOf(s) }));
 }
 
 export function serialize(s: GameState): string {
@@ -1311,10 +1339,11 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s) });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), armor: armorOf(s) });
     applyMoves(s, result);
     applyB1(s, result, ev);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
+    drillPierce(s, result);
     ev.push({ type: 'cascade', result, damage: result.total, overdriveStart: false, kickback: true });
     applyDamage(s, result.total, ev, 'kick');
     return;

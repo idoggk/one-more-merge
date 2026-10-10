@@ -3,7 +3,7 @@
 // The checksum covers everything before the last dot, so a typo, a cut-off paste or a swapped version is caught
 // before anything is decoded. Nothing here touches storage until applyBundle() is called.
 
-import { CRATES, UNITS } from '../content/units';
+import { ALL_UNIT_IDS, CRATES } from '../content/units';
 import { FAMILIES } from '../core/types';
 
 export const SAVE_KEY = 'omm.save.v1';
@@ -269,7 +269,7 @@ export const META_SHAPES: Record<string, Fix> = {
   failPaid: rec(str),
   shooter: oneOf(FAMILIES),
   playtestMode: bool,
-  units: rec(obj({ level: num, cards: num }), UNITS.map((u) => u.id)),
+  units: rec(obj({ level: num, cards: num }), ALL_UNIT_IDS),
   gems: num,
   crates: rec(num, Object.keys(CRATES)),
   crateSeq: num,

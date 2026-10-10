@@ -10,11 +10,11 @@
 // the first EARLY_DAYS dailies use only the starter units (met in levels 1-3, before the daily opens), and the first
 // EASY_DAYS are "obvious": the highest-rank pair on the board is the hardest hit and it wins, no wrong pair looks as
 // strong (same rank or harder hit), and there are only a few wrong pairs.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { newPuzzle, type PuzzleDef } from '../src/core/game';
 import { allLines, breakAt, lineWins, puzzleMoves, puzzleStats, unitFreeBreaks } from '../src/core/puzzle';
 import { Rng } from '../src/core/rng';
-import type { Family } from '../src/core/types';
+import { isRelay, type Family } from '../src/core/types';
 import { STARTER_UNITS } from '../src/content/units';
 
 const SHOOTERS: Family[] = ['cannon', 'rocket', 'mortar', 'arc_welder'];
@@ -57,6 +57,8 @@ interface Spec {
   band: [number, number];
   /** r45: the obvious-start rules (1-merge dailies at the head of the ramp). */
   easy?: boolean;
+  /** Roster B Drill drills: closed chain shield on the machine. */
+  shield?: boolean;
 }
 
 /** r45: the winning pair is the obvious one: top rank on the board, hardest hit, and no wrong pair is a close look-alike. */
@@ -89,7 +91,7 @@ function makePuzzle(id: string, rng: Rng, o: Spec): (PuzzleDef & { score: number
   // unit drills are rarer (no line may break the machine without the unit), so they get more boards to try
   for (let attempt = 0; attempt < (o.unit ? 3000 : 300); attempt++) {
     const board = randomBoard(rng, o.fams, o.focus, o.pairs, o.singles);
-    const def: PuzzleDef = { id, moves: o.moves, hp: 1, board, solution: [], ...(o.only ? { only: o.only } : {}), ...(o.unit ? { unit: o.unit } : {}) };
+    const def: PuzzleDef = { id, moves: o.moves, hp: 1, board, solution: [], ...(o.only ? { only: o.only } : {}), ...(o.unit ? { unit: o.unit } : {}), ...(o.shield ? { shield: true } : {}) };
     if (puzzleMoves(newPuzzle(def)).length < 3) continue; // always a real choice
     const lines = allLines(def);
     if (lines.length > MAX_LINES) continue;
@@ -121,6 +123,34 @@ function makePuzzle(id: string, rng: Rng, o: Spec): (PuzzleDef & { score: number
 export function dailyBand(d: number): [number, number] {
   const c = d < 24 ? 10 + (58 * d) / 23 : 64 + 4 * Math.cos(0.7 * (d - 23));
   return [Math.round(c - 3), Math.round(c + 3)];
+}
+
+// t-9b28a794 ROSTER B: `--units nail_gun,drill,gear,saw_blade` (re)builds ONLY those units' drills and keeps every other
+// puzzle in puzzles.json as it is (the full run below would reshuffle all of them). Each unit gets its own seeded stream,
+// mates come from the live roster, and Drill drills put a closed chain shield on the machine (its job: it ignores it).
+const UNITS_ARG = process.argv.includes('--units') ? (process.argv[process.argv.indexOf('--units') + 1].split(',') as Family[]) : null;
+if (UNITS_ARG) {
+  const data = JSON.parse(readFileSync('src/content/puzzles.json', 'utf8')) as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+  for (const u of UNITS_ARG) {
+    const r = new Rng(20261010 ^ [...u].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0), 7));
+    const pick = <T,>(a: T[], n: number) => r.shuffle([...a]).slice(0, n);
+    const relay = isRelay(u);
+    const mates: Family[] = relay ? [...pick(SHOOTERS, 1), ...pick(RELAYS.filter((x) => x !== u), 1)] : pick(RELAYS, 2);
+    const specs: Omit<Spec, 'fams' | 'focus' | 'unit'>[] = [
+      { moves: 1, pairs: 4, singles: 3, band: [6, 16] },
+      { moves: 2, only: [u], pairs: 4, singles: 4, band: [24, 36] },
+      { moves: 3, pairs: 5, singles: 4, band: [44, 56] },
+    ];
+    const list: PuzzleDef[] = [];
+    specs.forEach((sp, i) => {
+      const p = makePuzzle(`${u}_${i + 1}`, r, { fams: [u, ...mates], focus: [u], unit: u, ...(u === 'drill' ? { shield: true } : {}), ...sp });
+      if (p) list.push(p);
+    });
+    if (list.length === specs.length) data.drills[u] = list;
+    console.log(u, list.length, list.map((p) => `${p.moves}m hp${p.hp} s${p.score}${p.only ? ' only ' + p.only.join('+') : ''}${p.shield ? ' shield' : ''}`).join(' | '));
+  }
+  writeFileSync('src/content/puzzles.json', JSON.stringify(data, null, 1) + '\n');
+  process.exit(0);
 }
 
 const rng = new Rng(20261008);
