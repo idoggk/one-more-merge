@@ -163,6 +163,9 @@ export interface GameState {
   lastMergeAt?: number;
   /** PACE CALM breather: until this elapsed time after a machine breaks, no supply and no new boss warning. */
   breatherUntil?: number;
+  /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
+  idleFor?: number;
+  banked?: number;
   stats: Stats;
 }
 
@@ -366,6 +369,7 @@ export function applyItem(s: GameState, idx: number, id: number): CommandResult 
   if (s.phase !== 'playing' || !kind || !g || g.id !== id || g.item || !itemFits(kind, g.family)) return { ok: false, events: ev };
   g.item = { kind, charges: 2 };
   s.itemTray = null;
+  touched(s);
   ev.push({ type: 'itemApply', kind, idx, id });
   return { ok: true, events: ev };
 }
@@ -659,6 +663,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
     s.grid[to] = a;
     s.grid[pt] = pg;
     ev.push({ type: 'move', from, to, swap: false }, { type: 'move', from: pf, to: pt, swap: false });
+    touched(s);
     return { ok: true, events: ev };
   }
   // a swap would move a towed b on its own and split the pair: refuse (all-or-nothing, as for a towed a)
@@ -671,6 +676,7 @@ export function drop(s: GameState, from: number, to: number, fromId: number): Co
   s.grid[land] = a;
   s.grid[from] = b;
   ev.push({ type: 'move', from, to: land, swap: !!b });
+  touched(s);
   ev.push(...bossAfterPlayer(s.boss, land, [])); // r27: parking a machine on the bomb defuses it
   return { ok: true, events: ev };
 }
@@ -709,6 +715,7 @@ function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null =
   s.grid[to] = g;
   for (const i of sw?.cells ?? []) s.grid[i] = null;
   s.stats.merges++;
+  touched(s);
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
   const occNow = () => s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
   // Option A3: on a full board the part(s) are paid after the cascade, only for a chain of gateChain+
@@ -799,6 +806,7 @@ export function scrap(s: GameState, idx: number, id: number): CommandResult {
   if (s.phase !== 'playing' || !g || g.id !== id || locked(s).has(idx)) return { ok: false, events: [] };
   s.grid[idx] = null;
   s.stats.scraps++;
+  touched(s);
   return { ok: true, events: [{ type: 'scrap', idx, gadget: g }] };
 }
 
@@ -1006,13 +1014,33 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
   ev.push({ type: 'newTarget', target: 0 });
 }
 
+/** TUNING.thinkBank prototype: the player's last successful board command (merge, move, scrap, item). */
+function touched(s: GameState) {
+  if (TUNING.thinkBank) s.idleFor = 0;
+}
+
+/** TUNING.thinkBank prototype: the level is in its think pause now (slowed / frozen, bank not spent). */
+export const thinking = (s: GameState) =>
+  TUNING.thinkBank && s.level !== undefined && s.phase === 'playing' && !s.puzzle && (s.idleFor ?? 0) >= TUNING.tb.grace && (s.banked ?? 0) < TUNING.tb.bank;
+
 /** Advance one fixed 50 ms step. `reserved` = cells deliveries must avoid (drag in progress). */
 export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): GameEvent[] {
   const ev: GameEvent[] = [];
   if (s.puzzle) return ev; // r42: puzzles have no time
   if (s.phase !== 'playing') return ev;
   if (s.itemGrantAt !== undefined && !s.itemGranted && s.elapsed >= s.itemGrantAt) grantItem(s, ev); // r25 explicit teaching grant (goal levels have no HP thresholds)
-  const dt = Math.min(TICK, s.timeLeft);
+  let dt = Math.min(TICK, s.timeLeft);
+  // TUNING.thinkBank: a finger on the board counts as touching; a still board past the grace runs at tb.rate speed
+  if (TUNING.thinkBank && s.level !== undefined) {
+    if (reserved.size) s.idleFor = 0;
+    if (thinking(s)) {
+      const save = Math.min(dt * (1 - TUNING.tb.rate), TUNING.tb.bank - (s.banked ?? 0));
+      s.banked = (s.banked ?? 0) + save;
+      dt -= save;
+    }
+    s.idleFor = (s.idleFor ?? 0) + TICK;
+    if (dt <= 1e-9) return ev;
+  }
   s.elapsed += dt;
   s.timeLeft -= dt;
 
