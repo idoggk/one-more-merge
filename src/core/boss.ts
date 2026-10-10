@@ -3,6 +3,7 @@
 // duration (or Suction count) grows with the phase. Effects resolve between cascades, never reactivate ids, never
 // auto-merge, and death cancels everything. Deterministic: targets come from the board at warning time.
 import { COLS, ROWS, TUNING } from '../content/tuning';
+import { blockAttack, type WardState } from './roster3';
 import { isShooter, type Grid } from './types';
 
 export type BossAttack = 'clamp' | 'frost' | 'suction' | 'hot' | 'rest' | 'split' | 'bomb' | 'conveyor' | 'mirror' | 'blocks' | 'pull' | 'bounce' | 'slick' | 'portals' | 'tow' | 'ransom';
@@ -347,7 +348,7 @@ function pick(atk: BossAttack, grid: Grid, blocked: ReadonlySet<number>, phase: 
 
 /** Advance the boss for one tick (after player input + cascades). Mutates grid on Suction. `quiet` = no new warning
  *  (PACE CALM breather); TUNING.bossAttacks false (PACE MANIA) = never any. */
-export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>, quiet = false): BossEvent[] {
+export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, maxHp: number, blocked: ReadonlySet<number>, quiet = false, wards?: WardState): BossEvent[] {
   const ev: BossEvent[] = [];
   const def = BOSSES[b.def];
   const ph = b.light || (b.mini && !def.second) ? 0 : bossPhase(hp, maxHp);
@@ -374,7 +375,11 @@ export function bossTick(b: BossState, grid: Grid, elapsed: number, hp: number, 
       for (const m of moves) grid[m.from] = null;
       moves.forEach((m, k) => (grid[m.to] = snap[k]));
     };
-    if (atk === 'bomb') {
+    const warded = blockAttack(wards, atk, p); // roster 3 Blast Plate: a warded cell blocks the whole cast (the only unit that does)
+    if (warded) {
+      ev.push({ type: 'bossDefuse', attack: atk, cells: warded });
+      if (wards!.stun > 0) b.t0 = (b.t0 ?? 0) + wards!.stun; // L9: the boss is stunned, its next attack comes later
+    } else if (atk === 'bomb') {
       const c = p.cells![0];
       const victims = orth(c).filter((n) => grid[n] && !bl.has(n) && grid[n]!.rank <= 2).sort((x, y) => grid[x]!.rank - grid[y]!.rank || x - y);
       const removed: number[] = [];

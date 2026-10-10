@@ -10,18 +10,20 @@
 import { COLS, ROWS, TUNING } from '../content/tuning';
 import { bossAfterPlayer, bossBlocked, bossCascadeMods, bossPendingCells } from './boss';
 import { resolveCascade } from './cascade';
-import { applyB1, applyDamage, applyMoves, capOf, dropReserved, hazardCells, locked, makeGadget, merge, type CommandResult, type GameEvent, type GameState } from './game';
+import { applyB1, applyDamage, applyMoves, capOf, dropReserved, hazardCells, locked, makeGadget, merge, torchOpt, type CommandResult, type GameEvent, type GameState } from './game';
+import { attackCells, wardCells, wardHits } from './roster3';
 import { isRelay, isShooter, type CascadeResult } from './types';
 
 export type SupportAim = 'none' | 'cell' | 'part' | 'shooter' | 'line';
 export type Axis = 'row' | 'col';
 
 /** What each card does and how you aim it (words for the card and the guide). */
-export const SUPPORT_JOBS: Record<string, { name: string; verb: string; aim: SupportAim; text: string }> = {
+export const SUPPORT_JOBS: Record<string, { name: string; verb: string; aim: SupportAim; text: string; aimText?: string; failText?: string }> = {
   fan: { name: 'Fan', verb: 'CLEAR', aim: 'cell', text: 'Tap a cell: clears junk, frost, locks and incoming attacks in the 3x3 around it.' },
   magnet: { name: 'Magnet', verb: 'PAIR', aim: 'part', text: 'Tap a part: a twin (same kind and number) arrives next to it.' },
   battery: { name: 'Battery', verb: 'PRIME', aim: 'none', text: 'Tap the card: your next shooter merge hits x2 (the whole chain).' },
   amplifier: { name: 'Amplifier', verb: 'MARK', aim: 'shooter', text: 'Tap a shooter: its next hit is x1.6.' },
+  blast_plate: { name: 'Blast Plate', verb: 'BLOCK', aim: 'cell', text: 'Tap a cell: the next boss attack that would hit it is blocked. Only the Blast Plate blocks boss attacks.', aimText: 'Tap a cell: the next boss attack that hits it is BLOCKED', failText: 'No boss to block there' },
   signal_beacon: { name: 'Signal Beacon', verb: 'GO', aim: 'line', text: 'Pick ROW or COLUMN on the card, tap a cell: every machine on that line fires now.' },
 };
 
@@ -77,6 +79,7 @@ export function canUseSupport(s: GameState, cell: number, axis: Axis = 'row'): b
   const f = s.support!.family, g = s.grid[cell];
   const lk = locked(s);
   if (f === 'battery') return true;
+  if (f === 'blast_plate') return !!s.boss && cell >= 0 && cell < s.grid.length && !(s.wards?.list ?? []).some((w) => wardCells(cell, lvl(s)).every((c) => w.cells.includes(c)));
   if (cell < 0 || cell >= s.grid.length) return false;
   if (f === 'fan') {
     const hz = hazardCells(s);
@@ -95,11 +98,18 @@ export function useSupport(s: GameState, cell: number, axis: Axis = 'row'): Comm
   const sp = s.support!;
   const f = sp.family, L = lvl(s);
   const need = supportNeed(s);
-  sp.charge = (f === 'fan' && L >= 6) || ((f === 'magnet' || f === 'amplifier') && L >= 9) ? Math.floor(need / 2) : 0;
+  sp.charge = f === 'blast_plate' ? 0 : (f === 'fan' && L >= 6) || ((f === 'magnet' || f === 'amplifier') && L >= 9) ? Math.floor(need / 2) : 0;
   sp.uses++;
   if (f === 'battery') {
     sp.prime = { mult: L >= 3 ? TUNING.rb.primeL3 : TUNING.rb.prime, left: L >= 6 ? 2 : 1, any: L >= 9 };
     ev.push({ type: 'support', family: f, cells: [], mult: sp.prime.mult });
+  } else if (f === 'blast_plate') {
+    // roster 3 DEFENCE: ward the tapped cell (L3 a 1x2); the next boss attack that would hit it is blocked (src/core/boss.ts bossTick)
+    const cells = wardCells(cell, L);
+    s.wards ??= { list: [], stun: 0, blocks: 0 };
+    s.wards.stun = L >= 9 ? TUNING.r3.plateStun : 0;
+    s.wards.list.push({ cells, hits: wardHits(L) });
+    ev.push({ type: 'support', family: f, cells });
   } else if (f === 'fan') {
     const hz = hazardCells(s);
     const cells = fanArea(cell, L).filter((c) => hz.has(c));
@@ -128,7 +138,7 @@ export function useSupport(s: GameState, cell: number, axis: Axis = 'row'): Comm
     const lk = locked(s);
     const cells = goLine(cell, axis, L).filter((c) => s.grid[c] && !lk.has(c));
     ev.push({ type: 'support', family: f, cells });
-    const result = resolveCascade(s.grid, cells[0], { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: lk, ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, roots: cells.slice(1), wake: true, ...(L >= 3 ? { goKick: TUNING.rb.goKick } : {}) });
+    const result = resolveCascade(s.grid, cells[0], { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: lk, ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, roots: cells.slice(1), wake: true, ...torchOpt(s), ...(L >= 3 ? { goKick: TUNING.rb.goKick } : {}) });
     applyMoves(s, result);
     applyB1(s, result, ev);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);
@@ -153,6 +163,13 @@ export function autoSupport(s: GameState): { cell: number; axis: Axis } | null {
     return best >= 0 ? { cell: best, axis, score: bs } : null;
   };
   if (f === 'battery') return { cell: -1, axis: 'row' };
+  if (f === 'blast_plate') {
+    // aim at what the boss has just warned about; nothing queued = keep the card charged
+    const p = s.boss?.pending;
+    if (!p) return null;
+    const hit = attackCells(p.attack ?? '', p);
+    return hit.length ? { cell: hit[0], axis: 'row' } : null;
+  }
   if (f === 'fan') {
     const hz = hazardCells(s);
     return pick((i) => fanArea(i, lvl(s)).filter((c) => hz.has(c)).length);

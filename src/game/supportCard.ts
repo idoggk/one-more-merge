@@ -101,7 +101,7 @@ export class SupportCard {
       if (this.aiming && job.aim === 'line' && this.axis === 'row') this.axis = 'col';
       else if (this.aiming) this.aiming = false;
       else [this.aiming, this.axis] = [true, 'row'];
-      if (this.aiming) this.say(job.aim === 'line' ? `Tap a cell: GO fires its ${this.axis === 'row' ? 'ROW' : 'COLUMN'} (tap the card to switch)` : job.aim === 'cell' ? 'Tap a cell: CLEAR the 3x3 around it' : job.aim === 'shooter' ? 'Tap a shooter to MARK it' : 'Tap a part: its twin arrives next to it');
+      if (this.aiming) this.say(job.aim === 'line' ? `Tap a cell: GO fires its ${this.axis === 'row' ? 'ROW' : 'COLUMN'} (tap the card to switch)` : job.aim === 'cell' ? (job.aimText ?? 'Tap a cell: CLEAR the 3x3 around it') : job.aim === 'shooter' ? 'Tap a shooter to MARK it' : 'Tap a part: its twin arrives next to it');
       return true;
     }
     if (!this.aiming) return false;
@@ -111,7 +111,7 @@ export class SupportCard {
       return true;
     }
     if (canUseSupport(s, cell, this.axis) && this.fire(cell, this.axis)) this.aiming = false;
-    else this.say(job.aim === 'cell' ? 'Nothing to clear there' : job.aim === 'shooter' ? 'Tap a SHOOTER' : job.aim === 'part' ? 'No twin fits there' : 'No machines on that line', '#ffb0a0');
+    else this.say(job.aim === 'cell' ? (job.failText ?? 'Nothing to clear there') : job.aim === 'shooter' ? 'Tap a SHOOTER' : job.aim === 'part' ? 'No twin fits there' : 'No machines on that line', '#ffb0a0');
     return true;
   }
 

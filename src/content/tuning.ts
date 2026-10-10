@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 9, pipe: 3, blast_plate: 0, tesla_tower: 10 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -153,7 +153,7 @@ export const TUNING = {
     hornKick: 1.25, spreadHit: 1.3,
     cannonQuick: 2.4, passiveHot: 0.25,
     /** Support card charge needed (machines fired in your merge chains). */
-    need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16 } as Record<string, number>,
+    need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16, blast_plate: 10 } as Record<string, number>,
     prime: 2, primeL3: 2.5, mark: 1.6, markL3: 2, goKick: 1.3,
   },
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
@@ -181,6 +181,15 @@ export const TUNING = {
    *  far end of its line (x beltL9 on the exit part at L9). Wrench: after a merge of rank wrenchMin+ (wrenchMinL3 from L3) the next
    *  merge counts +1 rank for effects (holds wrenchHold, wrenchHoldL6 from L6; +2 after a rank wrenchBig+ merge from L9). */
   roster2: false,
+  /** EXPERIMENT (t-e728a5a6, roster B batch 3), default OFF: Blowtorch / Pipe / Blast Plate / Tesla Tower join the collection,
+   *  crates and squad pickers (src/content/units.ts applyRoster3; Tesla Tower, Legendary, only while rosterB is also on). Rules:
+   *  src/core/roster3.ts, docs/ROSTER.md section 10. Blowtorch: x torchPer per hazard burned in its column (counted up to
+   *  torchMax hazards = cap x2.25), x torchNone at L9 with nothing to burn. Pipe: wakes the same-family parts joined to a part
+   *  touching it, pipeCap parts (pipeCapL3 from L3); L9 the last part x pipeLast. Blast Plate: card charge need in rb.need;
+   *  plateStun seconds of boss stun at L9. Tesla Tower: +teslaPer per charge, max teslaMax charges; relays within teslaRange
+   *  cells (L3 teslaRangeL3, L9 teslaRangeL9) charge it, a touching relay gives teslaTouch from L6. */
+  roster3: false,
+  r3: { torchPer: 1.5, torchMax: 2, torchNone: 1.2, pipeCap: 4, pipeCapL3: 6, pipeLast: 1.3, plateStun: 2, plateHits: 2, teslaPer: 0.12, teslaMax: 6, teslaRange: 3, teslaRangeL3: 4, teslaRangeL9: 5, teslaTouch: 2 },
   r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };
 

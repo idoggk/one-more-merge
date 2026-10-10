@@ -4,6 +4,7 @@
 // plays real merges to check the lines.
 import { unitsB0On } from './tuning';
 import { ROSTER_2_INFO } from './roster2';
+import { ROSTER_3_INFO } from './roster3';
 import { helperMult } from './units';
 
 export const UNIT_JOB: Record<string, { job: string; merged: (level: number) => string }> = {
@@ -24,7 +25,7 @@ export const UNIT_JOB: Record<string, { job: string; merged: (level: number) => 
 
 /** Card copy for a unit at `level`. The WHEN MERGED line is hidden while a units B0/B1 QA switch changes the rules. */
 export function unitJob(id: string, level = 1): { job: string; merged: string | null } | null {
-  const r2 = ROSTER_2_INFO[id as keyof typeof ROSTER_2_INFO]; // batch 2 (t-ee4e93d7): the job word and the WHEN MERGED line live in content/roster2.ts
+  const r2 = ROSTER_2_INFO[id as keyof typeof ROSTER_2_INFO] ?? ROSTER_3_INFO[id as keyof typeof ROSTER_3_INFO]; // batch 2 (t-ee4e93d7): the job word and the WHEN MERGED line live in content/roster2.ts
   if (r2) return { job: r2.job, merged: r2.whenMerged.startsWith('WHEN MERGED') ? r2.whenMerged : `WHEN MERGED: ${r2.whenMerged}` };
   const j = UNIT_JOB[id];
   return j ? { job: j.job, merged: unitsB0On() ? null : `WHEN MERGED: ${j.merged(Math.max(1, level))}` } : null;

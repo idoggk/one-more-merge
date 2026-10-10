@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, storedPace, storedRoster1, storedRoster2, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -7,7 +7,7 @@ import { LEVELS } from '../../content/levels';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
-import { applyRoster1, applyRoster2, UNITS, type CrateKind } from '../../content/units';
+import { applyRoster1, applyRoster2, applyRoster3, UNITS, type CrateKind } from '../../content/units';
 import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
@@ -46,6 +46,9 @@ applyRoster1(qaRoster1());
 // t-ee4e93d7 QA-only: roster B batch 2 (Wrench / Piston / Spring / Belt Drive in collection, crates and squads)
 export const qaRoster2 = () => storedRoster2(() => localStorage.getItem(ROSTER2_KEY));
 applyRoster2(qaRoster2());
+// t-e728a5a6 QA-only: roster B batch 3 (Blowtorch / Pipe / Blast Plate / Tesla Tower in collection, crates and squads)
+export const qaRoster3 = () => storedRoster3(() => localStorage.getItem(ROSTER3_KEY));
+applyRoster3(qaRoster3());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -288,6 +291,22 @@ const QA_ROWS: QaRow[] = [
       tlog.log('qa_roster_2', { on: id === 'on' });
     },
     toast: (id) => (id === 'on' ? 'ROSTER 2 ON  ·  CRATES, TEAM, UNITS' : 'ROSTER 2 OFF (live game)'),
+    w: 240,
+    dx: 260,
+    gap: 48,
+    h: 91,
+  }),
+  // 7c) t-e728a5a6 ROSTER 3: Blowtorch / Pipe / Blast Plate / Tesla Tower join the collection, crates and squads (this device only, live)
+  qaSwitch({
+    title: 'ROSTER 3: Torch Pipe Plate Tesla',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaRoster3() ? 'on' : 'off'),
+    pick: (id) => {
+      store(ROSTER3_KEY, id === 'on' ? 'on' : null);
+      applyRoster3(id === 'on');
+      tlog.log('qa_roster_3', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'on' ? 'ROSTER 3 ON  ·  TESLA NEEDS CRATES B' : 'ROSTER 3 OFF (live game)'),
     w: 240,
     dx: 260,
     gap: 48,

@@ -17,6 +17,9 @@ export const JOB_TERMS: Record<JobKey, { label: string; hue: number }> = {
   spread: { label: 'SPREAD', hue: 0x7a9aff },
   prime: { label: 'PRIME', hue: 0x7ccf2e },
   go: { label: 'GO', hue: 0xf05030 },
+  burn: { label: 'BURN', hue: 0xff7a1a },
+  storm: { label: 'STORM', hue: 0x8ad8ff },
+  flow: { label: 'FLOW END', hue: 0x7ab0a0 },
 };
 
 /** One factor of the hit, in the order it applies. `usedUp`: a mark this merge spends (named in its PALETTE colour). */

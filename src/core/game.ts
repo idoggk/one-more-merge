@@ -16,6 +16,7 @@ const REACT_STUCK_NEXT = 3;
 import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
 import { bypassBonus } from './roster1';
 import { wrenchAfterMerge, wrenchNext, type WrenchState } from './roster2';
+import { type TorchHazard, type WardState } from './roster3';
 import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -171,6 +172,8 @@ export interface GameState {
    *  merge chains; uncapped here, support.ts caps it) and an armed Battery PRIME (x mult on the next `left` shooter merges). */
   /** TUNING.roster2 Wrench (src/core/roster2.ts): the ranks it will add to your next merge(s), for effects only. */
   wrench?: WrenchState;
+  /** TUNING.roster3 Blast Plate (src/core/roster3.ts): the cells warded against the next boss attack(s), and the L9 stun. */
+  wards?: WardState;
   support?: { family: Family; charge: number; uses: number; prime?: { mult: number; left: number; any: boolean } };
   /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
   idleFor?: number;
@@ -233,8 +236,9 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f === 'cannon' ? shooterOf(s) : f, 1);
-  const card = TUNING.rosterB ? s.toys.find(isSupport) : undefined;
-  if (card) s.support = { family: card, charge: 0, uses: 0 };
+  const card = TUNING.rosterB ? s.toys.find(isSupport) : TUNING.roster3 && !tutorial ? s.toys.find((f) => f === 'blast_plate') : undefined; // roster 3 Blast Plate is a card even without crates B
+  if (card === 'blast_plate' && !TUNING.roster3) s.support = undefined;
+  else if (card) s.support = { family: card, charge: 0, uses: 0 };
   if (TUNING.roster2 && !tutorial && toys.includes('wrench')) s.wrench = { armed: [], uses: 0 }; // roster 2 passive Support: never on the board
   s.supplyTimer = supplyPeriod(s);
   const opp = REMIX_OPPONENTS.find((o) => o.target === remixTarget);
@@ -288,7 +292,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   // r39 (ROUND_33_RULES): an authored helper extra becomes the player's selected helper (teaching levels keep theirs)
   const HELPERS = ['magnet', 'battery', 'fan', 'amplifier', 'signal_beacon'];
   const myHelper = !def.teach ? opts.toys?.find((t) => HELPERS.includes(t)) : undefined;
-  for (const [fam, rank, r, c] of def.start_extra ?? []) if (!((TUNING.rosterB || s.wrench) && HELPERS.includes(fam))) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
+  for (const [fam, rank, r, c] of def.start_extra ?? []) if (!((TUNING.rosterB || s.wrench || s.support) && HELPERS.includes(fam))) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
   const mod = def.modifier;
   if (mod === 'GAPS') {
     s.masked = [idxOf(2, 1), idxOf(2, 3)];
@@ -823,7 +827,7 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
 
   const primeAll = primeFor(s, g.family);
   const wrenchBonus = byPlayer ? wrenchNext(s.wrench) : 0;
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
   if (primeAll && --s.support!.prime!.left <= 0) delete s.support!.prime;
   // roster 2 Wrench: your own merge spends the armed rank bonus it used, then arms from its own rank
   if (byPlayer && s.wrench) {
@@ -1168,7 +1172,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
   const resting = s.breatherUntil !== undefined && s.elapsed < s.breatherUntil;
   if (s.boss) {
     if (resting) s.boss.t0 = (s.boss.t0 ?? 0) + dt;
-    const be = bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)]), resting);
+    const be = bossTick(s.boss, s.grid, s.elapsed, s.hp, s.maxHp, new Set([...reserved, ...dropReserved(s), ...locked(s)]), resting, s.wards);
     // r29 TIME RANSOM: an unsaved ransom takes 2 s from the clock and counts as 2 s more for stars
     for (const e of be)
       if (e.type === 'bossRansom' && !e.saved) {
@@ -1277,7 +1281,7 @@ function previewNow(s: GameState, from: number, to: number): CascadeResult | nul
   grid[to] = { id: -1, family: a!.family, rank: sw ? sw.rank : a!.rank + 1, cd: 0 };
   for (const i of sw?.cells ?? []) grid[i] = null;
   const primeAll = primeFor(s, a!.family);
-  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
+  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
 }
 
 export function serialize(s: GameState): string {
@@ -1373,8 +1377,30 @@ function fanHazardsOfActive(s: GameState): Set<number> {
 }
 
 /** Units B1: end the hazards a Fan cleared, and queue the part a Magnet fetched (lands next to a lonely twin). */
+/** Roster 3 Blowtorch: the hazards on the board it may burn (junk blocks, clamps and locked rows, a frost row, a pending bomb, an oil slick). */
+export function torchOpt(s: GameState): { torch?: TorchHazard[] } {
+  if (!TUNING.roster3 || !s.grid.some((g) => g?.family === 'blowtorch')) return {};
+  const out: TorchHazard[] = [];
+  const b = s.boss;
+  for (const c of bossBlockCells(b)) out.push({ kind: 'junk', cells: [c] });
+  if (s.remix?.lock) out.push({ kind: 'clamp', cells: s.remix.lock.cells });
+  if (s.remix?.pending) out.push({ kind: 'clamp', cells: s.remix.pending.cells });
+  if (b?.active) {
+    const atk = castAttack(b, b.active);
+    if (atk === 'clamp') out.push({ kind: 'clamp', cells: b.active.cells ?? [] });
+    if (atk === 'frost' && b.active.row !== undefined) out.push({ kind: 'frost', cells: Array.from({ length: COLS }, (_, c) => b.active!.row! * COLS + c) });
+    if (atk === 'slick' && b.active.cells) out.push({ kind: 'slick', cells: [b.active.cells[0]] });
+  }
+  if (b?.pending) {
+    const atk = castAttack(b, b.pending);
+    if (atk === 'clamp') out.push({ kind: 'clamp', cells: b.pending.cells ?? [] });
+    if (atk === 'bomb') out.push({ kind: 'bomb', cells: b.pending.cells ?? [] });
+  }
+  return { torch: out };
+}
+
 export function applyB1(s: GameState, r: CascadeResult, ev: GameEvent[]) {
-  for (const cell of r.clears ?? []) {
+  for (const cell of [...(r.clears ?? []), ...(r.burned ?? [])]) {
     const b = s.boss;
     if (b?.blocks?.some((x) => x.cell === cell)) {
       b.blocks = b.blocks.filter((x) => x.cell !== cell);
@@ -1386,6 +1412,9 @@ export function applyB1(s: GameState, r: CascadeResult, ev: GameEvent[]) {
       const atk = castAttack(b, b.active);
       b.active = null;
       ev.push({ type: 'bossEnd', attack: atk }, { type: 'bossDefuse', attack: atk, cells: [cell] });
+    } else if (b?.active && castAttack(b, b.active) === 'slick' && b.active.cells?.[0] === cell) {
+      b.active = null; // roster 3 Blowtorch L3: the oil burns off
+      ev.push({ type: 'bossEnd', attack: 'slick' }, { type: 'bossDefuse', attack: 'slick', cells: [cell] });
     } else if (b?.pending && bossPendingCells(b).includes(cell)) {
       ev.push({ type: 'bossDefuse', attack: castAttack(b, b.pending), cells: [cell] });
       b.pending = null;
@@ -1429,7 +1458,7 @@ function landDrop(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[], 
     s.grid[pick.idx] = g;
     s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
     ev.push({ type: 'kickback', idx: pick.land, into: pick.idx, gadget: g });
-    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), });
+    const result = resolveCascade(s.grid, pick.idx, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set([...dropReserved(s), ...reserved]), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...torchOpt(s) });
     applyMoves(s, result);
     applyB1(s, result, ev);
     s.stats.biggestChain = Math.max(s.stats.biggestChain, result.count);

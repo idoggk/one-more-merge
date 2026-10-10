@@ -266,6 +266,24 @@ export const sfx = {
       bandNoise(0.2, 0.05, delay, 700, 1.2);
     }
   },
+  /** roster B batch 3 (t-e728a5a6), pitched from the same synth voices: Blowtorch = a hiss that flares, Pipe = a hollow clank,
+   *  Blast Plate = a heavy plate thunk with a ring, Tesla Tower = a crackling zap that climbs. */
+  roster3: (fam: string, delay = 0) => {
+    if (fam === 'blowtorch') {
+      bandNoise(0.3, 0.09, delay, 2600, 0.8);
+      tone(vary(220), 0.2, 'sawtooth', 0.03, delay + 0.04, 520);
+    } else if (fam === 'pipe') {
+      tone(vary(180), 0.18, 'triangle', 0.08, delay, 120);
+      bandNoise(0.05, 0.05, delay, 1100, 4);
+    } else if (fam === 'blast_plate') {
+      tone(vary(90), 0.2, 'square', 0.07, delay, 55);
+      tone(vary(1300), 0.3, 'triangle', 0.04, delay + 0.03);
+    } else if (fam === 'tesla_tower') {
+      tone(vary(500), 0.26, 'sawtooth', 0.05, delay, 2400);
+      bandNoise(0.12, 0.09, delay, 4800, 2.5);
+      tone(vary(1800), 0.1, 'square', 0.03, delay + 0.14);
+    }
+  },
   hit: (big: boolean) => {
     bandNoise(big ? 0.14 : 0.05, big ? 0.22 : 0.07, 0, 400, 0.7);
     if (big) tone(120, 0.16, 'triangle', 0.12, 0, 60);

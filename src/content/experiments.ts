@@ -2,6 +2,7 @@
 // panel toggle and the sim tools. 'off' is the live game; nothing here is on by default.
 // PACE prototype (t-1bef1042): TODAY / CALM / MANIA blocks of TUNING.paces, same pattern (QA toggle + pace-probe).
 import { TUNING, type Pace } from './tuning';
+import { rebuildUnits } from './units';
 
 export type SpamVariant = 'off' | 'a2' | 'a3' | 'a3f';
 export const SPAM_VARIANTS: { id: SpamVariant; label: string }[] = [
@@ -112,6 +113,18 @@ export function applyUnits(v: UnitsVariant) {
   TUNING.unitsB0 = v === 'b0';
   TUNING.unitsB1 = v === 'b1';
   TUNING.rosterB = v === 'rb';
+  rebuildUnits(); // Tesla Tower (Legendary, roster 3) is in the collection only while crates B is on
+}
+
+/** QA panel ROSTER 3 switch (t-e728a5a6, roster B batch 3; this device only, not in the save): 'on' = TUNING.roster3,
+ *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster3. */
+export const ROSTER3_KEY = 'omm_qa_roster_3';
+export function storedRoster3(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
 }
 
 /** QA panel NEW 4 B button (t-ee4e93d7, roster B batch 2; this device only, not in the save): 'on' = TUNING.roster2,

@@ -1,7 +1,8 @@
 import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
 import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1';
 import { beltCells, effectiveRank, entryDir, pistonMult, pistonPush, springCells } from './roster2';
-import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Grid, type PerkId } from './types';
+import { pipeFlow, teslaCharges, teslaMult, torchMult, torchTargets, type TorchHazard } from './roster3';
+import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Grid, type JobKey, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
   [-1, 0], // up
@@ -181,6 +182,8 @@ export interface CascadeOpts {
   primeAll?: number;
   /** Roster 2 Wrench: ranks added to the MERGED part for effects only (damage, rank-gated perks); its real rank is unchanged. */
   rankBonus?: number;
+  /** Roster 3 Blowtorch: the hazards on the board now (game.ts torchOpt); a firing Blowtorch burns the ones in its column(s). */
+  torch?: readonly TorchHazard[];
 }
 
 /**
@@ -349,6 +352,10 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const gearKicked = new Set<number>(); // roster1 Gear L9: shooters a Gear wakes
   const pistonAt = new Map<number, number>(); // roster2 Piston OPEN SPACE: id -> hit multiplier at the moment it fires
   const beltKick = new Set<number>(); // roster2 Belt Drive L9: ids of exit parts (hit x r2.beltL9)
+  const torchAt = new Map<number, number>(); // roster3 Blowtorch HAZARDS: id -> hit multiplier from the hazards its shot burned
+  const burnedH = new Set<TorchHazard>(); // hazards already burned in this cascade (each once)
+  const burned: number[] = []; // one cell per burned hazard (the caller ends them)
+  const pipeEnd = new Set<number>(); // roster3 Pipe L9: ids of the last part of a flow (hit x r3.pipeLast)
   const spread = new Set<number>();
   const held = new Set<number>();
 
@@ -478,6 +485,16 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
           grid[push.to] = grid[push.from];
           grid[push.from] = null;
         }
+      }
+      if (a.family === 'blowtorch') {
+        // roster3 HAZARDS: the shot burns every unburned hazard in its column (L6 also the column to its right); x1.5 per hazard
+        const hit = opts.torch ? torchTargets(opts.torch, idx, lvl('blowtorch'), burnedH) : [];
+        for (const { h, cell } of hit) {
+          burnedH.add(h);
+          burned.push(cell);
+          edges.push({ from: idx, to: cell, kind: 'fan' });
+        }
+        torchAt.set(a.id, torchMult(hit.length, lvl('blowtorch')));
       }
       if (primedNow.has(a.id)) {
         primedNow.delete(a.id);
@@ -653,7 +670,18 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       }
       continue;
     }
-    if (a.family === 'wrench') continue; // roster2 Wrench is a passive Support: it is never a board part (game.ts s.wrench)
+    if (a.family === 'pipe') {
+      // roster3 SAME FAMILY: wakes the same-family parts joined to a part touching it (max 4, 6 from L3; L6 joined diagonally too)
+      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
+      const flow = pipeFlow(grid, idx, lvl('pipe'), (i) => visited.has(i), lockedSet).filter((to) => !crosses(idx, to));
+      for (const to of flow) {
+        edges.push({ from: idx, to, kind: 'pipe' });
+        enqueue(idx, to, a.depth + 1);
+      }
+      if (lvl('pipe') >= 9 && flow.length) pipeEnd.add(grid[flow[flow.length - 1]]!.id);
+      continue;
+    }
+    if (a.family === 'wrench' || a.family === 'blast_plate') continue; // Wrench / Blast Plate are passive Supports: never board parts (game.ts s.wrench / s.support)
     const kind = a.family;
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
     const [ar, ac] = rc(idx);
@@ -682,8 +710,18 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   // roster2 Wrench: its rank bonus counts in full for rank perks and reach, but only r2.wrenchDmg of it for the hit
   const wrenchCut = opts.rankBonus ? Math.pow(TUNING.rankMult, -(visited.get(rootIdx)!.rank - root.rank) * (1 - TUNING.r2.wrenchDmg)) : 1;
   let sum = 0;
+  const relayCells = TUNING.roster3 ? acts.filter((x) => isRelay(x.family)).map((x) => x.idx) : []; // roster3 Tesla STORM: the relays that fired
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
+    // roster3 job multipliers (Blowtorch burn, Pipe flow end, Tesla storm); under rosterB they are shown as job tags
+    const r3j: Partial<Record<JobKey, number>> = {};
+    if ((torchAt.get(a.id) ?? 1) !== 1) r3j.burn = torchAt.get(a.id);
+    if (pipeEnd.has(a.id)) r3j.flow = TUNING.r3.pipeLast;
+    if (a.family === 'tesla_tower') {
+      const m = teslaMult(teslaCharges(relayCells, a.idx, lvl('tesla_tower')));
+      if (m > 1) r3j.storm = m;
+    }
+    const r3 = Object.values(r3j).reduce((m, x) => m * x!, 1);
     const perk = isShooter(a.family) && opts.perks.includes('twin') ? 1.4 : 1;
     // Battery prime grows with level (+0.03) and L3 High Voltage (+0.20)
     const prime = bonus.has(a.id) ? TUNING.batteryBonus + 0.03 * (lvl('battery') - 1) + (lvl('battery') >= 3 ? 0.2 : 0) : 1;
@@ -711,13 +749,14 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       if (spread.has(a.idx)) jobs.spread = TUNING.rb.spreadHit;
       if (opts.goKick && a.depth === 0 && isShooter(a.family)) jobs.go = opts.goKick;
       if (opts.primeAll && rawDamage(a.family, a.rank) > 0) jobs.prime = opts.primeAll;
+      Object.assign(jobs, r3j);
       const job = Object.values(jobs).reduce((m, x) => m * x, 1) * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }); // roster1 Nail Gun ROW / Jackhammer BYPASS (beat) / Saw Blade EDGE
       if (Object.keys(jobs).length) a.jobs = jobs;
       a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * own * job * amp * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1);
       sum += a.contribution;
       continue;
     }
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }) * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1);
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }) * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1) * r3;
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');
@@ -725,5 +764,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(fetch ? { fetch } : {}) };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(fetch ? { fetch } : {}) };
 }

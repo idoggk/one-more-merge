@@ -4,6 +4,7 @@
 import type { Family } from '../core/types';
 import { ROSTER_1_PERKS } from './roster1';
 import { ROSTER_2_PERKS } from './roster2';
+import { ROSTER_3_PERKS } from './roster3';
 import { TUNING } from './tuning';
 
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
@@ -48,11 +49,23 @@ export const ROSTER_2_UNITS: UnitDef[] = [
   { id: 'spring', role: 'RELAY', rarity: 'common', slot: 'relay' },
   { id: 'belt_drive', role: 'RELAY', rarity: 'epic', slot: 'relay' },
 ];
+/** Roster B batch 3 (t-e728a5a6): in UNITS only while TUNING.roster3 is on. Blast Plate is an off-board Support card. Tesla Tower is Legendary, so it joins only while crates B (TUNING.rosterB) is on too. */
+export const ROSTER_3_UNITS: UnitDef[] = [
+  { id: 'blowtorch', role: 'SHOOTER', rarity: 'rare', slot: 'shooter' },
+  { id: 'pipe', role: 'RELAY', rarity: 'rare', slot: 'relay' },
+  { id: 'blast_plate', role: 'SUPPORT', rarity: 'rare', slot: 'helper' },
+  { id: 'tesla_tower', role: 'SHOOTER', rarity: 'legendary', slot: 'shooter' },
+];
 const BASE_UNITS = [...UNITS];
 /** Rebuild UNITS in place from the live roster flags (every reader sees it live), sorted by rarity. */
-function rebuildUnits() {
-  const all = [...BASE_UNITS, ...(TUNING.roster1 ? ROSTER_1_UNITS : []), ...(TUNING.roster2 ? ROSTER_2_UNITS : [])].sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
+export function rebuildUnits() {
+  const all = [...BASE_UNITS, ...(TUNING.roster1 ? ROSTER_1_UNITS : []), ...(TUNING.roster2 ? ROSTER_2_UNITS : []), ...(TUNING.roster3 ? ROSTER_3_UNITS.filter((u) => u.rarity !== 'legendary' || TUNING.rosterB) : [])].sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
   UNITS.splice(0, UNITS.length, ...all);
+}
+/** Switch the roster B batch 3 units in or out of UNITS (Tesla Tower also needs TUNING.rosterB; applyUnits re-runs this). */
+export function applyRoster3(on: boolean) {
+  TUNING.roster3 = on;
+  rebuildUnits();
 }
 /** Switch the roster B batch 2 units in or out of UNITS. */
 export function applyRoster2(on: boolean) {
@@ -65,7 +78,7 @@ export function applyRoster1(on: boolean) {
   rebuildUnits();
 }
 /** Every unit id a save may hold (flag on or off), for save repair. */
-export const ALL_UNIT_IDS: string[] = [...BASE_UNITS, ...ROSTER_1_UNITS, ...ROSTER_2_UNITS].map((u) => u.id);
+export const ALL_UNIT_IDS: string[] = [...BASE_UNITS, ...ROSTER_1_UNITS, ...ROSTER_2_UNITS, ...ROSTER_3_UNITS].map((u) => u.id);
 export const unitDef = (id: string) => UNITS.find((u) => u.id === id);
 export const STARTER_UNITS: Family[] = ['cannon', 'coil', 'bell', 'fan'];
 export const MAX_UNIT_LEVEL = 10;
@@ -97,7 +110,7 @@ export const helperMult = {
 };
 /** What a level gives, in words (unit detail page). */
 export const levelPerkText = (u: UnitDef, level: number) =>
-  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : u.id === 'wrench' ? `Arms on a rank ${level >= 3 ? 2 : 3}+ merge` : `Level ${level}`;
+  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : u.id === 'wrench' ? `Arms on a rank ${level >= 3 ? 2 : 3}+ merge` : u.id === 'blast_plate' ? `Blocks ${level >= 6 ? 2 : 1} attack${level >= 6 ? 's' : ''}${level >= 3 ? ', 1x2 cells' : ''}${level >= 9 ? ', stuns 2 s' : ''}` : `Level ${level}`;
 
 // ---- crates ----
 /** 'bench' = Golden Workbench: only used under TUNING.rosterB (earned Gems / the MOCK premium lane, never real money). */
@@ -191,6 +204,8 @@ const UNIT_PERKS_TODAY: Record<string, [string, string][]> = {
   ...ROSTER_1_PERKS,
   // roster B batch 2 (t-ee4e93d7, core/roster2.ts)
   ...ROSTER_2_PERKS,
+  // roster B batch 3 (t-e728a5a6, core/roster3.ts)
+  ...ROSTER_3_PERKS,
 };
 
 /** t-e91097cd roster B: levels 3 / 6 / 9 change the unit's JOB (core/cascade.ts rbRouteCells / resolveCascade, game.ts

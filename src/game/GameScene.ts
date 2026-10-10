@@ -32,7 +32,8 @@ import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { isRelay, isShooter as isShooterFam, itemFits } from '../core/types';
 import { ROSTER_1_DEMOS } from '../content/roster1';
-import { goodHereAll, ROSTER_2_DEMOS } from '../content/roster2';
+import { ROSTER_2_DEMOS } from '../content/roster2';
+import { goodHereAll3 as goodHereAll, ROSTER_3_DEMOS } from '../content/roster3';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -4999,6 +5000,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
       ...ROSTER_1_DEMOS,
       ...ROSTER_2_DEMOS,
+      ...ROSTER_3_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();
