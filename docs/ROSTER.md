@@ -73,6 +73,7 @@ Labels used below:
   - **Mortar**: at most **x2**; x2.15 at L3.
   - **Tesla Tower**: at most **6 charges** (+12% each, +72%).
   - **Pipe**: at most 4 parts; 6 at L3.
+  - **Blowtorch**: at most 2 hazards count, x2.25 (DRAFT, added in t-e728a5a6).
 
 ---
 
@@ -194,7 +195,7 @@ Every batch ships behind its own TUNING flag (default OFF) with balance sims (`t
 | B1 (rules) | Helper jobs, shared BOOSTED mark, Fuse/Horn reach | Built, `TUNING.unitsB1` OFF |
 | B1 (units) | Nail Gun, Jackhammer, Gear, Saw Blade | Built behind TUNING.roster1 (t-2498828b), not merged |
 | B2 | Wrench, Piston, Spring, Belt Drive | Built behind `TUNING.roster2` (default OFF, QA switch ROSTER 2), t-ee4e93d7. See section 9 |
-| B3 | Blowtorch, Pipe, Blast Plate, Tesla Tower | Not started |
+| B3 | Blowtorch, Pipe, Blast Plate, Tesla Tower | Built behind `TUNING.roster3` (default OFF, QA switch ROSTER 3), t-e728a5a6. See section 10 |
 | B4 | Capacitor, Blueprint, Ladder, Rewind Crank | Not started |
 | B5 | Crane, Dynamo, Wrecking Ball | Not started |
 | B6 | Robot Arm, Tilt Lever | Not started |
@@ -310,3 +311,17 @@ Rules as built (answers to open questions Q11, Q14, Q19):
 - **Wrench (Q14, Q19)**: a passive Support in the helper slot, never a board part, no tap, charge shown by a badge. "+1 rank for effects" applies to the merged (root) part only: rank-gated perks and reach use the boosted rank in full, the hit grows by `rankMult^0.2` per bonus rank (`TUNING.r2.wrenchDmg`; at 1.0 sims showed smart bots clearing 20% faster than any other helper, at 0.2 about 5%). The rank is capped at the board ceiling (8). Only your own drag merges arm and spend it (Kickback fuses and Magnet SNAP IN do not). L6 "holds 2": one qualifying merge arms your next 2 merges. Because levels stack, from L3 (rank 2+ arms) every merge after the first is boosted: that is the DRAFT line as written, flagged for the owner.
 - **Drills**: Wrench drills have no Wrench part on the board; drill 1 starts with Wrench armed, drills 2-3 make you build a rank 3+ first. The unit "acts" when an armed merge is spent, and the generator rejects any board where the machine can break without that.
 - **Sims** (squad-swap, L21-78 step 3, n 4-6, random + smart bots): Piston about even with Cannon (smart +0-11% clear time, random -3 to -12 win points; it has no auto-shot). Spring and Belt Drive as one relay slot cost win points vs Coil+Bell (random -20 to -50, smart -2 to -35), like Gear; Spring is a little better than Belt Drive, and at L9 both are even with BASE. Wrench: smart -5% clear time, random +3 win points.
+
+---
+
+## 10. Batch 3: what is built (t-e728a5a6, flag `TUNING.roster3`, default OFF)
+
+Code: `src/core/roster3.ts` (rules), `src/content/roster3.ts` (copy, perks, GOOD HERE), `src/game/roster3Art.ts` (placeholder art), `cascade.ts` / `boss.ts` / `game.ts` / `support.ts` hooks. QA switch `ROSTER 3`. Tests: `tests/roster3.test.ts`. Drills: `npx vite-node tools/gen-puzzles.ts --units blowtorch,pipe,tesla_tower`. Sims: `tools/squad-swap.ts --roster3`.
+
+Rules as built:
+- **Rarity / drops**: Blowtorch, Pipe, Blast Plate are Rare. Tesla Tower is Legendary and joins `UNITS` (collection, crates) **only while crates B (`rosterB`) is on**; `applyUnits` re-runs the list, so toggling either flag is live.
+- **Blowtorch HAZARDS**: the hazards are the existing ones: junk blocks, clamp (active or pending, and a locked remix row), a frost row (ONE hazard however many cells), from L3 a pending bomb and an oil slick. A hazard counts when one of its cells is in the Blowtorch's column (L6: also the column to its right). x1.5 per hazard burned; **cap added (DRAFT): 2 hazards count = x2.25** (more still burn, they just add no damage). L9 with nothing to burn: x1.2 (burning replaces it, no stacking). Each hazard burns once per cascade. The caller ends them (`applyB1`, same path as Fan clears). No damage to the boss changes; it cannot block an attack.
+- **Pipe SAME FAMILY**: for each part touching it (U/R/D/L, never another Pipe) it wakes that part and every same-family part joined to it (4-way; L6 diagonals too), nearest first, **max 4 parts that were not already in the chain (6 from L3)**. L9: the last part of the flow x1.3. Woken parts count as normal activations, so they sit inside the x3 chain cap. Respects the divider, locked parts and a resting row.
+- **Blast Plate DEFENCE**: a Support **card** (charge need 10, like the other cards; it works with or without crates B). Tap a cell: the **next** boss attack that would hit it is blocked. "Would hit" = its marked cells; a whole row (frost, row slide, rest), column (hot), the two columns at the divider (split); a bomb also its 4 neighbours. A block ends the cast (`bossDefuse` event, no hit, no persistent effect). L3: 1x2 (right neighbour, left on the right edge). L6: absorbs 2 attacks. L9: each block moves the boss's attack clock back 2 s (the next attack comes 2 s later; no new boss behaviour). A ward stays until used. **The only unit that blocks boss attacks.** No drill: a drill has no boss, so it is tested with boss-level tests (`bossTick` + the card) instead.
+- **Tesla Tower STORM**: one charge per relay that fired in the cascade within range (Chebyshev: a square of cells around it): 3 cells, L3 4, L9 5. The merged relay counts. L6: a relay touching it (U/R/D/L) gives 2. **Max 6 charges = +72% (x1.72)**. One hit at the end: computed after the whole chain, so late relays count.
+- **Sims** (squad-swap, L21-78 step 3, n 6, random + smart bots; `--lvl 1` and `--lvl 9`): see the task report. Tuning set from them: Blowtorch base 12, Tesla Tower base 13.

@@ -1379,7 +1379,7 @@ function fanHazardsOfActive(s: GameState): Set<number> {
 /** Units B1: end the hazards a Fan cleared, and queue the part a Magnet fetched (lands next to a lonely twin). */
 /** Roster 3 Blowtorch: the hazards on the board it may burn (junk blocks, clamps and locked rows, a frost row, a pending bomb, an oil slick). */
 export function torchOpt(s: GameState): { torch?: TorchHazard[] } {
-  if (!TUNING.roster3 || !s.grid.some((g) => g?.family === 'blowtorch')) return {};
+  if (!s.grid.some((g) => g?.family === 'blowtorch')) return {};
   const out: TorchHazard[] = [];
   const b = s.boss;
   for (const c of bossBlockCells(b)) out.push({ kind: 'junk', cells: [c] });

@@ -710,7 +710,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   // roster2 Wrench: its rank bonus counts in full for rank perks and reach, but only r2.wrenchDmg of it for the hit
   const wrenchCut = opts.rankBonus ? Math.pow(TUNING.rankMult, -(visited.get(rootIdx)!.rank - root.rank) * (1 - TUNING.r2.wrenchDmg)) : 1;
   let sum = 0;
-  const relayCells = TUNING.roster3 ? acts.filter((x) => isRelay(x.family)).map((x) => x.idx) : []; // roster3 Tesla STORM: the relays that fired
+  const relayCells = acts.some((x) => x.family === 'tesla_tower') ? acts.filter((x) => isRelay(x.family)).map((x) => x.idx) : []; // roster3 Tesla STORM: the relays that fired
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
     // roster3 job multipliers (Blowtorch burn, Pipe flow end, Tesla storm); under rosterB they are shown as job tags
