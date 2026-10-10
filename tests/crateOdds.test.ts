@@ -9,7 +9,7 @@ const ALL = new Set<Family>(UNITS.map((u) => u.id));
 const rarityOf = (f: string) => UNITS.find((u) => u.id === f)!.rarity;
 const seedOf = (i: number) => (i * 2654435761) >>> 0;
 /** The numbers the panel PRINTS, parsed back out of its text ("Common 72% · Rare 24% · Epic 4%"). */
-const parse = (s: string) => Object.fromEntries(RARITIES.map((r) => [r, Number(new RegExp(`${r}\\s+([\\d.]+)%`, 'i').exec(s)?.[1] ?? 0) / 100])) as Record<Rarity, number>;
+const parse = (s: string) => Object.fromEntries([...RARITIES, 'legendary' as Rarity].map((r) => [r, Number(new RegExp(`${r}\\s+([\\d.]+)%`, 'i').exec(s)?.[1] ?? 0) / 100])) as Record<Rarity, number>;
 
 describe('crate odds panel = the real roll', () => {
   it('slot odds come straight from RARITY_ODDS and sum to 1', () => {
@@ -25,7 +25,7 @@ describe('crate odds panel = the real roll', () => {
       expect(rows[0]).toBe(`Each card: Common ${pct(RARITY_ODDS.common)} · Rare ${pct(RARITY_ODDS.rare)} · Epic ${pct(RARITY_ODDS.epic)}`);
       if (CRATES[kind].rareMin) {
         expect(rows[1]).toContain(`At least ${CRATES[kind].rareMin} Rare`);
-        expect(parse(rows[1])).toEqual({ common: 0, rare: RARITY_ODDS.common + RARITY_ODDS.rare, epic: RARITY_ODDS.epic });
+        expect(parse(rows[1])).toEqual({ common: 0, rare: RARITY_ODDS.common + RARITY_ODDS.rare, epic: RARITY_ODDS.epic, legendary: 0 });
       }
     }
   });
@@ -38,7 +38,7 @@ describe('crate odds panel = the real roll', () => {
       const g = CRATES[kind].rareMin, n = CRATES[kind].cards;
       const guar = g ? parse(rows[1]) : card;
       const epicShown = Number(/Chance of an Epic: ([\d.]+)%/.exec(rows.join('\n'))![1]) / 100;
-      const count: Record<Rarity, number> = { common: 0, rare: 0, epic: 0 };
+      const count: Record<Rarity, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
       let withEpic = 0, minRare = Infinity;
       for (let i = 1; i <= N; i++) {
         // own everything + fresh pity: no new-unit or Epic pity can change a slot, so card rarity = slot rarity

@@ -40,14 +40,15 @@ import { isRelay, isShooter as isShooterFam, itemFits } from '../core/types';
 import { goodHereText, ROSTER_1_DEMOS, ROSTER_1_GUIDE, ROSTER_1_INFO } from '../content/roster1';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
-import { applyRoster1, boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
+import { applyRoster1, boltsFor, cardsFor, COLLECTION_GOALS, CRATES, CRATES_B, FEATURED_CRATE, GEM_REWARDS, LATCH_B, RARITY_COLOR, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
-import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
-import { pityView } from '../core/crateOdds';
+import { featuredGemUnit, featuredUnit, openCrateB, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
+import { guaranteeText, pctB, pityView } from '../core/crateOdds';
+import { cardsAvailable, spareOf, spendCards, sweepSpare } from '../core/spareParts';
 import { addOddsButton, showOddsPanel } from './ui/oddsPanel';
 import { addMergedLine, addUnitJob, showUnitJobPopup } from './ui/unitJobUi';
 import { unitJob } from '../content/unitJobs';
-import { crateName, popToolboxLatch, TOOLBOX_KEY, toolboxCrateKey, toolboxOn } from './fx/toolboxCrates';
+import { crateName, latchRollUp, popToolboxLatch, TOOLBOX_KEY, toolboxCrateKey, toolboxOn } from './fx/toolboxCrates';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
 import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
 import { BOOSTER_COPY } from '../core/marks';
@@ -6214,7 +6215,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       this.openQaTools(jump);
     }, 0.68);
     this.button(c, W / 2 - 150, top + 710, 360, '+3 CRATES', 0xb06a1a, () => {
-      for (const k of ['wood', 'iron', 'gold'] as CrateKind[]) this.giveCrate(k);
+      for (const k of (TUNING.rosterB ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) this.giveCrate(k);
       save();
       this.showToast('3 CRATES ADDED  ·  UNITS TAB');
     }, 0.75);
@@ -6429,7 +6430,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
   canUpgrade(u: UnitDef) {
     const st = this.meta.units?.[u.id];
-    return !!st && st.level < MAX_UNIT_LEVEL && st.cards >= cardsFor(u, st.level) && (this.meta.bolts ?? 0) >= boltsFor(u, st.level);
+    return !!st && st.level < MAX_UNIT_LEVEL && cardsAvailable(this.meta, u.id) >= cardsFor(u, st.level) && (this.meta.bolts ?? 0) >= boltsFor(u, st.level);
   }
   unitsReady() {
     return UNITS.some((u) => this.canUpgrade(u));
@@ -6540,7 +6541,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const st = this.meta.units?.[u.id];
     const owned = !!st && st.level >= 1;
     const cc = this.add.container(x, y);
-    const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
+    const rc = RARITY_COLOR[u.rarity];
     cc.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-102, -132, 204, 268, 22).fillStyle(rc, 1).fillRoundedRect(-98, -128, 196, 260, 19).fillStyle(0xfbe7c6, 1).fillRoundedRect(-90, -100, 180, 170, 14));
     cc.add(this.add.text(0, -114, u.rarity.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
     const art = this.unitPortrait(u.id);
@@ -6556,10 +6557,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (owned) {
       cc.add(this.add.text(-78, -72, `LV ${st!.level}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', backgroundColor: '#2b1d2e', padding: { x: 6, y: 2 } }).setOrigin(0, 0.5));
       const need = st!.level >= MAX_UNIT_LEVEL ? 0 : cardsFor(u, st!.level);
-      const frac = need ? Math.min(1, st!.cards / need) : 1;
+      const have = cardsAvailable(this.meta, u.id);
+      const frac = need ? Math.min(1, have / need) : 1;
       const bar = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-84, 108, 168, 20, 10).fillStyle(this.canUpgrade(u) ? 0x5fbf4a : 0x3a8adf, 1).fillRoundedRect(-82, 110, Math.max(14, 164 * frac), 16, 8);
       cc.add(bar);
-      cc.add(this.add.text(0, 118, need ? `${st!.cards}/${need}` : 'MAX', { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
+      cc.add(this.add.text(0, 118, need ? `${have}/${need}` : 'MAX', { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
       if (this.canUpgrade(u)) {
         const up = this.add.text(70, -112, '\u2191', { fontFamily: 'Arial Black', fontSize: '30px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 8, y: 0 } }).setOrigin(0.5);
         cc.add(up);
@@ -6611,8 +6613,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (lv < MAX_UNIT_LEVEL) {
         const needC = cardsFor(u, lv), needB = boltsFor(u, lv);
         const ok = this.canUpgrade(u);
-        c.add(this.add.text(W / 2, top + 886, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
-        this.button(c, W / 2, top + 974, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
+        const spare = TUNING.rosterB ? spareOf(this.meta, u.rarity) : 0;
+        c.add(this.add.text(W / 2, top + 886, `${st!.cards}/${needC} cards${spare ? ` + ${spare} spare ${u.rarity} parts` : ''}  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
+        this.button(c, W / 2, top + 974, 420, ok ? `UPGRADE TO LV ${lv + 1}` : cardsAvailable(this.meta, u.id) < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(cardsAvailable(this.meta, u.id) < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
       }
     }
     // r42 Unit Drills (Ido: "challenges connected to a unit when we unlock it")
@@ -6629,10 +6632,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const m = this.meta;
     const st = m.units![u.id];
     const needC = cardsFor(u, st.level), needB = boltsFor(u, st.level);
-    if (st.cards < needC || (m.bolts ?? 0) < needB) return;
-    st.cards -= needC;
+    if (cardsAvailable(m, u.id) < needC || (m.bolts ?? 0) < needB) return;
+    spendCards(m, u.id, needC); // own cards first, then (ROSTER B) Spare Parts of its rarity
     m.bolts = (m.bolts ?? 0) - needB;
     st.level++;
+    sweepSpare(m, u.id); // reaching level 10: the cards left over become Spare Parts
     this.seasonEv('unitUp');
     store(META_KEY, JSON.stringify(m));
     tlog.log('unit_upgrade', { unit: u.id, level: st.level, bolts: needB, cards: needC });
@@ -6643,7 +6647,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   openNextCrate() {
     const m = this.meta;
-    const kind = (['gold', 'iron', 'wood'] as CrateKind[]).find((k) => (m.crates?.[k] ?? 0) > 0);
+    const kind = (['bench', 'gold', 'iron', 'wood'] as CrateKind[]).find((k) => (m.crates?.[k] ?? 0) > 0);
     if (!kind) return;
     m.crates![kind] = (m.crates![kind] ?? 1) - 1;
     this.openCrate(kind);
@@ -6659,19 +6663,28 @@ Merge them into a RANK ${rank}!`, this.coachY());
     m.crateSeq = (m.crateSeq ?? 0) + 1;
     const owned = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
     m.pity = m.pity ?? { epic: 0, dry: 0 };
-    // r32 early guarantees (ChatGPT): a Gold crate brings an Epic while the player owns none
-    if (kind === 'gold' && !UNITS.some((u) => u.rarity === 'epic' && owned.has(u.id))) m.pity.epic = Math.max(m.pity.epic, 6);
-    let cards = rollCrate(kind, owned, (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0, m.pity);
+    // r32 early guarantees (ChatGPT): a Gold crate brings an Epic while the player owns none (ROSTER B: the Tool Chest always does)
+    if (!TUNING.rosterB && kind === 'gold' && !UNITS.some((u) => u.rarity === 'epic' && owned.has(u.id))) m.pity.epic = Math.max(m.pity.epic, 6);
+    const seed = (Date.now() ^ (m.crateSeq * 2654435761)) >>> 0;
+    // ROSTER B: a Tool Bag makes its ONE latch roll first; the crate that opens is `opened` and its own odds / pity apply
+    let opened = kind, latchedFrom: CrateKind | undefined;
+    let cards: CrateCard[];
+    if (TUNING.rosterB) {
+      const r = openCrateB(kind, owned, seed, m.pity);
+      opened = r.opened;
+      cards = r.cards;
+      if (r.latched) latchedFrom = kind;
+    } else cards = rollCrate(kind, owned, seed, m.pity);
     // ...and the first Wood crate always shows that crates unlock playable units: Horn
-    if (kind === 'wood' && !owned.has('horn')) {
+    if (opened === 'wood' && !owned.has('horn')) {
       const first = cards[cards.length - 1];
       if (first.count > 1) first.count--;
       else cards = cards.slice(0, -1);
       cards = [{ unit: 'horn', count: 1, isNew: true }, ...cards];
     }
     this.applyCards(cards);
-    tlog.log('crate_open', { kind, cards: cards.map((x) => `${x.unit}x${x.count}${x.isNew ? '*' : ''}`), pity: { ...m.pity } });
-    this.presentCrate(kind, cards);
+    tlog.log('crate_open', { kind, opened, cards: cards.map((x) => `${x.unit}x${x.count}${x.isNew ? '*' : ''}`), pity: { ...m.pity } });
+    this.presentCrate(opened, cards, undefined, latchedFrom);
   }
 
   applyCards(cards: CrateCard[]) {
@@ -6688,6 +6701,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
         if (unitDef(cd.unit)?.slot === 'helper') m.toys[cd.unit] = m.toys[cd.unit] ?? false;
       } else st.cards += cd.count;
     }
+    const spare = cards.reduce((n, cd) => n + sweepSpare(m, cd.unit), 0); // ROSTER B: duplicates past level 10
+    if (spare) this.time.delayedCall(1200, () => this.showToast(`+${spare} SPARE PARTS  \u00b7  WILD CARDS FOR THEIR RARITY`));
     store(META_KEY, JSON.stringify(m));
     this.checkUnlocks(); // the first new unit opens TEAM
   }
@@ -6705,38 +6720,53 @@ Merge them into a RANK ${rank}!`, this.coachY());
     this.presentCrate('wood', cards, spec.name);
   }
 
-  presentCrate(kind: CrateKind, cards: CrateCard[], title?: string) {
+  /** `from` = the Tool Bag whose latch rolled up into `kind` (ROSTER B): it shows as the bag first, then pops into `kind`. */
+  presentCrate(kind: CrateKind, cards: CrateCard[], title?: string, from?: CrateKind) {
     this.closeModal();
     const c = this.panel(1000);
     const top = H / 2 - 500;
-    c.add(this.add.text(W / 2, top + 60, title ?? crateName(kind), { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    const shown = from ?? kind; // the crate on screen until the latch pops
+    const titleTxt = this.add.text(W / 2, top + 60, title ?? crateName(shown), { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5);
+    c.add(titleTxt);
+    // ROSTER B: the latch chances are on screen before the bag opens (the roll itself was made before this screen)
+    if (TUNING.rosterB && !title && shown === 'wood') c.add(this.add.text(W / 2, top + 112, `LATCH ROLL  \u00b7  Toolbox+ ${pctB(LATCH_B.iron)}  \u00b7  Chest+ ${pctB(LATCH_B.gold)}  \u00b7  Workbench ${pctB(LATCH_B.bench)}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '21px', color: '#7a5a4a' }).setOrigin(0.5));
     if (!title) addOddsButton(this, c, W - 100, top + 60, () => showOddsPanel(this, W, H, pityView(this.meta), kind));
-    const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
+    const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040, bench: 0xf0b020 }[shown];
     const box = this.add.container(W / 2, top + 260);
     // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
     // No closed gold crate yet: the iron crate tinted gold stands in.
     this.seasonEv('crateOpen');
     const tbx = toolboxOn(); // t-33f4fe2e QA: baked procedural toolbox crates
-    const ck = tbx ? toolboxCrateKey(this, kind) : this.hasArt(`crate_${kind}`) ? `crate_${kind}` : kind === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
+    const ck = tbx ? toolboxCrateKey(this, shown) : this.hasArt(`crate_${shown}`) ? `crate_${shown}` : shown === 'gold' && this.hasArt('crate_iron') ? 'crate_iron' : '';
     let crateIm: Phaser.GameObjects.Image | null = null;
     if (ck) {
       const im = this.add.image(0, 0, ck);
       im.setScale(220 / Math.max(im.width, im.height));
-      if (ck === 'crate_iron' && kind === 'gold') im.setTint(0xffd36a);
+      if (ck === 'crate_iron' && shown === 'gold') im.setTint(0xffd36a);
       box.add(im);
       crateIm = im;
     } else box.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-110, -90, 220, 180, 20).fillStyle(col, 1).fillRoundedRect(-102, -82, 204, 164, 16).lineStyle(8, 0x2b1d2e, 1).lineBetween(-102, -20, 102, -20));
     c.add(box);
+    const extra = from ? (crateIm && tbx ? 900 : 700) : 0; // the latch roll-up plays before the cards
     sfx.chestShake?.();
     this.tweens.add({ targets: box, angle: { from: -6, to: 6 }, duration: 90, yoyo: true, repeat: 5, onComplete: () => {
       sfx.chestOpen?.();
-      const openKey = `crate_${kind}_open`;
-      if (crateIm && tbx) popToolboxLatch(this, box, crateIm, kind);
+      const openKey = `crate_${shown}_open`;
+      if (from) {
+        // the latch pops, the bag becomes the bigger crate (decided before this screen), then it opens
+        if (crateIm && tbx) latchRollUp(this, box, crateIm, from, kind);
+        this.time.delayedCall(420, () => {
+          titleTxt.setText(crateName(kind));
+          sfx.star?.(2);
+          this.ring(W / 2, top + 260, col, 220, 24, 520);
+          this.floatText(W / 2, top + 150, `LATCH POPPED!  ${crateName(kind)}`, '#ffcf33', 38, 900);
+        });
+      } else if (crateIm && tbx) popToolboxLatch(this, box, crateIm, kind);
       else if (crateIm && this.hasArt(openKey)) {
         crateIm.clearTint().setTexture(openKey);
         crateIm.setScale(240 / Math.max(crateIm.width, crateIm.height));
       }
-      this.tweens.add({ targets: box, scale: 0, alpha: 0, duration: 220, delay: crateIm ? 260 : 0 });
+      this.tweens.add({ targets: box, scale: 0, alpha: 0, duration: 220, delay: (crateIm ? 260 : 0) + extra });
       this.ring(W / 2, top + 260, 0xffcf33, 160, 18, 420);
       cards.forEach((cd, k) => {
         // up to 6 kinds in 3 columns; more (big crates/packs) in 4 smaller columns so nothing hides under the buttons
@@ -6746,7 +6776,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
         const x = W / 2 + ((k % cols) - (inRow - 1) / 2) * (cols === 4 ? 152 : 200), y = top + (cols === 4 ? 220 : 250) + rowN * (cols === 4 ? 190 : 250);
         const card = this.add.container(x, y).setScale(0, sc);
         const u = UNITS.find((v) => v.id === cd.unit)!;
-        const rc = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff }[u.rarity];
+        const rc = RARITY_COLOR[u.rarity];
         card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -110, 176, 220, 18).fillStyle(rc, 1).fillRoundedRect(-84, -106, 168, 212, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -80, 152, 130, 12));
         const pk = this.unitPortrait(cd.unit);
         if (this.textures.exists(pk)) card.add(this.fitVisible(this.add.image(0, -16, pk), 112));
@@ -6755,11 +6785,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
         card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`.replace('SIGNAL ', ''), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
         if (cd.isNew) card.add(this.add.text(56, -104, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 8, y: 1 } }).setOrigin(0.5).setAngle(8));
         c.add(card);
-        this.tweens.add({ targets: card, scaleX: sc, duration: 220, delay: 300 + k * 260, ease: 'Back.Out', onStart: () => sfx.star?.(Math.min(2, k)) });
+        this.tweens.add({ targets: card, scaleX: sc, duration: 220, delay: 300 + extra + k * 260, ease: 'Back.Out', onStart: () => sfx.star?.(Math.min(2, k)) });
       });
     } });
     const more = this.totalCrates();
-    this.time.delayedCall(900 + cards.length * 260, () => {
+    this.time.delayedCall(900 + cards.length * 260 + extra, () => {
       if (!c.active) return;
       // r39: buttons follow the last row instead of a fixed y (no dead space)
       const cols = cards.length > 6 ? 4 : 3, rows = Math.ceil(cards.length / cols);
@@ -6781,8 +6811,9 @@ Merge them into a RANK ${rank}!`, this.coachY());
     c.add(this.add.text(W / 2, top + 60, 'CRATE SHOP', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
     addOddsButton(this, c, W - 100, top + 60, () => showOddsPanel(this, W, H, pityView(m)));
     c.add(this.add.text(W / 2, top + 112, `${m.bolts ?? 0} Bolts  \u00b7  ${m.gems ?? 0} Gems`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#7a5a4a' }).setOrigin(0.5));
+    const B = TUNING.rosterB, RH = B ? 100 : 128, rowH = B ? 92 : 120; // ROSTER B adds the Golden Workbench row, so the rows are tighter
     const row = (y: number, title: string, sub: string, label: string, col: number, cb: () => void) => {
-      c.add(this.add.graphics().fillStyle(0xead2b0, 1).fillRoundedRect(70, y - 60, W - 140, 120, 20));
+      c.add(this.add.graphics().fillStyle(0xead2b0, 1).fillRoundedRect(70, y - rowH / 2, W - 140, rowH, 20));
       c.add(this.add.text(100, y - 22, title, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#3b2533' }).setOrigin(0, 0.5));
       c.add(this.add.text(100, y + 20, sub, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0, 0.5));
       this.button(c, W - 170, y, 200, label, col, cb, 0.7);
@@ -6822,11 +6853,11 @@ Merge them into a RANK ${rank}!`, this.coachY());
     };
     this.button(c, 330, top + 266, 220, `x1  ${FEATURED_CRATE.gems1} GEMS`, 0x8e58c9, () => buyFeatured(1, FEATURED_CRATE.gems1), 0.6);
     this.button(c, 520, top + 266, 220, `x5  ${FEATURED_CRATE.gems5} GEMS`, 0x8e58c9, () => buyFeatured(5, FEATURED_CRATE.gems5), 0.6);
-    SHOP.gemCrates.forEach((g, i) => row(top + 220 + D + i * 128, crateName(g.kind), `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
+    (B ? [...SHOP.gemCrates, ...SHOP.gemCratesB] : SHOP.gemCrates).forEach((g, i) => row(top + 220 + D + i * RH, crateName(g.kind), B ? `${CRATES_B[g.kind].cards} cards  \u00b7  ${guaranteeText(g.kind)}` : `${CRATES[g.kind].cards} cards  \u00b7  ${CRATES[g.kind].rareMin}+ rare`, `${g.gems} GEMS`, 0x8e58c9, () => buyCrate(g.kind, 'gems', g.gems)));
     const ownedNow = new Set(Object.entries(m.units ?? {}).filter(([, v]) => v.level >= 1).map(([k]) => k as Family));
     const feat = featuredUnit(localDate(), ownedNow);
     SHOP.boltPacks.forEach((p, i) =>
-      row(top + 476 + D + i * 128, p.name, p.id === 'role' ? `${p.cards} cards of a role you pick` : `${p.cards} cards  \u00b7  ${p.featuredMin}+ ${FAMILY_INFO[feat as 'cannon'].name}`, `${p.bolts} BOLTS`, 0xe0a020, () => (p.id === 'role' ? this.openRolePick() : this.openPack(p.id))),
+      row(top + (B ? 520 : 476) + D + i * RH, p.name, p.id === 'role' ? `${p.cards} cards of a role you pick` : `${p.cards} cards  \u00b7  ${p.featuredMin}+ ${FAMILY_INFO[feat as 'cannon'].name}`, `${p.bolts} BOLTS`, 0xe0a020, () => (p.id === 'role' ? this.openRolePick() : this.openPack(p.id))),
     );
     c.add(this.add.text(W / 2, top + 850 + D, 'GEMS  (test store, no real payment)', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533' }).setOrigin(0.5));
     SHOP.gemPacks.forEach((p, i) => {

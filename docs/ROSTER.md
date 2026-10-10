@@ -281,3 +281,17 @@ Rules:
 18. **Signal Beacon unlock**: it is live and Legendary, so the section 6 rule lets it drop from Toolboxes (0.5% Legendary) from chapter 2, before its L50 gift. Intended?
 19. **Merges outside a normal merge** (Crane mid-chain, Tilt Lever): do they count for Wrench arming, Capacitor release, Rewind Crank and Tilt Lever charging, and Rocket's merge hit?
 20. ~~Tesla L6 "Support units in range"~~ replaced (t-7be23b54), but other lines may still assume on-board Support; recheck them once Q1 is answered.
+
+---
+
+## 8. Crates B: what is built (t-9d5b7cd0, flag `TUNING.rosterB`, default OFF)
+
+Code: `src/core/crateB.ts` (roll + per-rarity pity), `src/core/crateOdds.ts` (panel text, latch, pity countdowns), `src/core/spareParts.ts`, tables in `src/content/units.ts` (`CRATES_B`, `LATCH_B`, `PITY_B`). Tests: `tests/crateB.test.ts` (printed odds vs thousands of real opens, latch, pity), `tests/saveCompat.test.ts`.
+
+- **Four tiers** with the section 5 odds and guarantees (Chest: card 1 Epic or better + cards 2-5 Rare or better). The panel prints per-card odds and each guarantee on separate lines.
+- **Latch**: the "or better" chances are cumulative (one roll `x`: < 0.15% Workbench, < 3% Chest, < 25% Toolbox, else Bag), made on its own seeded stream BEFORE the contents. Real split: Bag 75%, Toolbox 22%, Chest 2.85%, Workbench 0.15%. Only Tool Bags latch.
+- **Pity (DRAFT sizes, Q7)**: Epic bar 12 (Bag +1, Toolbox +2, Workbench +3; the Chest always holds an Epic card). Legendary bar 40 (Toolbox +1, Chest +10; Bag cannot drop one, Workbench always holds one). The crate that would fill the bar forces the card, so a fresh Toolbox shows "Legendary guaranteed within 40 Toolboxes". A hit resets; a crate that cannot drop the rarity never moves its counter.
+- **NEW-unit pity** (every 3rd crate) swaps one free card for a missing unit of the same or higher rarity, never a Legendary, never a guaranteed card.
+- **Spare Parts**: cards of a level-10 unit move into `meta.spare[rarity]` (moved, never copied). Level-ups pay with the unit's own cards first, then Spare Parts of its rarity.
+- **Golden Workbench source**: latch, or 600 Gems in the crate shop (Gems are earned or the MOCK test store; no payment path). It has no free-play source yet (Q9).
+- Legendary Bolts per level = Epic x 1.5 (DRAFT, Q6). Signal Beacon is Legendary under the flag; owned Beacons keep level and cards, only the card table changes (Q4).

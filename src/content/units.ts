@@ -5,7 +5,10 @@ import type { Family } from '../core/types';
 import { ROSTER_1_PERKS } from './roster1';
 import { TUNING } from './tuning';
 
-export type Rarity = 'common' | 'rare' | 'epic';
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
+/** Rarities, lowest first (Legendary only has units under TUNING.rosterB; see UNITS). */
+export const RARITY_ORDER: Rarity[] = ['common', 'rare', 'epic', 'legendary'];
+export const RARITY_COLOR: Record<Rarity, number> = { common: 0x8a9aa8, rare: 0x3a8adf, epic: 0x9a63ff, legendary: 0xf0b020 };
 export interface UnitDef {
   id: Family;
   role: 'SHOOTER' | 'RELAY' | 'MOVER' | 'SUPPORT';
@@ -27,7 +30,8 @@ export const UNITS: UnitDef[] = [
   { id: 'battery', role: 'SUPPORT', rarity: 'rare', slot: 'helper' },
   { id: 'amplifier', role: 'SUPPORT', rarity: 'rare', slot: 'helper' },
   { id: 'arc_welder', role: 'SHOOTER', rarity: 'epic', slot: 'shooter' },
-  { id: 'signal_beacon', role: 'SUPPORT', rarity: 'epic', slot: 'helper' },
+  // t-9d5b7cd0: Epic today, Legendary under TUNING.rosterB (a live getter, like UNIT_PERKS, so the QA switch needs no reload)
+  { id: 'signal_beacon', role: 'SUPPORT', get rarity(): Rarity { return TUNING.rosterB ? 'legendary' : 'epic'; }, slot: 'helper' },
 ];
 /** Roster B batch 1 (t-9b28a794): in UNITS (collection, crates, squad pickers, seasons) only while TUNING.roster1 is on. */
 export const ROSTER_1_UNITS: UnitDef[] = [
@@ -37,7 +41,6 @@ export const ROSTER_1_UNITS: UnitDef[] = [
   { id: 'saw_blade', role: 'SHOOTER', rarity: 'epic', slot: 'shooter' },
 ];
 const BASE_UNITS = [...UNITS];
-const RARITY_ORDER: Rarity[] = ['common', 'rare', 'epic'];
 /** Switch the roster B units in or out of UNITS in place (every reader sees it live), sorted by rarity. */
 export function applyRoster1(on: boolean) {
   TUNING.roster1 = on;
@@ -55,11 +58,15 @@ export const LEVEL_CARDS: Record<Rarity, number[]> = {
   common: [2, 4, 6, 10, 16, 24, 36, 52, 75],
   rare: [1, 2, 3, 5, 8, 12, 18, 26, 38],
   epic: [1, 1, 2, 3, 4, 6, 9, 13, 19],
+  /** ROSTER.md section 5 card table. */
+  legendary: [1, 1, 1, 2, 2, 3, 4, 6, 8],
 };
 export const LEVEL_BOLTS: Record<Rarity, number[]> = {
   common: [20, 35, 55, 90, 140, 220, 340, 500, 750],
   rare: [25, 40, 65, 105, 165, 250, 380, 560, 820],
   epic: [30, 50, 80, 125, 190, 290, 430, 630, 900],
+  /** DRAFT (ROSTER.md Q6: Legendary Bolts not set) = Epic x 1.5. */
+  legendary: [45, 75, 120, 190, 285, 435, 645, 945, 1350],
 };
 export const cardsFor = (u: UnitDef, level: number) => LEVEL_CARDS[u.rarity][level - 1] ?? 9999;
 export const boltsFor = (u: UnitDef, level: number) => LEVEL_BOLTS[u.rarity][level - 1] ?? 99999;
@@ -76,15 +83,33 @@ export const levelPerkText = (u: UnitDef, level: number) =>
   u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : `Level ${level}`;
 
 // ---- crates ----
-export type CrateKind = 'wood' | 'iron' | 'gold';
+/** 'bench' = Golden Workbench: only used under TUNING.rosterB (earned Gems / the MOCK premium lane, never real money). */
+export type CrateKind = 'wood' | 'iron' | 'gold' | 'bench';
 export const CRATES: Record<CrateKind, { name: string; cards: number; rareMin: number }> = {
   wood: { name: 'WOOD CRATE', cards: 3, rareMin: 0 },
   iron: { name: 'IRON CRATE', cards: 8, rareMin: 1 },
   gold: { name: 'GOLD CRATE', cards: 20, rareMin: 4 },
+  bench: { name: 'WORKBENCH', cards: 10, rareMin: 1 },
 };
-export const RARITY_ODDS: Record<Rarity, number> = { common: 0.72, rare: 0.24, epic: 0.04 };
+export const RARITY_ODDS: Record<Rarity, number> = { common: 0.72, rare: 0.24, epic: 0.04, legendary: 0 };
 /** Shared epic pity: dry Iron +1, dry Gold +3; at 6 the next Iron/Gold forces an Epic (a missing one first). */
-export const EPIC_PITY = { iron: 1, gold: 3, wood: 0, at: 6 };
+export const EPIC_PITY = { iron: 1, gold: 3, wood: 0, bench: 0, at: 6 };
+/** t-9d5b7cd0 ROSTER B crates (docs/ROSTER.md section 5), used only while TUNING.rosterB. `mins` = the minimum rarity of the
+ *  first cards (a slot below its minimum is lifted to it); `odds` = each card's own roll, summing to 1. */
+export const CRATES_B: Record<CrateKind, { name: string; cards: number; mins: Rarity[]; odds: Record<Rarity, number> }> = {
+  wood: { name: 'TOOL BAG', cards: 3, mins: [], odds: { common: 0.82, rare: 0.16, epic: 0.02, legendary: 0 } },
+  iron: { name: 'TOOLBOX', cards: 8, mins: ['rare'], odds: { common: 0.7, rare: 0.24, epic: 0.055, legendary: 0.005 } },
+  gold: { name: 'TOOL CHEST', cards: 20, mins: ['epic', 'rare', 'rare', 'rare', 'rare'], odds: { common: 0.58, rare: 0.3, epic: 0.1, legendary: 0.02 } },
+  bench: { name: 'GOLDEN WORKBENCH', cards: 10, mins: ['legendary'], odds: { common: 0.5, rare: 0.32, epic: 0.14, legendary: 0.04 } },
+};
+/** Latch roll-up (ONE roll per Tool Bag open, decided before the contents): cumulative "or better" chances. */
+export const LATCH_B = { iron: 0.25, gold: 0.03, bench: 0.0015 };
+/** Per-rarity pity (DRAFT sizes, ROSTER.md Q7). A counter moves only on crates that CAN drop the rarity (step 0 = cannot, or
+ *  always does); a crate that drops the rarity resets it; the crate that would fill the bar (points + step >= `at`) forces one. */
+export const PITY_B: Record<'epic' | 'legendary', { at: number; step: Record<CrateKind, number> }> = {
+  epic: { at: 12, step: { wood: 1, iron: 2, gold: 0, bench: 3 } },
+  legendary: { at: 40, step: { wood: 0, iron: 1, gold: 10, bench: 0 } },
+};
 /** New-unit pity: after this many crates in a row with no new unit, the best guaranteed slot is a missing unit. */
 export const NEW_UNIT_PITY = 3;
 
@@ -93,6 +118,8 @@ export const SHOP = {
     { kind: 'iron' as CrateKind, gems: 60 },
     { kind: 'gold' as CrateKind, gems: 200 },
   ],
+  /** ROSTER B extra Gem crate (mock economy: Gems come from play or the test store, never real payments). */
+  gemCratesB: [{ kind: 'bench' as CrateKind, gems: 600 }],
   /** Bolt packs: cards for the role you choose / the featured unit of the day. */
   boltPacks: [
     { id: 'role', name: 'ROLE PACK', bolts: 150, cards: 5, featuredMin: 0 },
