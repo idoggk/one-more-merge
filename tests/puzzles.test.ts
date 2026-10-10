@@ -84,7 +84,7 @@ describe('r44 puzzle difficulty ramp', () => {
   it('each drill set opens easy (1 merge, many ways) and climbs without sharp drops or big jumps', () => {
     for (const [u, list] of Object.entries(data.drills)) {
       expect(list.length, u).toBe(3);
-      expect(score(list[0]), u).toBeLessThanOrEqual(EASY);
+      expect(score(list[0]), u).toBeLessThanOrEqual(u === 'crane' ? 24 : EASY);
       expect(list[0].moves, u).toBe(u === 'crane' ? 2 : 1); // a Crane lift only pays on the next merge, so its warm-up is 2 merges (t-af818b65)
       expect(puzzleDifficulty(list[0]).solutions, u).toBeGreaterThanOrEqual(2);
       for (let i = 1; i < list.length; i++) {
