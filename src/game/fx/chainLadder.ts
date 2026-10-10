@@ -3,6 +3,7 @@
 // Chains of BIG_CHAIN+ hold for HOLD_MS before the final hit, which lands with a fat sound and a shake.
 import type Phaser from 'phaser';
 import { sfx } from '../audio';
+import { pooledText, releaseText, textColor } from '../sceneKit';
 
 export const BIG_CHAIN = 8;
 /** The beat before a big chain's final hit (the hit-stop). */
@@ -35,8 +36,7 @@ type LadderScene = Phaser.Scene & { shake(ms: number, intensity: number): void }
 export function playChainLadder(scene: LadderScene, acts: readonly { depth: number }[], windup: number, step: number, src: { x: number; y: number }, reduced: boolean) {
   if (acts.length < 2) return;
   const plan = ladderPlan(acts, windup, step);
-  const txt = scene.add
-    .text(src.x + 38, src.y - 52, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 })
+  const txt = pooledText(scene, src.x + 38, src.y - 52, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 })
     .setOrigin(0.5)
     .setDepth(63)
     .setVisible(false);
@@ -45,7 +45,7 @@ export function playChainLadder(scene: LadderScene, acts: readonly { depth: numb
     scene.time.delayedCall(p.at, () => {
       if (!txt.active) return;
       const big = p.link >= BIG_CHAIN;
-      txt.setText(`x${p.link}`).setVisible(true).setColor(big ? '#ffd24a' : '#fff0cf');
+      textColor(txt.setText(`x${p.link}`).setVisible(true), big ? '#ffd24a' : '#fff0cf');
       if (reduced) return;
       scene.tweens.killTweensOf(txt);
       txt.setScale(1.35 + Math.min(0.5, p.link * 0.03));
@@ -59,7 +59,7 @@ export function playChainLadder(scene: LadderScene, acts: readonly { depth: numb
   scene.time.delayedCall(last + 260 + chainHoldMs(acts.length) + 120, () => {
     if (!txt.active) return;
     scene.tweens.killTweensOf(txt);
-    scene.tweens.add({ targets: txt, alpha: 0, scale: reduced ? txt.scale : txt.scale * 1.25, duration: 260, onComplete: () => txt.destroy() });
+    scene.tweens.add({ targets: txt, alpha: 0, scale: reduced ? txt.scale : txt.scale * 1.25, duration: 260, onComplete: () => releaseText(scene, txt) });
   });
 }
 

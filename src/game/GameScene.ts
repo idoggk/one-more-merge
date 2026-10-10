@@ -66,7 +66,7 @@ import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
 import { bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
 import { PartReact } from './fx/partReact';
-import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES } from './sceneKit';
+import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES, pooledText, recycleWith, bakeTexture } from './sceneKit';
 import * as qa from './ui/qaPanel';
 import { qaMergeRule, qaPace, qaThinkBank, qaUnits, qaYardObject } from './ui/qaPanel';
 import * as settingsUi from './ui/settings';
@@ -103,7 +103,7 @@ export class GameScene extends Phaser.Scene {
   // ui
   target!: Phaser.GameObjects.Image;
   stage!: Phaser.GameObjects.Image;
-  stageFrame!: Phaser.GameObjects.Graphics;
+  stageFrame!: Phaser.GameObjects.Image;
   targetBaseScale = 1;
   hpBar!: Phaser.GameObjects.Graphics;
   hpFill?: Phaser.GameObjects.Image;
@@ -116,6 +116,8 @@ export class GameScene extends Phaser.Scene {
   timerText!: Phaser.GameObjects.Text;
   /** r34 onboarding: the clock lives beside the HP bar (where the eyes are), as a draining ring; machine counter on the right. */
   clockRing!: Phaser.GameObjects.Graphics;
+  /** The clock's dark rim + cream face, baked once (the ring on top is redrawn as the time drains). */
+  clockBase!: Phaser.GameObjects.Image;
   stagePips!: Phaser.GameObjects.Text;
   /** r45: puzzles name the number on the ring (the owner didn't know what it counted). */
   mergesLeftLabel!: Phaser.GameObjects.Text;
@@ -306,7 +308,7 @@ export class GameScene extends Phaser.Scene {
     const sm = this.make.graphics({}, false).fillStyle(0xffffff).fillRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
     this.stage.setMask(sm.createGeometryMask());
     this.add.rectangle(W / 2, STAGE_TOP + STAGE_H / 2, W - 140, STAGE_H, 0xfbe7c6, 0.12);
-    this.stageFrame = this.add.graphics();
+    this.stageFrame = this.add.image(W / 2, STAGE_TOP + STAGE_H / 2, 'dot').setVisible(false);
     // target
     this.target = this.add.image(W / 2, TARGET_Y, 'target_0');
     this.face = this.add.image(W / 2, TARGET_Y, 'dot').setVisible(false);
@@ -316,6 +318,7 @@ export class GameScene extends Phaser.Scene {
       this.add.image(W / 2, HP_Y, 'hp_frame').setDisplaySize(476, 50);
     }
     this.hpText = this.add.text(W / 2, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#2a2233', stroke: '#fff0cf', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
+    this.clockBase = this.add.image(0, 0, bakeTexture(this, 'clock_base', 100, 100, (cg) => cg.fillStyle(0x2b1d2e, 1).fillCircle(50, 50, 50).fillStyle(0xfff0cf, 1).fillCircle(50, 50, 36))).setScale(1 / RS).setDepth(3).setVisible(false);
     this.clockRing = this.add.graphics().setDepth(3);
     this.timerText.setPosition(CLOCK_X, HP_Y + 1).setOrigin(0.5).setFontSize(27).setDepth(4);
     this.stagePips = this.add.text(W - CLOCK_X, HP_Y, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6, align: 'center', lineSpacing: -6 }).setOrigin(0.5).setDepth(4);
@@ -725,7 +728,10 @@ export class GameScene extends Phaser.Scene {
     if (this.hasArt(sk)) {
       this.stage.setTexture(sk).setVisible(true);
       this.stage.setScale(Math.max((W - 140) / this.stage.width, STAGE_H / this.stage.height));
-      this.stageFrame.clear().lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(70, STAGE_TOP, W - 140, STAGE_H, 26);
+      // static outline: baked per stage height, not re-triangulated every frame
+      const fw = W - 140, fh = Math.round(STAGE_H * 100) / 100;
+      const fk = bakeTexture(this, `stage_frame_${fh}`, fw + 8, fh + 8, (fg) => fg.lineStyle(8, 0x2b1d2e, 1).strokeRoundedRect(4, 4, fw, fh, 26));
+      this.stageFrame.setTexture(fk).setScale(1 / RS).setPosition(W / 2, STAGE_TOP + STAGE_H / 2).setVisible(true);
     }
     const tex = this.target.frame;
     // r22: bosses share one feet baseline (88% of the stage) and a max footprint (78% wide, 80% tall)
@@ -788,29 +794,33 @@ export class GameScene extends Phaser.Scene {
     c.gid = g.id;
     const img = this.add.image(0, 0, `${g.family}_${g.rank}`);
     this.fitSprite(img);
-    const badge = this.add.graphics();
+    const dice = this.hasArt(`dice_${g.rank}`);
+    const badge = dice ? null : this.add.graphics();
     const col = FAMILY_INFO[g.family].color;
     // big rank badge (playtest: ranks were hard to tell apart), bottom-left slot
     const BX0 = SLOT.rank.x, BY0 = SLOT.rank.y;
-    const badgeArt = this.hasArt(`badge_${g.family}`) ? this.add.image(BX0, BY0, `badge_${g.family}`).setDisplaySize(58, 58) : null;
-    if (!badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BX0, BY0, 26).fillStyle(col, 1).fillCircle(BX0, BY0, 21);
+    const badgeArt = !dice && this.hasArt(`badge_${g.family}`) ? this.add.image(BX0, BY0, `badge_${g.family}`).setDisplaySize(58, 58) : null;
+    if (badge && !badgeArt) badge.fillStyle(0x2b1d2e, 1).fillCircle(BX0, BY0, 26).fillStyle(col, 1).fillCircle(BX0, BY0, 21);
     const label = String(g.rank); // r17: the numeral always shows; the crown alone marks the cap
-    let t = this.add.text(BX0, BY0 - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
-    let parts: Phaser.GameObjects.GameObject[] = badgeArt ? [img, badge, badgeArt, t] : [img, badge, t];
-    if (this.hasArt(`dice_${g.rank}`)) {
+    let plate: Phaser.GameObjects.Image = null!;
+    let t = dice ? null! : pooledText(this, BX0, BY0 - 1, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5);
+    let parts: Phaser.GameObjects.GameObject[] = dice ? [] : badgeArt ? [img, badge!, badgeArt, t] : [img, badge!, t];
+    if (dice) {
       // ChatGPT round 8 neutral plate (same for every family), bottom-left slot. UI audit: the dice pips smeared at ranks 5-8
       // and the plate hung over the cell below, so it is now numeral-only and sits fully inside the cell.
-      t.destroy();
-      badgeArt?.destroy();
-      badge.clear();
-      const pw = 46, ph = 40, px = BX0 - pw / 2, py = BY0 - ph / 2 - 2;
-      badge.fillStyle(0x3a2030, 1).fillRoundedRect(px - 3, py - 3, pw + 6, ph + 6, 12);
-      badge.fillStyle(0xc99a3a, 1).fillRoundedRect(px - 1, py - 1, pw + 2, ph + 2, 10);
-      badge.fillStyle(0xfdf3dc, 1).fillRoundedRect(px + 2, py + 2, pw - 4, ph - 4, 8);
-      t = this.add.text(BX0, BY0 - 2, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#2a2233' }).setOrigin(0.5);
-      parts = [img, badge, t];
+      const pw = 46, ph = 40;
+      // the plate never changes: one baked texture shared by every part (a Graphics would be re-triangulated every frame)
+      const key = bakeTexture(this, 'rank_plate', pw + 6, ph + 6, (pg) => {
+        pg.fillStyle(0x3a2030, 1).fillRoundedRect(0, 0, pw + 6, ph + 6, 12);
+        pg.fillStyle(0xc99a3a, 1).fillRoundedRect(2, 2, pw + 2, ph + 2, 10);
+        pg.fillStyle(0xfdf3dc, 1).fillRoundedRect(5, 5, pw - 4, ph - 4, 8);
+      });
+      plate = this.add.image(BX0, BY0 - 2, key).setScale(1 / RS);
+      t = pooledText(this, BX0, BY0 - 2, String(g.rank), { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#2a2233' }).setOrigin(0.5);
+      parts = [img, plate, t];
     }
     t.setName('rank');
+    recycleWith(this, c, [t]);
     if (g.rank >= capOf(this.s, g.family) && this.hasArt('crown')) {
       const cr = this.add.image(SLOT.crown.x, SLOT.crown.y, 'crown');
       cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(15);
@@ -2481,8 +2491,9 @@ Now beat the real level.`, this.coachY());
   }
 
   floatText(x: number, y: number, text: string, color = '#ffffff', size = 34, hold = 0, banner = '') {
-    const label = this.add.text(0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
+    const label = pooledText(this, 0, 0, text, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, stroke: '#2b1d2e', strokeThickness: Math.max(5, size / 6), align: 'center' }).setOrigin(0.5);
     const t = this.add.container(x, y).setDepth(70);
+    recycleWith(this, t, [label]);
     // walkthrough 3: the top-row HUD chips (star chase, shield) fade while a stage banner crosses them
     if (banner === 'banner_chain') this.bannerUntil = Math.max(this.bannerUntil, this.time.now + 160 + 220 + hold + 700);
     if (banner && this.hasArt(banner)) {

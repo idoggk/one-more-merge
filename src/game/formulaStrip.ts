@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { fmtHit, formulaTokens, type FormulaToken, type HitFormula } from '../core/hitFormula';
 import { hex } from '../core/marks';
+import { RS, bakeTexture, pooledText, releaseText } from './sceneKit';
 
 const FONT = 'Lilita One, Arial Black';
 /** Lane plate size (matches the event lane), the widest a row may print, and the smallest scale before it wraps. */
@@ -31,6 +32,8 @@ export class FormulaStrip {
   private timers: Phaser.Time.TimerEvent[] = [];
   /** What is on the lane: the hover strip or a playing post-drop ribbon. */
   private mode: 'hover' | 'ribbon' | null = null;
+  /** The pooled words of the strip on the lane; handed back when it clears. */
+  private words: Phaser.GameObjects.Text[] = [];
 
   /** `laneY`: the event lane (the last row: the result lands here); `aboveY`: centre of the row just above the HP bar,
    *  where the earlier rows of a long formula go so the HP bar stays visible. Read on every draw (layout changes). */
@@ -98,6 +101,8 @@ export class FormulaStrip {
     for (const t of this.timers) t.remove(false);
     this.timers = [];
     if (this.c) this.scene.tweens.killTweensOf(this.c);
+    for (const w of this.words) releaseText(this.scene, w);
+    this.words = [];
     this.c?.destroy();
     this.c = null;
     this.mode = null;
@@ -125,8 +130,9 @@ export class FormulaStrip {
     const c = s.add.container(this.laneX, this.laneY()).setDepth(23);
     const placed: Placed[] = tokens.map((tok) => ({
       tok,
-      text: s.add.text(0, 0, tok.text, { fontFamily: FONT, fontSize: tok.role === 'op' ? '26px' : tok.role === 'base' ? '26px' : '29px', color: hex(tok.hue), stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5),
+      text: pooledText(s, 0, 0, tok.text, { fontFamily: FONT, fontSize: tok.role === 'op' ? '26px' : tok.role === 'base' ? '26px' : '29px', color: hex(tok.hue), stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5),
     }));
+    this.words = placed.map((p) => p.text);
     const groups: Placed[][] = [];
     for (const p of placed) (groups[p.tok.group] ??= []).push(p);
     const width = (ps: Placed[]) => ps.reduce((w, p) => w + p.text.width, 0) + GAP * Math.max(0, ps.length - 1);
@@ -142,7 +148,9 @@ export class FormulaStrip {
     const up = this.aboveY() - this.laneY();
     rows.forEach((row, ri) => {
       const y = ri === rows.length - 1 ? 0 : up - (rows.length - 2 - ri) * (ROW_H + 4);
-      c.add(s.add.graphics().fillStyle(0x2a2233, 1).fillRoundedRect(-LANE_W / 2, y - ROW_H / 2, LANE_W, ROW_H, 16).lineStyle(2, 0xffffff, 0.22).strokeRoundedRect(-LANE_W / 2, y - ROW_H / 2, LANE_W, ROW_H, 16));
+      // the lane plate never changes: baked once (2 px margin holds the outer half of the rim stroke)
+      const plate = bakeTexture(s, 'formula_plate', LANE_W + 4, ROW_H + 4, (g) => g.fillStyle(0x2a2233, 1).fillRoundedRect(2, 2, LANE_W, ROW_H, 16).lineStyle(2, 0xffffff, 0.22).strokeRoundedRect(2, 2, LANE_W, ROW_H, 16));
+      c.add(s.add.image(0, y, plate).setScale(1 / RS));
       let x = (-width(row) * k) / 2;
       for (const p of row) {
         p.text.setPosition(x + (p.text.width * k) / 2, y + 1).setScale(k).setData('k', k);

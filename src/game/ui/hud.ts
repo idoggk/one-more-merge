@@ -87,7 +87,11 @@ export function drawHud(scene: GameScene, dms: number) {
   if (!scene.thinkBadge) scene.thinkBadge = scene.add.text(W - 92, STAGE_TOP + 70, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', padding: { x: 10, y: 3 } }).setOrigin(1, 0.5).setDepth(22);
   const bankLeft = Math.max(0, Math.ceil(TUNING.tb.bank - (s.banked ?? 0)));
   scene.thinkBadge.setVisible(TUNING.thinkBank && s.level !== undefined && !s.puzzle && !demo && s.phase === 'playing');
-  scene.thinkBadge.setText(thinking(s) ? `PAUSED · ${bankLeft}s` : `BANK ${bankLeft}s`).setBackgroundColor(thinking(s) ? '#27a4c0' : '#8a6a4a');
+  if (scene.thinkBadge.visible) {
+    const paused = thinking(s);
+    scene.thinkBadge.setText(paused ? `PAUSED · ${bankLeft}s` : `BANK ${bankLeft}s`);
+    if (scene.thinkBadge.style.backgroundColor !== (paused ? '#27a4c0' : '#8a6a4a')) scene.thinkBadge.setBackgroundColor(paused ? '#27a4c0' : '#8a6a4a');
+  }
   // r22 live star chase: the best star still reachable and its seconds left (saga levels only)
   const ldef = s.level !== undefined && !s.showcase && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;
   if (!scene.starChase) scene.starChase = scene.add.text(92, STAGE_TOP + 28, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0, 0.5).setDepth(22);
@@ -325,6 +329,7 @@ export function drawItems(scene: GameScene) {
 export function drawClock(scene: GameScene, hidden: boolean) {
   const s = scene.s;
   const r = scene.clockRing.clear();
+  scene.clockBase.setVisible(false);
   const sc = s.stage ? scene.stageCount() : undefined;
   if (scene.mergesLeftLabel.visible !== !!s.puzzle) scene.mergesLeftLabel.setVisible(!!s.puzzle).setY(HP_Y - 52);
   // puzzles set the pips to merges-left below: skip this text so it isn't re-rendered twice every frame
@@ -345,8 +350,7 @@ export function drawClock(scene: GameScene, hidden: boolean) {
   const total = s.levelTime ?? TUNING.runTime;
   const frac = Phaser.Math.Clamp(s.timeLeft / Math.max(1, total), 0, 1);
   const col = s.timeLeft < 10 ? 0xe8452c : s.timeLeft < 30 ? 0xf2b521 : 0x5fd35f;
-  r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50);
-  r.fillStyle(0xfff0cf, 1).fillCircle(CLOCK_X, HP_Y, 36);
+  scene.clockBase.setPosition(CLOCK_X, HP_Y).setVisible(true);
   if (frac > 0) r.lineStyle(10, col, 1).beginPath().arc(CLOCK_X, HP_Y, 43, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
   // r39: gold ticks where the 2- and 3-star times fall (still reachable ones bright, missed ones faded)
   const sdef = s.level !== undefined && !s.rush && !s.bounty && !s.endless ? LEVELS[s.level - 1] : undefined;

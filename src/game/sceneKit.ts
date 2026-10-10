@@ -128,3 +128,59 @@ export const textBg = (t: Phaser.GameObjects.Text, bg: string, px: number, py: n
 };
 /** Bundled puzzle set (GameScene.PUZZLES): daily rotation + per-unit drills. */
 export const PUZZLES = puzzleData as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+
+/** Phone performance: a new Text costs a canvas, a GPU texture and an upload, so HUD labels that come and go per hit
+ *  (rank numerals, formula words, floating numbers) are recycled by style instead of created and destroyed. */
+const textPools = new WeakMap<Phaser.Scene, Map<string, Phaser.GameObjects.Text[]>>();
+const styleKey = (s: Phaser.Types.GameObjects.Text.TextStyle) => JSON.stringify(s);
+export function pooledText(scene: Phaser.Scene, x: number, y: number, text: string, style: Phaser.Types.GameObjects.Text.TextStyle): Phaser.GameObjects.Text {
+  const key = styleKey(style);
+  const free = textPools.get(scene)?.get(key);
+  let t = free?.pop();
+  if (t && t.scene) {
+    t.setActive(true).setVisible(true).setPosition(x, y).setDepth(0).setOrigin(0).setText(text).setScale(1).setAngle(0).setAlpha(1).setName('').setData('k', undefined);
+    if (style.color && t.style.color !== style.color) t.setColor(style.color as string);
+    scene.add.existing(t);
+  } else {
+    t = scene.add.text(x, y, text, style);
+    t.setData('pk', key);
+  }
+  return t;
+}
+/** Give a pooled text back (it must already be out of its container, or the container is about to forget it). */
+export function releaseText(scene: Phaser.Scene, t: Phaser.GameObjects.Text) {
+  const key = t.getData('pk') as string | undefined;
+  if (!key || !t.scene) return;
+  scene.tweens.killTweensOf(t);
+  t.parentContainer?.remove(t);
+  t.removeFromDisplayList();
+  t.setActive(false).setVisible(false);
+  const pools = textPools.get(scene) ?? new Map<string, Phaser.GameObjects.Text[]>();
+  textPools.set(scene, pools);
+  const list = pools.get(key) ?? [];
+  list.push(t);
+  pools.set(key, list);
+}
+/** Recycle these pooled texts when `owner` is destroyed (a container's preDestroy would otherwise destroy them with it). */
+export function recycleWith(scene: Phaser.Scene, owner: Phaser.GameObjects.Container, texts: Phaser.GameObjects.Text[]) {
+  const o = owner as unknown as { preDestroy: () => void };
+  const pre = o.preDestroy;
+  o.preDestroy = function (this: Phaser.GameObjects.Container) {
+    for (const t of texts) releaseText(scene, t);
+    pre.call(this);
+  };
+}
+
+/** Phone performance: a Phaser Graphics is re-triangulated every frame it is visible, so shapes that never change
+ *  (rank plates, bars, rings' bases) are drawn once into a texture (at the render scale, so it stays sharp) and shown as an Image. */
+export function bakeTexture(scene: Phaser.Scene, key: string, w: number, h: number, draw: (g: Gfx) => void): string {
+  if (scene.textures.exists(key)) return key;
+  const dt = scene.textures.addDynamicTexture(key, Math.ceil(w * RS), Math.ceil(h * RS));
+  if (!dt) return key;
+  const g = scene.make.graphics({}, false);
+  draw(g);
+  g.setScale(RS);
+  dt.draw(g);
+  g.destroy();
+  return key;
+}
