@@ -387,15 +387,16 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     }
   };
 
+  // roster B Mortar L6 Last Word: Mortars wait here (once each) and fire FIFO, one at a time, whenever the queue runs dry
+  const deferred: number[] = [];
   let guard = 0;
-  while (queue.length) {
+  while (queue.length || deferred.length) {
     if (++guard > (ROWS * COLS + 1) * (RB ? 4 : 1)) throw new Error('cascade bound violated');
-    const idx = queue.shift()!;
+    const idx = queue.length ? queue.shift()! : deferred.shift()!;
     const a = visited.get(idx)!;
-    // roster B Mortar L6 Last Word: waits at the back of the queue until only held Mortars are left (still fires once)
-    if (RB && a.family === 'mortar' && lvl('mortar') >= 6 && queue.some((q) => !held.has(q))) {
+    if (RB && a.family === 'mortar' && lvl('mortar') >= 6 && !held.has(idx) && queue.length) {
       held.add(idx);
-      queue.push(idx);
+      deferred.push(idx);
       continue;
     }
     orderOf.set(a.id, fired.size);
@@ -421,11 +422,13 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       // never another Arc Welder; L3 two shooters, L6 the shooters it jumps to hit x spreadHit, L9 three shooters
       const [r0, c0] = rc(idx);
       const L = lvl('arc_welder');
+      // only when the board holds no other shooter kind at all (a Welder squad) does it jump to the nearest other machine
+      const anyMachine = !grid.some((g) => g && isShooter(g.family) && g.family !== 'arc_welder');
       for (let t = 0; t < (L >= 9 ? 3 : L >= 3 ? 2 : 1); t++) {
-        // (a squad whose only shooter kind is the Welder has no other shooter: it jumps to the nearest other machine)
         let best = -1, bd = 99, bs = false;
         grid.forEach((g, n) => {
           if (!g || visited.has(n) || g.family === 'arc_welder' || blockSet.has(n) || crosses(idx, n)) return;
+          if (!anyMachine && !isShooter(g.family)) return;
           const d = Math.abs(Math.floor(n / COLS) - r0) + Math.abs((n % COLS) - c0), sh = isShooter(g.family);
           if (best < 0 || (sh && !bs) || (sh === bs && (d < bd || (d === bd && g.rank > grid[best]!.rank)))) [best, bd, bs] = [n, d, sh];
         });

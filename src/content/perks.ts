@@ -33,7 +33,7 @@ function ROSTER_COPY(key: string): { text: string; tryThis: string } | null {
     cannon: { text: 'FIRE: shoots by itself every few seconds. Woken by a chain it fires a full shot.', tryThis: 'Your steady damage: keep a few on the board.' },
     rocket: { text: `BURST: the Rocket YOU merge hits x${r.rocketRoot}. Woken by a chain it only hits x${r.rocketWoken}.`, tryThis: 'Merge Rockets yourself; do not wait for a chain.' },
     mortar: { text: `DEPTH: the later it fires in a chain, the harder it hits: x1, +${r.mortarStep} for every machine that fired before it (up to x${r.mortarCap}).`, tryThis: 'Put it at the far end of your longest chain.' },
-    arc_welder: { text: 'SPREAD: woken by a chain it fires a light shot (x0.75) and jumps to the NEAREST other shooter anywhere, waking it. Never another Arc Welder.', tryThis: 'Mix it with Cannons, Rockets or Mortars.' },
+    arc_welder: { text: 'SPREAD: woken by a chain it fires a light shot (x0.75) and jumps to the NEAREST other shooter anywhere, waking it. Never another Arc Welder. With no other shooter kind on the board, it jumps to the nearest other machine.', tryThis: 'Mix it with Cannons, Rockets or Mortars.' },
     coil: { text: 'REACH: wakes OTHER machines 2 cells up and down, 1 cell left and right.', tryThis: 'Stack shooters above and below it.' },
     bell: { text: 'ROW: wakes every OTHER machine in its row.', tryThis: 'Fill its row with shooters.' },
     horn: { text: 'COLUMN: wakes every OTHER machine in its column. From level 3 the shooters it wakes hit harder.', tryThis: 'Stack shooters above and below it.' },

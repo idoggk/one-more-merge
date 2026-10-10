@@ -620,8 +620,24 @@ export function canMerge(a: Gadget | null, b: Gadget | null, s?: GameState): boo
   return a.rank < cap || (s?.level !== undefined && a.rank === cap);
 }
 
+/** Drills / daily puzzles were generated and win-checked with ROSTER B off (relay routes differ under it): puzzle states
+ *  always resolve with the flag off (review t-9f4e1977). */
+export function puzzleClassic<T>(s: GameState, fn: () => T): T {
+  if (!s.puzzle || !TUNING.rosterB) return fn();
+  TUNING.rosterB = false;
+  try {
+    return fn();
+  } finally {
+    TUNING.rosterB = true;
+  }
+}
+
 /** Drag gadget from `from` onto `to`: merge, move, or swap. */
 export function drop(s: GameState, from: number, to: number, fromId: number): CommandResult {
+  return puzzleClassic(s, () => dropNow(s, from, to, fromId));
+}
+
+function dropNow(s: GameState, from: number, to: number, fromId: number): CommandResult {
   const ev: GameEvent[] = [];
   if (s.phase !== 'playing' && s.phase !== 'tutorial') return { ok: false, events: ev };
   if (from === to || from < 0 || to < 0 || from >= s.grid.length || to >= s.grid.length) return { ok: false, events: ev };
@@ -1182,6 +1198,10 @@ export function legalPairs(s: GameState): [number, number][] {
 
 /** Dry-run preview: how many gadgets would fire if `from` merged into `to`. Never mutates. */
 export function previewMerge(s: GameState, from: number, to: number): CascadeResult | null {
+  return puzzleClassic(s, () => previewNow(s, from, to));
+}
+
+function previewNow(s: GameState, from: number, to: number): CascadeResult | null {
   const a = s.grid[from];
   const b = s.grid[to];
   if (!canMerge(a, b, s)) return null;

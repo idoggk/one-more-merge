@@ -3,7 +3,7 @@
 // formula counts up link by link. Pure: plays the real `drop` on a throwaway copy (like mergePreview), so every
 // number is exactly what the merge deals. Never mutates the state passed in.
 import { TUNING } from '../content/tuning';
-import { a2Scale, canMerge, drop, odByChain, sandwichFor, shieldMult, type GameEvent, type GameState } from './game';
+import { a2Scale, canMerge, drop, odByChain, puzzleClassic, sandwichFor, shieldMult, type GameEvent, type GameState } from './game';
 import { ITEM_MARK, PALETTE, primeMult, type Meaning } from './marks';
 import { isShooter, type CascadeResult, type Family, type Gadget, type JobKey } from './types';
 
@@ -62,6 +62,10 @@ export const fmtFactor = (m: number) => `${+m.toFixed(2)}`;
 
 /** The full formula for merging `from` onto `to`, or null when that is not a merge. */
 export function hitFormula(s: GameState, from: number, to: number): HitFormula | null {
+  return puzzleClassic(s, () => formulaNow(s, from, to));
+}
+
+function formulaNow(s: GameState, from: number, to: number): HitFormula | null {
   const a = s.grid[from], b = s.grid[to];
   if (!a || !b || from === to || !canMerge(a, b, s)) return null;
   const c = JSON.parse(JSON.stringify(s)) as GameState;

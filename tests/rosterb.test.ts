@@ -5,8 +5,10 @@ import { FAMILY_INFO } from '../src/content/perks';
 import { TUNING } from '../src/content/tuning';
 import { ROSTER_PERKS, UNIT_PERKS } from '../src/content/units';
 import { rbRouteCells, resolveCascade, routeCells } from '../src/core/cascade';
-import { drop, idxOf, newLevel, previewMerge, refillBag, serialize, tick, type GameState } from '../src/core/game';
+import { drop, idxOf, newLevel, newPuzzle, previewMerge, refillBag, serialize, tick, type GameState } from '../src/core/game';
 import { hitFormula } from '../src/core/hitFormula';
+import raw from '../src/content/puzzles.json';
+import type { PuzzleDef } from '../src/core/game';
 import { newRunLog, recordCommand, replayRun } from '../src/core/replay';
 import { autoSupport, canUseSupport, goLine, supportCharge, supportNeed, supportReady, useSupport } from '../src/core/support';
 import { SUPPORT_FAMILIES, type Family, type Gadget, type Grid, type PerkId } from '../src/core/types';
@@ -165,6 +167,58 @@ describe('roster B unit jobs', () => {
       const r = run(grid, 12, Object.fromEntries(fams.map((f) => [f, L])));
       expect(new Set(r.activations.map((a) => a.id)).size).toBe(r.activations.length);
     }
+  });
+
+  it('Mortar L6 Last Word + L9 Barrage on a crowded board stays inside the cascade bound (review t-9f4e1977)', () => {
+    on();
+    const key: Record<string, Family> = { b: 'bell', c: 'coil', m: 'mortar' };
+    const rows = 'bcbmm/mcmm./bbcmm/cmmcc/cbmm./cmcmb'.split('/');
+    const grid = board(rows.flatMap((row, r) => [...row].flatMap((ch, c) => (key[ch] ? [[r * 5 + c, g(key[ch])] as [number, Gadget]] : []))));
+    for (const root of grid.flatMap((x, i) => (x && (x.family === 'mortar' || x.family === 'coil') ? [i] : []))) {
+      const r = run(grid, root, { mortar: 9 });
+      expect(new Set(r.activations.map((a) => a.id)).size).toBe(r.activations.length);
+      expect(r.activations.filter((a) => a.family === 'mortar').every((a) => a.jobs?.mortar !== undefined)).toBe(true);
+    }
+  });
+
+  it('Arc Welder SPREAD fallback only applies when the board has no other shooter kind', () => {
+    on();
+    // a cannon exists (already fired as the root's spark target), so the Welder does not jump into the relays
+    const mixed = run(board([[0, g('arc_welder')], [1, g('cannon')], [12, g('coil')], [29, g('bell')]]), 1);
+    expect(mixed.edges.filter((e) => e.kind === 'arc')).toEqual([]);
+  });
+
+  it('fuzz: random dense boards at L1/3/6/9 for every squad never throw and fire each machine once', () => {
+    on();
+    let seed = 12345;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const units: Family[] = ['cannon', 'coil', 'bell', 'horn', 'rocket', 'mortar', 'fuse_box', 'arc_welder'];
+    const squads: Family[][] = [...units.map((u) => [...new Set<Family>([u, 'cannon', 'coil', 'bell'])]), ['arc_welder', 'coil', 'bell', 'horn'], ['mortar', 'mortar', 'coil', 'bell']];
+    for (const squad of squads)
+      for (const L of [1, 3, 6, 9])
+        for (let n = 0; n < 80; n++) {
+          const fill = 0.6 + 0.35 * rnd();
+          const grid = board(Array.from({ length: 30 }, (_, i) => i).flatMap((i) => (rnd() < fill ? [[i, g(squad[Math.floor(rnd() * squad.length)], 1 + Math.floor(rnd() * 4))] as [number, Gadget]] : [])));
+          const cells = grid.flatMap((x, i) => (x ? [i] : []));
+          if (!cells.length) continue;
+          const r = run(grid, cells[Math.floor(rnd() * cells.length)], n % 2 ? { [squad[0]]: L } : Object.fromEntries(units.map((f) => [f, L])));
+          expect(new Set(r.activations.map((a) => a.id)).size).toBe(r.activations.length);
+        }
+  });
+
+  it('drills and daily puzzles play with the flag off (they were generated and win-checked without it)', () => {
+    on();
+    const data = raw as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+    for (const p of [...data.daily, ...Object.values(data.drills).flat()]) {
+      const s = newPuzzle(p);
+      for (const [f, t] of p.solution) {
+        if (s.phase === 'playing') expect(hitFormula(s, f, t)?.result.activations.every((a) => a.jobs === undefined), p.id).toBe(true);
+        expect(drop(s, f, t, s.grid[f]!.id).ok, p.id).toBe(true);
+      }
+      expect(s.phase, p.id).toBe('won');
+      if (p.unit) expect(s.puzzle!.unitUsed, p.id).toBe(true);
+    }
+    expect(TUNING.rosterB).toBe(true);
   });
 
   it('job upgrade words follow the flag', () => {
