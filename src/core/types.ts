@@ -1,13 +1,17 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family;
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family;
 /** Roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on. */
 export type Roster1Family = 'nail_gun' | 'jackhammer' | 'gear' | 'saw_blade';
 export const ROSTER_1: Roster1Family[] = ['nail_gun', 'jackhammer', 'gear', 'saw_blade'];
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1];
+/** Roster B batch 2 (t-ee4e93d7, TUNING.roster2): only reachable while the flag is on. Wrench is a passive Support (never on the board). */
+export type Roster2Family = 'wrench' | 'piston' | 'spring' | 'belt_drive';
+export const ROSTER_2: Roster2Family[] = ['wrench', 'piston', 'spring', 'belt_drive'];
+export const isRoster2 = (f: Family): f is Roster2Family => (ROSTER_2 as Family[]).includes(f);
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1, ...ROSTER_2];
 export const isRoster1 = (f: Family): f is Roster1Family => (ROSTER_1 as Family[]).includes(f);
 /** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5); r32 adds Mortar + Arc Welder; roster B Nail Gun, Drill, Saw Blade. */
-export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade';
+export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade' || f === 'piston';
 /** RELAY role: wakes OTHER families. r32 adds Horn (column) + Fuse Box (diagonals); roster B Gear (links to other Gears). */
-export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box' || f === 'gear';
+export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box' || f === 'gear' || f === 'spring' || f === 'belt_drive';
 
 export type PerkId = 'twin' | 'leads' | 'encore' | 'juice' | 'quality';
 
@@ -55,7 +59,7 @@ export interface CascadeResult {
   rootIdx: number;
   activations: Activation[];
   /** Every route emitted (including to already-visited gadgets), for drawing links. */
-  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' | 'gear' }[];
+  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' | 'gear' | 'hop' | 'belt' }[];
   /** Cannons primed by batteries during this cascade (ids). Caller applies. */
   primes: number[];
   /** r32 perks: chain fires per family in this cascade (feeds the 'every Nth fire' milestone counters). */
@@ -79,4 +83,6 @@ export interface CascadeResult {
   fatigue?: number;
   /** Roster B Drill: damage it pushed through a closed shield (already in `total`). */
   pierced?: number;
+  /** Roster 2 Wrench: ranks it added (for effects only) to the merged part in this cascade. */
+  wrenchBoost?: number;
 }

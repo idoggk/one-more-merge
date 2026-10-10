@@ -1,10 +1,10 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
+// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 //        [--rule today|sandwich2|sandwichBonus]   (t-1effe0bf merge rule prototype; also prints board-full time, sandwiches/run, mean chain)
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { applyRoster1, levelMult, unitDef } from '../src/content/units';
+import { applyRoster1, applyRoster2, levelMult, unitDef } from '../src/content/units';
 import { choosePerk, drop, legalPairs, locked, newLevel, previewMerge, sandwichFor, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import { autoSupport, useSupport } from '../src/core/support';
@@ -37,6 +37,9 @@ applyMergeRule(storedMergeRule(() => (args.includes('--rule') ? args[args.indexO
 // --roster1: roster B batch 1 on (TUNING.roster1) and its squads added (Nail Gun / Drill / Saw Blade shooters, Gear relays)
 const ROSTER = args.includes('--roster1');
 applyRoster1(ROSTER);
+// --roster2 (t-ee4e93d7): roster B batch 2 on (TUNING.roster2) and its squads added (Piston shooter, Spring / Belt Drive relays, +WRENCH helper)
+const ROSTER2 = args.includes('--roster2');
+applyRoster2(ROSTER2);
 
 type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
 const SQUADS: Squad[] = [
@@ -50,6 +53,13 @@ const SQUADS: Squad[] = [
     ? [
         ...(['nail_gun', 'jackhammer', 'saw_blade'] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ['coil', 'bell'] as [Family, Family] })),
         ...([['coil', 'gear'], ['gear', 'bell']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+      ]
+    : []),
+  ...(ROSTER2
+    ? [
+        { key: 'PISTON', shooter: 'piston' as Family, relays: ['coil', 'bell'] as [Family, Family] },
+        ...([['spring', 'bell'], ['coil', 'spring'], ['belt_drive', 'bell'], ['coil', 'belt_drive']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+        { key: '+WRENCH', shooter: 'cannon' as Family, relays: ['coil', 'bell'] as [Family, Family], helper: 'wrench' as Family },
       ]
     : []),
 ];

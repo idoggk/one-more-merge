@@ -6,8 +6,9 @@ import { BOSSES, chapterBossIdx } from '../core/boss';
 import { TARGET_NAMES } from '../content/perks';
 import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { artPlan, RARE, type FirstScreen } from './artPlan';
-import { FAMILIES, ROSTER_1, type Family, type Roster1Family } from '../core/types';
+import { FAMILIES, ROSTER_1, ROSTER_2, type Family, type Roster1Family, type Roster2Family } from '../core/types';
 import { drawJobIcon, drawRoster1 } from './roster1Art';
+import { drawJobIcon2, drawRoster2 } from './roster2Art';
 
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
@@ -108,7 +109,7 @@ function star(x: number, y: number, n: number, r1: number, r2: number) {
   }
   return pts;
 }
-const COLORS: Record<Exclude<Family, Roster1Family>, [number, number, number]> = {
+const COLORS: Record<Exclude<Family, Roster1Family | Roster2Family>, [number, number, number]> = {
   cannon: [0xe8452c, 0xff7a52, 0x9e2416],
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
@@ -127,7 +128,8 @@ const COLORS: Record<Exclude<Family, Roster1Family>, [number, number, number]> =
 /** Draw a chunky procedural gadget into a 128x128 texture. */
 function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
   if ((ROSTER_1 as Family[]).includes(fam)) return drawRoster1(g, fam as Roster1Family, rank);
-  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family>];
+  if ((ROSTER_2 as Family[]).includes(fam)) return drawRoster2(g, fam as Roster2Family, rank);
+  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family | Roster2Family>];
   const s = 128;
   g.lineStyle(6, OUT, 1);
   if (fam === 'cannon') {
@@ -258,6 +260,7 @@ export function ensureTextures(scene: Phaser.Scene) {
   };
   for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK + 2; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
   for (const f of ROSTER_1) gen(`job_${f}`, 64, 64, () => drawJobIcon(g, f));
+  for (const f of ROSTER_2) gen(`job_${f}`, 64, 64, () => drawJobIcon2(g, f));
 
   gen('dot', 16, 16, () => g.fillStyle(0xffffff).fillCircle(8, 8, 8));
   // tutorial pointing hand (white cartoon glove), fingertip near the top-left

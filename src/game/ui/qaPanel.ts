@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, storedPace, storedRoster1, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, storedPace, storedRoster1, storedRoster2, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -7,7 +7,7 @@ import { LEVELS } from '../../content/levels';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
-import { applyRoster1, UNITS, type CrateKind } from '../../content/units';
+import { applyRoster1, applyRoster2, UNITS, type CrateKind } from '../../content/units';
 import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
@@ -43,6 +43,9 @@ applyUnits(qaUnits());
 // t-9b28a794 QA-only: roster B batch 1 (Nail Gun / Jackhammer / Gear / Saw Blade in collection, crates and squads)
 export const qaRoster1 = () => storedRoster1(() => localStorage.getItem(ROSTER1_KEY));
 applyRoster1(qaRoster1());
+// t-ee4e93d7 QA-only: roster B batch 2 (Wrench / Piston / Spring / Belt Drive in collection, crates and squads)
+export const qaRoster2 = () => storedRoster2(() => localStorage.getItem(ROSTER2_KEY));
+applyRoster2(qaRoster2());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -270,6 +273,22 @@ const QA_ROWS: QaRow[] = [
     },
     toast: (id) => (id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD'),
     w: 340,
+    dx: 260,
+    gap: 48,
+    h: 91,
+  }),
+  // 7b) t-ee4e93d7 ROSTER 2: Wrench / Piston / Spring / Belt Drive join the collection, crates and squads (this device only, live)
+  qaSwitch({
+    title: 'ROSTER 2: Wrench Piston Spring Belt',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaRoster2() ? 'on' : 'off'),
+    pick: (id) => {
+      store(ROSTER2_KEY, id === 'on' ? 'on' : null);
+      applyRoster2(id === 'on');
+      tlog.log('qa_roster_2', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'on' ? 'ROSTER 2 ON  ·  CRATES, TEAM, UNITS' : 'ROSTER 2 OFF (live game)'),
+    w: 240,
     dx: 260,
     gap: 48,
     h: 91,

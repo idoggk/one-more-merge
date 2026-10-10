@@ -15,6 +15,7 @@ const REACT_STUCK = 2.5;
 const REACT_STUCK_NEXT = 3;
 import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
 import { bypassBonus } from './roster1';
+import { wrenchAfterMerge, wrenchNext, type WrenchState } from './roster2';
 import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
@@ -168,6 +169,8 @@ export interface GameState {
   breatherUntil?: number;
   /** TUNING.rosterB off-board Support card (src/core/support.ts): the squad helper, its charge (+1 per machine in your
    *  merge chains; uncapped here, support.ts caps it) and an armed Battery PRIME (x mult on the next `left` shooter merges). */
+  /** TUNING.roster2 Wrench (src/core/roster2.ts): the ranks it will add to your next merge(s), for effects only. */
+  wrench?: WrenchState;
   support?: { family: Family; charge: number; uses: number; prime?: { mult: number; left: number; any: boolean } };
   /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
   idleFor?: number;
@@ -232,6 +235,7 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f === 'cannon' ? shooterOf(s) : f, 1);
   const card = TUNING.rosterB ? s.toys.find(isSupport) : undefined;
   if (card) s.support = { family: card, charge: 0, uses: 0 };
+  if (TUNING.roster2 && !tutorial && toys.includes('wrench')) s.wrench = { armed: [], uses: 0 }; // roster 2 passive Support: never on the board
   s.supplyTimer = supplyPeriod(s);
   const opp = REMIX_OPPONENTS.find((o) => o.target === remixTarget);
   if (opp && !tutorial) {
@@ -284,7 +288,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   // r39 (ROUND_33_RULES): an authored helper extra becomes the player's selected helper (teaching levels keep theirs)
   const HELPERS = ['magnet', 'battery', 'fan', 'amplifier', 'signal_beacon'];
   const myHelper = !def.teach ? opts.toys?.find((t) => HELPERS.includes(t)) : undefined;
-  for (const [fam, rank, r, c] of def.start_extra ?? []) if (!(TUNING.rosterB && HELPERS.includes(fam))) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
+  for (const [fam, rank, r, c] of def.start_extra ?? []) if (!((TUNING.rosterB || s.wrench) && HELPERS.includes(fam))) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : myHelper && HELPERS.includes(fam) ? myHelper : (fam as Family), rank);
   const mod = def.modifier;
   if (mod === 'GAPS') {
     s.masked = [idxOf(2, 1), idxOf(2, 3)];
@@ -675,7 +679,7 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
   if (s.puzzle) {
     // puzzles: only merges; each one spends a move; out of moves with the machine standing = lost
     if (!canMerge(a, b, s) || s.puzzle.used >= s.puzzle.moves || (s.puzzle.only && !s.puzzle.only.includes(a.family))) return { ok: false, events: ev };
-    const r = merge(s, from, to);
+    const r = merge(s, from, to, null, true);
     s.puzzle.used++;
     const pz = s.puzzle;
     if (pz.unit && !pz.unitUsed) pz.unitUsed = r.events.some((e) => e.type === 'cascade' && unitActed(e.result, pz.unit!));
@@ -691,7 +695,7 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
     return r;
   }
   if (canMerge(a, b, s)) {
-    const r = merge(s, from, to, sandwichFor(s, from, to)); // no cooldown: a legal second merge is never refused
+    const r = merge(s, from, to, sandwichFor(s, from, to), true); // no cooldown: a legal second merge is never refused
     // roster B Support card: +1 charge per machine that fired in YOUR merge chain
     if (s.support) for (const e of r.events) if (e.type === 'cascade' && !e.kickback) s.support.charge += e.result.count;
     return r;
@@ -753,7 +757,7 @@ export function primeFor(s: GameState, family: Family): number | undefined {
 }
 
 /** A merge from -> to (also roster B Magnet SNAP IN, src/core/support.ts). */
-export function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null = null): CommandResult {
+export function merge(s: GameState, from: number, to: number, sw: SandwichPlan | null = null, byPlayer = false): CommandResult {
   const ev: GameEvent[] = [];
   const a = s.grid[from]!;
   const b = s.grid[to]!;
@@ -818,8 +822,14 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
 
   const primeAll = primeFor(s, g.family);
-  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}) });
+  const wrenchBonus = byPlayer ? wrenchNext(s.wrench) : 0;
+  const result = resolveCascade(s.grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
   if (primeAll && --s.support!.prime!.left <= 0) delete s.support!.prime;
+  // roster 2 Wrench: your own merge spends the armed rank bonus it used, then arms from its own rank
+  if (byPlayer && s.wrench) {
+    const spent = wrenchAfterMerge(s.wrench, s.unitLevel?.wrench ?? 1, g.rank);
+    if (spent) result.wrenchBoost = spent;
+  }
   applyMoves(s, result);
   applyB1(s, result, ev);
   spendItems(s, result);
@@ -1000,6 +1010,8 @@ export interface PuzzleDef {
   visual?: string;
   /** Roster 1 Jackhammer drills: the machine has a closed chain shield (x0.75; a chain of 4 opens it; the Drill ignores it). */
   shield?: boolean;
+  /** Roster 2 Wrench drills: Wrench is on, with this many merges already armed (0 = build the rank-3 merge yourself). */
+  wrench?: number;
 }
 
 /** r43 UNITS nav dot: some owned unit still has an unsolved drill. */
@@ -1020,12 +1032,14 @@ export function newPuzzle(p: PuzzleDef): GameState {
   s.noOverdrive = true;
   s.bag = [];
   if (p.shield) s.shieldUntil = -1;
+  if (p.wrench !== undefined) s.wrench = { armed: Array(p.wrench).fill(TUNING.r2.wrenchBonus), uses: 0 }; // Wrench drills: the passive Support, with `wrench` merges already armed
   s.puzzle = { moves: p.moves, used: 0, id: p.id, ...(p.only ? { only: p.only as Family[] } : {}), ...(p.unit ? { unit: p.unit as Family } : {}) };
   return s;
 }
 
 /** Unit drills: a part of `unit` activated in this cascade AND did something (dealt damage or reached another part). */
 export function unitActed(r: CascadeResult, unit: Family): boolean {
+  if (unit === 'wrench') return !!r.wrenchBoost; // roster 2: Wrench acts when an armed merge was spent
   return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }
 
@@ -1263,7 +1277,7 @@ function previewNow(s: GameState, from: number, to: number): CascadeResult | nul
   grid[to] = { id: -1, family: a!.family, rank: sw ? sw.rank : a!.rank + 1, cd: 0 };
   for (const i of sw?.cells ?? []) grid[i] = null;
   const primeAll = primeFor(s, a!.family);
-  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}) }));
+  return scaleA2(s, resolveCascade(grid, to, { perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
 }
 
 export function serialize(s: GameState): string {

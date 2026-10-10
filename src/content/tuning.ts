@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -174,6 +174,14 @@ export const TUNING = {
    *  (sims t-9b28a794: every woken Gear linking = Coil+Gear cleared 20% faster than any squad); Saw Blade: x sawEdge on the outer ring, x sawInside inside. */
   roster1: false,
   r1: { gearLinks: 1, gearLinksL6: 2, gearDepth: 0, gearKick: 1.2, nailPer: 0.2, nailCap: 1.8, nailCapL9: 2.2, hammerBeat: 1.5, bypassL3: 1.3, sawEdge: 1.5, sawEdgeL3: 1.6, sawInside: 0.7, sawInsideL9: 0.85, sawCorner: 1.25, sawCap: 1.72 },
+  /** EXPERIMENT (t-ee4e93d7, roster B batch 2), default OFF: Wrench / Piston / Spring / Belt Drive join the collection, crates
+   *  and squad pickers (src/content/units.ts applyRoster2). Rules: src/core/roster2.ts, docs/ROSTER.md.
+   *  Piston: +pistonPer per EMPTY touching cell (pistonDiag per empty diagonal from L3), max x pistonCap (x pistonCapL9 at L9 with
+   *  pistonSmall or fewer parts). Spring: hops over exactly one part, both within springReach cells. Belt Drive: bridges to the
+   *  far end of its line (x beltL9 on the exit part at L9). Wrench: after a merge of rank wrenchMin+ (wrenchMinL3 from L3) the next
+   *  merge counts +1 rank for effects (holds wrenchHold, wrenchHoldL6 from L6; +2 after a rank wrenchBig+ merge from L9). */
+  roster2: false,
+  r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };
 
 /** Units B0 rules are on (B0 itself, or B1, which builds on them). */

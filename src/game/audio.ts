@@ -248,6 +248,24 @@ export const sfx = {
       tone(vary(1400), 0.22, 'triangle', 0.05, delay, 700);
     }
   },
+  /** roster B batch 2 (t-ee4e93d7), pitched from the same synth voices: Wrench = two metal clinks, Piston = a thump with a pop,
+   *  Spring = a rising boing, Belt Drive = a low whirr that slides up. */
+  roster2: (fam: string, delay = 0) => {
+    if (fam === 'wrench') for (const d of [0, 0.08]) {
+      tone(vary(1700 + d * 3000), 0.07, 'triangle', 0.05, delay + d);
+      bandNoise(0.015, 0.05, delay + d, 4200, 3);
+    }
+    else if (fam === 'piston') {
+      tone(vary(110), 0.12, 'triangle', 0.1, delay, 60);
+      bandNoise(0.04, 0.08, delay + 0.05, 1800, 1.5);
+    } else if (fam === 'spring') {
+      tone(vary(300), 0.22, 'sine', 0.07, delay, 900);
+      tone(vary(600), 0.12, 'triangle', 0.03, delay + 0.05, 1200);
+    } else if (fam === 'belt_drive') {
+      tone(vary(140), 0.26, 'sawtooth', 0.04, delay, 320);
+      bandNoise(0.2, 0.05, delay, 700, 1.2);
+    }
+  },
   hit: (big: boolean) => {
     bandNoise(big ? 0.14 : 0.05, big ? 0.22 : 0.07, 0, 400, 0.7);
     if (big) tone(120, 0.16, 'triangle', 0.12, 0, 60);

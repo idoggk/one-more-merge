@@ -59,6 +59,8 @@ interface Spec {
   easy?: boolean;
   /** Roster 1 Jackhammer drills: closed chain shield on the machine. */
   shield?: boolean;
+  /** Roster 2 Wrench drills: the passive Support is on, with this many merges already armed. */
+  wrench?: number;
 }
 
 /** r45: the winning pair is the obvious one: top rank on the board, hardest hit, and no wrong pair is a close look-alike. */
@@ -91,7 +93,7 @@ function makePuzzle(id: string, rng: Rng, o: Spec): (PuzzleDef & { score: number
   // unit drills are rarer (no line may break the machine without the unit), so they get more boards to try
   for (let attempt = 0; attempt < (o.unit ? 3000 : 300); attempt++) {
     const board = randomBoard(rng, o.fams, o.focus, o.pairs, o.singles);
-    const def: PuzzleDef = { id, moves: o.moves, hp: 1, board, solution: [], ...(o.only ? { only: o.only } : {}), ...(o.unit ? { unit: o.unit } : {}), ...(o.shield ? { shield: true } : {}) };
+    const def: PuzzleDef = { id, moves: o.moves, hp: 1, board, solution: [], ...(o.only ? { only: o.only } : {}), ...(o.unit ? { unit: o.unit } : {}), ...(o.shield ? { shield: true } : {}), ...(o.wrench !== undefined ? { wrench: o.wrench } : {}) };
     if (puzzleMoves(newPuzzle(def)).length < 3) continue; // always a real choice
     const lines = allLines(def);
     if (lines.length > MAX_LINES) continue;
@@ -125,7 +127,7 @@ export function dailyBand(d: number): [number, number] {
   return [Math.round(c - 3), Math.round(c + 3)];
 }
 
-// t-9b28a794 ROSTER B: `--units nail_gun,jackhammer,gear,saw_blade` (re)builds ONLY those units' drills and keeps every other
+// t-9b28a794 ROSTER B: `--units nail_gun,jackhammer,gear,saw_blade` (re)builds ONLY those units' drills (batch 2: --units wrench,piston,spring,belt_drive) and keeps every other
 // puzzle in puzzles.json as it is (the full run below would reshuffle all of them). Each unit gets its own seeded stream,
 // mates come from the live roster, and Jackhammer drills put a closed chain shield on the machine (its job: BYPASS).
 const UNITS_ARG = process.argv.includes('--units') ? (process.argv[process.argv.indexOf('--units') + 1].split(',') as Family[]) : null;
@@ -135,15 +137,22 @@ if (UNITS_ARG) {
     const r = new Rng(20261010 ^ [...u].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0), 7));
     const pick = <T,>(a: T[], n: number) => r.shuffle([...a]).slice(0, n);
     const relay = isRelay(u);
-    const mates: Family[] = relay ? [...pick(SHOOTERS, 1), ...pick(RELAYS.filter((x) => x !== u), 1)] : pick(RELAYS, 2);
-    const specs: Omit<Spec, 'fams' | 'focus' | 'unit'>[] = [
-      { moves: 1, pairs: 4, singles: 3, band: [6, 16] },
-      { moves: 2, only: [u], pairs: 4, singles: 4, band: [24, 36] },
-      { moves: 3, pairs: 5, singles: 4, band: [44, 56] },
-    ];
+    const wrench = u === 'wrench'; // t-ee4e93d7: Wrench is a passive Support with no board part; its drills put mates on the board and arm it
+    const mates: Family[] = relay || u === 'wrench' ? [...pick(SHOOTERS, 1), ...pick(RELAYS.filter((x) => x !== u), u === 'wrench' ? 2 : 1)] : pick(RELAYS, 2);
+    const specs: Omit<Spec, 'fams' | 'focus' | 'unit'>[] = wrench
+      ? [
+          { moves: 1, pairs: 4, singles: 3, band: [6, 16], wrench: 1 },
+          { moves: 2, pairs: 4, singles: 4, band: [24, 36], wrench: 0 },
+          { moves: 3, pairs: 5, singles: 4, band: [44, 56], wrench: 0 },
+        ]
+      : [
+          { moves: 1, pairs: 4, singles: 3, band: [6, 16] },
+          { moves: 2, only: [u], pairs: 4, singles: 4, band: [24, 36] },
+          { moves: 3, pairs: 5, singles: 4, band: [44, 56] },
+        ];
     const list: PuzzleDef[] = [];
     specs.forEach((sp, i) => {
-      const p = makePuzzle(`${u}_${i + 1}`, r, { fams: [u, ...mates], focus: [u], unit: u, ...(u === 'jackhammer' ? { shield: true } : {}), ...sp });
+      const p = makePuzzle(`${u}_${i + 1}`, r, { fams: wrench ? mates : [u, ...mates], focus: wrench ? [] : [u], unit: u, ...(u === 'jackhammer' ? { shield: true } : {}), ...sp });
       if (p) list.push(p);
     });
     if (list.length === specs.length) data.drills[u] = list;

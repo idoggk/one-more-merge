@@ -1,5 +1,6 @@
 import type { PerkId } from '../core/types';
 import { ROSTER_1_INFO } from './roster1';
+import { ROSTER_2_INFO } from './roster2';
 import { TUNING, unitsB0On } from './tuning';
 
 /** Units B0 / B1 (QA UNITS row): the plain-words copy for units whose rules change; null = today's copy. One source for
@@ -82,6 +83,8 @@ const FAMILY_INFO_TODAY = {
   magnet: { name: 'Magnet', color: 0xc23fd1, role: 'MOVER', text: 'Pulls one gadget along a straight line into the empty cell beside it.', tryThis: 'Use it to bring pairs together.' },
   // roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on
   ...ROSTER_1_INFO,
+  // roster B batch 2 (t-ee4e93d7, TUNING.roster2): only reachable while the flag is on
+  ...ROSTER_2_INFO,
 } as const;
 export const FAMILY_INFO = Object.fromEntries(Object.entries(FAMILY_INFO_TODAY).map(([k, v]) => [k, liveCopy(k, v)])) as unknown as {
   [K in keyof typeof FAMILY_INFO_TODAY]: Omit<(typeof FAMILY_INFO_TODAY)[K], 'text' | 'tryThis'> & { text: string; tryThis: string };

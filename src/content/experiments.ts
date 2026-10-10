@@ -113,3 +113,14 @@ export function applyUnits(v: UnitsVariant) {
   TUNING.unitsB1 = v === 'b1';
   TUNING.rosterB = v === 'rb';
 }
+
+/** QA panel NEW 4 B button (t-ee4e93d7, roster B batch 2; this device only, not in the save): 'on' = TUNING.roster2,
+ *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster2. */
+export const ROSTER2_KEY = 'omm_qa_roster_2';
+export function storedRoster2(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}

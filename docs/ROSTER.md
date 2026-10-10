@@ -193,7 +193,7 @@ Every batch ships behind its own TUNING flag (default OFF) with balance sims (`t
 | B0 | Rule fixes on the existing 13: helper copies + bag tokens, Mortar chain order, welders skip welders | Built, `TUNING.unitsB0` OFF |
 | B1 (rules) | Helper jobs, shared BOOSTED mark, Fuse/Horn reach | Built, `TUNING.unitsB1` OFF |
 | B1 (units) | Nail Gun, Jackhammer, Gear, Saw Blade | Built behind TUNING.roster1 (t-2498828b), not merged |
-| B2 | Wrench, Piston, Spring, Belt Drive | Not started |
+| B2 | Wrench, Piston, Spring, Belt Drive | Built behind `TUNING.roster2` (default OFF, QA switch ROSTER 2), t-ee4e93d7. See section 9 |
 | B3 | Blowtorch, Pipe, Blast Plate, Tesla Tower | Not started |
 | B4 | Capacitor, Blueprint, Ladder, Rewind Crank | Not started |
 | B5 | Crane, Dynamo, Wrecking Ball | Not started |
@@ -295,3 +295,18 @@ Code: `src/core/crateB.ts` (roll + per-rarity pity), `src/core/crateOdds.ts` (pa
 - **Spare Parts**: cards of a level-10 unit move into `meta.spare[rarity]` (moved, never copied). Level-ups pay with the unit's own cards first, then Spare Parts of its rarity.
 - **Golden Workbench source**: latch, or 600 Gems in the crate shop (Gems are earned or the MOCK test store; no payment path). It has no free-play source yet (Q9).
 - Legendary Bolts per level = Epic x 1.5 (DRAFT, Q6). Signal Beacon is Legendary under the flag; owned Beacons keep level and cards, only the card table changes (Q4).
+
+---
+
+## 9. Batch 2: what is built (t-ee4e93d7, flag `TUNING.roster2`, default OFF)
+
+Code: `src/core/roster2.ts` (rules), `src/content/roster2.ts` (copy, perks, GOOD HERE), `src/game/roster2Art.ts` (placeholder art), `src/game/ui/wrenchBadge.ts` (Wrench charge badge). Tests: `tests/roster2.test.ts`. Drills: `npx vite-node tools/gen-puzzles.ts --units wrench,piston,spring,belt_drive`. Sims: `tools/squad-swap.ts --roster2`.
+
+Rules as built (answers to open questions Q11, Q14, Q19):
+- **Entry side (Q11)**: the straight direction the chain came from (waker in the same row or column, any distance). No entry side (the part was merged directly, woken by a Gear link, an Arc jump or a diagonal Fuse Box): **Spring** hops all four ways; **Belt Drive** bridges both far ends of its row.
+- **Belt Drive "far end"**: the LAST part along the entry direction (up to the board edge). Parts between stay asleep. A single part in line is the exit, so it wakes. L3: the part before the far end wakes too. L6: Belt Drives on the line wake too (they are the only parts between that wake). L9: exit part x1.25.
+- **Spring**: skips the next part in line, wakes the one after it, both within 3 cells (locked parts count as parts, so a Spring can hop a frozen part). If only ONE part is in reach there is nothing to skip: it wakes that part (added so a Spring is never dead; sims: without it Spring+Bell lost 20 win points for smart bots). L3 also hops back along the entry line. L6 a Spring may wake a Spring. L9 a forward hop that has no two parts in reach hops 90 degrees along the wall instead (clockwise side first).
+- **Piston**: touching = the 4 orthogonal cells; empty = no part, not locked or reserved; the edge never counts. L3 adds empty diagonals (+10% each), cap x2. L9 cap x2.2 with 8 or fewer parts. The multiplier is counted when it fires. L6 Recoil pushes the nearest touching part that is not already in the chain (so a Piston you merge, whose neighbours all wake with it, pushes nothing).
+- **Wrench (Q14, Q19)**: a passive Support in the helper slot, never a board part, no tap, charge shown by a badge. "+1 rank for effects" applies to the merged (root) part only: rank-gated perks and reach use the boosted rank in full, the hit grows by `rankMult^0.2` per bonus rank (`TUNING.r2.wrenchDmg`; at 1.0 sims showed smart bots clearing 20% faster than any other helper, at 0.2 about 5%). The rank is capped at the board ceiling (8). Only your own drag merges arm and spend it (Kickback fuses and Magnet SNAP IN do not). L6 "holds 2": one qualifying merge arms your next 2 merges. Because levels stack, from L3 (rank 2+ arms) every merge after the first is boosted: that is the DRAFT line as written, flagged for the owner.
+- **Drills**: Wrench drills have no Wrench part on the board; drill 1 starts with Wrench armed, drills 2-3 make you build a rank 3+ first. The unit "acts" when an armed merge is spent, and the generator rejects any board where the machine can break without that.
+- **Sims** (squad-swap, L21-78 step 3, n 4-6, random + smart bots): Piston about even with Cannon (smart +0-11% clear time, random -3 to -12 win points; it has no auto-shot). Spring and Belt Drive as one relay slot cost win points vs Coil+Bell (random -20 to -50, smart -2 to -35), like Gear; Spring is a little better than Belt Drive, and at L9 both are even with BASE. Wrench: smart -5% clear time, random +3 win points.

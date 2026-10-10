@@ -1,5 +1,6 @@
 import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
 import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1';
+import { beltCells, effectiveRank, entryDir, pistonMult, pistonPush, springCells } from './roster2';
 import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Grid, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
@@ -178,6 +179,8 @@ export interface CascadeOpts {
   goKick?: number;
   /** TUNING.rosterB Battery PRIME: every machine in this chain hits x this. */
   primeAll?: number;
+  /** Roster 2 Wrench: ranks added to the MERGED part for effects only (damage, rank-gated perks); its real rank is unchanged. */
+  rankBonus?: number;
 }
 
 /**
@@ -323,7 +326,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     queue.push(to);
   };
 
-  visited.set(rootIdx, { id: root.id, idx: rootIdx, family: root.family, rank: root.rank, depth: 0, parent: -1, charge: 1, contribution: 0 });
+  visited.set(rootIdx, { id: root.id, idx: rootIdx, family: root.family, rank: effectiveRank(root.rank, opts.rankBonus ?? 0), depth: 0, parent: -1, charge: 1, contribution: 0 });
   queue.push(rootIdx);
   for (const n of opts.roots ?? []) {
     if (!grid[n] || visited.has(n)) continue;
@@ -344,6 +347,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const RB = TUNING.rosterB;
   const kicked = new Set<number>();
   const gearKicked = new Set<number>(); // roster1 Gear L9: shooters a Gear wakes
+  const pistonAt = new Map<number, number>(); // roster2 Piston OPEN SPACE: id -> hit multiplier at the moment it fires
+  const beltKick = new Set<number>(); // roster2 Belt Drive L9: ids of exit parts (hit x r2.beltL9)
   const spread = new Set<number>();
   const held = new Set<number>();
 
@@ -463,6 +468,17 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       }
     }
     if (isShooter(a.family)) {
+      if (a.family === 'piston') {
+        // roster2 OPEN SPACE: the empty cells around it are counted as it fires (L6: then it shoves the nearest touching part 1 cell away, no damage)
+        pistonAt.set(a.id, pistonMult(grid, idx, lvl('piston'), blockSet));
+        const push = lvl('piston') >= 6 ? pistonPush(grid, idx, new Set([...blockSet, ...visited.keys()])) : null;
+        if (push) {
+          moves.push({ ...push, id: grid[push.from]!.id });
+          edges.push({ from: push.from, to: push.to, kind: 'fan' });
+          grid[push.to] = grid[push.from];
+          grid[push.from] = null;
+        }
+      }
       if (primedNow.has(a.id)) {
         primedNow.delete(a.id);
         bonus.add(a.id);
@@ -622,6 +638,22 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       }
       continue;
     }
+    if (a.family === 'spring' || a.family === 'belt_drive') {
+      // roster2 HOP / BRIDGE: needs an entry side (core/roster2.ts); a resting row wakes nobody, locked parts and Junkzilla's divider block as for every relay
+      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
+      const L = lvl(a.family);
+      const entry = entryDir(a.parent, idx);
+      const wake = a.family === 'spring' ? { cells: springCells(grid, idx, entry, L), exits: [] as number[] } : beltCells(grid, idx, entry, L);
+      for (const to of wake.cells) {
+        const g = grid[to];
+        if (!g || to === idx || lockedSet.has(to) || crosses(idx, to) || (g.family === a.family && L < 6 && !TUNING.sameFamilyRelay)) continue;
+        edges.push({ from: idx, to, kind: a.family === 'spring' ? 'hop' : 'belt' });
+        if (a.family === 'belt_drive' && L >= 9 && !visited.has(to) && wake.exits.includes(to)) beltKick.add(g.id);
+        enqueue(idx, to, a.depth + 1);
+      }
+      continue;
+    }
+    if (a.family === 'wrench') continue; // roster2 Wrench is a passive Support: it is never a board part (game.ts s.wrench)
     const kind = a.family;
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
     const [ar, ac] = rc(idx);
@@ -647,6 +679,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   }
 
   const acts = [...visited.values()];
+  // roster2 Wrench: its rank bonus counts in full for rank perks and reach, but only r2.wrenchDmg of it for the hit
+  const wrenchCut = opts.rankBonus ? Math.pow(TUNING.rankMult, -(visited.get(rootIdx)!.rank - root.rank) * (1 - TUNING.r2.wrenchDmg)) : 1;
   let sum = 0;
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
@@ -679,11 +713,11 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       if (opts.primeAll && rawDamage(a.family, a.rank) > 0) jobs.prime = opts.primeAll;
       const job = Object.values(jobs).reduce((m, x) => m * x, 1) * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }); // roster1 Nail Gun ROW / Jackhammer BYPASS (beat) / Saw Blade EDGE
       if (Object.keys(jobs).length) a.jobs = jobs;
-      a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * own * job * amp * (opts.unitMult?.[a.family] ?? 1);
+      a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * own * job * amp * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1);
       sum += a.contribution;
       continue;
     }
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }) * (opts.unitMult?.[a.family] ?? 1);
+    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }) * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1);
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');

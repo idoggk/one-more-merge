@@ -31,7 +31,8 @@ import { Coach } from './coach';
 import { REMIX_OPPONENTS, twinsDestination, type RemixKind } from '../core/remix';
 import { ATTACK_COPY, BOSSES, bossBlocked, bossPhase, castAttack, chapterBossIdx, type BossAttack } from '../core/boss';
 import { isRelay, isShooter as isShooterFam, itemFits } from '../core/types';
-import { goodHereText, ROSTER_1_DEMOS } from '../content/roster1';
+import { ROSTER_1_DEMOS } from '../content/roster1';
+import { goodHereAll, ROSTER_2_DEMOS } from '../content/roster2';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -61,6 +62,7 @@ import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
 import { playJobTag, playSupportFx } from './rosterFx';
 import { SupportCard } from './supportCard';
+import { WrenchBadge } from './ui/wrenchBadge';
 import { playBeatSounds, UNIT_SOUND } from './unitSounds';
 import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
@@ -336,6 +338,8 @@ export class GameScene extends Phaser.Scene {
       if (r.ok) this.handleEvents(r.events);
       return r.ok;
     }, (msg, color) => this.showEvent(msg, color ?? '#fff0cf', 2200));
+
+    this.wrench = new WrenchBadge(this, 82, () => STAGE_TOP + STAGE_H - 84); // roster 2: the passive Wrench's charge badge
 
     // tray
     this.trayBox = this.add.graphics().setDepth(1);
@@ -1661,6 +1665,7 @@ Now beat the real level.`, this.coachY());
     this.drawRemix();
     this.drawItems();
     this.support?.sync(this.s);
+    this.wrench?.sync(this.s);
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -2681,6 +2686,7 @@ Now beat the real level.`, this.coachY());
 
   formula!: FormulaStrip;
   support?: SupportCard;
+  wrench?: WrenchBadge;
   pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
@@ -3798,7 +3804,7 @@ Now beat the real level.`, this.coachY());
     const parts = bossDef
       ? [bossDef.copy, bossDef.second ? `Final phase: also ${ATTACK_COPY[bossDef.second].what.toLowerCase()}!` : '']
       : [def.goal ? (def.waves ? `LAST MACHINE only breaks when you ${goalText(def.goal).toLowerCase()}` : `GOAL: ${goalText(def.goal)}`) : '', def.behaviour ? BEHAVIOUR_TEXT[def.behaviour] : MODIFIER_TEXT[def.modifier], newFam ? `NEW: ${FAMILY_INFO[newFam as 'rocket'].name.toUpperCase()}. ${FAMILY_INFO[newFam as 'rocket'].text}` : ''];
-    const mt = [...parts, goodHereText(def, (u) => this.ownsUnit(u))].filter(Boolean).join('\n');
+    const mt = [...parts, goodHereAll(def, (u) => this.ownsUnit(u))].filter(Boolean).join('\n');
     // r34 onboarding: the first level with a new idea says so, big and dark (not small purple print)
     const fresh = newConcepts(n).length > 0 || !!newFam;
     if (mt && fresh) {
@@ -4985,6 +4991,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       amplifier: { pieces: [['coil', 0, 2], ['cannon', 1, 2], ['amplifier', 1, 1], ['cannon', 2, 4]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
       signal_beacon: { pieces: [['bell', 0, 0], ['cannon', 0, 3], ['signal_beacon', 2, 0], ['coil', 2, 3]], links: [[0, 1, 1]], charged: 1, mark: 'amp', big: [1] },
       ...ROSTER_1_DEMOS,
+      ...ROSTER_2_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();

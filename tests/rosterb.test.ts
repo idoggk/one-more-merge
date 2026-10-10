@@ -11,7 +11,7 @@ import raw from '../src/content/puzzles.json';
 import type { PuzzleDef } from '../src/core/game';
 import { newRunLog, recordCommand, replayRun } from '../src/core/replay';
 import { autoSupport, canUseSupport, goLine, supportCharge, supportNeed, supportReady, useSupport } from '../src/core/support';
-import { ROSTER_1, SUPPORT_FAMILIES, type Family, type Gadget, type Grid, type PerkId } from '../src/core/types';
+import { ROSTER_1, ROSTER_2, SUPPORT_FAMILIES, type Family, type Gadget, type Grid, type PerkId } from '../src/core/types';
 
 let id = 9800;
 const g = (family: Family, rank = 1, extra: Partial<Gadget> = {}): Gadget => ({ id: id++, family, rank, cd: 99, ...extra });
@@ -224,7 +224,7 @@ describe('roster B unit jobs', () => {
   it('job upgrade words follow the flag', () => {
     on();
     expect(UNIT_PERKS.cannon[0][0]).toBe('Quick Loader');
-    expect(Object.keys(ROSTER_PERKS).sort()).toEqual(Object.keys(FAMILY_INFO).filter((k) => !(ROSTER_1 as string[]).includes(k)).sort());
+    expect(Object.keys(ROSTER_PERKS).sort()).toEqual(Object.keys(FAMILY_INFO).filter((k) => !(ROSTER_1 as string[]).includes(k) && !(ROSTER_2 as string[]).includes(k)).sort());
     expect(FAMILY_INFO.rocket.text).toMatch(/BURST/);
     expect(FAMILY_INFO.fan.text).toMatch(/SUPPORT CARD/);
   });
