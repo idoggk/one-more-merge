@@ -10,12 +10,13 @@
 import { COLS, ROWS, TUNING } from '../content/tuning';
 import { bossAfterPlayer, bossBlocked, bossCascadeMods, bossPendingCells } from './boss';
 import { resolveCascade } from './cascade';
-import { applyB1, applyDamage, applyMoves, capOf, dropReserved, hazardCells, locked, makeGadget, merge, peekDeliveries, peekNext, torchOpt, type CommandResult, type GameEvent, type GameState } from './game';
+import { applyB1, applyDamage, applyMoves, canMerge, capOf, dropReserved, hazardCells, locked, makeGadget, merge, peekDeliveries, peekNext, sandwichBlocked, torchOpt, touched, type CommandResult, type GameEvent, type GameState } from './game';
 import { attackCells, wardCells, wardHits } from './roster3';
 import { bpRank, bpShow, bpSwap, rewindModeOk, rewindRestore, rwNeed } from './roster4';
+import { planTilt, tiltDirOf, tiltModeOk, tiltNeed, type TiltDir, type TiltPlan } from './roster6';
 import { isRelay, isShooter, isSupport, type CascadeResult } from './types';
 
-export type SupportAim = 'none' | 'cell' | 'part' | 'shooter' | 'line';
+export type SupportAim = 'none' | 'cell' | 'part' | 'shooter' | 'line' | 'edge';
 export type Axis = 'row' | 'col';
 
 /** What each card does and how you aim it (words for the card and the guide). */
@@ -27,6 +28,7 @@ export const SUPPORT_JOBS: Record<string, { name: string; verb: string; aim: Sup
   blast_plate: { name: 'Blast Plate', verb: 'BLOCK', aim: 'cell', text: 'Tap a cell: the next boss attack that would hit it is blocked. Only the Blast Plate blocks boss attacks.', aimText: 'Tap a cell: the next boss attack that hits it is BLOCKED', failText: 'No boss to block there' },
   blueprint: { name: 'Blueprint', verb: 'SWAP', aim: 'part', text: 'The card shows your next deliveries. Tap a part: the next delivery that is not that kind becomes a copy of it, arriving at number 1.', aimText: 'Tap a part: the next delivery becomes a copy of it (number 1)', failText: 'No delivery to swap for that part' },
   rewind_crank: { name: 'Rewind Crank', verb: 'UNDO', aim: 'none', text: 'Tap the card: your last merge is undone. The board, the delivery queue, the monster HP and the dice all go back exactly. Charges every 10 merges. Off in puzzles, the daily and bounties.', chargeText: '+1 per merge you make' },
+  tilt_lever: { name: 'Tilt Lever', verb: 'TILT', aim: 'edge', text: 'Tap near an edge of the board: every part slides that way as far as it can. Twins that meet MERGE, each merge fires its own chain, in order (3 merges at most). Charges every 15 merges you make. Off in puzzles and bounties.', aimText: 'Tap near the edge the parts should slide to', failText: 'Nothing would move that way', chargeText: '+1 per merge you make' },
   signal_beacon: { name: 'Signal Beacon', verb: 'GO', aim: 'line', text: 'Pick ROW or COLUMN on the card, tap a cell: every machine on that line fires now.' },
 };
 
@@ -38,12 +40,13 @@ export function supportNeed(s: GameState): number {
   if (!sp) return Infinity;
   const L = lvl(s);
   if (sp.family === 'rewind_crank') return rwNeed(L);
+  if (sp.family === 'tilt_lever') return tiltNeed(L);
   const k = sp.family === 'magnet' && L >= 3 ? 0.75 : sp.family === 'signal_beacon' && L >= 9 ? 0.6 : 1;
   return Math.max(1, Math.round((TUNING.rb.need[sp.family] ?? 12) * k));
 }
 /** Charge shown on the card (capped at the need). */
 export const supportCharge = (s: GameState) => (s.support ? Math.min(s.support.charge, supportNeed(s)) : 0);
-export const supportReady = (s: GameState) => !!s.support && s.phase === 'playing' && !s.puzzle && s.support.charge >= supportNeed(s) && !(s.support.family === 'battery' && s.support.prime) && (s.support.family !== 'rewind_crank' || rewindModeOk(s));
+export const supportReady = (s: GameState) => !!s.support && s.phase === 'playing' && !s.puzzle && s.support.charge >= supportNeed(s) && !(s.support.family === 'battery' && s.support.prime) && (s.support.family !== 'rewind_crank' || rewindModeOk(s)) && (s.support.family !== 'tilt_lever' || tiltModeOk(s));
 
 /** Cells a Fan clear at `cell` covers: 3x3 (L3 three whole rows, L9 the board). */
 export function fanArea(cell: number, level: number): number[] {
@@ -82,6 +85,14 @@ export function blueprintSwaps(s: GameState, family: string) {
   return peekDeliveries(s, bpShow(s.unitLevel?.blueprint ?? 1)).filter((u) => (u.pend !== undefined || u.ord !== undefined) && u.family !== family);
 }
 
+/** Roster 6 Tilt Lever: the tilt a tap on `cell` would make right now (the board is not touched). The edge is the one the cell is nearest; L9 slides only that cell's row or column. */
+export function tiltPlanAt(s: GameState, cell: number, dir: TiltDir = tiltDirOf(cell)): TiltPlan {
+  const fixed = sandwichBlocked(s);
+  const wall = new Set<number>([...fixed, ...dropReserved(s), ...bossBlocked(s.boss).noDrop, ...bossPendingCells(s.boss)]);
+  const L = s.unitLevel?.tilt_lever ?? 1;
+  return planTilt(s.grid, dir, L, wall, fixed, (a, b) => canMerge(a, b, s), L >= 9 ? cell : undefined);
+}
+
 /** Can the card fire at this target now? (A tap that would do nothing never spends the charge.) */
 export function canUseSupport(s: GameState, cell: number, axis: Axis = 'row'): boolean {
   if (!supportReady(s)) return false;
@@ -89,6 +100,7 @@ export function canUseSupport(s: GameState, cell: number, axis: Axis = 'row'): b
   const lk = locked(s);
   if (f === 'battery') return true;
   if (f === 'rewind_crank') return !!s.support!.snap && s.elapsed - (s.support!.snapAt ?? -1e9) <= TUNING.r4.rwWindow;
+  if (f === 'tilt_lever') return cell >= 0 && cell < s.grid.length && (() => { const p = tiltPlanAt(s, cell); return p.slides.length > 0 || p.pairs.length > 0; })();
   if (f === 'blueprint') return !!g && !isSupport(g.family) && !lk.has(cell) && blueprintSwaps(s, g.family).length > 0;
   if (f === 'blast_plate') return !!s.boss && cell >= 0 && cell < s.grid.length && !(s.wards?.list ?? []).some((w) => wardCells(cell, lvl(s)).every((c) => w.cells.includes(c)));
   if (cell < 0 || cell >= s.grid.length) return false;
@@ -119,6 +131,9 @@ export function useSupport(s: GameState, cell: number, axis: Axis = 'row'): Comm
     sp.snap = sp.snapAt = sp.snapCharge = undefined;
     sp.charge = Math.max(0, Math.min(back - need, snapCharge));
     ev.push({ type: 'rewind', ...(L >= 9 ? { peek: peekNext(s) } : {}) });
+  } else if (f === 'tilt_lever') {
+    // roster 6 TILT: slide first (every part to its resting place, twins stop side by side), then the merges one by one in plan order, each with its own cascade
+    ev.push({ type: 'support', family: f, cells: [] }, ...runTilt(s, tiltPlanAt(s, cell)));
   } else if (f === 'blueprint') {
     // roster 4 PLAN: the next deliveries that are not this kind become copies of it, at number 1 (the first at number 2 from L9)
     const fam = s.grid[cell]!.family;
@@ -177,6 +192,27 @@ export function useSupport(s: GameState, cell: number, axis: Axis = 'row'): Comm
   return { ok: true, events: ev };
 }
 
+/** Roster 6 Tilt Lever: carry out a plan. The slides come in plan order (each lands in a cell that is free by then), then each pair merges as a normal merge
+ *  (byPlayer false: it never arms Wrench, releases a Capacitor or charges a card, and a tilt can never start another tilt). A pair whose parts a cascade moved or changed
+ *  in between is skipped; the tilt stops when the level ends. Same state + same tap = same result. */
+export function runTilt(s: GameState, plan: TiltPlan): GameEvent[] {
+  const ev: GameEvent[] = [];
+  for (const m of plan.slides) {
+    if (s.grid[m.from]?.id !== m.id || s.grid[m.to]) throw new Error('tilt slide desync');
+    s.grid[m.to] = s.grid[m.from];
+    s.grid[m.from] = null;
+    ev.push({ type: 'move', from: m.from, to: m.to, swap: false });
+  }
+  touched(s);
+  for (const p of plan.pairs) {
+    if (s.phase !== 'playing') break;
+    const a = s.grid[p.from], b = s.grid[p.to];
+    if (!a || !b || a.id !== p.fromId || b.id !== p.toId || !canMerge(a, b, s)) continue;
+    ev.push(...merge(s, p.from, p.to, null, false).events);
+  }
+  return ev;
+}
+
 /** A simple bot policy for the sims / tests: the target a sensible player would tap now, or null (keep charging). */
 export function autoSupport(s: GameState): { cell: number; axis: Axis } | null {
   if (!supportReady(s)) return null;
@@ -191,6 +227,17 @@ export function autoSupport(s: GameState): { cell: number; axis: Axis } | null {
     return best >= 0 ? { cell: best, axis, score: bs } : null;
   };
   if (f === 'battery') return { cell: -1, axis: 'row' };
+  if (f === 'tilt_lever') {
+    // the edge whose tilt makes the most merges (then the highest numbers); a tilt that only slides is not worth the charge
+    let best: { cell: number; axis: Axis } | null = null, bs = 0;
+    for (const i of cells) {
+      if (!canUseSupport(s, i, 'row')) continue;
+      const p = tiltPlanAt(s, i);
+      const v = p.pairs.length * 100 + p.pairs.reduce((m, x) => m + (s.grid[x.from]?.rank ?? 0), 0);
+      if (v > bs) [best, bs] = [{ cell: i, axis: 'row' }, v];
+    }
+    return best;
+  }
   if (f === 'rewind_crank') return null; // the bot decides when to undo (tools/squad-swap.ts): it needs the merge's result
   if (f === 'blueprint') {
     // a lonely number-1 part (odd count of its kind) gets a twin delivered; machines first

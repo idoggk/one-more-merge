@@ -2,6 +2,7 @@ import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
 import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1';
 import { beltCells, effectiveRank, entryDir, pistonMult, pistonPush, springCells } from './roster2';
 import { capDepth, capTargets, stairTop, stairWalk } from './roster4';
+import { canCopy, copyLevel, copyOwnMult, pickCopy, rememberCopy } from './roster6';
 import { boardSteps, craneLift, dynamoBlock, dynamoTouch, squareFit, swingBehind, swingKnock, swingMult } from './roster5';
 import { pipeFlow, teslaCharges, teslaMult, torchMult, torchTargets, type TorchHazard } from './roster3';
 import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Gadget, type Grid, type JobKey, type PerkId } from './types';
@@ -379,6 +380,9 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const squareKick = new Set<number>(); // roster5 Dynamo L9: ids of the parts in a fired Dynamo's block (hit x r5.squareL9, inside the stack cap)
   const ghost = new Set<number>(); // roster5 Crane: cells holding the part its lift made (counts as already fired: never woken, never in the chain)
   let crane: CascadeResult['crane'];
+  const copyUsed = new Set<Family>(); // roster6 Robot Arm COPY: relay kinds already copied in this cascade (each at most once)
+  const copyAt = new Map<number, number>(); // roster6 Robot Arm L3: id -> its own shot multiplier after copying a Rare or Epic relay
+  const copies: NonNullable<CascadeResult['copies']> = [];
   const spread = new Set<number>();
   const held = new Set<number>();
 
@@ -422,6 +426,133 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       edges.push({ from: idx, to: n, kind: 'spark' });
       enqueue(idx, n, a.depth + 1);
     }
+  };
+
+  /** Roster 6 Robot Arm COPY: one relay's job, done from `idx`. Called for a relay in the chain (fam = its own family, L = its level) and for a Robot Arm copying a relay it
+   *  remembers (`a` is then a virtual activation with the copied family at the Arm's cell, via = true: copies of Belt Drive / Spring never chain on). */
+  const relayJob = (idx: number, a: Activation, fam: Family, L: number, nth: number, via: boolean) => {
+      if (fam === 'spring' || fam === 'belt_drive') {
+        // roster2 HOP / BRIDGE: needs an entry side (core/roster2.ts); a resting row wakes nobody, locked parts and Junkzilla's divider block as for every relay
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        const entry = entryDir(a.parent, idx);
+        const wake = fam === 'spring' ? { cells: springCells(grid, idx, entry, L), exits: [] as number[] } : beltCells(grid, idx, entry, via ? Math.min(L, 5) : L); // a copied Belt Drive never chains belt to belt (anti-loop)
+        for (const to of wake.cells) {
+          const g = grid[to];
+          if (!g || to === idx || lockedSet.has(to) || crosses(idx, to) || (g.family === fam && L < 6 && !TUNING.sameFamilyRelay)) continue;
+          edges.push({ from: idx, to, kind: fam === 'spring' ? 'hop' : 'belt' });
+          if (fam === 'belt_drive' && L >= 9 && !visited.has(to) && wake.exits.includes(to)) beltKick.add(g.id);
+          enqueue(idx, to, a.depth + 1);
+        }
+        return;
+      }
+      if (fam === 'pipe') {
+        // roster3 SAME FAMILY: wakes the same-family parts joined to a part touching it (max 4, 6 from L3; L6 joined diagonally too)
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        const flow = pipeFlow(grid, idx, L, (i) => visited.has(i), lockedSet).filter((to) => !crosses(idx, to));
+        for (const to of flow) {
+          edges.push({ from: idx, to, kind: 'pipe' });
+          enqueue(idx, to, a.depth + 1);
+        }
+        if (L >= 9 && flow.length) pipeEnd.add(grid[flow[flow.length - 1]]!.id);
+        return;
+      }
+      if (fam === 'capacitor') {
+        // roster4 HOLD: a Capacitor does not pass the chain on. Woken in your merge it banks it (one bank, and never in a cascade that releases);
+        // the releasing one wakes its touching part(s) now and banks nothing, so a release never stores another release and never re-triggers itself
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        if (opts.capRelease?.id === a.id) {
+          capReleased = a.id;
+          for (const to of capTargets(grid, idx, L, (i) => visited.has(i) || blockSet.has(i) || crosses(idx, i), lockedSet)) {
+            edges.push({ from: idx, to, kind: 'cap' });
+            enqueue(idx, to, a.depth + 1 + capDepth(L));
+          }
+        } else if (opts.capBank && !opts.capRelease && !capBanked.length) capBanked.push(a.id);
+        return;
+      }
+      if (fam === 'ladder') {
+        // roster4 STAIRCASE: wakes a touching part exactly one rank above the Ladder, then from that part one more rank up; each step must touch
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        const walk = stairWalk(grid, idx, a.rank, L, (i) => visited.has(i) || blockSet.has(i), (i) => isShooter(grid[i]!.family), crosses);
+        let prev = idx;
+        walk.forEach((to, k) => {
+          edges.push({ from: prev, to, kind: 'stair' });
+          enqueue(prev, to, a.depth + 1 + k);
+          prev = to;
+        });
+        if (walk.length) stairEnd.add(grid[walk[walk.length - 1]]!.id);
+        return;
+      }
+      if (fam === 'dynamo') {
+        // roster5 2x2 SQUARE: in a full 2x2 block (L3: 3 parts + the Dynamo) it wakes the ring around the block and the block's other parts; else its 4 touching cells
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        const block = dynamoBlock(grid, idx, L);
+        for (const to of block ? [...(TUNING.r5.dynMates ? block.mates : []), ...block.ring] : dynamoTouch(idx)) {
+          if (!grid[to] || to === idx || lockedSet.has(to) || crosses(idx, to) || (grid[to]!.family === 'dynamo' && !TUNING.sameFamilyRelay && L < 6)) continue;
+          edges.push({ from: idx, to, kind: block ? 'ring' : 'spark' });
+          enqueue(idx, to, a.depth + 1);
+        }
+        if (block && L >= 9) for (const m of block.mates) squareKick.add(grid[m]!.id);
+        return;
+      }
+      if (fam === 'crane') {
+        // roster5 LIFT: once per level (the caller allows it), lift a part within reach onto its twin: they merge now, mid-chain, and the new part
+        // counts as already fired. L9: the merged part wakes its neighbours. Then, like any relay, it wakes its touching parts (r5.craneWake).
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        if (opts.crane && !crane) {
+          const lift = craneLift(grid, idx, L, (i) => !!grid[i] && !visited.has(i) && !blockSet.has(i) && !crosses(idx, i), opts.crane.can);
+          if (lift) {
+            const p = grid[lift.from]!, tw = grid[lift.to]!;
+            const merged: Gadget = { ...tw, rank: opts.crane.rank(tw) };
+            crane = { from: lift.from, to: lift.to, family: tw.family, rank: merged.rank, at: moves.length };
+            edges.push({ from: lift.from, to: lift.to, kind: 'lift' });
+            grid[lift.from] = null;
+            grid[lift.to] = merged;
+            visited.set(lift.to, { id: merged.id, idx: lift.to, family: merged.family, rank: merged.rank, depth: a.depth + 1, parent: idx, charge: 1, contribution: 0 });
+            fired.add(merged.id);
+            ghost.add(lift.to);
+            void p;
+            if (L >= 9) {
+              const [mr, mc] = rc(lift.to);
+              for (const [dr, dc] of DIRS) {
+                if (!inside(mr + dr, mc + dc)) continue;
+                const n = at(mr + dr, mc + dc);
+                if (!grid[n] || visited.has(n) || blockSet.has(n) || crosses(lift.to, n)) continue;
+                edges.push({ from: lift.to, to: n, kind: 'lift' });
+                enqueue(lift.to, n, a.depth + 2);
+              }
+            }
+          }
+        }
+        if (TUNING.r5.craneWake)
+          for (const to of dynamoTouch(idx)) {
+            if (!grid[to] || visited.has(to) || lockedSet.has(to) || crosses(idx, to) || grid[to]!.family === 'crane') continue;
+            edges.push({ from: idx, to, kind: 'spark' });
+            enqueue(idx, to, a.depth + 1);
+          }
+        return;
+      }
+      const kind = fam;
+      const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
+      const [ar, ac] = rc(idx);
+      if (opts.restRow !== undefined && ar === opts.restRow) return; // resting row: deals damage, wakes nobody
+      // roster1 Gear LINK: a merged Gear (depth <= r1.gearDepth) jumps the chain to the r1.gearLinks farthest other Gears,
+      // anywhere (even across Junkzilla's divider); every machine still fires once
+      const links = kind === 'gear' && a.depth <= TUNING.r1.gearDepth ? gearLinks(grid, idx, (i) => visited.has(i) || lockedSet.has(i), (L >= 6 ? TUNING.r1.gearLinksL6 : TUNING.r1.gearLinks) - gearJumps) : [];
+      gearJumps += links.length;
+      const route = RB && isRelay(fam) && !isRoster1(fam) ? rbRouteCells(idx, fam, L, nth, opts.perks) : [...new Set([...routeCells(idx, fam, a.rank, opts.perks), ...relayPerkCells(idx, a, L, nth), ...links, ...(kind === 'gear' ? gearLoneCells(grid, idx) : [])])];
+      for (const to of route) {
+        if (!grid[to] || to === idx || lockedSet.has(to)) continue;
+        const link = links.includes(to);
+        if (!link && opts.splitB !== undefined && ac <= opts.splitB !== to % COLS <= opts.splitB) continue; // Junkzilla's divider
+        if (!link && !TUNING.sameFamilyRelay && grid[to]!.family === fam) continue;
+        edges.push({ from: idx, to, kind: kind as CascadeResult['edges'][number]['kind'] });
+        if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
+        // roster B Horn L3 KICK: the shooters it wakes hit harder
+        if (RB && kind === 'horn' && L >= 3 && !visited.has(to) && isShooter(grid[to]!.family)) kicked.add(to);
+        if (kind === 'gear' && L >= 9 && !visited.has(to) && isShooter(grid[to]!.family)) gearKicked.add(to);
+        enqueue(idx, to, a.depth + 1);
+      }
+      if (a.rank >= MAX_RANK && !TUNING.clarity) maxSignature(idx, a);
   };
 
   // roster B Mortar L6 Last Word: Mortars wait here (once each) and fire FIFO, one at a time, whenever the queue runs dry
@@ -540,6 +671,21 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
             enqueue(idx, n, a.depth + 1);
           }
         }
+      }
+      if (a.family === 'robot_arm' && TUNING.roster6) {
+        // roster6 COPY: the last relay that woke it goes in its memory (never a Legendary, never another Arm); then it does the better remembered job from its own cell,
+        // once per relay kind per cascade. A Capacitor bank it holds is released by it (the release rules are the Capacitor's).
+        const L6 = lvl('robot_arm');
+        const waker = a.parent >= 0 ? visited.get(a.parent)?.family : undefined;
+        const mem = waker && canCopy(waker) ? rememberCopy(grid[idx]!.copy, waker, L6) : grid[idx]!.copy ?? [];
+        const pick = opts.capRelease?.id === a.id ? 'capacitor' : pickCopy(mem, copyUsed);
+        if (pick) {
+          copyUsed.add(pick);
+          const own = copyOwnMult(L6, pick);
+          if (own !== 1) copyAt.set(a.id, own);
+          relayJob(idx, { ...a, family: pick }, pick, copyLevel(L6, lvl(pick)), 0, true);
+        }
+        if (pick || mem.join() !== (grid[idx]!.copy ?? []).join()) copies.push({ id: a.id, family: pick, mem });
       }
       if (primedNow.has(a.id)) {
         primedNow.delete(a.id);
@@ -700,130 +846,8 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       }
       continue;
     }
-    if (a.family === 'spring' || a.family === 'belt_drive') {
-      // roster2 HOP / BRIDGE: needs an entry side (core/roster2.ts); a resting row wakes nobody, locked parts and Junkzilla's divider block as for every relay
-      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
-      const L = lvl(a.family);
-      const entry = entryDir(a.parent, idx);
-      const wake = a.family === 'spring' ? { cells: springCells(grid, idx, entry, L), exits: [] as number[] } : beltCells(grid, idx, entry, L);
-      for (const to of wake.cells) {
-        const g = grid[to];
-        if (!g || to === idx || lockedSet.has(to) || crosses(idx, to) || (g.family === a.family && L < 6 && !TUNING.sameFamilyRelay)) continue;
-        edges.push({ from: idx, to, kind: a.family === 'spring' ? 'hop' : 'belt' });
-        if (a.family === 'belt_drive' && L >= 9 && !visited.has(to) && wake.exits.includes(to)) beltKick.add(g.id);
-        enqueue(idx, to, a.depth + 1);
-      }
-      continue;
-    }
-    if (a.family === 'pipe') {
-      // roster3 SAME FAMILY: wakes the same-family parts joined to a part touching it (max 4, 6 from L3; L6 joined diagonally too)
-      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
-      const flow = pipeFlow(grid, idx, lvl('pipe'), (i) => visited.has(i), lockedSet).filter((to) => !crosses(idx, to));
-      for (const to of flow) {
-        edges.push({ from: idx, to, kind: 'pipe' });
-        enqueue(idx, to, a.depth + 1);
-      }
-      if (lvl('pipe') >= 9 && flow.length) pipeEnd.add(grid[flow[flow.length - 1]]!.id);
-      continue;
-    }
-    if (a.family === 'capacitor') {
-      // roster4 HOLD: a Capacitor does not pass the chain on. Woken in your merge it banks it (one bank, and never in a cascade that releases);
-      // the releasing one wakes its touching part(s) now and banks nothing, so a release never stores another release and never re-triggers itself
-      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
-      if (opts.capRelease?.id === a.id) {
-        capReleased = a.id;
-        for (const to of capTargets(grid, idx, lvl('capacitor'), (i) => visited.has(i) || blockSet.has(i) || crosses(idx, i), lockedSet)) {
-          edges.push({ from: idx, to, kind: 'cap' });
-          enqueue(idx, to, a.depth + 1 + capDepth(lvl('capacitor')));
-        }
-      } else if (opts.capBank && !opts.capRelease && !capBanked.length) capBanked.push(a.id);
-      continue;
-    }
-    if (a.family === 'ladder') {
-      // roster4 STAIRCASE: wakes a touching part exactly one rank above the Ladder, then from that part one more rank up; each step must touch
-      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
-      const walk = stairWalk(grid, idx, a.rank, lvl('ladder'), (i) => visited.has(i) || blockSet.has(i), (i) => isShooter(grid[i]!.family), crosses);
-      let prev = idx;
-      walk.forEach((to, k) => {
-        edges.push({ from: prev, to, kind: 'stair' });
-        enqueue(prev, to, a.depth + 1 + k);
-        prev = to;
-      });
-      if (walk.length) stairEnd.add(grid[walk[walk.length - 1]]!.id);
-      continue;
-    }
-    if (a.family === 'dynamo') {
-      // roster5 2x2 SQUARE: in a full 2x2 block (L3: 3 parts + the Dynamo) it wakes the ring around the block and the block's other parts; else its 4 touching cells
-      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
-      const block = dynamoBlock(grid, idx, lvl('dynamo'));
-      for (const to of block ? [...(TUNING.r5.dynMates ? block.mates : []), ...block.ring] : dynamoTouch(idx)) {
-        if (!grid[to] || to === idx || lockedSet.has(to) || crosses(idx, to) || (grid[to]!.family === 'dynamo' && !TUNING.sameFamilyRelay && lvl('dynamo') < 6)) continue;
-        edges.push({ from: idx, to, kind: block ? 'ring' : 'spark' });
-        enqueue(idx, to, a.depth + 1);
-      }
-      if (block && lvl('dynamo') >= 9) for (const m of block.mates) squareKick.add(grid[m]!.id);
-      continue;
-    }
-    if (a.family === 'crane') {
-      // roster5 LIFT: once per level (the caller allows it), lift a part within reach onto its twin: they merge now, mid-chain, and the new part
-      // counts as already fired. L9: the merged part wakes its neighbours. Then, like any relay, it wakes its touching parts (r5.craneWake).
-      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
-      if (opts.crane && !crane) {
-        const lift = craneLift(grid, idx, lvl('crane'), (i) => !!grid[i] && !visited.has(i) && !blockSet.has(i) && !crosses(idx, i), opts.crane.can);
-        if (lift) {
-          const p = grid[lift.from]!, tw = grid[lift.to]!;
-          const merged: Gadget = { ...tw, rank: opts.crane.rank(tw) };
-          crane = { from: lift.from, to: lift.to, family: tw.family, rank: merged.rank, at: moves.length };
-          edges.push({ from: lift.from, to: lift.to, kind: 'lift' });
-          grid[lift.from] = null;
-          grid[lift.to] = merged;
-          visited.set(lift.to, { id: merged.id, idx: lift.to, family: merged.family, rank: merged.rank, depth: a.depth + 1, parent: idx, charge: 1, contribution: 0 });
-          fired.add(merged.id);
-          ghost.add(lift.to);
-          void p;
-          if (lvl('crane') >= 9) {
-            const [mr, mc] = rc(lift.to);
-            for (const [dr, dc] of DIRS) {
-              if (!inside(mr + dr, mc + dc)) continue;
-              const n = at(mr + dr, mc + dc);
-              if (!grid[n] || visited.has(n) || blockSet.has(n) || crosses(lift.to, n)) continue;
-              edges.push({ from: lift.to, to: n, kind: 'lift' });
-              enqueue(lift.to, n, a.depth + 2);
-            }
-          }
-        }
-      }
-      if (TUNING.r5.craneWake)
-        for (const to of dynamoTouch(idx)) {
-          if (!grid[to] || visited.has(to) || lockedSet.has(to) || crosses(idx, to) || grid[to]!.family === 'crane') continue;
-          edges.push({ from: idx, to, kind: 'spark' });
-          enqueue(idx, to, a.depth + 1);
-        }
-      continue;
-    }
-    if (a.family === 'wrench' || a.family === 'blast_plate' || a.family === 'blueprint' || a.family === 'rewind_crank') continue; // Wrench / Blast Plate / Blueprint / Rewind Crank are passive Supports: never board parts (game.ts s.wrench / s.support)
-    const kind = a.family;
-    const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
-    const [ar, ac] = rc(idx);
-    if (opts.restRow !== undefined && ar === opts.restRow) continue; // resting row: deals damage, wakes nobody
-    // roster1 Gear LINK: a merged Gear (depth <= r1.gearDepth) jumps the chain to the r1.gearLinks farthest other Gears,
-    // anywhere (even across Junkzilla's divider); every machine still fires once
-    const links = kind === 'gear' && a.depth <= TUNING.r1.gearDepth ? gearLinks(grid, idx, (i) => visited.has(i) || lockedSet.has(i), (lvl('gear') >= 6 ? TUNING.r1.gearLinksL6 : TUNING.r1.gearLinks) - gearJumps) : [];
-    gearJumps += links.length;
-    const route = RB && isRelay(a.family) && !isRoster1(a.family) ? rbRouteCells(idx, a.family, lvl(a.family), nthOf.get(a.id) ?? 0, opts.perks) : [...new Set([...routeCells(idx, a.family, a.rank, opts.perks), ...relayPerkCells(idx, a, lvl(a.family), nthOf.get(a.id) ?? 0), ...links, ...(kind === 'gear' ? gearLoneCells(grid, idx) : [])])];
-    for (const to of route) {
-      if (!grid[to] || to === idx || lockedSet.has(to)) continue;
-      const link = links.includes(to);
-      if (!link && opts.splitB !== undefined && ac <= opts.splitB !== to % COLS <= opts.splitB) continue; // Junkzilla's divider
-      if (!link && !TUNING.sameFamilyRelay && grid[to]!.family === a.family) continue;
-      edges.push({ from: idx, to, kind });
-      if (kind === 'coil') charge.set(to, Math.max(charge.get(to) ?? 1, coilMult));
-      // roster B Horn L3 KICK: the shooters it wakes hit harder
-      if (RB && kind === 'horn' && lvl('horn') >= 3 && !visited.has(to) && isShooter(grid[to]!.family)) kicked.add(to);
-      if (kind === 'gear' && lvl('gear') >= 9 && !visited.has(to) && isShooter(grid[to]!.family)) gearKicked.add(to);
-      enqueue(idx, to, a.depth + 1);
-    }
-    if (a.rank >= MAX_RANK && !TUNING.clarity) maxSignature(idx, a);
+    if (a.family === 'wrench' || a.family === 'blast_plate' || a.family === 'blueprint' || a.family === 'rewind_crank' || a.family === 'tilt_lever') continue; // Wrench / Blast Plate / Blueprint / Rewind Crank / Tilt Lever are passive Supports: never board parts (game.ts s.wrench / s.support)
+    relayJob(idx, a, a.family, lvl(a.family), nthOf.get(a.id) ?? 0, false);
   }
 
   const acts = [...visited.values()].filter((x) => !ghost.has(x.idx));
@@ -839,6 +863,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if (pipeEnd.has(a.id)) r3j.flow = TUNING.r3.pipeLast;
     if (stairEnd.has(a.id) && stairTop(lvl('ladder')) > 1) r3j.stair = stairTop(lvl('ladder'));
     if ((swingAt.get(a.id) ?? 1) !== 1) r3j.swing = swingAt.get(a.id);
+    if ((copyAt.get(a.id) ?? 1) !== 1) r3j.copy = copyAt.get(a.id);
     if (squareKick.has(a.id)) {
       const sq = squareFit((r3j.flow ?? 1) * (r3j.stair ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (gearKicked.has(a.idx) ? TUNING.r1.gearKick : 1));
       if (sq > 1) r3j.square = sq;
@@ -890,5 +915,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(crane ? { crane } : {}), ...(fetch ? { fetch } : {}) };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(crane ? { crane } : {}), ...(copies.length ? { copies } : {}), ...(fetch ? { fetch } : {}) };
 }

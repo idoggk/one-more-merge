@@ -19,6 +19,7 @@ import { ROSTER_2_GUIDE, ROSTER_2_INFO } from '../../content/roster2';
 import { ROSTER_3_GUIDE, ROSTER_3_INFO } from '../../content/roster3';
 import { ROSTER_4_GUIDE, ROSTER_4_INFO } from '../../content/roster4';
 import { ROSTER_5_GUIDE, ROSTER_5_INFO } from '../../content/roster5';
+import { ROSTER_6_GUIDE, ROSTER_6_INFO } from '../../content/roster6';
 import { TUNING } from '../../content/tuning';
 import { crateName, latchRollUp, popToolboxLatch, toolboxCrateKey, toolboxOn } from '../fx/toolboxCrates';
 import { pctB, pityView, guaranteeText } from '../../core/crateOdds';
@@ -164,9 +165,9 @@ export function openUnitDetail(scene: GameScene, u: UnitDef) {
   c.add(scene.add.text(W / 2, top + 112, `${u.rarity.toUpperCase()}  \u00b7  ${u.role}  \u00b7  JOB: ${unitJob(u.id)?.job ?? '?'}${owned ? `  \u00b7  LEVEL ${st!.level}` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
   addMergedLine(scene, c, u.id, st?.level ?? 1, W / 2, top + 140, W - 120);
   // the animated mini-board explains it
-  const gi = GUIDE.find((g) => g.key === u.id) ?? ROSTER_1_GUIDE[u.id] ?? ROSTER_2_GUIDE[u.id] ?? ROSTER_3_GUIDE[u.id] ?? ROSTER_4_GUIDE[u.id] ?? ROSTER_5_GUIDE[u.id];
+  const gi = GUIDE.find((g) => g.key === u.id) ?? ROSTER_1_GUIDE[u.id] ?? ROSTER_2_GUIDE[u.id] ?? ROSTER_3_GUIDE[u.id] ?? ROSTER_4_GUIDE[u.id] ?? ROSTER_5_GUIDE[u.id] ?? ROSTER_6_GUIDE[u.id];
   // roster B: the job shape icon + job word beside the name
-  const rb = ROSTER_1_INFO[u.id as keyof typeof ROSTER_1_INFO] ?? ROSTER_2_INFO[u.id as keyof typeof ROSTER_2_INFO] ?? ROSTER_3_INFO[u.id as keyof typeof ROSTER_3_INFO] ?? ROSTER_4_INFO[u.id as keyof typeof ROSTER_4_INFO] ?? ROSTER_5_INFO[u.id as keyof typeof ROSTER_5_INFO];
+  const rb = ROSTER_1_INFO[u.id as keyof typeof ROSTER_1_INFO] ?? ROSTER_2_INFO[u.id as keyof typeof ROSTER_2_INFO] ?? ROSTER_3_INFO[u.id as keyof typeof ROSTER_3_INFO] ?? ROSTER_4_INFO[u.id as keyof typeof ROSTER_4_INFO] ?? ROSTER_5_INFO[u.id as keyof typeof ROSTER_5_INFO] ?? ROSTER_6_INFO[u.id as keyof typeof ROSTER_6_INFO];
   if (owned && rb && scene.textures.exists(`job_${u.id}`)) c.add([scene.add.image(W / 2 + 290, top + 60, `job_${u.id}`).setScale(0.9), scene.add.text(W / 2 + 290, top + 102, rb.job, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#7a5a4a' }).setOrigin(0.5)]);
   if (owned && gi) {
     scene.machineDemo(c, W / 2, top + 392, u.id); // +62: room for the WHEN MERGED line above the demo monster

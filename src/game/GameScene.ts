@@ -35,7 +35,8 @@ import { ROSTER_1_DEMOS } from '../content/roster1';
 import { ROSTER_2_DEMOS } from '../content/roster2';
 import { ROSTER_3_DEMOS } from '../content/roster3';
 import { ROSTER_4_DEMOS } from '../content/roster4';
-import { goodHereAll5 as goodHereAll, ROSTER_5_DEMOS } from '../content/roster5';
+import { ROSTER_5_DEMOS } from '../content/roster5';
+import { goodHereAll6 as goodHereAll, ROSTER_6_DEMOS } from '../content/roster6';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -67,6 +68,7 @@ import { playJobTag, playSupportFx } from './rosterFx';
 import { SupportCard } from './supportCard';
 import { WrenchBadge } from './ui/wrenchBadge';
 import { CapBadge } from './ui/capBadge';
+import { CopyBadges } from './ui/copyBadge';
 import { playBeatSounds, UNIT_SOUND } from './unitSounds';
 import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
@@ -345,6 +347,7 @@ export class GameScene extends Phaser.Scene {
     }, (msg, color) => this.showEvent(msg, color ?? '#fff0cf', 2200));
 
     this.wrench = new WrenchBadge(this, 82, () => STAGE_TOP + STAGE_H - 84); // roster 2: the passive Wrench's charge badge
+    this.copyBadges = new CopyBadges(this);
     this.capBadge = new CapBadge(this, 82, () => STAGE_TOP + STAGE_H - 214); // roster 4: what the Capacitor holds
 
     // tray
@@ -1673,6 +1676,7 @@ Now beat the real level.`, this.coachY());
     this.support?.sync(this.s);
     this.wrench?.sync(this.s);
     this.capBadge?.sync(this.s);
+    this.copyBadges?.sync(this.s.grid);
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
@@ -2042,6 +2046,7 @@ Now beat the real level.`, this.coachY());
         case 'support':
           playSupportFx(this, e, cellXY, FAMILY_INFO[e.family as 'fan']?.color ?? 0xffffff, { x: W / 2, y: BY + (CELL * ROWS) / 2 });
           UNIT_SOUND[e.family](0, 1);
+          if (e.family === 'tilt_lever') this.reconcile(false); // roster 6: the board slid; every part goes to its new cell before the merge chains play
           break;
         case 'rewind':
           // roster 4 Rewind Crank: the whole state went back; every sprite returns to its model cell
@@ -2701,6 +2706,7 @@ Now beat the real level.`, this.coachY());
   support?: SupportCard;
   wrench?: WrenchBadge;
   capBadge?: CapBadge;
+  copyBadges?: CopyBadges; // roster 6: the relay a Robot Arm remembers, drawn on the arm
   pendingFormula: HitFormula | null = null;
   playCascade(r: CascadeResult, odStart: boolean, kickback: boolean) {
     this.lastCascade = r;
@@ -2752,6 +2758,17 @@ Now beat the real level.`, this.coachY());
         this.ring(c.x, c.y, 0xffe08a, 80, 14, 320);
         this.floatText(c.x, c.y - 50, 'LIFT!', '#ffe08a', 32, 200);
         UNIT_SOUND.crane(0, 1);
+      });
+    }
+    for (const c of r.copies ?? []) {
+      // roster 6 Robot Arm COPY: the arm names the relay job it just did, over itself
+      if (!c.family) continue;
+      const idx = r.activations.find((x) => x.id === c.id)?.idx;
+      if (idx === undefined) continue;
+      const p = cellXY(idx);
+      this.time.delayedCall(windup + step, () => {
+        this.floatText(p.x, p.y - 56, `COPY ${FAMILY_INFO[c.family!].name.toUpperCase()}`, '#b0d8ff', 28, 200);
+        UNIT_SOUND.robot_arm(0, 1);
       });
     }
     // r25: a power-up that fires pops its icon over its machine (OVERCHARGE also shows x2)
@@ -5026,6 +5043,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       ...ROSTER_3_DEMOS,
       ...ROSTER_4_DEMOS,
       ...ROSTER_5_DEMOS,
+      ...ROSTER_6_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();

@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18, robot_arm: 12, tilt_lever: 0 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -207,6 +207,15 @@ export const TUNING = {
    *  craneReachL3 steps) onto its twin once per level (L6 +1 per boss armor phase); L9 the lifted part wakes its neighbours. */
   roster5: false,
   r5: { swingNear: 0.6, swingPer: 0.3, swingMax: 2, swingMaxL3: 2.3, swingFar: 4, ringWide: 2, squareL9: 1.25, stackCap: 1.5, dynMates: false, craneReach: 1, craneReachL3: 2, craneWake: true },
+  /** EXPERIMENT (t-f2cd50e4, roster B batch 6), default OFF: Robot Arm / Tilt Lever join the collection, crates and squad pickers (src/content/units.ts applyRoster6;
+   *  both are Legendary, so they drop only with crates B, rosterB). Rules: src/core/roster6.ts, docs/ROSTER.md section 13. Robot Arm COPY: it remembers the last relay that
+   *  woke it (never a Legendary) and, each time it fires, shoots AND does that relay's job from its own cell; one copy per relay kind per cascade; copies of Belt Drive / Spring
+   *  never chain on (L6 belt-to-belt off) and a copied Capacitor banks only under the Capacitor rules (one bank, never in a release); L3 its own shot x copyOwnL3 when it
+   *  copied a Rare or Epic relay; L6 it holds 2 jobs and uses the better one; L9 copies at the relay's L9 upgrade. Tilt Lever TILT: a Support card, charge = your own drag merges
+   *  (tiltMerges; tiltMergesL3 from L3); tap near an edge: every part slides that way, twins merge (max tiltMax merges, tiltMaxL6 from L6), each merge fires its own cascade in order;
+   *  L9 slides only the tapped row or column. Off in drills, the Daily Puzzle and Bounties. */
+  roster6: false,
+  r6: { copyOwnL3: 1.2, copyKeep: 1, copyKeepL6: 2, tiltMerges: 15, tiltMergesL3: 12, tiltMax: 3, tiltMaxL6: 4 },
   r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };
 

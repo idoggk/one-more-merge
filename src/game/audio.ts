@@ -284,6 +284,19 @@ export const sfx = {
       tone(vary(1800), 0.1, 'square', 0.03, delay + 0.14);
     }
   },
+  /** roster B batch 6 (t-f2cd50e4), pitched from the same synth voices: Robot Arm = two servo whirs and a claw clack, Tilt Lever = a heavy lever clunk and a rumble of sliding parts. */
+  roster6: (fam: string, delay = 0) => {
+    if (fam === 'robot_arm') {
+      tone(vary(420), 0.12, 'sawtooth', 0.03, delay, 760);
+      tone(vary(560), 0.1, 'sawtooth', 0.03, delay + 0.12, 300);
+      tone(vary(1500), 0.04, 'square', 0.05, delay + 0.24);
+      tone(vary(1100), 0.04, 'square', 0.05, delay + 0.29);
+    } else if (fam === 'tilt_lever') {
+      tone(vary(90), 0.16, 'triangle', 0.1, delay, 50);
+      bandNoise(0.3, 0.12, delay + 0.08, 600, 0.8);
+      tone(vary(180), 0.08, 'square', 0.04, delay + 0.4);
+    }
+  },
   /** roster B batch 4 (t-1e3c8bb6), pitched from the same synth voices: Capacitor = a charging whine that clicks shut, Blueprint = a paper
    *  flick and a pencil tick, Ladder = three rising rung taps, Rewind Crank = a ratchet winding backwards. */
   roster4: (fam: string, delay = 0) => {

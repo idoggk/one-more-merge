@@ -18,6 +18,7 @@ import { bypassBonus } from './roster1';
 import { wrenchAfterMerge, wrenchNext, type WrenchState } from './roster2';
 import { type TorchHazard, type WardState } from './roster3';
 import { craneAllowance } from './roster5';
+import { tiltNeed } from './roster6';
 import { type CapBank, rewindModeOk, rewindSnapshot, rwHold, rwNeed } from './roster4';
 import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
@@ -247,8 +248,8 @@ export function newGame(seed: number, tutorial = false, hard = false, toys: Fami
     stats: { merges: 0, scraps: 0, biggestChain: 0, biggestHit: 0, bestRank: 1, totalDamage: 0, dmgBy: {}, kickFuses: 0 },
   };
   for (const [r, c, f] of START) s.grid[idxOf(r, c)] = makeGadget(s, f === 'cannon' ? shooterOf(s) : f, 1);
-  const card = TUNING.rosterB ? s.toys.find(isSupport) : !tutorial ? s.toys.find((f) => f === 'blast_plate' || f === 'blueprint' || f === 'rewind_crank') : undefined; // roster 3 / 4 cards (Blast Plate, Blueprint, Rewind Crank) are cards even without crates B
-  if ((card === 'blast_plate' && !TUNING.roster3) || ((card === 'blueprint' || card === 'rewind_crank') && !TUNING.roster4)) s.support = undefined;
+  const card = TUNING.rosterB ? s.toys.find(isSupport) : !tutorial ? s.toys.find((f) => f === 'blast_plate' || f === 'blueprint' || f === 'rewind_crank' || f === 'tilt_lever') : undefined; // roster 3 / 4 cards (Blast Plate, Blueprint, Rewind Crank) are cards even without crates B
+  if ((card === 'blast_plate' && !TUNING.roster3) || ((card === 'blueprint' || card === 'rewind_crank') && !TUNING.roster4) || (card === 'tilt_lever' && !TUNING.roster6)) s.support = undefined;
   else if (card) s.support = { family: card, charge: 0, uses: 0 };
   if (TUNING.roster2 && !tutorial && toys.includes('wrench')) s.wrench = { armed: [], uses: 0 }; // roster 2 passive Support: never on the board
   s.supplyTimer = supplyPeriod(s);
@@ -747,6 +748,7 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
     const r = merge(s, from, to, sandwichFor(s, from, to), true); // no cooldown: a legal second merge is never refused
     // roster B Support card: +1 charge per machine that fired in YOUR merge chain (Rewind Crank: +1 per merge, holds rwHold charges)
     if (crank) crank.charge = Math.min(crank.charge + 1, rwNeed(s.unitLevel?.rewind_crank ?? 1) * rwHold(s.unitLevel?.rewind_crank ?? 1));
+    else if (s.support?.family === 'tilt_lever') s.support.charge = Math.min(s.support.charge + 1, tiltNeed(s.unitLevel?.tilt_lever ?? 1)); // roster 6 Tilt Lever: +1 per merge you make (its own tilt merges never count)
     else if (s.support && s.support.family !== 'rewind_crank') for (const e of r.events) if (e.type === 'cascade' && !e.kickback) s.support.charge += e.result.count;
     return r;
   }
@@ -786,7 +788,7 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
 }
 
 /** TUNING.mergeRule prototype: cells a sandwich may never absorb (locked, boss no-drag, towed). */
-function sandwichBlocked(s: GameState): Set<number> {
+export function sandwichBlocked(s: GameState): Set<number> {
   const out = new Set<number>([...locked(s), ...bossBlocked(s.boss).noDrag]);
   const act = s.boss?.active;
   if (s.boss && act && castAttack(s.boss, act) === 'tow') s.grid.forEach((g, i) => g && act.ids?.includes(g.id) && out.add(i));
@@ -825,6 +827,8 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   if (parts.some((p) => p.amp)) g.amp = Math.max(...parts.map((p) => p.amp ?? 0)); // r32 marks transfer, the larger survives
   const inherit = b.item ?? a.item ?? eaten.find((p) => p.item)?.item; // r25: one attachment transfers; with two, the destination's survives
   if (inherit) g.item = { ...inherit };
+  const mem = b.copy ?? a.copy; // roster 6: a Robot Arm keeps what it remembers when it merges (the destination's memory wins)
+  if (mem) g.copy = [...mem];
   // r29: merging a towed machine releases the tow bar; ransom markers move onto the result
   const ta = s.boss?.active;
   if (s.boss && ta && castAttack(s.boss, ta) === 'tow' && ta.ids?.some((i) => i === a.id || i === b.id)) s.boss.active = null;
@@ -983,6 +987,10 @@ export function applyMoves(s: GameState, r: CascadeResult) {
   // new primes first, then discharges (a cannon primed earlier in this cascade may already have used it)
   for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
   for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
+  for (const c of r.copies ?? []) {
+    const g = s.grid.find((x) => x?.id === c.id);
+    if (g) g.copy = c.mem.length ? [...c.mem] : undefined; // roster 6 Robot Arm: what it remembers now
+  }
   // r32 Amplifier / Beacon: spend marks that fired, then place new ones still unused (a stronger mark wins)
   for (const [f, n] of Object.entries(r.fires ?? {})) (s.fireCount ??= {})[f] = (s.fireCount[f] ?? 0) + n;
   for (const g of s.grid) if (g?.amp && r.ampsUsed?.includes(g.id)) delete g.amp;
@@ -1003,6 +1011,7 @@ function applyCrane(s: GameState, c: NonNullable<CascadeResult['crane']>) {
   if (a.amp || b.amp) g.amp = Math.max(a.amp ?? 0, b.amp ?? 0);
   const inherit = b.item ?? a.item;
   if (inherit) g.item = { ...inherit };
+  if (b.copy ?? a.copy) g.copy = [...(b.copy ?? a.copy)!];
   if (g.family === 'cannon') g.cd = cannonPeriod(s);
   bossRelabel(s.boss, [a.id, b.id], g.id);
   s.grid[c.from] = null;
@@ -1130,6 +1139,7 @@ export function newPuzzle(p: PuzzleDef): GameState {
 export function unitActed(r: CascadeResult, unit: Family): boolean {
   if (unit === 'wrench') return !!r.wrenchBoost; // roster 2: Wrench acts when an armed merge was spent
   if (unit === 'crane') return !!r.crane; // roster 5: a Crane acts when it lifted a part onto its twin
+  if (unit === 'robot_arm') return !!r.copies?.some((c) => c.family); // roster 6: a Robot Arm acts when it did a copied relay job
   return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }
 
@@ -1182,7 +1192,7 @@ function startRunFromTutorial(s: GameState, ev: GameEvent[]) {
 }
 
 /** TUNING.thinkBank prototype: the player's last successful board command (merge, move, scrap, item). */
-function touched(s: GameState) {
+export function touched(s: GameState) {
   if (TUNING.thinkBank) s.idleFor = 0;
 }
 

@@ -1,10 +1,10 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--roster3] [--roster4] [--roster5] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
+// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--roster3] [--roster4] [--roster5] [--roster6] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 //        [--rule today|sandwich2|sandwichBonus]   (t-1effe0bf merge rule prototype; also prints board-full time, sandwiches/run, mean chain)
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, levelMult, ROSTER_3_UNITS, ROSTER_5_UNITS, unitDef } from '../src/content/units';
+import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, applyRoster6, levelMult, ROSTER_3_UNITS, ROSTER_5_UNITS, ROSTER_6_UNITS, unitDef } from '../src/content/units';
 import { boardSteps, swingMult } from '../src/core/roster5';
 import { choosePerk, drop, legalPairs, locked, newLevel, previewMerge, sandwichFor, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
@@ -54,6 +54,10 @@ applyRoster4(ROSTER4);
 // Run with --roster1 --roster2 as well for the Gear / Spring / Belt Drive pairs.
 const ROSTER5 = args.includes('--roster5');
 applyRoster5(ROSTER5);
+// --roster6 (t-f2cd50e4): roster B batch 6 on (TUNING.roster6) and its squads added (Robot Arm shooter with different relay pairs, +TILT_LEVER helper card). Both are Legendary and only reach
+// the collection with crates B, but the sim picks squads by hand, so they play without --rb. The bot taps Tilt Lever on the edge with the most merges (core/support autoSupport).
+const ROSTER6 = args.includes('--roster6');
+applyRoster6(ROSTER6);
 
 type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
 const SQUADS: Squad[] = [
@@ -67,6 +71,12 @@ const SQUADS: Squad[] = [
     ? [
         ...(['nail_gun', 'jackhammer', 'saw_blade'] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ['coil', 'bell'] as [Family, Family] })),
         ...([['coil', 'gear'], ['gear', 'bell']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+      ]
+    : []),
+  ...(ROSTER6
+    ? [
+        ...([['coil', 'bell'], ['bell', 'horn'], ['coil', 'horn'], ['horn', 'fuse_box']] as [Family, Family][]).map((r) => ({ key: `ARM/${r[0]}+${r[1]}`.toUpperCase(), shooter: 'robot_arm' as Family, relays: r })),
+        { key: '+TILT_LEVER', shooter: 'cannon' as Family, relays: ['coil', 'bell'] as [Family, Family], helper: 'tilt_lever' as Family },
       ]
     : []),
   ...(ROSTER5
@@ -191,6 +201,10 @@ interface Run {
   ballN: number; // roster 5: Wrecking Ball hits woken by a part, their summed distance multiplier and how many sat at the cap
   ballSum: number;
   ballCap: number;
+  copies: number; // roster 6: Robot Arm copied relay jobs
+  armFires: number;
+  tilts: number; // roster 6: Tilt Lever taps
+  tiltMerges: number;
 }
 
 function absorb(r: Run, c: CascadeResult, player: boolean) {
@@ -215,6 +229,8 @@ function absorb(r: Run, c: CascadeResult, player: boolean) {
     }
   }
   r.pierced += c.pierced ?? 0;
+  r.copies += (c.copies ?? []).filter((x) => x.family).length;
+  r.armFires += c.activations.filter((a) => a.family === 'robot_arm').length;
   if (c.crane) r.lifts++;
   for (const a of c.activations)
     if (a.family === 'wrecking_ball' && a.parent >= 0) {
@@ -235,10 +251,10 @@ function absorb(r: Run, c: CascadeResult, player: boolean) {
 function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
   const s = newLevel(def, { shooter: sq.shooter, relays: sq.relays, toys: sq.helper ? [sq.helper] : [] });
   if (LVL) {
-    s.unitMult = Object.fromEntries(FAMILIES.map((f) => [f, levelMult(unitDef(f) ?? ROSTER_3_UNITS.find((u) => u.id === f) ?? ROSTER_5_UNITS.find((u) => u.id === f), LVL)]));
+    s.unitMult = Object.fromEntries(FAMILIES.map((f) => [f, levelMult(unitDef(f) ?? ROSTER_3_UNITS.find((u) => u.id === f) ?? ROSTER_5_UNITS.find((u) => u.id === f) ?? ROSTER_6_UNITS.find((u) => u.id === f), LVL)]));
     s.unitLevel = Object.fromEntries(FAMILIES.map((f) => [f, LVL]));
   }
-  const r: Run = { won: false, clock: 1, chains: [], dmgFam: {}, passive: 0, deep: 0, total: 0, acts: 0, relayFires: {}, relayWakes: {}, moves: 0, primes: 0, primesUsed: 0, marks: 0, marksUsed: 0, arcs: 0, arcToWelder: 0, clears: 0, fetches: 0, fullSecs: 0, secs: 0, sandwiches: 0, supports: 0, decisions: 0, swOpp: 0, gearLinks: 0, pierced: 0, lifts: 0, ballN: 0, ballSum: 0, ballCap: 0 };
+  const r: Run = { won: false, clock: 1, chains: [], dmgFam: {}, passive: 0, deep: 0, total: 0, acts: 0, relayFires: {}, relayWakes: {}, moves: 0, primes: 0, primesUsed: 0, marks: 0, marksUsed: 0, arcs: 0, arcToWelder: 0, clears: 0, fetches: 0, fullSecs: 0, secs: 0, sandwiches: 0, supports: 0, decisions: 0, swOpp: 0, gearLinks: 0, pierced: 0, lifts: 0, ballN: 0, ballSum: 0, ballCap: 0, copies: 0, armFires: 0, tilts: 0, tiltMerges: 0 };
   const see = (ev: GameEvent[], player: boolean) => {
     for (const e of ev) {
       if (e.type === 'cascade') absorb(r, e.result, player && !e.kickback);
@@ -270,6 +286,10 @@ function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
       if (sup && (bot.name !== 'random' || rng.next() < 0.5)) {
         const res = useSupport(s, sup.cell, sup.axis);
         if (res.ok) r.supports++;
+        if (res.ok && s.support?.family === 'tilt_lever') {
+          r.tilts++;
+          r.tiltMerges += res.events.filter((e) => e.type === 'cascade').length;
+        }
         see(res.events, true);
       }
       const m = s.phase === 'playing' ? bot.pick(s, rng) : null;
@@ -328,6 +348,8 @@ for (const sq of SQUADS) {
     if (sq.relays.includes('gear')) helper += `  gear links ${per((r) => r.gearLinks)}`;
     if (sq.relays.includes('crane')) helper += `  lifts/run ${per((r) => r.lifts)}`;
     if (sq.shooter === 'wrecking_ball') helper += `  ball avg x${(sumOf((r) => r.ballSum) / Math.max(1, sumOf((r) => r.ballN))).toFixed(2)} capped ${pct(sumOf((r) => r.ballCap) / Math.max(1, sumOf((r) => r.ballN)))}% hits/run ${per((r) => r.ballN)}`;
+    if (sq.shooter === 'robot_arm') helper += `  arm copies/fire ${(sumOf((r) => r.copies) / Math.max(1, sumOf((r) => r.armFires))).toFixed(2)}`;
+    if (sq.helper === 'tilt_lever') helper += `  tilts/run ${per((r) => r.tilts)}  merges/tilt ${(sumOf((r) => r.tiltMerges) / Math.max(1, sumOf((r) => r.tilts))).toFixed(2)}`;
     if (sq.shooter === 'jackhammer') helper += `  pierced ${pct(sumOf((r) => r.pierced) / total)}%`;
     if (sq.shooter === 'arc_welder') helper += `  arcs ${per((r) => r.arcs)}  arc->welder ${pct(sumOf((r) => r.arcToWelder) / Math.max(1, sumOf((r) => r.arcs)))}%`;
     const a: Agg = {

@@ -135,6 +135,7 @@ const UNITS_ARG = process.argv.includes('--units') ? (process.argv[process.argv.
 if (UNITS_ARG) {
   const data = JSON.parse(readFileSync('src/content/puzzles.json', 'utf8')) as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
   if (UNITS_ARG.some((u) => u === 'crane' || u === 'dynamo' || u === 'wrecking_ball')) TUNING.roster5 = true; // t-af818b65: batch 5 units only act with the flag on
+  if (UNITS_ARG.some((u) => u === 'robot_arm')) TUNING.roster6 = true; // t-f2cd50e4: a Robot Arm only copies with batch 6 on (Tilt Lever has no drill: it is OFF in drills by design, see docs/ROSTER.md section 13)
   if (UNITS_ARG.some((u) => u === 'capacitor')) TUNING.roster4 = true; // t-1e3c8bb6: a Capacitor only banks / releases with batch 4 on (Blueprint and Rewind Crank have no drill: see docs/ROSTER.md section 11)
   for (const u of UNITS_ARG) {
     const r = new Rng(20261010 ^ [...u].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0), 7));

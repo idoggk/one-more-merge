@@ -1,4 +1,4 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family;
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family;
 /** Roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on. */
 export type Roster1Family = 'nail_gun' | 'jackhammer' | 'gear' | 'saw_blade';
 export const ROSTER_1: Roster1Family[] = ['nail_gun', 'jackhammer', 'gear', 'saw_blade'];
@@ -14,14 +14,18 @@ export const ROSTER_4: Roster4Family[] = ['capacitor', 'blueprint', 'ladder', 'r
 /** Roster B batch 5 (t-af818b65, TUNING.roster5): only reachable while the flag is on. Crane and Dynamo are Legendary relays (drop only with crates B); Wrecking Ball is an Epic shooter. */
 export type Roster5Family = 'crane' | 'dynamo' | 'wrecking_ball';
 export const ROSTER_5: Roster5Family[] = ['crane', 'dynamo', 'wrecking_ball'];
+/** Roster B batch 6 (t-f2cd50e4, TUNING.roster6): only reachable while the flag is on. Both are Legendary (drop only with crates B): Robot Arm is a shooter, Tilt Lever an off-board Support card. */
+export type Roster6Family = 'robot_arm' | 'tilt_lever';
+export const ROSTER_6: Roster6Family[] = ['robot_arm', 'tilt_lever'];
+export const isRoster6 = (f: Family): f is Roster6Family => (ROSTER_6 as Family[]).includes(f);
 export const isRoster5 = (f: Family): f is Roster5Family => (ROSTER_5 as Family[]).includes(f);
 export const isRoster4 = (f: Family): f is Roster4Family => (ROSTER_4 as Family[]).includes(f);
 export const isRoster3 = (f: Family): f is Roster3Family => (ROSTER_3 as Family[]).includes(f);
 export const isRoster2 = (f: Family): f is Roster2Family => (ROSTER_2 as Family[]).includes(f);
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1, ...ROSTER_2, ...ROSTER_3, ...ROSTER_4, ...ROSTER_5];
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1, ...ROSTER_2, ...ROSTER_3, ...ROSTER_4, ...ROSTER_5, ...ROSTER_6];
 export const isRoster1 = (f: Family): f is Roster1Family => (ROSTER_1 as Family[]).includes(f);
 /** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5); r32 adds Mortar + Arc Welder; roster B Nail Gun, Drill, Saw Blade. */
-export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade' || f === 'piston' || f === 'blowtorch' || f === 'tesla_tower' || f === 'wrecking_ball';
+export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade' || f === 'piston' || f === 'blowtorch' || f === 'tesla_tower' || f === 'wrecking_ball' || f === 'robot_arm';
 /** RELAY role: wakes OTHER families. r32 adds Horn (column) + Fuse Box (diagonals); roster B Gear (links to other Gears). */
 export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box' || f === 'gear' || f === 'spring' || f === 'belt_drive' || f === 'pipe' || f === 'capacitor' || f === 'ladder' || f === 'crane' || f === 'dynamo';
 
@@ -39,6 +43,8 @@ export interface Gadget {
   amp?: number;
   /** r25 attachment (ChatGPT ITEM_RULES): spent on activations in player-rooted cascades. */
   item?: { kind: ItemKind; charges: number };
+  /** TUNING.roster6 Robot Arm COPY: the relays that woke it last (newest last; 1 remembered job, 2 from L6). Carried through merges. */
+  copy?: Family[];
 }
 
 /** r25 power-up items: OVERCHARGE (shooter, next 2 chain shots x1.5), SPARK (shooter wakes U/R/D/L once), CORNER (Bell wakes diagonals once). */
@@ -62,16 +68,16 @@ export interface Activation {
 }
 
 /** TUNING.rosterB job multipliers: Mortar DEPTH, Rocket BURST (you merged it), Horn KICK, Arc SPREAD, Battery PRIME, Beacon GO. */
-export type JobKey = 'mortar' | 'burst' | 'kick' | 'spread' | 'prime' | 'go' | 'burn' | 'storm' | 'flow' | 'stair' | 'swing' | 'square';
+export type JobKey = 'mortar' | 'burst' | 'kick' | 'spread' | 'prime' | 'go' | 'burn' | 'storm' | 'flow' | 'stair' | 'swing' | 'square' | 'copy';
 /** TUNING.rosterB: the five helpers are off-board Support cards. */
 export const SUPPORT_FAMILIES: Family[] = ['fan', 'magnet', 'battery', 'amplifier', 'signal_beacon'];
-export const isSupport = (f: Family) => SUPPORT_FAMILIES.includes(f) || f === 'blast_plate' || f === 'blueprint' || f === 'rewind_crank';
+export const isSupport = (f: Family) => SUPPORT_FAMILIES.includes(f) || f === 'blast_plate' || f === 'blueprint' || f === 'rewind_crank' || f === 'tilt_lever';
 
 export interface CascadeResult {
   rootIdx: number;
   activations: Activation[];
   /** Every route emitted (including to already-visited gadgets), for drawing links. */
-  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' | 'gear' | 'hop' | 'belt' | 'pipe' | 'cap' | 'stair' | 'lift' | 'ring' | 'swing' }[];
+  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' | 'gear' | 'hop' | 'belt' | 'pipe' | 'cap' | 'stair' | 'lift' | 'ring' | 'swing' | 'copy' }[];
   /** Cannons primed by batteries during this cascade (ids). Caller applies. */
   primes: number[];
   /** r32 perks: chain fires per family in this cascade (feeds the 'every Nth fire' milestone counters). */
@@ -104,4 +110,6 @@ export interface CascadeResult {
   capReleased?: number;
   /** Roster 5 Crane LIFT: the part lifted onto its twin mid-chain (the caller merges them; `at` = how many of `moves` came before it). */
   crane?: { from: number; to: number; family: Family; rank: number; at: number };
+  /** Roster 6 Robot Arm COPY: per Arm that fired, the relay job it did (null = none) and the memory it ends with (the caller writes it on the part). */
+  copies?: { id: number; family: Family | null; mem: Family[] }[];
 }
