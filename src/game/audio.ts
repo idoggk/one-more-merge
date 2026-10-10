@@ -279,6 +279,42 @@ export const sfx = {
     tone(vary(240), 0.08, 'triangle', 0.14, delay + 0.14, 160);
     bandNoise(0.04, 0.15, delay + 0.14, 900);
   },
+  // t-e91097cd: one sound per unit, built from the same tones (no new assets)
+  /** rocket: rising whoosh + the cannon body */
+  rocket: (delay = 0) => {
+    bandNoise(0.2, 0.12, delay, 1400, 0.7);
+    tone(vary(260), 0.18, 'sawtooth', 0.04, delay, 900);
+    tone(vary(160), 0.16, 'triangle', 0.16, delay + 0.08, 70);
+  },
+  /** mortar: hollow tube thunk, then a low landing */
+  mortar: (delay = 0) => {
+    tone(vary(140), 0.12, 'triangle', 0.2, delay, 90);
+    bandNoise(0.08, 0.14, delay, 500, 1);
+    tone(70, 0.22, 'sine', 0.14, delay + 0.16, 40);
+  },
+  /** arc welder: high crackle + short zap */
+  arc: (delay = 0) => {
+    bandNoise(0.1, 0.08, delay, 6000, 4);
+    tone(vary(1100), 0.07, 'sawtooth', 0.03, delay, 500);
+  },
+  /** horn: low brass blare (the bell's partials, falling) */
+  horn: (delay = 0) => {
+    tone(vary(196), 0.3, 'sawtooth', 0.05, delay, 175);
+    tone(vary(392), 0.25, 'triangle', 0.06, delay, 350);
+  },
+  /** fuse box: two quick sparks */
+  fuse: (delay = 0) => {
+    bandNoise(0.03, 0.1, delay, 4500, 3);
+    bandNoise(0.03, 0.08, delay + 0.06, 3500, 3);
+    tone(vary(900), 0.05, 'square', 0.02, delay);
+  },
+  /** amplifier: rising sine swell */
+  amp: (delay = 0) => tone(vary(440), 0.2, 'sine', 0.08, delay, 880),
+  /** signal beacon: two-note radio beep */
+  beacon: (delay = 0) => {
+    tone(988, 0.07, 'square', 0.03, delay);
+    tone(1319, 0.09, 'square', 0.03, delay + 0.09);
+  },
   /** victory_rebuild: low clunk, three bright plucks resolving into a chord, nut-click */
   win: () => {
     tone(100, 0.2, 'triangle', 0.25, 0, 60);

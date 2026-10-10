@@ -80,23 +80,26 @@ export function applyThinkBank(on: boolean) {
   TUNING.thinkBank = on;
 }
 
-/** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF). */
-export type UnitsVariant = 'off' | 'b0' | 'b1';
+/** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF);
+ *  t-e91097cd adds ROSTER B ('rb': TUNING.rosterB, the B jobs + Support card). */
+export type UnitsVariant = 'off' | 'b0' | 'b1' | 'rb';
 export const UNITS_VARIANTS: { id: UnitsVariant; label: string }[] = [
   { id: 'off', label: 'OFF' },
   { id: 'b0', label: 'B0' },
   { id: 'b1', label: 'B1' },
+  { id: 'rb', label: 'ROSTER B' },
 ];
 export function storedUnits(read: () => string | null): UnitsVariant {
   try {
     const v = read();
-    return v === 'on' ? 'b0' : v === 'b1' ? 'b1' : 'off';
+    return v === 'on' ? 'b0' : v === 'b1' ? 'b1' : v === 'rb' ? 'rb' : 'off';
   } catch {
     return 'off';
   }
 }
-export const unitsStoreValue = (v: UnitsVariant) => (v === 'b0' ? 'on' : v === 'b1' ? 'b1' : null);
+export const unitsStoreValue = (v: UnitsVariant) => (v === 'b0' ? 'on' : v === 'b1' ? 'b1' : v === 'rb' ? 'rb' : null);
 export function applyUnits(v: UnitsVariant) {
   TUNING.unitsB0 = v === 'b0';
   TUNING.unitsB1 = v === 'b1';
+  TUNING.rosterB = v === 'rb';
 }

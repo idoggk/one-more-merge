@@ -37,7 +37,15 @@ export interface Activation {
   parent: number; // idx of discovering gadget, -1 for root
   charge: number;
   contribution: number;
+  /** TUNING.rosterB: the job multipliers already inside `contribution` (shown in the formula strip / over the machine). */
+  jobs?: Partial<Record<JobKey, number>>;
 }
+
+/** TUNING.rosterB job multipliers: Mortar DEPTH, Rocket BURST (you merged it), Horn KICK, Arc SPREAD, Battery PRIME, Beacon GO. */
+export type JobKey = 'mortar' | 'burst' | 'kick' | 'spread' | 'prime' | 'go';
+/** TUNING.rosterB: the five helpers are off-board Support cards. */
+export const SUPPORT_FAMILIES: Family[] = ['fan', 'magnet', 'battery', 'amplifier', 'signal_beacon'];
+export const isSupport = (f: Family) => SUPPORT_FAMILIES.includes(f);
 
 export interface CascadeResult {
   rootIdx: number;

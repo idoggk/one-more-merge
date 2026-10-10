@@ -994,7 +994,7 @@
     {
       "level": 29,
       "monster": "vacuum_viper",
-      "hp": 7350,
+      "hp": 16600,
       "time_seconds": 125,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1005,7 +1005,7 @@
       "ordinary_copy_rank_cap": 4,
       "goal": {
         "kind": "chain",
-        "n": 12
+        "n": 10
       },
       "behaviour": "suction",
       "visual": "traffic_cone_goblin",
@@ -1017,8 +1017,8 @@
         "traffic_cone_goblin"
       ],
       "star_times": [
-        86,
-        73
+        100,
+        91
       ]
     },
     {
@@ -1429,7 +1429,7 @@
     {
       "level": 44,
       "monster": "vacuum_viper",
-      "hp": 72200,
+      "hp": 35200,
       "time_seconds": 165,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1440,7 +1440,7 @@
       "ordinary_copy_rank_cap": 6,
       "goal": {
         "kind": "chain",
-        "n": 11
+        "n": 7
       },
       "behaviour": "suction",
       "visual": "gramophone_goose",
@@ -1453,8 +1453,8 @@
         "gramophone_goose"
       ],
       "star_times": [
-        132,
-        128
+        115,
+        98
       ]
     },
     {
@@ -1726,7 +1726,7 @@
     {
       "level": 54,
       "monster": "vacuum_viper",
-      "hp": 38200,
+      "hp": 38100,
       "time_seconds": 165,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -1737,7 +1737,7 @@
       "ordinary_copy_rank_cap": 7,
       "goal": {
         "kind": "chain",
-        "n": 11
+        "n": 8
       },
       "behaviour": "suction",
       "start_extra": [
@@ -2045,7 +2045,7 @@
     {
       "level": 65,
       "monster": "tin_can",
-      "hp": 14500,
+      "hp": 36400,
       "time_seconds": 165,
       "modifier": "NONE",
       "difficulty": "HARD",
@@ -2057,7 +2057,7 @@
       "visual": "pallet_pal",
       "goal": {
         "kind": "chain",
-        "n": 12
+        "n": 10
       },
       "start_extra": [
         [
@@ -2076,8 +2076,8 @@
         "pallet_pal"
       ],
       "star_times": [
-        123,
-        106
+        132,
+        128
       ]
     },
     {

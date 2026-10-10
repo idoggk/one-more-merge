@@ -138,6 +138,24 @@ export const TUNING = {
   /** PROTOTYPE (t-1effe0bf, src/core/sandwich.ts), default 'today': a player merge whose landing cell touches 2+ more
    *  same-rank parts of its family absorbs two of them. 'sandwich2' = rank +2 (capped); 'sandwichBonus' = +1 as today
    *  plus sandwichOdShare of the Overdrive meter. Puzzles and kickback fuses never sandwich. */
+  /** EXPERIMENT (t-e91097cd, roster Direction B step 1), default OFF; replaces the B0 / B1 rules while on. One job per unit,
+   *  collection levels 3 / 6 / 9 change the job (src/core/cascade.ts rbRouteCells + resolveCascade):
+   *  Cannon FIRE (auto-shot; L3 quicker, L6 hotter, L9 double tap) · Coil REACH (a tall 6-cell cross) · Bell ROW · Horn
+   *  COLUMN (+ x`hornKick` on shooters it wakes from L3) · Rocket BURST (x`rocketRoot` when YOU merge it, x`rocketWoken`
+   *  when a chain wakes it) · Mortar DEPTH (x1 + `mortarStep` per machine already fired, max x`mortarCap`) · Fuse Box
+   *  DIAGONAL 2 cells · Arc Welder SPREAD (jumps to the nearest other shooter, never a welder). Helpers leave the board and
+   *  become one off-board SUPPORT card (src/core/support.ts) that charges by +1 per machine in YOUR merge chains and fires
+   *  on a tap: Fan CLEAR 3x3 · Magnet PAIR · Battery PRIME · Amplifier MARK · Signal Beacon GO. */
+  rosterB: false,
+  rb: {
+    rocketRoot: 2, rocketRootL3: 2.5, rocketWoken: 0.5, rocketWokenL9: 0.8,
+    mortarStep: 0.12, mortarCap: 2, mortarCapL3: 2.5,
+    hornKick: 1.25, spreadHit: 1.3,
+    cannonQuick: 2.4, passiveHot: 0.25,
+    /** Support card charge needed (machines fired in your merge chains). */
+    need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16 } as Record<string, number>,
+    prime: 2, primeL3: 2.5, mark: 1.6, markL3: 2, goKick: 1.3,
+  },
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
   sandwichOdShare: 1 / 3,
   /** PROTOTYPE (t-4208f149, rival study #2 "Think Bank"), default OFF (QA switch): once the player has not touched the
@@ -151,6 +169,6 @@ export const TUNING = {
 };
 
 /** Units B0 rules are on (B0 itself, or B1, which builds on them). */
-export const unitsB0On = () => TUNING.unitsB0 || TUNING.unitsB1;
+export const unitsB0On = () => !TUNING.rosterB && (TUNING.unitsB0 || TUNING.unitsB1);
 
 export type Tuning = typeof TUNING;

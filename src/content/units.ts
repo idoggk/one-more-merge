@@ -2,6 +2,7 @@
 // monetization values"). Cards come from crates (earned or bought with Gems) and Bolt packs; the first card of a
 // unit unlocks it; duplicates + Bolts level it. Numbers: ChatGPT round 32 spec (reviewed). Tune here first.
 import type { Family } from '../core/types';
+import { TUNING } from './tuning';
 
 export type Rarity = 'common' | 'rare' | 'epic';
 export interface UnitDef {
@@ -46,9 +47,15 @@ export const cardsFor = (u: UnitDef, level: number) => LEVEL_CARDS[u.rarity][lev
 export const boltsFor = (u: UnitDef, level: number) => LEVEL_BOLTS[u.rarity][level - 1] ?? 99999;
 /** Damage multiplier a unit's level gives (shooters +4%/level, relays +2%/level, helpers level their utility instead). */
 export const levelMult = (u: UnitDef | undefined, level: number) => (!u ? 1 : u.slot === 'shooter' ? 1 + 0.04 * (level - 1) : u.slot === 'relay' ? 1 + 0.02 * (level - 1) : 1);
+/** Helper multipliers by unit level, same formulas as core/cascade.ts (Battery: +0.03/level, L3 High Voltage +0.20). */
+export const helperMult = {
+  battery: (level: number) => TUNING.batteryBonus + 0.03 * (level - 1) + (level >= 3 ? 0.2 : 0),
+  amplifier: (level: number) => 1.3 + 0.03 * (level - 1),
+  signal_beacon: (level: number) => 1.15 + 0.02 * (level - 1),
+};
 /** What a level gives, in words (unit detail page). */
 export const levelPerkText = (u: UnitDef, level: number) =>
-  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${(1.3 + 0.03 * (level - 1)).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${(1.15 + 0.02 * (level - 1)).toFixed(2)}` : u.id === 'battery' ? `Prime x${(1.5 + 0.03 * (level - 1)).toFixed(2)}` : `Level ${level}`;
+  u.slot === 'shooter' ? `Damage +${4 * (level - 1)}%` : u.slot === 'relay' ? `Relay hits +${2 * (level - 1)}%` : u.id === 'amplifier' ? `Mark x${helperMult.amplifier(level).toFixed(2)}` : u.id === 'signal_beacon' ? `Marks x${helperMult.signal_beacon(level).toFixed(2)}` : u.id === 'battery' ? `Prime x${helperMult.battery(level).toFixed(2)}` : `Level ${level}`;
 
 // ---- crates ----
 export type CrateKind = 'wood' | 'iron' | 'gold';
@@ -102,8 +109,9 @@ export const FEATURED_CRATE = { gems1: 120, gems5: 540, share: 0.6, pity: 5, hou
 /** Free Gems (ChatGPT r32, ~7/day for an active player). */
 export const GEM_REWARDS = { dailyBench: 2, allBounties: 2, rushFull: 20, chapterBoss: 5 };
 
-/** L3 / L6 / L9 milestone perks (ChatGPT r32, implemented in core/cascade.ts). */
-export const UNIT_PERKS: Record<string, [string, string][]> = {
+/** L3 / L6 / L9 milestone perks (ChatGPT r32, implemented in core/cascade.ts). Under TUNING.rosterB the same keys read
+ *  ROSTER_PERKS (job upgrades) instead, live, so the QA UNITS switch needs no reload. */
+const UNIT_PERKS_TODAY: Record<string, [string, string][]> = {
   cannon: [['Heavy Barrel', 'Rank 4+ chain shots x1.2'], ['Lucky Eight', 'Every 8th chain shot x2'], ['Big Loader', 'Rank 7-8 auto-shots x2']],
   rocket: [['Warhead', 'Rank 4+ hits x1.15'], ['Sixth Salvo', 'Every 6th fire x1.5'], ['Deep Burn', 'Rank 7-8 four links deep x1.35']],
   mortar: [['Bigger Shell', 'Rank 4+ depth cap x1.80'], ['High Arc', 'Every 6th fire counts 2 links deeper'], ['Siege Shot', 'Rank 7-8 always hits as 4 deep']],
@@ -118,3 +126,25 @@ export const UNIT_PERKS: Record<string, [string, string][]> = {
   amplifier: [['Wide Pickup', 'Rank 4+ marks diagonal neighbours too'], ['Dual Channel', 'Every 5th fire marks two'], ['Long Range', 'Rank 6 marks 2 cells away']],
   signal_beacon: [['Third Signal', 'Rank 4+ also marks the nearest helper'], ['Broadcast Boost', 'Every 6th fire marks +0.25'], ['GO! Signal', 'Rank 6 also wakes what it marks']],
 };
+
+/** t-e91097cd roster B: levels 3 / 6 / 9 change the unit's JOB (core/cascade.ts rbRouteCells / resolveCascade, game.ts
+ *  auto-shots, core/support.ts Support cards). */
+export const ROSTER_PERKS: Record<string, [string, string][]> = {
+  cannon: [['Quick Loader', `Auto-shot every ${TUNING.rb.cannonQuick} s (was ${TUNING.cannonPeriod} s)`], ['Hot Shells', `Auto-shots hit x${TUNING.rb.passiveHot} of a full shot (was x${TUNING.passiveMult})`], ['Double Tap', 'Every auto-shot fires twice']],
+  rocket: [['Bigger Warhead', `Merged BURST x${TUNING.rb.rocketRootL3} (was x${TUNING.rb.rocketRoot})`], ['Cluster', 'The Rocket you merge also wakes its 4 diagonal neighbours'], ['Afterburn', `Woken by a chain it hits x${TUNING.rb.rocketWokenL9} (was x${TUNING.rb.rocketWoken})`]],
+  mortar: [['Bigger Shell', `DEPTH goes up to x${TUNING.rb.mortarCapL3}`], ['Last Word', 'Always fires LAST in its chain'], ['Barrage', 'After its shot it wakes the machines touching it']],
+  arc_welder: [['Fork', 'Jumps to 2 shooters'], ['Hot Spark', `Shooters it jumps to hit x${TUNING.rb.spreadHit}`], ['Chain Lightning', 'Jumps to 3 shooters']],
+  coil: [['Long Coil', 'Reaches 2 cells left and right too'], ['Static Leak', 'Also wakes its 4 diagonal neighbours'], ['Supercoil', 'Reaches 3 cells every way']],
+  bell: [['Side Chime', 'Also wakes the cells above and below'], ['Grand Chime', 'Every 3rd ring also rings the rows above and below'], ['Bell Tower', 'Always rings the rows above and below']],
+  horn: [['Brass Kick', `Shooters it wakes hit x${TUNING.rb.hornKick}`], ['Wide Blast', 'Also wakes its left and right'], ['Grand Horn', 'Also blasts both side columns']],
+  fuse_box: [['Long Fuse', 'Full diagonals, edge to edge'], ['Cross Spark', 'Every 3rd spark also wakes up / down / left / right'], ['Fuse Rays', 'Always wakes up / down / left / right too']],
+  fan: [['Big Gust', 'Clears 3 whole rows'], ['Tailwind', 'Keeps half its charge after a clear'], ['Storm', 'Clears the whole board']],
+  magnet: [['Quick Pull', 'Needs 25% less charge'], ['Snap In', 'The twin merges at once'], ['Spare Pull', 'Keeps half its charge after a pull']],
+  battery: [['High Voltage', `PRIME x${TUNING.rb.primeL3}`], ['Long Charge', 'Lasts 2 shooter merges'], ['Any Socket', 'Any merge counts, not only shooters']],
+  amplifier: [['Big Mark', `MARK x${TUNING.rb.markL3}`], ['Dual Mark', 'Also marks your strongest other shooter'], ['Spare Mark', 'Keeps half its charge after a mark']],
+  signal_beacon: [['Loud GO', `Shooters it fires hit x${TUNING.rb.goKick}`], ['Crossroads', 'Fires the row AND the column'], ['Quick GO', 'Needs 40% less charge']],
+};
+export const UNIT_PERKS: Record<string, [string, string][]> = Object.defineProperties(
+  {},
+  Object.fromEntries(Object.keys(UNIT_PERKS_TODAY).map((k) => [k, { get: () => (TUNING.rosterB ? ROSTER_PERKS : UNIT_PERKS_TODAY)[k], enumerable: true }])),
+);
