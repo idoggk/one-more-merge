@@ -195,3 +195,10 @@ export function storedRoster2(read: () => string | null): boolean {
     return false;
   }
 }
+
+/** QA panel ALL NEW UNITS row: crates B (UNITS 'rb') + roster batches 1..7 = 8 flags. ON when all 8 are on, OFF when all are off, else MIXED. */
+export type AllNewState = 'off' | 'on' | 'mixed';
+export function allNewState(rosterB: boolean, batches: readonly boolean[]): AllNewState {
+  const all = [rosterB, ...batches];
+  return all.every(Boolean) ? 'on' : all.some(Boolean) ? 'mixed' : 'off';
+}
