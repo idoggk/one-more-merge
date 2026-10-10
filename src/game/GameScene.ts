@@ -28,6 +28,7 @@ import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, ONBOARDING_BOLTS, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_VERSION } from '../content/dailySeeds';
 import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, levelReward, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals, starsFor } from '../content/levels';
+import { addBuildInfo } from './ui/buildInfo';
 import { audioSettings, duckMusic, haptic, setMusicIntensity, setMusicMode, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
 import * as tlog from '../platform/telemetry';
@@ -6097,7 +6098,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   openSettings() {
     sfx.click();
-    const c = this.sheet(960);
+    const c = this.sheet(1090);
     const top = H / 2 - 480;
     this.sheetTitle(c, top, 'SETTINGS');
     const m = this.meta;
@@ -6131,6 +6132,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
     this.button(c, W / 2, top + 808, 360, 'QA TOOLS', 0xe8452c, () => this.openQaTools(), 0.8);
     this.button(c, W / 2, top + 900, 300, 'BACK', 0x8a6a4a, () => this.openTitle(), 0.85);
+    addBuildInfo(this, c, W / 2, top + 990);
   }
 
   /** r33 QA panel: start over, jump to any level, give units / currency. */
