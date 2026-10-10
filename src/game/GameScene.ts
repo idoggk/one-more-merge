@@ -42,6 +42,10 @@ import { newRushFight, rushCourse, RUSH_REWARDS, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, GEM_REWARDS, UNIT_PERKS, levelMult, levelPerkText, MAX_UNIT_LEVEL, SHOP, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
 import { Rng } from '../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard } from '../core/crates';
+import { pityView } from '../core/crateOdds';
+import { addOddsButton, showOddsPanel } from './ui/oddsPanel';
+import { addMergedLine, addUnitJob, showUnitJobPopup } from './ui/unitJobUi';
+import { unitJob } from '../content/unitJobs';
 import { crateName, popToolboxLatch, TOOLBOX_KEY, toolboxCrateKey, toolboxOn } from './fx/toolboxCrates';
 import { YARD_BOOSTERS, YARD_TIERS, type YardBooster, type YardReward } from '../core/screw';
 import { addBoosters, nextYard, recordYard, tierReached, weekYard, YARD_BOOSTER_START, YARD_COUNT, yardPlayable, yardStarTotal, yardWeekRec, type BoosterCounts } from '../core/yardWeek';
@@ -6534,6 +6538,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       if (!owned) im.setTint(0x2b1d2e).setAlpha(0.6);
       cc.add(im);
     }
+    addUnitJob(this, cc, u.id, 0, 58);
     // r38 rarity frame art (ChatGPT v22, transparent centre) over the card edge
     if (this.hasArt(`card_${u.rarity}`)) cc.add(this.add.image(0, 2, `card_${u.rarity}`).setDisplaySize(214, 274));
     cc.add(this.add.text(0, 88, owned ? FAMILY_INFO[u.id as 'cannon'].name.toUpperCase().replace('SIGNAL ', '') : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
@@ -6567,32 +6572,33 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const top = H / 2 - 590;
     const info = FAMILY_INFO[u.id as 'cannon'];
     c.add(this.add.text(W / 2, top + 60, owned ? info.name.toUpperCase() : '???', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#2a2233' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 112, `${u.rarity.toUpperCase()}  \u00b7  ${u.role}${owned ? `  \u00b7  LEVEL ${st!.level}` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
+    c.add(this.add.text(W / 2, top + 112, `${u.rarity.toUpperCase()}  \u00b7  ${u.role}  \u00b7  JOB: ${unitJob(u.id)?.job ?? '?'}${owned ? `  \u00b7  LEVEL ${st!.level}` : ''}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
+    addMergedLine(this, c, u.id, st?.level ?? 1, W / 2, top + 140, W - 120);
     // the animated mini-board explains it
     const gi = GameScene.GUIDE.find((g) => g.key === u.id);
     if (owned && gi) {
-      this.machineDemo(c, W / 2, top + 330, u.id);
-      c.add(this.add.text(W / 2, top + 520, gi.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
+      this.machineDemo(c, W / 2, top + 392, u.id); // +62: room for the WHEN MERGED line above the demo monster
+      c.add(this.add.text(W / 2, top + 574, gi.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '24px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
     } else {
       // UI audit: the locked page was an empty cream sheet; show the same dark silhouette as the collection card
       const art = this.unitPortrait(u.id);
-      if (this.textures.exists(art)) c.add(this.fitVisible(this.add.image(W / 2, top + 300, art), 220).setTint(0x2b1d2e).setAlpha(0.6));
-      c.add(this.add.text(W / 2, top + 500, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
+      if (this.textures.exists(art)) c.add(this.fitVisible(this.add.image(W / 2, top + 340, art), 220).setTint(0x2b1d2e).setAlpha(0.6));
+      c.add(this.add.text(W / 2, top + 540, 'Find this unit in a crate\nto unlock it.', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
     }
     // r32 milestone perks: L3 / L6 / L9, lit when reached (unreached lines darker brown: light grey on cream was unreadable)
     (UNIT_PERKS[u.id] ?? []).forEach(([name, txt], i) => {
       const need = [3, 6, 9][i];
       const got = owned && st!.level >= need;
-      c.add(this.add.text(W / 2, top + 660 + i * 44, `LV${need}  ${name}: ${txt}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: got ? '#2a8a3a' : '#6e5646', wordWrap: { width: W - 140 }, align: 'center' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2, top + 704 + i * 42, `LV${need}  ${name}: ${txt}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: got ? '#2a8a3a' : '#6e5646', wordWrap: { width: W - 140 }, align: 'center' }).setOrigin(0.5));
     });
     if (owned) {
       const lv = st!.level;
-      c.add(this.add.text(W / 2, top + 810, lv >= MAX_UNIT_LEVEL ? `${levelPerkText(u, lv)}  \u00b7  MAX LEVEL` : `${levelPerkText(u, lv)}  \u2192  ${levelPerkText(u, lv + 1)} at LV ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
+      c.add(this.add.text(W / 2, top + 832, lv >= MAX_UNIT_LEVEL ? `${levelPerkText(u, lv)}  \u00b7  MAX LEVEL` : `${levelPerkText(u, lv)}  \u2192  ${levelPerkText(u, lv + 1)} at LV ${lv + 1}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#2a8a3a' }).setOrigin(0.5));
       if (lv < MAX_UNIT_LEVEL) {
         const needC = cardsFor(u, lv), needB = boltsFor(u, lv);
         const ok = this.canUpgrade(u);
-        c.add(this.add.text(W / 2, top + 870, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
-        this.button(c, W / 2, top + 960, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
+        c.add(this.add.text(W / 2, top + 886, `${st!.cards}/${needC} cards  \u00b7  ${needB} Bolts`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: ok ? '#3b2533' : '#9a7a6a' }).setOrigin(0.5));
+        this.button(c, W / 2, top + 974, 420, ok ? `UPGRADE TO LV ${lv + 1}` : st!.cards < needC ? 'NEED MORE CARDS' : 'NEED MORE BOLTS', ok ? 0x5fbf4a : 0x8a6a4a, () => (ok ? this.upgradeUnit(u) : this.showToast(st!.cards < needC ? 'OPEN CRATES FOR CARDS' : 'WIN LEVELS FOR BOLTS')), 0.9);
       }
     }
     // r42 Unit Drills (Ido: "challenges connected to a unit when we unlock it")
@@ -6690,6 +6696,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const c = this.panel(1000);
     const top = H / 2 - 500;
     c.add(this.add.text(W / 2, top + 60, title ?? crateName(kind), { fontFamily: 'Lilita One, Arial Black', fontSize: '50px', color: '#3b2533' }).setOrigin(0.5));
+    if (!title) addOddsButton(this, c, W - 100, top + 60, () => showOddsPanel(this, W, H, pityView(this.meta), kind));
     const col = { wood: 0xa0703a, iron: 0x7a8a9a, gold: 0xe0b040 }[kind];
     const box = this.add.container(W / 2, top + 260);
     // r38 crate art (ChatGPT v22): closed crate shakes, swaps to its open art, then the cards fly out.
@@ -6729,6 +6736,8 @@ Merge them into a RANK ${rank}!`, this.coachY());
         card.add(this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-88, -110, 176, 220, 18).fillStyle(rc, 1).fillRoundedRect(-84, -106, 168, 212, 15).fillStyle(0xfbe7c6, 1).fillRoundedRect(-76, -80, 152, 130, 12));
         const pk = this.unitPortrait(cd.unit);
         if (this.textures.exists(pk)) card.add(this.fitVisible(this.add.image(0, -16, pk), 112));
+        addUnitJob(this, card, cd.unit, 0, 38);
+        card.setSize(176, 220).setInteractive({ useHandCursor: true }).on('pointerup', () => showUnitJobPopup(this, W, H, cd.unit, FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase(), this.meta.units?.[cd.unit]?.level ?? 1));
         card.add(this.add.text(0, 72, `${FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()} x${cd.count}`.replace('SIGNAL ', ''), { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5));
         if (cd.isNew) card.add(this.add.text(56, -104, 'NEW!', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 8, y: 1 } }).setOrigin(0.5).setAngle(8));
         c.add(card);
@@ -6756,6 +6765,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     const top = H / 2 - 607;
     const D = 152;
     c.add(this.add.text(W / 2, top + 60, 'CRATE SHOP', { fontFamily: 'Lilita One, Arial Black', fontSize: '52px', color: '#3b2533' }).setOrigin(0.5));
+    addOddsButton(this, c, W - 100, top + 60, () => showOddsPanel(this, W, H, pityView(m)));
     c.add(this.add.text(W / 2, top + 112, `${m.bolts ?? 0} Bolts  \u00b7  ${m.gems ?? 0} Gems`, { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#7a5a4a' }).setOrigin(0.5));
     const row = (y: number, title: string, sub: string, label: string, col: number, cb: () => void) => {
       c.add(this.add.graphics().fillStyle(0xead2b0, 1).fillRoundedRect(70, y - 60, W - 140, 120, 20));
