@@ -1,4 +1,4 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family | Roster3Family | Roster4Family;
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family;
 /** Roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on. */
 export type Roster1Family = 'nail_gun' | 'jackhammer' | 'gear' | 'saw_blade';
 export const ROSTER_1: Roster1Family[] = ['nail_gun', 'jackhammer', 'gear', 'saw_blade'];
@@ -11,15 +11,19 @@ export const ROSTER_3: Roster3Family[] = ['blowtorch', 'pipe', 'blast_plate', 't
 /** Roster B batch 4 (t-1e3c8bb6, TUNING.roster4): only reachable while the flag is on. Blueprint and Rewind Crank are off-board Support cards (never board parts); Capacitor and Ladder are Epic relays. */
 export type Roster4Family = 'capacitor' | 'blueprint' | 'ladder' | 'rewind_crank';
 export const ROSTER_4: Roster4Family[] = ['capacitor', 'blueprint', 'ladder', 'rewind_crank'];
+/** Roster B batch 5 (t-af818b65, TUNING.roster5): only reachable while the flag is on. Crane and Dynamo are Legendary relays (drop only with crates B); Wrecking Ball is an Epic shooter. */
+export type Roster5Family = 'crane' | 'dynamo' | 'wrecking_ball';
+export const ROSTER_5: Roster5Family[] = ['crane', 'dynamo', 'wrecking_ball'];
+export const isRoster5 = (f: Family): f is Roster5Family => (ROSTER_5 as Family[]).includes(f);
 export const isRoster4 = (f: Family): f is Roster4Family => (ROSTER_4 as Family[]).includes(f);
 export const isRoster3 = (f: Family): f is Roster3Family => (ROSTER_3 as Family[]).includes(f);
 export const isRoster2 = (f: Family): f is Roster2Family => (ROSTER_2 as Family[]).includes(f);
-export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1, ...ROSTER_2, ...ROSTER_3, ...ROSTER_4];
+export const FAMILIES: Family[] = ['cannon', 'coil', 'bell', 'magnet', 'battery', 'fan', 'rocket', 'mortar', 'arc_welder', 'horn', 'fuse_box', 'amplifier', 'signal_beacon', ...ROSTER_1, ...ROSTER_2, ...ROSTER_3, ...ROSTER_4, ...ROSTER_5];
 export const isRoster1 = (f: Family): f is Roster1Family => (ROSTER_1 as Family[]).includes(f);
 /** SHOOTER role (ChatGPT r14): Cannon (auto + chain shots) or Rocket (chain-only, x1.5); r32 adds Mortar + Arc Welder; roster B Nail Gun, Drill, Saw Blade. */
-export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade' || f === 'piston' || f === 'blowtorch' || f === 'tesla_tower';
+export const isShooter = (f: Family) => f === 'cannon' || f === 'rocket' || f === 'mortar' || f === 'arc_welder' || f === 'nail_gun' || f === 'jackhammer' || f === 'saw_blade' || f === 'piston' || f === 'blowtorch' || f === 'tesla_tower' || f === 'wrecking_ball';
 /** RELAY role: wakes OTHER families. r32 adds Horn (column) + Fuse Box (diagonals); roster B Gear (links to other Gears). */
-export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box' || f === 'gear' || f === 'spring' || f === 'belt_drive' || f === 'pipe' || f === 'capacitor' || f === 'ladder';
+export const isRelay = (f: Family) => f === 'coil' || f === 'bell' || f === 'horn' || f === 'fuse_box' || f === 'gear' || f === 'spring' || f === 'belt_drive' || f === 'pipe' || f === 'capacitor' || f === 'ladder' || f === 'crane' || f === 'dynamo';
 
 export type PerkId = 'twin' | 'leads' | 'encore' | 'juice' | 'quality';
 
@@ -58,7 +62,7 @@ export interface Activation {
 }
 
 /** TUNING.rosterB job multipliers: Mortar DEPTH, Rocket BURST (you merged it), Horn KICK, Arc SPREAD, Battery PRIME, Beacon GO. */
-export type JobKey = 'mortar' | 'burst' | 'kick' | 'spread' | 'prime' | 'go' | 'burn' | 'storm' | 'flow' | 'stair';
+export type JobKey = 'mortar' | 'burst' | 'kick' | 'spread' | 'prime' | 'go' | 'burn' | 'storm' | 'flow' | 'stair' | 'swing' | 'square';
 /** TUNING.rosterB: the five helpers are off-board Support cards. */
 export const SUPPORT_FAMILIES: Family[] = ['fan', 'magnet', 'battery', 'amplifier', 'signal_beacon'];
 export const isSupport = (f: Family) => SUPPORT_FAMILIES.includes(f) || f === 'blast_plate' || f === 'blueprint' || f === 'rewind_crank';
@@ -67,7 +71,7 @@ export interface CascadeResult {
   rootIdx: number;
   activations: Activation[];
   /** Every route emitted (including to already-visited gadgets), for drawing links. */
-  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' | 'gear' | 'hop' | 'belt' | 'pipe' | 'cap' | 'stair' }[];
+  edges: { from: number; to: number; kind: 'spark' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'backfire' | 'bridge' | 'chime' | 'item' | 'horn' | 'fuse_box' | 'arc' | 'amp' | 'gear' | 'hop' | 'belt' | 'pipe' | 'cap' | 'stair' | 'lift' | 'ring' | 'swing' }[];
   /** Cannons primed by batteries during this cascade (ids). Caller applies. */
   primes: number[];
   /** r32 perks: chain fires per family in this cascade (feeds the 'every Nth fire' milestone counters). */
@@ -98,4 +102,6 @@ export interface CascadeResult {
   /** Roster 4 Capacitor HOLD: the Capacitor that banked this chain (the caller stores the bank in game.ts), and the one that released. */
   capBanked?: number[];
   capReleased?: number;
+  /** Roster 5 Crane LIFT: the part lifted onto its twin mid-chain (the caller merges them; `at` = how many of `moves` came before it). */
+  crane?: { from: number; to: number; family: Family; rank: number; at: number };
 }

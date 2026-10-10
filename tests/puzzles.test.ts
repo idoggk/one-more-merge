@@ -5,6 +5,7 @@ import { STARTER_UNITS } from '../src/content/units';
 import { drillsPending, drop, newPuzzle, type PuzzleDef } from '../src/core/game';
 import { allLines, DAILY_PLATEAU, dailyIndex, lineWins, missedUnitText, nextWinningMove, unitFreeBreaks, notePuzzleAttempt, playMove, puzzleDifficulty, puzzleHelp, puzzleReward, type PuzzleRec } from '../src/core/puzzle';
 
+TUNING.roster5 = true; // the Crane / Dynamo / Wrecking Ball drills (t-af818b65) are generated and win-checked with batch 5 on too
 TUNING.roster4 = true; // the Capacitor drills (t-1e3c8bb6) are generated and win-checked with batch 4 on; no other puzzle reads the flag
 const data = raw as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
 const all = [...data.daily, ...Object.values(data.drills).flat()];
@@ -84,7 +85,7 @@ describe('r44 puzzle difficulty ramp', () => {
     for (const [u, list] of Object.entries(data.drills)) {
       expect(list.length, u).toBe(3);
       expect(score(list[0]), u).toBeLessThanOrEqual(EASY);
-      expect(list[0].moves, u).toBe(1);
+      expect(list[0].moves, u).toBe(u === 'crane' ? 2 : 1); // a Crane lift only pays on the next merge, so its warm-up is 2 merges (t-af818b65)
       expect(puzzleDifficulty(list[0]).solutions, u).toBeGreaterThanOrEqual(2);
       for (let i = 1; i < list.length; i++) {
         const d = score(list[i]) - score(list[i - 1]);

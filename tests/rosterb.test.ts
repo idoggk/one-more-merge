@@ -11,7 +11,7 @@ import raw from '../src/content/puzzles.json';
 import type { PuzzleDef } from '../src/core/game';
 import { newRunLog, recordCommand, replayRun } from '../src/core/replay';
 import { autoSupport, canUseSupport, goLine, supportCharge, supportNeed, supportReady, useSupport } from '../src/core/support';
-import { ROSTER_1, ROSTER_2, ROSTER_3, ROSTER_4, SUPPORT_FAMILIES, type Family, type Gadget, type Grid, type PerkId } from '../src/core/types';
+import { ROSTER_1, ROSTER_2, ROSTER_3, ROSTER_4, ROSTER_5, SUPPORT_FAMILIES, type Family, type Gadget, type Grid, type PerkId } from '../src/core/types';
 
 let id = 9800;
 const g = (family: Family, rank = 1, extra: Partial<Gadget> = {}): Gadget => ({ id: id++, family, rank, cd: 99, ...extra });
@@ -208,6 +208,7 @@ describe('roster B unit jobs', () => {
 
   it('drills and daily puzzles play with the flag off (they were generated and win-checked without it)', () => {
     on();
+    TUNING.roster5 = true; // the batch 5 drills (t-af818b65) read it
     TUNING.roster4 = true; // only the Capacitor drills read it (their banking), generated with batch 4 on
     const data = raw as unknown as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
     for (const p of [...data.daily, ...Object.values(data.drills).flat()]) {
@@ -220,13 +221,14 @@ describe('roster B unit jobs', () => {
       if (p.unit) expect(s.puzzle!.unitUsed, p.id).toBe(true);
     }
     TUNING.roster4 = false;
+    TUNING.roster5 = false;
     expect(TUNING.rosterB).toBe(true);
   });
 
   it('job upgrade words follow the flag', () => {
     on();
     expect(UNIT_PERKS.cannon[0][0]).toBe('Quick Loader');
-    expect(Object.keys(ROSTER_PERKS).sort()).toEqual(Object.keys(FAMILY_INFO).filter((k) => !(ROSTER_1 as string[]).includes(k) && !(ROSTER_2 as string[]).includes(k) && !(ROSTER_3 as string[]).includes(k) && !(ROSTER_4 as string[]).includes(k)).sort());
+    expect(Object.keys(ROSTER_PERKS).sort()).toEqual(Object.keys(FAMILY_INFO).filter((k) => !(ROSTER_1 as string[]).includes(k) && !(ROSTER_2 as string[]).includes(k) && !(ROSTER_3 as string[]).includes(k) && !(ROSTER_4 as string[]).includes(k) && !(ROSTER_5 as string[]).includes(k)).sort());
     expect(FAMILY_INFO.rocket.text).toMatch(/BURST/);
     expect(FAMILY_INFO.fan.text).toMatch(/SUPPORT CARD/);
   });

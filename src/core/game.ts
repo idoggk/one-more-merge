@@ -1,5 +1,5 @@
 import { COLS, MAX_RANK, ROWS, TICK, TUNING, unitsB0On } from '../content/tuning';
-import { rawDamage, resolveCascade } from './cascade';
+import { rawDamage, resolveCascade, type CascadeOpts } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
@@ -17,6 +17,7 @@ import { planSandwich, sandwichOd, type SandwichPlan } from './sandwich';
 import { bypassBonus } from './roster1';
 import { wrenchAfterMerge, wrenchNext, type WrenchState } from './roster2';
 import { type TorchHazard, type WardState } from './roster3';
+import { craneAllowance } from './roster5';
 import { type CapBank, rewindModeOk, rewindSnapshot, rwHold, rwNeed } from './roster4';
 import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
 
@@ -179,6 +180,8 @@ export interface GameState {
   wards?: WardState;
   /** TUNING.roster4 Capacitor HOLD (src/core/roster4.ts): the one chain it holds, released at the start of your next merge. */
   cap?: CapBank;
+  /** TUNING.roster5 Crane LIFT (src/core/roster5.ts): lifts made so far this level (once per level; L6 one more per boss armor phase). */
+  crane?: { used: number };
   /** TUNING.roster4 Blueprint: delivery swaps waiting for their turn, by shipment number (generateShipment hands the copy out instead). */
   plan?: { over: Record<number, { family: Family; rank: number }> };
   /** `snap` / `snapAt` / `snapCharge`: Rewind Crank's undo point (the state text before your last merge, when, and the meter then). */
@@ -878,7 +881,7 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   const primeAll = primeFor(s, g.family);
   const wrenchBonus = byPlayer ? wrenchNext(s.wrench) : 0;
   const capOpts = capCascadeOpts(s, g.id, parts.map((p) => p.id), byPlayer);
-  const result = resolveCascade(s.grid, to, { ...capOpts, perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
+  const result = resolveCascade(s.grid, to, { ...capOpts, ...craneOpt(s), perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, items: s.phase === 'playing', hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchBonus ? { rankBonus: wrenchBonus } : {}) });
   if (primeAll && --s.support!.prime!.left <= 0) delete s.support!.prime;
   // roster 4 Capacitor HOLD: a bank is released once (even if its Capacitor is gone), and a Capacitor woken here may bank this chain for your next merge
   if (capOpts.capRelease) s.cap = undefined;
@@ -892,6 +895,7 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   applyB1(s, result, ev);
   spendItems(s, result);
   scaleA2(s, result);
+  if (result.crane) s.stats.merges++; // roster 5 Crane LIFT is a normal merge
   if (fatigueCfg() && s.phase === 'playing') s.lastMergeAt = s.elapsed;
   if (gatedEarn && result.count >= TUNING.optA3.gateChain) s.owed = (s.owed ?? 0) + gatedEarn;
   if (odByChain() && s.phase === 'playing') {
@@ -925,7 +929,7 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   applyDamage(s, result.total, ev, 'player');
   if (s.phase === 'playing') ev.push(...bossAfterPlayer(s.boss, -1, result.activations.map((x) => x.idx))); // r27 defuse / clear blocks
   if (s.phase === 'playing') ev.push(...bossRansomCheck(s.boss, result.activations.map((x) => x.id))); // r29 time ransom
-  checkGoal(s, ev, g.rank, result.count, to);
+  checkGoal(s, ev, Math.max(g.rank, result.crane?.rank ?? 0), result.count, to);
   return { ok: true, events: ev };
 }
 
@@ -969,11 +973,13 @@ function endChoice(s: GameState): GameEvent[] {
 // ---------- internals ----------
 
 export function applyMoves(s: GameState, r: CascadeResult) {
-  for (const m of r.moves) {
+  r.moves.forEach((m, i) => {
+    if (r.crane?.at === i) applyCrane(s, r.crane);
     if (s.grid[m.from]?.id !== m.id || s.grid[m.to]) throw new Error('magnet/fan move desync');
     s.grid[m.to] = s.grid[m.from];
     s.grid[m.from] = null;
-  }
+  });
+  if (r.crane && r.crane.at >= r.moves.length) applyCrane(s, r.crane);
   // new primes first, then discharges (a cannon primed earlier in this cascade may already have used it)
   for (const g of s.grid) if (g && r.primes.includes(g.id)) g.primed = true;
   for (const g of s.grid) if (g && r.discharged.includes(g.id)) g.primed = false;
@@ -985,6 +991,31 @@ export function applyMoves(s: GameState, r: CascadeResult) {
     const g = s.grid.find((x) => x?.id === m.id);
     if (g) g.amp = Math.max(g.amp ?? 0, m.mult);
   }
+}
+
+/** TUNING.roster5 Crane LIFT: the lifted part `from` merges onto its twin at `to` (a normal merge: one cell freed, rank mass kept, same family, marks and
+ *  attachments carried over). The new part is a fresh gadget; the cascade already treated it as fired. */
+function applyCrane(s: GameState, c: NonNullable<CascadeResult['crane']>) {
+  const a = s.grid[c.from], b = s.grid[c.to];
+  if (!a || !b) throw new Error('crane lift desync');
+  const g = makeGadget(s, b.family, c.rank);
+  if (a.primed || b.primed) g.primed = true;
+  if (a.amp || b.amp) g.amp = Math.max(a.amp ?? 0, b.amp ?? 0);
+  const inherit = b.item ?? a.item;
+  if (inherit) g.item = { ...inherit };
+  if (g.family === 'cannon') g.cd = cannonPeriod(s);
+  bossRelabel(s.boss, [a.id, b.id], g.id);
+  s.grid[c.from] = null;
+  s.grid[c.to] = g;
+  s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
+  s.crane = { used: (s.crane?.used ?? 0) + 1 };
+}
+
+/** Crane LIFT is allowed in your merge chains while a lift is left this level (one; L6 +1 per boss armor phase reached). */
+export function craneOpt(s: GameState): Pick<CascadeOpts, 'crane'> {
+  if (!TUNING.roster5 || !s.grid.some((g) => g?.family === 'crane')) return {};
+  if ((s.crane?.used ?? 0) >= craneAllowance(s.unitLevel?.crane ?? 1, s.boss?.phaseShown ?? 0)) return {};
+  return { crane: { can: (x, y) => canMerge(x, y, s), rank: (x) => Math.min(x.rank + 1, capOf(s, x.family)) } };
 }
 
 function enterOverdrive(s: GameState, dur: number) {
@@ -1098,6 +1129,7 @@ export function newPuzzle(p: PuzzleDef): GameState {
 /** Unit drills: a part of `unit` activated in this cascade AND did something (dealt damage or reached another part). */
 export function unitActed(r: CascadeResult, unit: Family): boolean {
   if (unit === 'wrench') return !!r.wrenchBoost; // roster 2: Wrench acts when an armed merge was spent
+  if (unit === 'crane') return !!r.crane; // roster 5: a Crane acts when it lifted a part onto its twin
   return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }
 
@@ -1335,7 +1367,7 @@ function previewNow(s: GameState, from: number, to: number): CascadeResult | nul
   grid[to] = { id: -1, family: a!.family, rank: sw ? sw.rank : a!.rank + 1, cd: 0 };
   for (const i of sw?.cells ?? []) grid[i] = null;
   const primeAll = primeFor(s, a!.family);
-  return scaleA2(s, resolveCascade(grid, to, { ...capCascadeOpts(s, -1, [a!.id, b!.id, ...(sw?.cells ?? []).map((i) => s.grid[i]!.id)], true), perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
+  return scaleA2(s, resolveCascade(grid, to, { ...capCascadeOpts(s, -1, [a!.id, b!.id, ...(sw?.cells ?? []).map((i) => s.grid[i]!.id)], true), ...craneOpt(s), perks: s.perks, overdrive: s.odLeft > 0, reserved: new Set(dropReserved(s)), locked: locked(s), ...bossCascadeMods(s.boss), unitMult: s.unitMult, unitLevel: s.unitLevel, fireBase: s.fireCount, hazards: fanHazards(s), ...torchOpt(s), ...(primeAll ? { primeAll } : {}), ...(wrenchNext(s.wrench) ? { rankBonus: wrenchNext(s.wrench) } : {}) }));
 }
 
 export function serialize(s: GameState): string {

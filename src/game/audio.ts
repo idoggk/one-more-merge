@@ -300,6 +300,21 @@ export const sfx = {
       tone(vary(160), 0.2, 'sawtooth', 0.03, delay + 0.2, 80);
     }
   },
+  /** roster B batch 5 (t-af818b65), pitched from the same synth voices: Crane = a winch ratchet and a clunk, Dynamo = a rising hum that cracks,
+   *  Wrecking Ball = a heavy low swing and a thud. */
+  roster5: (fam: string, delay = 0) => {
+    if (fam === 'crane') {
+      for (let i = 0; i < 3; i++) tone(vary(700 + i * 90), 0.04, 'square', 0.04, delay + i * 0.05);
+      tone(vary(110), 0.16, 'triangle', 0.09, delay + 0.18, 70);
+    } else if (fam === 'dynamo') {
+      tone(vary(150), 0.28, 'sawtooth', 0.05, delay, 600);
+      bandNoise(0.08, 0.08, delay + 0.26, 3600, 2);
+    } else if (fam === 'wrecking_ball') {
+      tone(vary(120), 0.18, 'sine', 0.07, delay, 200);
+      tone(vary(70), 0.22, 'triangle', 0.13, delay + 0.16, 40);
+      bandNoise(0.12, 0.2, delay + 0.16, 500, 0.7);
+    }
+  },
   hit: (big: boolean) => {
     bandNoise(big ? 0.14 : 0.05, big ? 0.22 : 0.07, 0, 400, 0.7);
     if (big) tone(120, 0.16, 'triangle', 0.12, 0, 60);

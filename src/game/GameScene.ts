@@ -34,7 +34,8 @@ import { isRelay, isShooter as isShooterFam, itemFits } from '../core/types';
 import { ROSTER_1_DEMOS } from '../content/roster1';
 import { ROSTER_2_DEMOS } from '../content/roster2';
 import { ROSTER_3_DEMOS } from '../content/roster3';
-import { goodHereAll4 as goodHereAll, ROSTER_4_DEMOS } from '../content/roster4';
+import { ROSTER_4_DEMOS } from '../content/roster4';
+import { goodHereAll5 as goodHereAll, ROSTER_5_DEMOS } from '../content/roster5';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -2743,6 +2744,15 @@ Now beat the real level.`, this.coachY());
       });
     }
     this.tweens.add({ targets: lg, alpha: 0, delay: windup + maxDepth * step + 200, duration: 250, onComplete: () => lg.destroy() });
+    if (r.crane) {
+      // roster 5 Crane LIFT: the two parts merged mid-chain
+      const c = cellXY(r.crane.to);
+      this.time.delayedCall(windup + step, () => {
+        this.ring(c.x, c.y, 0xffe08a, 80, 14, 320);
+        this.floatText(c.x, c.y - 50, 'LIFT!', '#ffe08a', 32, 200);
+        UNIT_SOUND.crane(0, 1);
+      });
+    }
     // r25: a power-up that fires pops its icon over its machine (OVERCHARGE also shows x2)
     for (const id of r.itemUsed ?? []) {
       const kind = this.itemBadges.get(id)?.getData('kind') as string | undefined;
@@ -5013,6 +5023,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       ...ROSTER_2_DEMOS,
       ...ROSTER_3_DEMOS,
       ...ROSTER_4_DEMOS,
+      ...ROSTER_5_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();

@@ -2,8 +2,9 @@ import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
 import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1';
 import { beltCells, effectiveRank, entryDir, pistonMult, pistonPush, springCells } from './roster2';
 import { capDepth, capTargets, stairTop, stairWalk } from './roster4';
+import { boardSteps, craneLift, dynamoBlock, dynamoTouch, squareFit, swingBehind, swingKnock, swingMult } from './roster5';
 import { pipeFlow, teslaCharges, teslaMult, torchMult, torchTargets, type TorchHazard } from './roster3';
-import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Grid, type JobKey, type PerkId } from './types';
+import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Gadget, type Grid, type JobKey, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
   [-1, 0], // up
@@ -188,6 +189,9 @@ export interface CascadeOpts {
   /** Roster 4 Capacitor HOLD: this Capacitor (by id) releases its bank in this cascade; `capBank` = a Capacitor woken here may bank the chain (player merges only). */
   capRelease?: { id: number };
   capBank?: boolean;
+  /** Roster 5 Crane LIFT: a Crane woken in this cascade may lift a part onto its twin (once; the caller allows it once per level). `can` = the merge
+   *  rule (same family and rank, rank cap), `rank` = the rank of the merged part. Given only for your own merges (never previews of other cascades). */
+  crane?: { can: (a: Gadget, b: Gadget) => boolean; rank: (a: Gadget) => number; reach?: number };
 }
 
 /**
@@ -371,6 +375,10 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const stairEnd = new Set<number>(); // roster4 Ladder: ids of the top step of a staircase (L9: hit x r4.stairTop)
   const capBanked: number[] = []; // roster4 Capacitor HOLD: the Capacitor that banked this cascade (at most one) / the one that released
   let capReleased: number | undefined;
+  const swingAt = new Map<number, number>(); // roster5 Wrecking Ball DISTANCE: id -> hit multiplier from its waker's distance
+  const squareKick = new Set<number>(); // roster5 Dynamo L9: ids of the parts in a fired Dynamo's block (hit x r5.squareL9, inside the stack cap)
+  const ghost = new Set<number>(); // roster5 Crane: cells holding the part its lift made (counts as already fired: never woken, never in the chain)
+  let crane: CascadeResult['crane'];
   const spread = new Set<number>();
   const held = new Set<number>();
 
@@ -510,6 +518,28 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
           edges.push({ from: idx, to: cell, kind: 'fan' });
         }
         torchAt.set(a.id, torchMult(hit.length, lvl('blowtorch')));
+      }
+      if (a.family === 'wrecking_ball') {
+        // roster5 DISTANCE: the hit grows with the board steps between the part that woke it and the ball; L6 knocks the part it swings
+        // over 1 cell (no damage); L9 woken from r5.swingFar+ steps it also wakes the cell behind it
+        const steps = a.parent >= 0 ? boardSteps(a.parent, idx) : 0;
+        swingAt.set(a.id, swingMult(steps, lvl('wrecking_ball')));
+        if (a.parent >= 0 && lvl('wrecking_ball') >= 6) {
+          const knock = swingKnock(grid, a.parent, idx, (i) => visited.has(i) || blockSet.has(i), (i) => !blockSet.has(i) && !visited.has(i));
+          if (knock) {
+            moves.push({ ...knock, id: grid[knock.from]!.id });
+            edges.push({ from: idx, to: knock.to, kind: 'swing' });
+            grid[knock.to] = grid[knock.from];
+            grid[knock.from] = null;
+          }
+        }
+        if (a.parent >= 0 && lvl('wrecking_ball') >= 9 && steps >= TUNING.r5.swingFar) {
+          const n = swingBehind(a.parent, idx);
+          if (n >= 0 && grid[n] && !visited.has(n) && !blockSet.has(n) && !crosses(idx, n)) {
+            edges.push({ from: idx, to: n, kind: 'swing' });
+            enqueue(idx, n, a.depth + 1);
+          }
+        }
       }
       if (primedNow.has(a.id)) {
         primedNow.delete(a.id);
@@ -722,6 +752,55 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       if (walk.length) stairEnd.add(grid[walk[walk.length - 1]]!.id);
       continue;
     }
+    if (a.family === 'dynamo') {
+      // roster5 2x2 SQUARE: in a full 2x2 block (L3: 3 parts + the Dynamo) it wakes the ring around the block and the block's other parts; else its 4 touching cells
+      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
+      const block = dynamoBlock(grid, idx, lvl('dynamo'));
+      for (const to of block ? [...(TUNING.r5.dynMates ? block.mates : []), ...block.ring] : dynamoTouch(idx)) {
+        if (!grid[to] || to === idx || lockedSet.has(to) || crosses(idx, to) || (grid[to]!.family === 'dynamo' && !TUNING.sameFamilyRelay && lvl('dynamo') < 6)) continue;
+        edges.push({ from: idx, to, kind: block ? 'ring' : 'spark' });
+        enqueue(idx, to, a.depth + 1);
+      }
+      if (block && lvl('dynamo') >= 9) for (const m of block.mates) squareKick.add(grid[m]!.id);
+      continue;
+    }
+    if (a.family === 'crane') {
+      // roster5 LIFT: once per level (the caller allows it), lift a part within reach onto its twin: they merge now, mid-chain, and the new part
+      // counts as already fired. L9: the merged part wakes its neighbours. Then, like any relay, it wakes its touching parts (r5.craneWake).
+      if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) continue;
+      if (opts.crane && !crane) {
+        const lift = craneLift(grid, idx, lvl('crane'), (i) => !!grid[i] && !visited.has(i) && !blockSet.has(i) && !crosses(idx, i), opts.crane.can);
+        if (lift) {
+          const p = grid[lift.from]!, tw = grid[lift.to]!;
+          const merged: Gadget = { ...tw, rank: opts.crane.rank(tw) };
+          crane = { from: lift.from, to: lift.to, family: tw.family, rank: merged.rank, at: moves.length };
+          edges.push({ from: lift.from, to: lift.to, kind: 'lift' });
+          grid[lift.from] = null;
+          grid[lift.to] = merged;
+          visited.set(lift.to, { id: merged.id, idx: lift.to, family: merged.family, rank: merged.rank, depth: a.depth + 1, parent: idx, charge: 1, contribution: 0 });
+          fired.add(merged.id);
+          ghost.add(lift.to);
+          void p;
+          if (lvl('crane') >= 9) {
+            const [mr, mc] = rc(lift.to);
+            for (const [dr, dc] of DIRS) {
+              if (!inside(mr + dr, mc + dc)) continue;
+              const n = at(mr + dr, mc + dc);
+              if (!grid[n] || visited.has(n) || blockSet.has(n) || crosses(lift.to, n)) continue;
+              edges.push({ from: lift.to, to: n, kind: 'lift' });
+              enqueue(lift.to, n, a.depth + 2);
+            }
+          }
+        }
+      }
+      if (TUNING.r5.craneWake)
+        for (const to of dynamoTouch(idx)) {
+          if (!grid[to] || visited.has(to) || lockedSet.has(to) || crosses(idx, to) || grid[to]!.family === 'crane') continue;
+          edges.push({ from: idx, to, kind: 'spark' });
+          enqueue(idx, to, a.depth + 1);
+        }
+      continue;
+    }
     if (a.family === 'wrench' || a.family === 'blast_plate' || a.family === 'blueprint' || a.family === 'rewind_crank') continue; // Wrench / Blast Plate / Blueprint / Rewind Crank are passive Supports: never board parts (game.ts s.wrench / s.support)
     const kind = a.family;
     const coilMult = TUNING.clarity ? 1 : 1 + TUNING.coilChargePerRank * a.rank;
@@ -747,7 +826,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if (a.rank >= MAX_RANK && !TUNING.clarity) maxSignature(idx, a);
   }
 
-  const acts = [...visited.values()];
+  const acts = [...visited.values()].filter((x) => !ghost.has(x.idx));
   // roster2 Wrench: its rank bonus counts in full for rank perks and reach, but only r2.wrenchDmg of it for the hit
   const wrenchCut = opts.rankBonus ? Math.pow(TUNING.rankMult, -(visited.get(rootIdx)!.rank - root.rank) * (1 - TUNING.r2.wrenchDmg)) : 1;
   let sum = 0;
@@ -759,6 +838,11 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if ((torchAt.get(a.id) ?? 1) !== 1) r3j.burn = torchAt.get(a.id);
     if (pipeEnd.has(a.id)) r3j.flow = TUNING.r3.pipeLast;
     if (stairEnd.has(a.id) && stairTop(lvl('ladder')) > 1) r3j.stair = stairTop(lvl('ladder'));
+    if ((swingAt.get(a.id) ?? 1) !== 1) r3j.swing = swingAt.get(a.id);
+    if (squareKick.has(a.id)) {
+      const sq = squareFit((r3j.flow ?? 1) * (r3j.stair ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (gearKicked.has(a.idx) ? TUNING.r1.gearKick : 1));
+      if (sq > 1) r3j.square = sq;
+    }
     if (a.family === 'tesla_tower') {
       const m = teslaMult(teslaCharges(relayCells, a.idx, lvl('tesla_tower')));
       if (m > 1) r3j.storm = m;
@@ -806,5 +890,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(fetch ? { fetch } : {}) };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(crane ? { crane } : {}), ...(fetch ? { fetch } : {}) };
 }

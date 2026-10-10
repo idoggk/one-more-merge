@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -198,6 +198,15 @@ export const TUNING = {
    *  holds rwHold (rwHoldL6 from L6), and only undoes a merge made within rwWindow seconds of level time. */
   roster4: false,
   r4: { capWake: 1, capWakeL9: 2, stairTop: 1.5, stairMax: 7, bpShow: 3, bpShowL3: 4, bpSwap: 1, bpSwapL6: 2, bpRankL9: 2, rwMerges: 10, rwMergesL3: 8, rwHold: 1, rwHoldL6: 2, rwWindow: 8 },
+  /** EXPERIMENT (t-af818b65, roster B batch 5), default OFF: Crane / Dynamo / Wrecking Ball join the collection, crates and squad pickers
+   *  (src/content/units.ts applyRoster5; Crane and Dynamo are Legendary and drop only with crates B, rosterB). Rules: src/core/roster5.ts,
+   *  docs/ROSTER.md section 12. Wrecking Ball: x(swingNear) next door, +swingPer per extra board step from its waker, max swingMax (swingMaxL3
+   *  from L3); L9 woken from swingFar+ steps it also wakes the cell behind it. Dynamo: a full 2x2 block (L3: also 3 parts + the Dynamo missing
+   *  a corner) wakes the ring of up to 12 around it (dynMates: also the block's own parts; OFF, sims showed -15% clear time with it) (L6 two Dynamos in the block: a ring 2 wide), else its 4 touching cells; L9 the block's
+   *  parts hit x squareL9, and every relay L9 hit bonus on one part is held to stackCap together. Crane: lifts a touching part (L3 within
+   *  craneReachL3 steps) onto its twin once per level (L6 +1 per boss armor phase); L9 the lifted part wakes its neighbours. */
+  roster5: false,
+  r5: { swingNear: 0.6, swingPer: 0.3, swingMax: 2, swingMaxL3: 2.3, swingFar: 4, ringWide: 2, squareL9: 1.25, stackCap: 1.5, dynMates: false, craneReach: 1, craneReachL3: 2, craneWake: true },
   r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };
 

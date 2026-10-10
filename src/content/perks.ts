@@ -3,6 +3,7 @@ import { ROSTER_1_INFO } from './roster1';
 import { ROSTER_2_INFO } from './roster2';
 import { ROSTER_3_INFO } from './roster3';
 import { ROSTER_4_INFO } from './roster4';
+import { ROSTER_5_INFO } from './roster5';
 import { TUNING, unitsB0On } from './tuning';
 
 /** Units B0 / B1 (QA UNITS row): the plain-words copy for units whose rules change; null = today's copy. One source for
@@ -91,6 +92,8 @@ const FAMILY_INFO_TODAY = {
   ...ROSTER_3_INFO,
   // roster B batch 4 (t-1e3c8bb6, TUNING.roster4): only reachable while the flag is on
   ...ROSTER_4_INFO,
+  // roster B batch 5 (t-af818b65, TUNING.roster5): only reachable while the flag is on
+  ...ROSTER_5_INFO,
 } as const;
 export const FAMILY_INFO = Object.fromEntries(Object.entries(FAMILY_INFO_TODAY).map(([k, v]) => [k, liveCopy(k, v)])) as unknown as {
   [K in keyof typeof FAMILY_INFO_TODAY]: Omit<(typeof FAMILY_INFO_TODAY)[K], 'text' | 'tryThis'> & { text: string; tryThis: string };

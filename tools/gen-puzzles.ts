@@ -134,6 +134,7 @@ export function dailyBand(d: number): [number, number] {
 const UNITS_ARG = process.argv.includes('--units') ? (process.argv[process.argv.indexOf('--units') + 1].split(',') as Family[]) : null;
 if (UNITS_ARG) {
   const data = JSON.parse(readFileSync('src/content/puzzles.json', 'utf8')) as { daily: PuzzleDef[]; drills: Record<string, PuzzleDef[]> };
+  if (UNITS_ARG.some((u) => u === 'crane' || u === 'dynamo' || u === 'wrecking_ball')) TUNING.roster5 = true; // t-af818b65: batch 5 units only act with the flag on
   if (UNITS_ARG.some((u) => u === 'capacitor')) TUNING.roster4 = true; // t-1e3c8bb6: a Capacitor only banks / releases with batch 4 on (Blueprint and Rewind Crank have no drill: see docs/ROSTER.md section 11)
   for (const u of UNITS_ARG) {
     const r = new Rng(20261010 ^ [...u].reduce((h, ch) => Math.imul(h, 31) + ch.charCodeAt(0), 7));
@@ -147,6 +148,12 @@ if (UNITS_ARG) {
           { moves: 2, pairs: 4, singles: 4, band: [24, 36], wrench: 0 },
           { moves: 3, pairs: 5, singles: 4, band: [44, 56], wrench: 0 },
         ]
+      : u === 'crane' // t-af818b65: a lift costs the two parts' shots and only pays on the NEXT merge, so even the warm-up drill is 2 merges
+        ? [
+            { moves: 2, pairs: 5, singles: 3, band: [8, 22] },
+            { moves: 2, only: [u], pairs: 4, singles: 4, band: [24, 36] },
+            { moves: 3, pairs: 5, singles: 4, band: [44, 56] },
+          ]
       : [
           { moves: 1, pairs: 4, singles: 3, band: [6, 16] },
           { moves: 2, only: [u], pairs: 4, singles: 4, band: [24, 36] },

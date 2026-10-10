@@ -21,6 +21,8 @@ export const JOB_TERMS: Record<JobKey, { label: string; hue: number }> = {
   storm: { label: 'STORM', hue: 0x8ad8ff },
   flow: { label: 'FLOW END', hue: 0x7ab0a0 },
   stair: { label: 'TOP STEP', hue: 0xc890ff },
+  swing: { label: 'SWING', hue: 0xb0c0d0 },
+  square: { label: 'BLOCK', hue: 0xff7ab8 },
 };
 
 /** One factor of the hit, in the order it applies. `usedUp`: a mark this merge spends (named in its PALETTE colour). */

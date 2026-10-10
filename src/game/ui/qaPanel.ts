@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -7,7 +7,7 @@ import { LEVELS } from '../../content/levels';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
-import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, UNITS, type CrateKind } from '../../content/units';
+import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, UNITS, type CrateKind } from '../../content/units';
 import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
@@ -52,6 +52,9 @@ applyRoster3(qaRoster3());
 // t-1e3c8bb6 QA-only: roster B batch 4 (Capacitor / Blueprint / Ladder / Rewind Crank in collection, crates and squads)
 export const qaRoster4 = () => storedRoster4(() => localStorage.getItem(ROSTER4_KEY));
 applyRoster4(qaRoster4());
+// t-af818b65 QA-only: roster B batch 5 (Crane / Dynamo / Wrecking Ball in collection, crates and squads; Crane and Dynamo need crates B to drop)
+export const qaRoster5 = () => storedRoster5(() => localStorage.getItem(ROSTER5_KEY));
+applyRoster5(qaRoster5());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -326,6 +329,22 @@ const QA_ROWS: QaRow[] = [
       tlog.log('qa_roster_4', { on: id === 'on' });
     },
     toast: (id) => (id === 'on' ? 'ROSTER 4 ON  ·  REWIND IS OFF IN PUZZLES, DAILY, BOUNTIES' : 'ROSTER 4 OFF (live game)'),
+    w: 240,
+    dx: 260,
+    gap: 48,
+    h: 91,
+  }),
+  // 7e) t-af818b65 ROSTER 5: Crane / Dynamo / Wrecking Ball join the collection, crates and squads (this device only, live)
+  qaSwitch({
+    title: 'ROSTER 5: Crane Dynamo Wrecking',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaRoster5() ? 'on' : 'off'),
+    pick: (id) => {
+      store(ROSTER5_KEY, id === 'on' ? 'on' : null);
+      applyRoster5(id === 'on');
+      tlog.log('qa_roster_5', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'on' ? 'ROSTER 5 ON  ·  CRANE AND DYNAMO DROP ONLY WITH CRATES B' : 'ROSTER 5 OFF (live game)'),
     w: 240,
     dx: 260,
     gap: 48,

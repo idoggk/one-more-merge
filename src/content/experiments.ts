@@ -116,6 +116,17 @@ export function applyUnits(v: UnitsVariant) {
   rebuildUnits(); // Tesla Tower (Legendary, roster 3) is in the collection only while crates B is on
 }
 
+/** QA panel ROSTER 5 switch (t-af818b65, roster B batch 5; this device only, not in the save): 'on' = TUNING.roster5,
+ *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster5. */
+export const ROSTER5_KEY = 'omm_qa_roster_5';
+export function storedRoster5(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+
 /** QA panel ROSTER 4 switch (t-1e3c8bb6, roster B batch 4; this device only, not in the save): 'on' = TUNING.roster4,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster4. */
 export const ROSTER4_KEY = 'omm_qa_roster_4';
