@@ -33,6 +33,7 @@ export function showOddsPanel(scene: Phaser.Scene, W: number, H: number, pity: P
   o.add(body);
   const L = 80, wrap = W - 2 * L;
   let y = 0;
+  const B = TUNING.rosterB; // ROSTER B: four tiers, a little smaller type so the sheet still fits
   const line = (text: string, size: number, color: string, font = 'Arial', gap = 8) => {
     const t = scene.add.text(L, y, text, { fontFamily: font, fontStyle: font === 'Arial' ? 'bold' : undefined, fontSize: `${size}px`, color, wordWrap: { width: wrap }, lineSpacing: 3 });
     body.add(t);
@@ -40,9 +41,8 @@ export function showOddsPanel(scene: Phaser.Scene, W: number, H: number, pity: P
     return t;
   };
   line('CRATE ODDS', 44, '#3b2533', FONT, 4);
-  line('Every card rolls these odds on its own.', 20, '#7a5a4a', 'Arial', 18);
+  line(B ? 'Every card rolls these odds on its own, before guarantees. Guarantees (pity, "at least N Rare") can raise your real odds. The Tool Bag row leaves out the latch chance: latch chances are on their own row.' : 'Every card rolls these odds on its own.', B ? 17 : 20, '#7a5a4a', 'Arial', 18);
   const boxes: { kind: CrateKind; y0: number; y1: number }[] = [];
-  const B = TUNING.rosterB; // ROSTER B: four tiers, a little smaller type so the sheet still fits
   for (const kind of (B ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) {
     const y0 = y;
     y += 10;

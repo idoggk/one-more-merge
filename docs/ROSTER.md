@@ -105,7 +105,7 @@ The Batch column says when a unit ships:
 | Jackhammer (was Drill) | Shooter | **BYPASS**: its hits **ignore shields**. Breaking shields is Mortar's job and armor pips are Nail Gun's, so it does neither. B's "x2 vs armored" is dropped (Q3, Lead). [B]+[LEAD] | While the target's shield is up, its hits x1.3 (DRAFT) | Every 4th hit x1.5 (DRAFT) | Rank 7-8: the x1.5 hit comes every 3rd hit instead (DRAFT; replaces "hits the tile behind the target", which has no meaning against a boss) | B1 |
 | Blowtorch | Shooter | **HAZARDS**: the shot runs up its column and burns Frost / Junk / Clamp, x1.5 per hazard burned. [X] | Also burns Bomb / Slick | Also burns the column to its right | With no hazard to burn, its shot still hits x1.2 (DRAFT; replaces "burns a boss mark early", which was Blast Plate's job) | B3 |
 | Fuse Box | Relay | **DIAGONAL**: wakes 2 cells along each diagonal. Anti-loop rule applies. [B]+[LEAD] | Rank 4+ also sparks 2 more diagonal cells [TODAY] | Every 5th spark also wakes up/down/left/right [TODAY] | Rank 7-8 sparks full diagonals [TODAY] | Live (B1 reach flagged) |
-| Gear | Relay | **LINK**: any two Gears pass the chain to each other, anywhere on the board. Stays as designed. [B]+[LEAD] | A Gear also wakes its 4 touching cells (DRAFT) | A third Gear joins the link (DRAFT) | Linked Gears' shooters x1.2 (DRAFT) | B1 |
+| Gear | Relay | **LINK**: any two Gears pass the chain to each other, anywhere on the board. **Lone Gear** (only one on the board, t-7ba158ff): it wakes the 2 cells two steps away in its row (left and right) instead, so a single Gear is never dead. [B]+[LEAD] | A Gear also wakes its 4 touching cells (DRAFT) | A third Gear joins the link (DRAFT) | Linked Gears' shooters x1.2 (DRAFT) | B1 |
 | Pipe | Relay | **SAME FAMILY**: wakes same-family parts joined to its neighbours, max 4. [X] | Max 6 | Flows along diagonals too | The last part in the flow x1.3 | B3 |
 | Magnet | Support | **PAIR**: tap a part and its twin arrives next to it. [B] | Pulls from 1 cell further [TODAY] | Every 4th use pulls twice [TODAY] | The pulled twin wakes on arrival [TODAY Snap In] | Live |
 | Battery | Support | **SETUP**: pick one shooter; its next shot is **x1.5**. [LEAD] | x1.7 (DRAFT; today High Voltage +0.20) | Pick 2 shooters (DRAFT; today Twin Charge) | The charge stays through one missed cascade (DRAFT) | Live (B1 job flagged) |
@@ -116,7 +116,7 @@ The Batch column says when a unit ships:
 | Unit | Type | Job | L3 | L6 | L9 | Batch |
 |---|---|---|---|---|---|---|
 | Arc Welder | Shooter | **SPREAD**: jumps to the nearest other shooter, never to another welder. Bonus capped at **+72% / 4 shooters**. [B]+[LEAD] | Rank 4+ own shot x0.9 [TODAY] | Every 5th fire arcs once more [TODAY] | Rank 7-8 arcs to two machines [TODAY] | Live (B0 welder rule flagged) |
-| Saw Blade | Shooter | **EDGE**: x1.5 on the outer ring, x0.7 inside. Total edge bonus capped at **+72%** (x1.72). [B]+[LEAD] | x1.6 on the ring (DRAFT) | Corners x1.25 more; total still capped at +72% (DRAFT; replaces B's "corners x2") | x0.85 inside (DRAFT) | B1 |
+| Saw Blade | Shooter | **EDGE**: x1.5 on the outer ring, x0.7 inside. Total edge bonus capped at **+72%** (x1.72). [B]+[LEAD] | x1.6 on the ring (DRAFT) | Corners hit harder, up to the edge cap of +72% (DRAFT; replaces B's "corners x2") | x0.85 inside (DRAFT) | B1 |
 | Wrecking Ball | Shooter | **DISTANCE**: x0.6 when its waker is next door, +0.3 per extra cell of distance, max x2. [X] | Max x2.3 | Knocks the part it swings over 1 cell | From 4+ cells away, also wakes the cell behind it | B5 |
 | Belt Drive (was Conveyor) | Relay | **BRIDGE**: the chain enters one side and exits at the far end of its line. The cells in between do **not** wake. [LEAD] | The far end wakes 2 deep (DRAFT) | Belt to Belt keeps going (DRAFT) | The exit part fires x1.25 (DRAFT) | B2 |
 | Capacitor | Relay | **HOLD**: stores the chain and releases it at the start of your NEXT merge; the release wakes **1 touching part**. Anti-loop rule applies. [B]+[LEAD] | Shows what it holds (DRAFT) | The release adds +1 link of depth (DRAFT) | The release wakes 2 touching parts instead of 1. It still stores one chain and releases it once (DRAFT; replaces B's "stores two chains", which broke the anti-loop rule) | B4 |
@@ -169,7 +169,7 @@ The Batch column says when a unit ships:
 1. Conveyor -> **Belt Drive** (the name clashed with the boss attack). Works as a **bridge**: the chain enters one side and exits at the far end without waking the cells between.
 2. Drill -> **Jackhammer** (the name clashed with the Screw Yard Drill booster). It **bypasses shields**, and that is its only job (no shield breaking, no x2 vs armored). Mortar keeps **DEPTH** and also **breaks shield segments**.
 3. Nail Gun strips **1 armor pip per shot**. Raw damage a little below Cannon.
-4. Gear = **LINK** (two Gears pass the chain). Stays.
+4. Gear = **LINK** (two Gears pass the chain). Stays; a lone Gear wakes the 2 cells two steps away in its row.
 5. Tesla Tower counts only relays **within 3 cells**.
 6. Blueprint copies arrive at **rank 1**.
 7. Crane acts **once per stage**.

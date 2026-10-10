@@ -8,7 +8,7 @@ import { TUNING } from './tuning';
 export const ROSTER_1_INFO = {
   nail_gun: { name: 'Nail Gun', color: 0x8a96a8, role: 'SHOOTER', job: 'ROW', whenMerged: 'WHEN MERGED: fires +20% for every machine in its row (max x1.8).', text: 'ROW: never shoots by itself. Woken by a chain it fires +20% for every other machine in its row, up to x1.8 (a full row).', tryThis: 'Keep its row full.' },
   jackhammer: { name: 'Jackhammer', color: 0xd8a020, role: 'SHOOTER', job: 'BYPASS', whenMerged: 'WHEN MERGED: its hit ignores shields.', text: 'BYPASS: never shoots by itself. Its hits ignore a closed shield, so shield levels cost it nothing.', tryThis: 'Bring it to shield levels.' },
-  gear: { name: 'Gear', color: 0x9a7a5a, role: 'RELAY', job: 'LINK', whenMerged: 'WHEN MERGED: the chain jumps to the farthest other Gear.', text: 'LINK: MERGE a Gear and the chain jumps to the farthest other Gear on the board, even across the divider.', tryThis: 'Keep a spare Gear in a far group of machines.' },
+  gear: { name: 'Gear', color: 0x9a7a5a, role: 'RELAY', job: 'LINK', whenMerged: 'WHEN MERGED: the chain jumps to the farthest other Gear. A lone Gear wakes the 2 cells two steps away in its row.', text: 'LINK: MERGE a Gear and the chain jumps to the farthest other Gear on the board, even across the divider. With only one Gear on the board it wakes the 2 cells two steps away in its row (left and right).', tryThis: 'One Gear: line machines up two cells from it. Two Gears: keep one in a far group.' },
   saw_blade: { name: 'Saw Blade', color: 0xc8d0d8, role: 'SHOOTER', job: 'EDGE', whenMerged: 'WHEN MERGED: x1.5 on the outer ring, x0.7 inside.', text: 'EDGE: never shoots by itself. On the outer ring of the board it hits x1.5; inside the ring only x0.7. The edge bonus never goes past +72%.', tryThis: 'Merge it on the edge, never in the middle.' },
 } as const;
 
@@ -17,7 +17,7 @@ export const ROSTER_1_PERKS: Record<string, [string, string][]> = {
   nail_gun: [['Double Pip', 'Rank 4+ strips 2 armor pips per shot'], ['Extra Nail', 'A full row adds a nail that strips 1 more pip (no extra damage past x1.8)'], ['Column Feed', 'Filled cells in its column count too; the cap rises to x2.2']],
   jackhammer: [['Shield Breaker', 'While the target shield is up its hits x1.3'], ['Heavy Swing', 'Every 4th hit x1.5'], ['Rapid Swing', 'Rank 7-8: the x1.5 hit comes every 3rd hit']],
   gear: [['Big Teeth', 'A Gear also wakes its 4 touching cells'], ['Third Gear', 'A third Gear joins the link'], ['Master Gear', 'Shooters a Gear wakes hit x1.2']],
-  saw_blade: [['Serrated', 'x1.6 on the ring'], ['Corner Teeth', 'Corners x1.25 more (the edge bonus still stops at +72%)'], ['True Arbor', 'x0.85 inside the ring']],
+  saw_blade: [['Serrated', 'x1.6 on the ring'], ['Corner Teeth', 'Corners hit harder, up to the edge cap (+72%)'], ['True Arbor', 'x0.85 inside the ring']],
 };
 
 /** Unit-page text + animated mini-board for the new units (they have no guide page of their own). */

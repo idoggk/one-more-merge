@@ -1,5 +1,5 @@
 import { COLS, MAX_RANK, ROWS, TUNING, unitsB0On } from '../content/tuning';
-import { gearLinks, gearPerkCells, roster1Mult } from './roster1';
+import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1';
 import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Grid, type PerkId } from './types';
 
 const DIRS: [number, number][] = [
@@ -630,7 +630,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     // anywhere (even across Junkzilla's divider); every machine still fires once
     const links = kind === 'gear' && a.depth <= TUNING.r1.gearDepth ? gearLinks(grid, idx, (i) => visited.has(i) || lockedSet.has(i), (lvl('gear') >= 6 ? TUNING.r1.gearLinksL6 : TUNING.r1.gearLinks) - gearJumps) : [];
     gearJumps += links.length;
-    const route = RB && isRelay(a.family) && !isRoster1(a.family) ? rbRouteCells(idx, a.family, lvl(a.family), nthOf.get(a.id) ?? 0, opts.perks) : [...new Set([...routeCells(idx, a.family, a.rank, opts.perks), ...relayPerkCells(idx, a, lvl(a.family), nthOf.get(a.id) ?? 0), ...links])];
+    const route = RB && isRelay(a.family) && !isRoster1(a.family) ? rbRouteCells(idx, a.family, lvl(a.family), nthOf.get(a.id) ?? 0, opts.perks) : [...new Set([...routeCells(idx, a.family, a.rank, opts.perks), ...relayPerkCells(idx, a, lvl(a.family), nthOf.get(a.id) ?? 0), ...links, ...(kind === 'gear' ? gearLoneCells(grid, idx) : [])])];
     for (const to of route) {
       if (!grid[to] || to === idx || lockedSet.has(to)) continue;
       const link = links.includes(to);

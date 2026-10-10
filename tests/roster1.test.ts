@@ -187,3 +187,16 @@ describe('t-9b28a794 roster 1: drills', () => {
     }
   });
 });
+
+describe('t-7ba158ff Gear L1 lone job', () => {
+  it('one Gear on the board wakes the 2 cells two steps away in its row; with two Gears it only links', () => {
+    // merge lands on the Gear at 12 (row 2, col 2): cells 10 and 14 wake; the cannon at 2 (not in the row) does not
+    const lone = run(board([[12, g('gear', 2)], [10, g('cannon')], [14, g('cannon')], [2, g('cannon')]]), 12);
+    expect(lone.activations.map((x) => x.idx).sort((x, y) => x - y)).toEqual([10, 12, 14]);
+    // at the board edge only the cell that exists wakes
+    expect(run(board([[0, g('gear', 2)], [2, g('cannon')]]), 0).activations.map((x) => x.idx).sort((x, y) => x - y)).toEqual([0, 2]);
+    // a second Gear: LINK only, no row wake
+    const two = run(board([[12, g('gear', 2)], [29, g('gear')], [10, g('cannon')], [14, g('cannon')]]), 12);
+    expect(two.activations.map((x) => x.idx).sort((x, y) => x - y)).toEqual([12, 29]);
+  });
+});

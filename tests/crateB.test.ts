@@ -56,7 +56,7 @@ describe('the printed odds are the rolled odds', () => {
   it('per-card and guarantee rows are separate lines and parse back to the tables', () => {
     for (const k of KINDS_B) {
       const { rows } = crateOddsLines(k);
-      expect(rows[0]).toMatch(/^Each card: Common [\d.]+% · Rare [\d.]+% · Epic [\d.]+% · Legendary [\d.]+%$/);
+      expect(rows[0]).toMatch(/^Each card, before guarantees: Common [\d.]+% · Rare [\d.]+% · Epic [\d.]+% · Legendary [\d.]+%$/);
       expect(parseOddsB(rows[0])).toEqual(CRATES_B[k].odds);
       const guar = rows.filter((r) => r.startsWith('Guaranteed:'));
       expect(guar).toHaveLength(guaranteeGroups(k).length);
@@ -319,5 +319,32 @@ describe('flag OFF = today\'s crates', () => {
     const p: PityState = { epic: 0, dry: 0 };
     rollCrate('iron', ALL, 5, p);
     expect(p.leg).toBeUndefined();
+  });
+});
+
+describe('t-7ba158ff: the first-Horn promise survives a latch', () => {
+  it('a Tool Bag that latches up still brings a NEW Horn first (and total cards are unchanged)', () => {
+    const owned = new Set<Family>(UNITS.filter((u) => u.id !== 'horn').map((u) => u.id));
+    let latched = 0;
+    for (let i = 1; i < 400; i++) {
+      const r = openCrateB('wood', owned, seedOf(i), fresh());
+      if (!r.latched) continue;
+      latched++;
+      expect(r.cards[0]).toMatchObject({ unit: 'horn', isNew: true });
+      expect(r.cards.filter((c) => c.unit === 'horn')).toHaveLength(1);
+      expect(r.cards.reduce((n, c) => n + c.count, 0)).toBe(CRATES_B[r.opened].cards);
+    }
+    expect(latched).toBeGreaterThan(10);
+    // once Horn is owned nothing is injected
+    const own = new Set(ALL);
+    for (let i = 1; i < 100; i++) {
+      const r = openCrateB('wood', own, seedOf(i), fresh());
+      expect(r.cards).toEqual(rollCrate(r.opened, own, seedOf(i), fresh()));
+    }
+  });
+
+  it('the odds sheet says "before guarantees"', () => {
+    expect(crateOddsLines('wood').rows[0]).toMatch(/^Each card, before guarantees:/);
+    expect(crateOddsLines('wood').rows.find((r) => r.startsWith('Latch'))).toContain('leave it out');
   });
 });

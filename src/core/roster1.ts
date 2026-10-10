@@ -92,3 +92,11 @@ export function gearPerkCells(idx: number, level: number): number[] {
   if (level < 3) return [];
   return [[-1, 0], [1, 0], [0, -1], [0, 1]].flatMap(([dr, dc]) => (inside(r + dr, c + dc) ? [(r + dr) * COLS + c + dc] : []));
 }
+
+/** Gear L1 LONE job (t-7ba158ff): with no other Gear on the board there is nothing to link, so a Gear wakes the 2 cells
+ *  two steps away in its row (left and right). Two or more Gears: LINK only, as before. */
+export function gearLoneCells(grid: Grid, idx: number): number[] {
+  if (grid.some((g, i) => g?.family === 'gear' && i !== idx)) return [];
+  const [r, c] = rc(idx);
+  return [-2, 2].flatMap((dc) => (inside(r, c + dc) ? [r * COLS + c + dc] : []));
+}
