@@ -1139,6 +1139,7 @@ export function newPuzzle(p: PuzzleDef): GameState {
 export function unitActed(r: CascadeResult, unit: Family): boolean {
   if (unit === 'wrench') return !!r.wrenchBoost; // roster 2: Wrench acts when an armed merge was spent
   if (unit === 'crane') return !!r.crane; // roster 5: a Crane acts when it lifted a part onto its twin
+  if (unit === 'rivet_gun' || unit === 'vice' || unit === 'router' || unit === 'hydraulic_press' || unit === 'lathe') return r.activations.some((a) => a.family === unit && r.jobHit?.includes(a.id)); // roster 7: the unit acts when its own job happened (3rd part, 4 full sides, on the edge, woke parts)
   if (unit === 'robot_arm') return !!r.copies?.some((c) => c.family); // roster 6: a Robot Arm acts when it did a copied relay job
   return r.activations.some((a) => a.family === unit && (a.contribution > 0 || r.edges.some((e) => e.from === a.idx)));
 }

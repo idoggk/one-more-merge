@@ -3,6 +3,7 @@ import { gearLinks, gearLoneCells, gearPerkCells, roster1Mult } from './roster1'
 import { beltCells, effectiveRank, entryDir, pistonMult, pistonPush, springCells } from './roster2';
 import { capDepth, capTargets, stairTop, stairWalk } from './roster4';
 import { canCopy, copyLevel, copyOwnMult, pickCopy, rememberCopy } from './roster6';
+import { latheMult, onEdge, pressMult, pressSides, rivetHit, rivetMult, routerCells, viceCells, viceGrip } from './roster7';
 import { boardSteps, craneLift, dynamoBlock, dynamoTouch, squareFit, swingBehind, swingKnock, swingMult } from './roster5';
 import { pipeFlow, teslaCharges, teslaMult, torchMult, torchTargets, type TorchHazard } from './roster3';
 import { isRelay, isRoster1, isShooter, type Activation, type CascadeResult, type Family, type Gadget, type Grid, type JobKey, type PerkId } from './types';
@@ -29,6 +30,7 @@ export function coilReach(rank: number, perks: readonly PerkId[]): number {
 
 /** Ordered list of cells a gadget routes to when activated in a cascade (may include empties; caller filters). */
 export function routeCells(idx: number, family: Family, rank: number, perks: readonly PerkId[]): number[] {
+  if (family === 'vice') return viceCells(idx, 1); // roster7: the tile preview of a Vice (empty off the edge)
   if (TUNING.rosterB && isRelay(family)) return rbRouteCells(idx, family, 1, 0, perks);
   const [r, c] = rc(idx);
   const out: number[] = [];
@@ -383,6 +385,9 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const copyUsed = new Set<Family>(); // roster6 Robot Arm COPY: relay kinds already copied in this cascade (each at most once)
   const copyAt = new Map<number, number>(); // roster6 Robot Arm L3: id -> its own shot multiplier after copying a Rare or Epic relay
   const copies: NonNullable<CascadeResult['copies']> = [];
+  const r7At = new Map<number, { key: 'rivet' | 'press' | 'lathe'; m: number }>(); // roster7 Rivet Gun / Hydraulic Press / Lathe: id -> job multiplier at the moment it fires
+  const gripAt = new Map<number, number>(); // roster7 Vice GRIP: ids of shooters a Vice woke -> hit multiplier
+  const jobHit: number[] = []; // roster7: activations whose job really happened (drills read it)
   const spread = new Set<number>();
   const held = new Set<number>();
 
@@ -480,6 +485,32 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
           prev = to;
         });
         if (walk.length) stairEnd.add(grid[walk[walk.length - 1]]!.id);
+        return;
+      }
+      if (fam === 'vice') {
+        // roster7 GRIP: only on a board edge, wakes the next cells inward in a straight line (the caller's preview of a card shows the same cells); shooters it wakes hit harder
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        let woke = false;
+        for (const to of viceCells(idx, L)) {
+          const g = grid[to];
+          if (!g || lockedSet.has(to) || crosses(idx, to) || (g.family === 'vice' && !TUNING.sameFamilyRelay)) continue;
+          edges.push({ from: idx, to, kind: 'vice' });
+          if (!visited.has(to) && isShooter(g.family) && onEdge(idx)) gripAt.set(g.id, viceGrip(L));
+          enqueue(idx, to, a.depth + 1);
+          woke = true;
+        }
+        if (woke && onEdge(idx)) jobHit.push(a.id); // the drill counts the Vice only when it did its edge job
+        return;
+      }
+      if (fam === 'router') {
+        // roster7 TURN: wakes the L of cells holding the most parts (core/roster7.ts routerCells); a resting row wakes nobody
+        if (opts.restRow !== undefined && Math.floor(idx / COLS) === opts.restRow) return;
+        const cells = routerCells(grid, idx, L, (i) => !visited.has(i) && !lockedSet.has(i) && !crosses(idx, i) && !(grid[i]!.family === 'router' && !TUNING.sameFamilyRelay));
+        for (const to of cells) {
+          edges.push({ from: idx, to, kind: 'router' });
+          enqueue(idx, to, a.depth + 1);
+        }
+        if (cells.length) jobHit.push(a.id);
         return;
       }
       if (fam === 'dynamo') {
@@ -671,6 +702,22 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
             enqueue(idx, n, a.depth + 1);
           }
         }
+      }
+      if (a.family === 'rivet_gun') {
+        // roster7 RIVET: the hit counts the parts that fired before it in this cascade (the merged part is the 1st)
+        const o = orderOf.get(a.id) ?? 0;
+        r7At.set(a.id, { key: 'rivet', m: rivetMult(o, lvl('rivet_gun')) });
+        if (rivetHit(o, lvl('rivet_gun'))) jobHit.push(a.id);
+      }
+      if (a.family === 'hydraulic_press') {
+        // roster7 PRESS: counted as it fires, from the parts around it now
+        r7At.set(a.id, { key: 'press', m: pressMult(grid, idx, lvl('hydraulic_press')) });
+        if (pressSides(grid, idx) === 4) jobHit.push(a.id);
+      }
+      if (a.family === 'lathe') {
+        // roster7 LATHE: the edge it sits on and the distance to the opposite edge
+        r7At.set(a.id, { key: 'lathe', m: latheMult(grid, idx, lvl('lathe')) });
+        if (onEdge(idx)) jobHit.push(a.id);
       }
       if (a.family === 'robot_arm' && TUNING.roster6) {
         // roster6 COPY: the last relay that woke it goes in its memory (never a Legendary, never another Arm); then it does the better remembered job from its own cell,
@@ -864,6 +911,9 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
     if (stairEnd.has(a.id) && stairTop(lvl('ladder')) > 1) r3j.stair = stairTop(lvl('ladder'));
     if ((swingAt.get(a.id) ?? 1) !== 1) r3j.swing = swingAt.get(a.id);
     if ((copyAt.get(a.id) ?? 1) !== 1) r3j.copy = copyAt.get(a.id);
+    const r7 = r7At.get(a.id);
+    if (r7 && r7.m !== 1) r3j[r7.key] = r7.m;
+    if (gripAt.has(a.id)) r3j.grip = gripAt.get(a.id);
     if (squareKick.has(a.id)) {
       const sq = squareFit((r3j.flow ?? 1) * (r3j.stair ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (gearKicked.has(a.idx) ? TUNING.r1.gearKick : 1));
       if (sq > 1) r3j.square = sq;
@@ -915,5 +965,5 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const cap = TUNING.comboCap + (encore ? 0.5 : 0);
   const comboMult = Math.min(cap, 1 + slope * (acts.length - 1));
   const total = sum * comboMult * (opts.overdrive ? TUNING.overdriveFactor : 1);
-  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(crane ? { crane } : {}), ...(copies.length ? { copies } : {}), ...(fetch ? { fetch } : {}) };
+  return { rootIdx, activations: acts, edges, moves, primes, discharged, itemUsed, amps, ampsUsed, fires, count: acts.length, comboMult, total, ...(clears.length ? { clears } : {}), ...(burned.length ? { burned } : {}), ...(capBanked.length ? { capBanked } : {}), ...(capReleased !== undefined ? { capReleased } : {}), ...(crane ? { crane } : {}), ...(copies.length ? { copies } : {}), ...(jobHit.length ? { jobHit } : {}), ...(fetch ? { fetch } : {}) };
 }

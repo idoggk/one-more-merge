@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyPace, applySpamVariant, applyThinkBank, applyUnits, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -7,7 +7,7 @@ import { LEVELS } from '../../content/levels';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
-import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, applyRoster6, UNITS, type CrateKind } from '../../content/units';
+import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, applyRoster6, applyRoster7, UNITS, type CrateKind } from '../../content/units';
 import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
@@ -59,6 +59,9 @@ applyRoster5(qaRoster5());
 // t-f2cd50e4 QA-only: roster B batch 6 (Robot Arm / Tilt Lever in collection, crates and squads; both are Legendary: they drop only with crates B)
 export const qaRoster6 = () => storedRoster6(() => localStorage.getItem(ROSTER6_KEY));
 applyRoster6(qaRoster6());
+// t-67cd7c5b QA-only: roster B batch 7 (Rivet Gun / Vice / Router / Hydraulic Press / Lathe in collection, crates and squads; none is Legendary)
+export const qaRoster7 = () => storedRoster7(() => localStorage.getItem(ROSTER7_KEY));
+applyRoster7(qaRoster7());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -120,6 +123,7 @@ const ROSTER_BATCHES = [
   { n: 4, key: ROSTER4_KEY, on: qaRoster4, apply: applyRoster4, units: 'Cap Plan Ladder Rewind', toastOn: 'ROSTER 4 ON  ·  REWIND IS OFF IN PUZZLES, DAILY, BOUNTIES' },
   { n: 5, key: ROSTER5_KEY, on: qaRoster5, apply: applyRoster5, units: 'Crane Dynamo Wrecking', toastOn: 'ROSTER 5 ON  ·  CRANE AND DYNAMO DROP ONLY WITH CRATES B' },
   { n: 6, key: ROSTER6_KEY, on: qaRoster6, apply: applyRoster6, units: 'Robot Arm, Tilt Lever', toastOn: 'ROSTER 6 ON  ·  BOTH ARE LEGENDARY: THEY DROP ONLY WITH CRATES B' },
+  { n: 7, key: ROSTER7_KEY, on: qaRoster7, apply: applyRoster7, units: 'Rivet Vice Router Press Lathe', toastOn: 'ROSTER 7 ON  ·  CRATES, TEAM, UNITS' },
 ] as const;
 const ROSTER_GROUP_H = 250;
 
@@ -292,23 +296,23 @@ export const QA_ROWS: QaRow[] = [
     gap: 48,
     h: 91,
   }),
-  // 7b) NEW UNITS: roster B batches 1..6 join the collection, crates and squads (this device only, live). One grouped section.
+  // 7b) NEW UNITS: roster B batches 1..7 join the collection, crates and squads (this device only, live). One grouped section.
   {
     h: ROSTER_GROUP_H,
     draw: ({ scene, c, reopen }, y) => {
-      c.add(scene.add.text(W / 2, y + 12, 'NEW UNITS: batch 1..6', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+      c.add(scene.add.text(W / 2, y + 12, 'NEW UNITS: batch 1..7', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
       ROSTER_BATCHES.forEach((r, i) => {
-        const x = W / 2 + ((i % 3) - 1) * 212;
-        const by = y + 66 + Math.floor(i / 3) * 96;
+        const x = W / 2 + ((i % 4) - 1.5) * 170;
+        const by = y + 66 + Math.floor(i / 4) * 96;
         const on = r.on();
-        scene.button(c, x, by, 300, on ? `[BATCH ${r.n}]` : `BATCH ${r.n}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        scene.button(c, x, by, 230, on ? `[BATCH ${r.n}]` : `BATCH ${r.n}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
           store(r.key, on ? null : 'on');
           r.apply(!on);
           tlog.log(`qa_roster_${r.n}`, { on: !on });
           scene.showToast(on ? `NEW UNITS BATCH ${r.n} OFF (live game)` : r.toastOn);
           reopen();
         }, 0.62);
-        c.add(scene.add.text(x, by + 36, r.units, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '14px', color: '#7a5a4a' }).setOrigin(0.5));
+        c.add(scene.add.text(x, by + 36, r.units, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '13px', color: '#7a5a4a', align: 'center', wordWrap: { width: 160 } }).setOrigin(0.5));
       });
     },
   },

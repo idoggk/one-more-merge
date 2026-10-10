@@ -284,6 +284,28 @@ export const sfx = {
       tone(vary(1800), 0.1, 'square', 0.03, delay + 0.14);
     }
   },
+  /** roster B batch 7 (t-67cd7c5b), pitched from the same synth voices: Rivet Gun = two sharp rivet bangs, Vice = a jaw clamp (low thunk, then a ring), Router = a short turning whirr that clicks,
+   *  Hydraulic Press = a slow low squeeze and a heavy slam, Lathe = a rising spin whine with a scrape. */
+  roster7: (fam: string, delay = 0) => {
+    if (fam === 'rivet_gun') for (const d of [0, 0.09]) {
+      tone(vary(900), 0.05, 'square', 0.06, delay + d, 500);
+      bandNoise(0.03, 0.09, delay + d, 3000, 2);
+    }
+    else if (fam === 'vice') {
+      tone(vary(110), 0.1, 'triangle', 0.1, delay, 70);
+      tone(vary(1500), 0.18, 'sine', 0.04, delay + 0.05);
+    } else if (fam === 'router') {
+      tone(vary(300), 0.14, 'sawtooth', 0.04, delay, 700);
+      tone(vary(1200), 0.04, 'square', 0.05, delay + 0.16);
+    } else if (fam === 'hydraulic_press') {
+      tone(vary(70), 0.3, 'sine', 0.08, delay, 45);
+      bandNoise(0.1, 0.18, delay + 0.28, 450, 0.7);
+      tone(vary(60), 0.14, 'triangle', 0.13, delay + 0.28, 40);
+    } else if (fam === 'lathe') {
+      tone(vary(300), 0.3, 'sawtooth', 0.04, delay, 1500);
+      bandNoise(0.2, 0.06, delay + 0.1, 3800, 2.5);
+    }
+  },
   /** roster B batch 6 (t-f2cd50e4), pitched from the same synth voices: Robot Arm = two servo whirs and a claw clack, Tilt Lever = a heavy lever clunk and a rumble of sliding parts. */
   roster6: (fam: string, delay = 0) => {
     if (fam === 'robot_arm') {

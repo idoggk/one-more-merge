@@ -1,10 +1,10 @@
 // SQUAD SWAP probe (read-only): plays the same saga levels with different squads (shooter / relay pair / helper) and
 // three bots (random / greedy smart / 2-ply planner), then prints per-squad win %, clear time, chain length, damage share by family and helper usage.
-// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--roster3] [--roster4] [--roster5] [--roster6] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
+// Usage: npx vite-node tools/squad-swap.ts [--roster1] [--roster2] [--roster3] [--roster4] [--roster5] [--roster6] [--roster7] [--from 21] [--to 80] [--step 3] [--n 20] [--lvl 1|9] [--every 3.5] [--only KEY[,KEY]] [--bots random,smart,planner] [--b0|--b1|--rb] [--set b1.toyBag=2,b1.amp=1.6] [--nobase]
 //        [--rule today|sandwich2|sandwichBonus]   (t-1effe0bf merge rule prototype; also prints board-full time, sandwiches/run, mean chain)
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, applyRoster6, levelMult, ROSTER_3_UNITS, ROSTER_5_UNITS, ROSTER_6_UNITS, unitDef } from '../src/content/units';
+import { applyRoster1, applyRoster2, applyRoster3, applyRoster4, applyRoster5, applyRoster6, applyRoster7, levelMult, ROSTER_3_UNITS, ROSTER_5_UNITS, ROSTER_6_UNITS, ROSTER_7_UNITS, unitDef } from '../src/content/units';
 import { boardSteps, swingMult } from '../src/core/roster5';
 import { choosePerk, drop, legalPairs, locked, newLevel, previewMerge, sandwichFor, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
@@ -58,6 +58,9 @@ applyRoster5(ROSTER5);
 // the collection with crates B, but the sim picks squads by hand, so they play without --rb. The bot taps Tilt Lever on the edge with the most merges (core/support autoSupport).
 const ROSTER6 = args.includes('--roster6');
 applyRoster6(ROSTER6);
+// --roster7 (t-67cd7c5b): roster B batch 7 on (TUNING.roster7) and its squads added (Rivet Gun / Hydraulic Press / Lathe shooters with Coil + Bell; Vice and Router in either relay slot, plus Vice with Horn). None is Legendary.
+const ROSTER7 = args.includes("--roster7");
+applyRoster7(ROSTER7);
 
 type Squad = { key: string; shooter: Family; relays: [Family, Family]; helper?: Family };
 const SQUADS: Squad[] = [
@@ -71,6 +74,12 @@ const SQUADS: Squad[] = [
     ? [
         ...(['nail_gun', 'jackhammer', 'saw_blade'] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ['coil', 'bell'] as [Family, Family] })),
         ...([['coil', 'gear'], ['gear', 'bell']] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: 'cannon' as Family, relays: r })),
+      ]
+    : []),
+  ...(ROSTER7
+    ? [
+        ...(["rivet_gun", "hydraulic_press", "lathe"] as Family[]).map((f) => ({ key: f.toUpperCase(), shooter: f, relays: ["coil", "bell"] as [Family, Family] })),
+        ...([["vice", "bell"], ["coil", "vice"], ["horn", "vice"], ["router", "bell"], ["coil", "router"]] as [Family, Family][]).map((r) => ({ key: `${r[0]}+${r[1]}`.toUpperCase(), shooter: "cannon" as Family, relays: r })),
       ]
     : []),
   ...(ROSTER6
@@ -251,7 +260,7 @@ function absorb(r: Run, c: CascadeResult, player: boolean) {
 function play(def: LevelDef, sq: Squad, bot: Bot, seed: number): Run {
   const s = newLevel(def, { shooter: sq.shooter, relays: sq.relays, toys: sq.helper ? [sq.helper] : [] });
   if (LVL) {
-    s.unitMult = Object.fromEntries(FAMILIES.map((f) => [f, levelMult(unitDef(f) ?? ROSTER_3_UNITS.find((u) => u.id === f) ?? ROSTER_5_UNITS.find((u) => u.id === f) ?? ROSTER_6_UNITS.find((u) => u.id === f), LVL)]));
+    s.unitMult = Object.fromEntries(FAMILIES.map((f) => [f, levelMult(unitDef(f) ?? ROSTER_3_UNITS.find((u) => u.id === f) ?? ROSTER_5_UNITS.find((u) => u.id === f) ?? ROSTER_6_UNITS.find((u) => u.id === f) ?? ROSTER_7_UNITS.find((u) => u.id === f), LVL)]));
     s.unitLevel = Object.fromEntries(FAMILIES.map((f) => [f, LVL]));
   }
   const r: Run = { won: false, clock: 1, chains: [], dmgFam: {}, passive: 0, deep: 0, total: 0, acts: 0, relayFires: {}, relayWakes: {}, moves: 0, primes: 0, primesUsed: 0, marks: 0, marksUsed: 0, arcs: 0, arcToWelder: 0, clears: 0, fetches: 0, fullSecs: 0, secs: 0, sandwiches: 0, supports: 0, decisions: 0, swOpp: 0, gearLinks: 0, pierced: 0, lifts: 0, ballN: 0, ballSum: 0, ballCap: 0, copies: 0, armFires: 0, tilts: 0, tiltMerges: 0 };

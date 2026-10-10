@@ -14,13 +14,13 @@ export const canCopy = (f: Family): boolean => isRelay(f) && !LEGENDARY_RELAYS.i
 
 /** Rarity of every copyable relay (for L3: its own shot grows when it copied a Rare or Epic relay). */
 export const COPY_RARITY: Partial<Record<Family, 'common' | 'rare' | 'epic'>> = {
-  coil: 'common', bell: 'common', horn: 'common', spring: 'common',
+  coil: 'common', bell: 'common', horn: 'common', spring: 'common', vice: 'common', router: 'rare',
   fuse_box: 'rare', gear: 'rare', pipe: 'rare',
   belt_drive: 'epic', capacitor: 'epic', ladder: 'epic',
 };
 /** "The better one" (L6, two jobs held): the relay that wakes the most parts on a normal board, a fixed list so the choice never depends on luck. Higher = better. */
 export const COPY_VALUE: Partial<Record<Family, number>> = {
-  bell: 5, horn: 5, coil: 4, fuse_box: 4, pipe: 4, gear: 3, ladder: 3, belt_drive: 2, spring: 2, capacitor: 1,
+  bell: 5, horn: 5, coil: 4, fuse_box: 4, pipe: 4, gear: 3, ladder: 3, belt_drive: 2, spring: 2, capacitor: 1, router: 4, vice: 2,
 };
 
 /** How many jobs the Arm remembers: 1, or 2 from L6. */

@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18, robot_arm: 12, tilt_lever: 0 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18, robot_arm: 12, tilt_lever: 0, rivet_gun: 10, vice: 3, router: 3, hydraulic_press: 12, lathe: 9 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -216,6 +216,16 @@ export const TUNING = {
    *  L9 slides only the tapped row or column. Off in drills, the Daily Puzzle and Bounties. */
   roster6: false,
   r6: { copyOwnL3: 1.2, copyKeep: 1, copyKeepL6: 2, tiltMerges: 15, tiltMergesL3: 12, tiltMax: 3, tiltMaxL6: 4 },
+  /** EXPERIMENT (t-67cd7c5b, roster B batch 7), default OFF: Rivet Gun / Vice / Router / Hydraulic Press / Lathe join the collection, crates and squad pickers
+   *  (src/content/units.ts applyRoster7; Rivet Gun + Vice Common, Router Rare, Press + Lathe Epic, so no crates B needed). Rules: src/core/roster7.ts, docs/ROSTER.md section 14.
+   *  Rivet Gun RIVET: x rivetHit when it is the 3rd part to fire in the cascade (the merged part counts as the 1st); L3 the 6th too; L6 the 2nd and 4th x rivetNear; L9 x rivetHitL9.
+   *  Vice GRIP: only on a board edge it wakes the next viceReach cells inward in a straight line (a corner: viceCorner cells each way); off the edge it does nothing special;
+   *  L3 viceReachL3 / viceCornerL3; L6 also the 2 cells next to it along the edge; shooters it wakes hit x viceGrip (viceGripL9 at L9); never more than viceMax cells.
+   *  Router TURN: wakes the best L of cells (routerArm cells along, routerArm2 across; L3 routerArm2L3 across), never more than routerMax; L6 a second L when the best has under 3 parts; L9 always.
+   *  Hydraulic Press: x pressFull when all 4 touching cells hold parts (L9 pressFullL9), else x pressSmall (+pressPer per filled side from L3); L6 3 of 4 sides x pressNear.
+   *  Lathe: on an edge x(latheBase + lathePer per step to the opposite edge), capped latheCap (latheCapL3 / latheCapL9); off the edge x latheOff (latheOffL9 at L9); L6 a clear shaft +latheClear. */
+  roster7: false,
+  r7: { rivetHit: 2, rivetHitL9: 2.4, rivetNear: 1.25, viceReach: 3, viceReachL3: 4, viceCorner: 2, viceCornerL3: 3, viceGrip: 1.4, viceGripL9: 1.6, viceMax: 6, routerArm: 2, routerArm2: 2, routerArm2L3: 3, routerMax: 6, routerFirst: 2, routerFirstL3: 3, pressFull: 3, pressFullL9: 3.5, pressSmall: 0.7, pressPer: 0.1, pressNear: 1.5, latheBase: 0.7, lathePer: 0.25, lathePerL3: 0.3, latheCap: 2, latheCapL3: 2.3, latheCapL9: 2.4, latheOff: 0.5, latheOffL9: 0.8, latheClear: 0.2 },
   r2: { pistonPer: 0.25, pistonDiag: 0.1, pistonCap: 2, pistonCapL9: 2.2, pistonSmall: 8, springReach: 3, springLone: true, beltL9: 1.25, wrenchMin: 3, wrenchMinL3: 2, wrenchHold: 1, wrenchHoldL6: 2, wrenchBonus: 1, wrenchBonusL9: 2, wrenchBig: 6, wrenchDmg: 0.2, rankCeil: 8 },
 };
 

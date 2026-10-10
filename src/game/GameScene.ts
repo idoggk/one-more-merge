@@ -37,7 +37,8 @@ import { ROSTER_2_DEMOS } from '../content/roster2';
 import { ROSTER_3_DEMOS } from '../content/roster3';
 import { ROSTER_4_DEMOS } from '../content/roster4';
 import { ROSTER_5_DEMOS } from '../content/roster5';
-import { goodHereAll6 as goodHereAll, ROSTER_6_DEMOS } from '../content/roster6';
+import { ROSTER_6_DEMOS } from '../content/roster6';
+import { goodHereAll7 as goodHereAll, ROSTER_7_DEMOS } from '../content/roster7';
 import { ATTACK_TINT, CELL_COPY, fmtMult, hex, inspectMarks, MARK_MEANING, markTip, mergePreview, PALETTE, previewSig, type MarkLine, type PreviewChip } from '../core/marks';
 import { newRushFight, rushCourse, weekId } from '../core/rush';
 import { boltsFor, cardsFor, COLLECTION_GOALS, GEM_REWARDS, levelMult, levelPerkText, MAX_UNIT_LEVEL, STARTER_UNITS, unitDef, UNITS, type CrateKind, type UnitDef } from '../content/units';
@@ -5063,6 +5064,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       ...ROSTER_4_DEMOS,
       ...ROSTER_5_DEMOS,
       ...ROSTER_6_DEMOS,
+      ...ROSTER_7_DEMOS,
     };
     const d = D[key] ?? D.chain;
     const g = this.add.graphics();
