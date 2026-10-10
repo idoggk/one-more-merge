@@ -12,6 +12,7 @@ import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
 import { W, H } from '../sceneKit';
+import { qaGeometry } from './qaLayout';
 
 // t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
 const SPAM_KEY = 'omm_qa_spam_variant';
@@ -111,8 +112,19 @@ const qaSwitch = <T>(sw: QaSwitch<T>): QaRow => ({
   },
 });
 
+/** Roster B batches shown in the NEW UNITS group (each is its own this-device-only switch, same keys as before). */
+const ROSTER_BATCHES = [
+  { n: 1, key: ROSTER1_KEY, on: qaRoster1, apply: applyRoster1, units: 'Nail Jackhammer Gear Saw', toastOn: 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS' },
+  { n: 2, key: ROSTER2_KEY, on: qaRoster2, apply: applyRoster2, units: 'Wrench Piston Spring Belt', toastOn: 'ROSTER 2 ON  ·  CRATES, TEAM, UNITS' },
+  { n: 3, key: ROSTER3_KEY, on: qaRoster3, apply: applyRoster3, units: 'Torch Pipe Plate Tesla', toastOn: 'ROSTER 3 ON  ·  TESLA NEEDS CRATES B' },
+  { n: 4, key: ROSTER4_KEY, on: qaRoster4, apply: applyRoster4, units: 'Cap Plan Ladder Rewind', toastOn: 'ROSTER 4 ON  ·  REWIND IS OFF IN PUZZLES, DAILY, BOUNTIES' },
+  { n: 5, key: ROSTER5_KEY, on: qaRoster5, apply: applyRoster5, units: 'Crane Dynamo Wrecking', toastOn: 'ROSTER 5 ON  ·  CRANE AND DYNAMO DROP ONLY WITH CRATES B' },
+  { n: 6, key: ROSTER6_KEY, on: qaRoster6, apply: applyRoster6, units: 'Robot Arm, Tilt Lever', toastOn: 'ROSTER 6 ON  ·  BOTH ARE LEGENDARY: THEY DROP ONLY WITH CRATES B' },
+] as const;
+const ROSTER_GROUP_H = 250;
+
 /** QA panel rows, top to bottom. A new experiment adds one qaSwitch entry here (the sheet grows to fit). */
-const QA_ROWS: QaRow[] = [
+export const QA_ROWS: QaRow[] = [
   // 1) start over (second tap within 3 s confirms)
   {
     h: 95,
@@ -254,18 +266,9 @@ const QA_ROWS: QaRow[] = [
     draw: ({ scene, c, reopen }, y) => {
       c.add(scene.add.text(W / 2, y, 'UNITS (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
       const curUnits = qaUnits();
-      // t-9b28a794: 4th button NEW4 toggles roster B batch 1 (Nail Gun / Jackhammer / Gear / Saw Blade) at once
-      const r1On = qaRoster1();
-      scene.button(c, W / 2 + 1.5 * 162, y + 55, 240, r1On ? '[NEW4]' : 'NEW4', r1On ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(ROSTER1_KEY, r1On ? null : 'on');
-        applyRoster1(!r1On);
-        tlog.log('qa_roster_1', { on: !r1On });
-        scene.showToast(r1On ? 'NEW 4 UNITS OFF (live game)' : 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS');
-        reopen();
-      }, 0.62);
       UNITS_VARIANTS.forEach((v, i) => {
         const sel = v.id === curUnits;
-        scene.button(c, W / 2 + (i - 1.5) * 162, y + 55, 240, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
+        scene.button(c, W / 2 + (i - (UNITS_VARIANTS.length - 1) / 2) * 162, y + 55, 240, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
           store(UNITS_B0_KEY, unitsStoreValue(v.id));
           tlog.log('qa_units', { units: v.id });
           scene.showToast(v.id === 'off' ? 'UNITS OFF (live game)  ·  NEXT LEVEL' : `UNITS ${v.label}  ·  START A LEVEL`);
@@ -289,86 +292,26 @@ const QA_ROWS: QaRow[] = [
     gap: 48,
     h: 91,
   }),
-  // 7b) t-ee4e93d7 ROSTER 2: Wrench / Piston / Spring / Belt Drive join the collection, crates and squads (this device only, live)
-  qaSwitch({
-    title: 'ROSTER 2: Wrench Piston Spring Belt',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaRoster2() ? 'on' : 'off'),
-    pick: (id) => {
-      store(ROSTER2_KEY, id === 'on' ? 'on' : null);
-      applyRoster2(id === 'on');
-      tlog.log('qa_roster_2', { on: id === 'on' });
+  // 7b) NEW UNITS: roster B batches 1..6 join the collection, crates and squads (this device only, live). One grouped section.
+  {
+    h: ROSTER_GROUP_H,
+    draw: ({ scene, c, reopen }, y) => {
+      c.add(scene.add.text(W / 2, y + 12, 'NEW UNITS: batch 1..6', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
+      ROSTER_BATCHES.forEach((r, i) => {
+        const x = W / 2 + ((i % 3) - 1) * 212;
+        const by = y + 66 + Math.floor(i / 3) * 96;
+        const on = r.on();
+        scene.button(c, x, by, 300, on ? `[BATCH ${r.n}]` : `BATCH ${r.n}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
+          store(r.key, on ? null : 'on');
+          r.apply(!on);
+          tlog.log(`qa_roster_${r.n}`, { on: !on });
+          scene.showToast(on ? `NEW UNITS BATCH ${r.n} OFF (live game)` : r.toastOn);
+          reopen();
+        }, 0.62);
+        c.add(scene.add.text(x, by + 36, r.units, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '14px', color: '#7a5a4a' }).setOrigin(0.5));
+      });
     },
-    toast: (id) => (id === 'on' ? 'ROSTER 2 ON  ·  CRATES, TEAM, UNITS' : 'ROSTER 2 OFF (live game)'),
-    w: 240,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
-  // 7c) t-e728a5a6 ROSTER 3: Blowtorch / Pipe / Blast Plate / Tesla Tower join the collection, crates and squads (this device only, live)
-  qaSwitch({
-    title: 'ROSTER 3: Torch Pipe Plate Tesla',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaRoster3() ? 'on' : 'off'),
-    pick: (id) => {
-      store(ROSTER3_KEY, id === 'on' ? 'on' : null);
-      applyRoster3(id === 'on');
-      tlog.log('qa_roster_3', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'on' ? 'ROSTER 3 ON  ·  TESLA NEEDS CRATES B' : 'ROSTER 3 OFF (live game)'),
-    w: 240,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
-  // 7d) t-1e3c8bb6 ROSTER 4: Capacitor / Blueprint / Ladder / Rewind Crank join the collection, crates and squads (this device only, live)
-  qaSwitch({
-    title: 'ROSTER 4: Cap Plan Ladder Rewind',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaRoster4() ? 'on' : 'off'),
-    pick: (id) => {
-      store(ROSTER4_KEY, id === 'on' ? 'on' : null);
-      applyRoster4(id === 'on');
-      tlog.log('qa_roster_4', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'on' ? 'ROSTER 4 ON  ·  REWIND IS OFF IN PUZZLES, DAILY, BOUNTIES' : 'ROSTER 4 OFF (live game)'),
-    w: 240,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
-  // 7e) t-af818b65 ROSTER 5: Crane / Dynamo / Wrecking Ball join the collection, crates and squads (this device only, live)
-  qaSwitch({
-    title: 'ROSTER 5: Crane Dynamo Wrecking',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaRoster5() ? 'on' : 'off'),
-    pick: (id) => {
-      store(ROSTER5_KEY, id === 'on' ? 'on' : null);
-      applyRoster5(id === 'on');
-      tlog.log('qa_roster_5', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'on' ? 'ROSTER 5 ON  ·  CRANE AND DYNAMO DROP ONLY WITH CRATES B' : 'ROSTER 5 OFF (live game)'),
-    w: 240,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
-  // 7f) t-f2cd50e4 ROSTER 6: Robot Arm / Tilt Lever join the collection, crates and squads (this device only, live)
-  qaSwitch({
-    title: 'ROSTER 6: Robot Arm Tilt Lever',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaRoster6() ? 'on' : 'off'),
-    pick: (id) => {
-      store(ROSTER6_KEY, id === 'on' ? 'on' : null);
-      applyRoster6(id === 'on');
-      tlog.log('qa_roster_6', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'on' ? 'ROSTER 6 ON  ·  BOTH ARE LEGENDARY: THEY DROP ONLY WITH CRATES B' : 'ROSTER 6 OFF (live game)'),
-    w: 240,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
+  },
   // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
   // (the 1280-tall small-phone screen has no room left below: BACK moved up beside the title for this row)
   qaSwitch({
@@ -388,24 +331,85 @@ const QA_ROWS: QaRow[] = [
     scale: 0.55,
   }),
 ];
-/** First row anchor and the BACK button's bottom margin, from the sheet top. */
-const QA_FIRST_Y = 185;
-const QA_BOTTOM = 38;
+/** Drag farther than this (design px) and the gesture is a scroll, not a tap. */
+const DRAG_SLOP = 12;
 
-/** r33 QA panel: start over, jump to any level, give units / currency, experiment switches. */
-export function openQaTools(scene: GameScene, jump = scene.currentLevel()) {
+/** r33 QA panel: start over, jump to any level, give units / currency, experiment switches.
+ *  The header (title, BACK) is pinned; the rows scroll under it (touch drag, mouse wheel), clamped to the content. */
+let lastScroll = 0;
+export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepScroll = false) {
+  if (!keepScroll) lastScroll = 0;
   scene.closeModal();
-  const backY = QA_FIRST_Y + QA_ROWS.reduce((n, r) => n + r.h, 0);
-  const PH = backY + QA_BOTTOM;
+  const geo = qaGeometry(QA_ROWS.map((r) => r.h), H);
+  const PH = geo.panelH;
   const c = scene.sheet(PH);
   const top = H / 2 - PH / 2;
   scene.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
   const m = scene.meta;
-  const q: QaCtx = { scene, c, jump, save: () => store(META_KEY, JSON.stringify(m)), reopen: () => scene.openQaTools(q.jump) };
-  let y = top + QA_FIRST_Y;
-  for (const r of QA_ROWS) {
-    r.draw(q, y);
-    y += r.h;
-  }
+  // rows draw in absolute coordinates into `list`, which is moved to scroll
+  const list = scene.add.container(0, 0);
+  c.add(list);
+  const q: QaCtx = { scene, c: list, jump, save: () => store(META_KEY, JSON.stringify(m)), reopen: () => scene.openQaTools(q.jump, true) };
+  geo.anchors.forEach((ay, i) => QA_ROWS[i].draw(q, top + ay));
+  const winTop = top + geo.bodyTop, winBottom = top + geo.bodyBottom;
+  const mask = scene.add.graphics().setVisible(false).fillRect(0, winTop, W, winBottom - winTop);
+  list.setMask(mask.createGeometryMask());
+  // header + footer strips swallow taps so rows scrolled out of the window can't be hit through them
+  c.add(scene.add.zone(W / 2, (top + winTop) / 2, W, winTop - top).setInteractive());
+  c.add(scene.add.zone(W / 2, (winBottom + top + PH) / 2, W, top + PH - winBottom).setInteractive());
+  if (geo.minScroll < 0) {
+    let scroll = 0, startY = 0, startScroll = 0, dragging = false;
+    const setScroll = (v: number) => {
+      scroll = Phaser.Math.Clamp(v, geo.minScroll, 0);
+      list.setY(scroll);
+      lastScroll = scroll;
+    };
+    setScroll(lastScroll);
+    // a scroll drag must not also press the button it ends on: switch the rows' hit areas off until the finger lifts
+    const setHits = (on: boolean) => {
+      const walk = (o: Phaser.GameObjects.GameObject) => {
+        if (o.input) o.input.enabled = on;
+        if (o instanceof Phaser.GameObjects.Container) o.list.forEach(walk);
+      };
+      list.list.forEach(walk);
+    };
+    const inWindow = (p: Phaser.Input.Pointer) => p.worldY >= winTop && p.worldY <= winBottom;
+    const onDown = (p: Phaser.Input.Pointer) => {
+      if (scene.modal !== c || !c.active) return;
+      startY = p.worldY;
+      startScroll = scroll;
+      dragging = false;
+    };
+    const onMove = (p: Phaser.Input.Pointer) => {
+      if (!p.isDown || scene.modal !== c || !c.active || (!dragging && !(startY >= winTop && startY <= winBottom))) return;
+      if (!dragging && Math.abs(p.worldY - startY) < DRAG_SLOP) return;
+      if (!dragging) {
+        dragging = true;
+        setHits(false);
+      }
+      setScroll(startScroll + (p.worldY - startY));
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      scene.time.delayedCall(80, () => c.active && setHits(true));
+    };
+    const onWheel = (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
+      if (scene.modal === c && c.active && inWindow(p)) setScroll(scroll - dy);
+    };
+    scene.input.on('pointerdown', onDown);
+    scene.input.on('pointermove', onMove);
+    scene.input.on('pointerup', onUp);
+    scene.input.on('pointerupoutside', onUp);
+    scene.input.on('wheel', onWheel);
+    c.once(Phaser.GameObjects.Events.DESTROY, () => {
+      scene.input.off('pointerdown', onDown);
+      scene.input.off('pointermove', onMove);
+      scene.input.off('pointerup', onUp);
+      scene.input.off('pointerupoutside', onUp);
+      scene.input.off('wheel', onWheel);
+      mask.destroy();
+    });
+  } else c.once(Phaser.GameObjects.Events.DESTROY, () => mask.destroy());
   scene.button(c, W - 150, top + 64, 220, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.6);
 }

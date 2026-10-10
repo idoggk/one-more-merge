@@ -22,6 +22,7 @@ import { buildMachine, hasMachineArt, setFinish, setOrnament } from './machine';
 import { rawDamage, routeCells } from '../core/cascade';
 import { buy, CATALOG, runPayout, type Payout, type Wallet } from '../core/economy';
 import { DAILY_VERSION } from '../content/dailySeeds';
+import { faceIndexFor } from './machineFace';
 import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals } from '../content/levels';
 import { audioSettings, duckMusic, haptic, sfx, startMusic, stopMusic, unlockAudio } from './audio';
 import { ensureTextures, loadLazyArt, preloadArt } from './textures';
@@ -2583,29 +2584,47 @@ Now beat the real level.`, this.coachY());
 
   static FACE = FACE;
 
+  /** Debug audit: the machine pictures currently on screen. Exactly one expected (the target); the face overlay only counts when it belongs to another machine. */
+  machineSpritesVisible() {
+    const out: string[] = [];
+    if (this.target.visible && this.target.alpha > 0) out.push(`target:${this.target.texture.key}`);
+    if (this.face.visible && !this.face.texture.key.startsWith(`face_${this.faceIndex()}_`)) out.push(`face:${this.face.texture.key}`); // a face of another machine = a second machine on screen
+    return out;
+  }
+
+  /** Face-patch index of the machine drawn now (a stage's classic machine, else the level's monster); -1 = cast/boss art has no patch. */
+  faceIndex() {
+    return faceIndexFor({ boss: !!this.realBoss, castDrawn: !!this.castOf(this.s.level), stageVisual: this.stageVis(), target: this.s.target });
+  }
+
   showFace(mood: 'hit' | 'angry' | 'dizzy' | null, ms = 0) {
-    const ti = this.s.target;
-    const key = ti >= 0 && mood && !this.realBoss && !this.castOf(this.s.level) ? `face_${ti}_${mood}` : '';
-    if (!key || !this.hasArt(key)) {
+    const ti = this.faceIndex();
+    const key = ti >= 0 && mood ? `face_${ti}_${mood}` : '';
+    const cfg = GameScene.FACE[ti];
+    if (!key || !cfg || !this.hasArt(key)) {
       this.face.setVisible(false);
+      this.faceUntil = 0;
       return;
     }
-    const cfg = GameScene.FACE[ti];
     const tw = this.target.displayWidth;
     const th = this.target.displayHeight;
     this.face.setTexture(key).setVisible(true);
     this.face.setScale((tw * cfg.w) / this.face.width);
     this.face.setPosition(this.target.x + cfg.x * tw, this.target.y + cfg.y * th).setAngle(this.target.angle);
     this.faceUntil = ms ? this.time.now + ms : 0;
+    this.faceOf = ti;
   }
+
+  faceOf = -1;
 
   updateFace() {
     if (!this.face) return;
     const s = this.s;
     if (this.faceUntil && this.time.now < this.faceUntil) {
-      // smoke test r29: a face started on the previous level could outlive it onto a monster with no face anchor
-      const f = GameScene.FACE[Math.max(0, s.target)];
-      if (!f) {
+      // a face started on the previous level/stage machine must not outlive it onto another machine (r29 smoke test, stage change bug t-6d70ea51)
+      const ti = this.faceIndex();
+      const f = GameScene.FACE[ti];
+      if (!f || ti !== this.faceOf) {
         this.faceUntil = 0;
         this.face.setVisible(false);
         return;
