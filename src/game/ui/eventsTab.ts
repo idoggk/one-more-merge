@@ -12,7 +12,7 @@ import type { GameScene } from '../GameScene';
 import { W, YARD_UNLOCK, H } from '../sceneKit';
 import { mergesText } from '../../content/sceneCopy';
 import { qaYardObject } from './qaPanel';
-import { CRATE } from '../../core/screwObject';
+import { pickedUnit, pickUnit, UNIT_NAMES, YARD_UNITS, yardObjectOf } from '../../content/yardObjects';
 
 /** EVENTS tab: Daily (level 3), Challenge (level 5), Remix (level 10), plus the classic 3-monster run. */
 export function openEventsTab(scene: GameScene) {
@@ -117,7 +117,12 @@ export function openYardEvent(scene: GameScene) {
   c.add(scene.add.text(W / 2, by, `★ ${total}/${YARD_COUNT * 3}  ·  ${YARD_BOOSTERS.map((k) => `${BOOSTER_COPY[k].name} ${bst[k] ?? 0}`).join('  ')}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#5a3a3a' }).setOrigin(0.5));
   c.add(scene.add.text(W / 2, by + 44, 'Free to play. Stars: keep the dock nearly empty.\nBoosters are earned with 3 stars and tiers.', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#7a5a4a', align: 'center' }).setOrigin(0.5));
   const nx = nextYard(yd);
-  scene.button(c, W / 2, top + PH - 170, 460, qaYardObject() ? `PLAY ${CRATE.name}` : `PLAY YARD ${nx}`, 0x5fbf4a, () => scene.startYard(nx), 0.95);
+  if (qaYardObject()) {
+    // QA SCREW YARD = OBJECT: which unit to take apart (default: rotation by day); easy > hard left to right
+    const now = pickedUnit();
+    YARD_UNITS.forEach((u, i) => scene.button(c, W / 2 + (i - 1) * 190, top + PH - 245, 175, UNIT_NAMES[u], u === now ? 0x5fbf4a : 0x8a6a4a, () => (pickUnit(u), openYardEvent(scene)), 0.6));
+  }
+  scene.button(c, W / 2, top + PH - 170, 460, qaYardObject() ? `PLAY ${yardObjectOf().name}` : `PLAY YARD ${nx}`, 0x5fbf4a, () => scene.startYard(nx), 0.95);
   scene.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => scene.openTitle('events'), 0.75);
 }
 

@@ -1,4 +1,4 @@
-// SCREW YARD (r36, Ido: "an outside-core mini game in the logic of Screwdom 3D… for a period of time with tiers and a grand
+// SCREW YARD (r36, Ido: "an outside-core mini game in the logic of a screw-sorting puzzle… for a period of time with tiers and a grand
 // prize"). A scrap pile of stacked metal plates held by coloured screws. A screw can come out only when no higher plate
 // covers it; a plate falls when its last screw is out. Screws go into the two open toolboxes of their colour (3 each; a full
 // box leaves and the next colour rolls in) or into the 5-slot tray. Tray full = lost; every screw out = won.

@@ -42,3 +42,19 @@ export function spendCards(m: CollectionSave, unit: string, need: number): boole
   if (rest) m.spare = { ...(m.spare ?? {}), [def.rarity]: spareOf(m, def.rarity) - rest };
   return true;
 }
+
+/** Add cards to the collection (a crate's or a Screw Yard clear's): a unit not owned yet unlocks at level 1 with the rest as
+ *  cards; a helper unlock also opens its toy slot. Then duplicates past max level become Spare Parts. Returns how many cards
+ *  went to Spare Parts. */
+export function addCards(m: CollectionSave & { toys?: Record<string, boolean> }, cards: { unit: string; count: number }[]): number {
+  m.units = m.units ?? {};
+  for (const cd of cards) {
+    const st = (m.units[cd.unit] = m.units[cd.unit] ?? { level: 0, cards: 0 });
+    if (st.level === 0) {
+      st.level = 1;
+      st.cards += cd.count - 1;
+      if (unitDef(cd.unit)?.slot === 'helper' && m.toys) m.toys[cd.unit] = m.toys[cd.unit] ?? false;
+    } else st.cards += cd.count;
+  }
+  return cards.reduce((n, cd) => n + sweepSpare(m, cd.unit), 0);
+}

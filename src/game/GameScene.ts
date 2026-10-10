@@ -51,7 +51,7 @@ import { decodeCurve, levelProgress, type PaceCurve } from '../core/pace';
 import { BONUS_XP, rollSeason, seasonCount, seasonTier, seasonUnit, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
-import { CRATE } from '../core/screwObject';
+import { yardObjectOf } from '../content/yardObjects';
 import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
 import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, mergesText, OD_LABEL, stageHudText, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
@@ -3673,13 +3673,20 @@ Now beat the real level.`, this.coachY());
     this.scene.sleep();
   }
 
-  /** QA SCREW YARD: OBJECT - the turnable crate (first step: one hand-built object, nothing booked to the week yet). */
+  /** QA SCREW YARD: OBJECT - the unit object picked in EVENTS (Cannon / Coil / Bell; nothing booked to the week). A clear pays that unit's cards. */
   startObjectYard() {
-    tlog.log('yard_object_start', { obj: CRATE.id });
+    const lvl = yardObjectOf();
+    tlog.log('yard_object_start', { obj: lvl.id });
     this.closeModal();
-    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r), onResult: (r) => tlog.log('yard_object_end', { won: r.won, moves: r.moves }) };
+    const data: ObjectYardData = { lvl, onEnd: (r) => this.endObjectYard(r), onResult: (r) => this.objectYardResult(r) };
     this.scene.launch('objectYard', data);
     this.scene.sleep();
+  }
+
+  /** A cleared unit object pays cards of that unit through the normal collection path. */
+  objectYardResult(r: ObjectYardResult) {
+    tlog.log('yard_object_end', { won: r.won, moves: r.moves, stars: r.stars });
+    if (r.reward) this.applyCards([{ unit: r.reward.unit, count: r.reward.count, isNew: !this.ownsUnit(r.reward.unit) }]);
   }
 
   /** The result panel lives in the yard scene (over the yard); this only runs on EVENT / the quit button. */

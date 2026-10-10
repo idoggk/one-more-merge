@@ -1,4 +1,4 @@
-// SCREW YARD "A" (t-9adea8b8, owner pick 2026-10-09: "play like Screwdom 3D"): take a turnable object apart.
+// SCREW YARD "A" (t-9adea8b8): take a turnable object apart.
 // The object is a coarse 3D grid of blocks; screws sit on block faces (front / back / left / right / top) with a colour.
 // The player turns the object between 4 snapped views. A screw can come out when its face looks at the camera (top
 // faces always do) and no block is painted over its head on screen (see "the screen" below); a block falls off when
@@ -45,6 +45,14 @@ export interface ObjectDef {
   screws: OScrew[];
   /** Box colours in arrival order (one per BOX_SIZE screws). */
   queue: number[];
+  /** Block colours by `tint` index (unit objects); absent = the scene's planks. */
+  palette?: number[];
+}
+
+/** How far below the object's centre its floor sits, in block units (the shadow / landing line). */
+export function floorOffset(lvl: ObjectDef) {
+  const span = (k: 'x' | 'y' | 'z') => Math.max(...lvl.blocks.map((b) => b[k])) - Math.min(...lvl.blocks.map((b) => b[k]));
+  return (span('y') / 2 + 0.5) * Math.cos(CAM_PITCH) + (span('z') / 2 + 0.5) * Math.sin(CAM_PITCH) + 0.1;
 }
 
 export type Helper = 'broom' | 'hammer' | 'drill';

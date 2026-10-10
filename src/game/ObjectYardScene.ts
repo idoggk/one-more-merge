@@ -1,4 +1,4 @@
-// SCREW YARD "A" scene (t-9adea8b8): the turnable object, Screwdom-style. The model is src/core/screwObject.ts; this
+// SCREW YARD "A" scene (t-9adea8b8): the turnable object. The model is src/core/screwObject.ts; this
 // scene only draws it. Launched by GameScene.startYard when the QA switch SCREW YARD is on OBJECT (GameScene sleeps
 // meanwhile); calls onEnd(result) and stops itself.
 // Drawing: no 3D engine. Each block is a unit cube rotated about the vertical axis (the snapped view, tweened while
@@ -7,10 +7,11 @@
 // (screwObject.ts "the screen"), so a screw is bright exactly when a tap on it takes it, and the solver agrees.
 import Phaser from 'phaser';
 import { BOX_SIZE } from '../core/screw';
-import { blockFaces, blockPos, faceUnder, HELPERS, newObject, previewColors, projectPt, reachable, SCREW_OUT, SCREW_R, screenPick, screwSpot3, shownFaces, tapRow, tapScrew, turnDir, useBroom, useDrill, useHammer, VIEW_NAMES, type Helper, type ObjectDef, type ObjectState, type ObjTap, type ShownFace, type V3, type View } from '../core/screwObject';
+import { blockFaces, blockPos, faceUnder, floorOffset, HELPERS, newObject, previewColors, projectPt, reachable, SCREW_OUT, SCREW_R, screenPick, screwSpot3, shownFaces, tapRow, tapScrew, turnDir, useBroom, useDrill, useHammer, VIEW_NAMES, type Helper, type ObjectDef, type ObjectState, type ObjTap, type ShownFace, type V3, type View } from '../core/screwObject';
 import { H, RS, W } from './GameScene';
 import { SCREW_COLORS } from './ScrewScene';
 import { sfx } from './audio';
+import { UNIT_NAMES, YARD_UNITS, yardReward, yardStars, type YardUnit } from '../content/yardObjects';
 
 const INK = 0x2b1d2e;
 const WOOD = [0xc98d4e, 0xb47838];
@@ -59,6 +60,9 @@ export interface ObjectYardResult {
   moves: number;
   /** Left from the in-yard result panel with EVENT. */
   event?: boolean;
+  /** A cleared unit object (not the crate): 1-3 stars and the cards of THAT unit it pays (granted by the caller). */
+  stars?: number;
+  reward?: { unit: YardUnit; count: number };
 }
 export interface ObjectYardData {
   lvl: ObjectDef;
@@ -100,6 +104,9 @@ export class ObjectYardScene extends Phaser.Scene {
   viewLabel!: Phaser.GameObjects.Text;
   hint!: Phaser.GameObjects.Text;
   S = 140;
+  /** Floor line below the object's centre and shadow width, in block sizes (set from the object's size). */
+  floorK = 1.45;
+  floorW = 4.2;
   cx = W / 2;
   cy = 800;
   down = { x: 0, y: 0, t: 0, on: false };
@@ -137,7 +144,10 @@ export class ObjectYardScene extends Phaser.Scene {
     // the object fills the space between the row and the turn controls
     const top = 450, bottom = H - 270;
     this.cy = (top + bottom) / 2 + 20;
-    this.S = Math.min(150, (bottom - top) / 3.1, (W - 60) / 4.2);
+    const ext = (k: 'x' | 'y') => Math.max(...this.st.lvl.blocks.map((b) => b[k])) - Math.min(...this.st.lvl.blocks.map((b) => b[k]));
+    this.floorK = floorOffset(this.st.lvl);
+    this.floorW = ext('x') + 1.2;
+    this.S = Math.min(150, (bottom - top) / Math.max(3.1, ext('y') + 1.1), (W - 60) / Math.max(4.2, ext('x') + 1.2));
     this.obj = this.add.graphics();
     this.snap = this.band(this.cy - this.S * 3, this.cy + this.S * 2.4);
     this.snapY = this.snap.y;
@@ -266,12 +276,13 @@ export class ObjectYardScene extends Phaser.Scene {
       q.forEach((s, i) => pts[i].set(this.cx + s.x * this.S + off.x, this.cy + s.y * this.S + off.y));
       const r = turnDir(n, this.turn);
       const lit = Math.max(0, r[0] * LIGHT[0] + r[1] * LIGHT[1] + r[2] * LIGHT[2]);
-      const base = Phaser.Display.Color.IntegerToColor(WOOD[b.tint % WOOD.length]);
+      const pal = st.lvl.palette ?? WOOD;
+      const base = Phaser.Display.Color.IntegerToColor(pal[b.tint % pal.length]);
       const f = 0.55 + 0.55 * lit;
       g.fillStyle(Phaser.Display.Color.GetColor(Math.min(255, base.red * f), Math.min(255, base.green * f), Math.min(255, base.blue * f)), 1).fillPoints(pts, true);
       // planks: two grain lines + a darker rim
       g.lineStyle(2, INK, 0.18);
-      for (const t of [1 / 3, 2 / 3]) g.lineBetween(Phaser.Math.Linear(pts[0].x, pts[3].x, t), Phaser.Math.Linear(pts[0].y, pts[3].y, t), Phaser.Math.Linear(pts[1].x, pts[2].x, t), Phaser.Math.Linear(pts[1].y, pts[2].y, t));
+      if (!st.lvl.palette) for (const t of [1 / 3, 2 / 3]) g.lineBetween(Phaser.Math.Linear(pts[0].x, pts[3].x, t), Phaser.Math.Linear(pts[0].y, pts[3].y, t), Phaser.Math.Linear(pts[1].x, pts[2].x, t), Phaser.Math.Linear(pts[1].y, pts[2].y, t));
       g.lineStyle(4, INK, 0.85).strokePoints(pts, true);
       if (face === 'bottom') continue;
       for (const sid of b.screws) if (!st.removed[sid] && st.lvl.screws[sid].face === face) this.paintScrew(g, sid, this.bpos(bid), n, k, off);
@@ -322,7 +333,7 @@ export class ObjectYardScene extends Phaser.Scene {
   drawObject() {
     const g = this.obj.clear();
     // shadow on the floor
-    g.fillStyle(INK, 0.22).fillEllipse(this.cx, this.cy + this.S * 1.45, this.S * 4.2, this.S * 0.9);
+    g.fillStyle(INK, 0.22).fillEllipse(this.cx, this.cy + this.S * this.floorK, this.S * this.floorW, this.S * 0.9);
     this.paintFaces(g, shownFaces(this.st, this.turn));
     // follows the turn while it tweens (the nearest quarter), not only the snapped view
     const shown = ((Math.round(this.turn) % 4) + 4) % 4;
@@ -611,12 +622,12 @@ export class ObjectYardScene extends Phaser.Scene {
     for (const bid of blocks) {
       const g = this.add.graphics().setDepth(30);
       this.paintFaces(g, blockFaces(this.st, bid, this.turn, true));
-      const floor = this.cy + this.S * 1.45 - this.project(this.bpos(bid)).y;
+      const floor = this.cy + this.S * this.floorK - this.project(this.bpos(bid)).y;
       sfx.panelBreak(0);
       this.tweens.chain({
         targets: g,
         tweens: [
-          { y: Math.max(40, floor), duration: 420, ease: 'Bounce.Out', onComplete: () => { sfx.scrap(); this.landFx(this.project(this.bpos(bid)).x, this.cy + this.S * 1.45); } },
+          { y: Math.max(40, floor), duration: 420, ease: 'Bounce.Out', onComplete: () => { sfx.scrap(); this.landFx(this.project(this.bpos(bid)).x, this.cy + this.S * this.floorK); } },
           { x: (this.bpos(bid)[0] >= 0 ? 1 : -1) * 520, alpha: 0, angle: this.bpos(bid)[0] >= 0 ? 25 : -25, duration: 420, delay: 160, ease: 'Quad.In' },
         ],
         onComplete: () => g.destroy(),
@@ -758,8 +769,34 @@ export class ObjectYardScene extends Phaser.Scene {
       sfx.invalid();
       this.cameras.main.shake(260, 0.008);
     }
-    this.data0.onResult?.({ won, quit: false, moves: this.st.moves });
+    this.data0.onResult?.({ won, quit: false, moves: this.st.moves, ...this.prize(won) });
     this.time.delayedCall(1100, () => this.resultPanel(won, tx));
+  }
+
+  /** The unit this object is (null: the plain crate) and what a clear pays. */
+  prize(won: boolean): { stars?: number; reward?: { unit: YardUnit; count: number } } {
+    const unit = YARD_UNITS.find((u) => u === this.st.lvl.id);
+    if (!won || !unit) return {};
+    const stars = yardStars(this.st.peak);
+    return { stars, reward: { unit, count: yardReward(unit, stars) } };
+  }
+
+  /** 'CANNON  ·  24 moves', the stars, and the unit's card art with '+3 CANNON CARDS' (x2 on 3 stars). */
+  rewardRow(c: Phaser.GameObjects.Container, cx: number, top: number, stars: number, rw: { unit: YardUnit; count: number }, moves: number) {
+    const LILITA = 'Lilita One, Arial Black';
+    const name = UNIT_NAMES[rw.unit];
+    c.add(this.add.text(cx, top + 108, `${name}  ·  ${moves} moves`, { fontFamily: LILITA, fontSize: '28px', color: '#5a3a3a' }).setOrigin(0.5));
+    c.add(this.add.text(cx, top + 160, '★'.repeat(stars) + '☆'.repeat(3 - stars), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '52px', color: '#e0a000' }).setOrigin(0.5));
+    const g = this.add.graphics().fillStyle(0xf3d9a4, 1).fillRoundedRect(cx - 220, top + 205, 440, 100, 24).lineStyle(4, INK, 0.5).strokeRoundedRect(cx - 220, top + 205, 440, 100, 24);
+    c.add(g);
+    const key = `${rw.unit}_1`;
+    if (this.textures.exists(key)) {
+      const im = this.add.image(cx - 150, top + 255, key);
+      im.setScale(84 / Math.max(im.width, im.height));
+      c.add(im);
+    }
+    c.add(this.add.text(cx + 40, top + 244, `+${rw.count} ${name} CARDS`, { fontFamily: LILITA, fontSize: '32px', color: '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(cx + 40, top + 281, stars >= 3 ? '3 STARS: DOUBLE CARDS!' : '3 STARS = DOUBLE CARDS', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '19px', color: '#7a5a4a' }).setOrigin(0.5));
   }
 
   /** The result panel, drawn over the yard (the object stays visible behind a dim). */
@@ -773,8 +810,12 @@ export class ObjectYardScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(INK, 1).fillRoundedRect(cx - 270, top - 6, 540, 512, 40).fillStyle(0xfff0cf, 1).fillRoundedRect(cx - 262, top, 524, 500, 34);
     c.add(g);
-    c.add(this.add.text(cx, top + 70, won ? 'CRATE TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '46px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(cx, top + 170, won ? `Every screw out in ${moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    const prize = this.prize(won);
+    const LILITA = 'Lilita One, Arial Black';
+    c.add(this.add.text(cx, top + (prize.reward ? 56 : 70), won ? 'TAKEN APART!' : 'ROW FULL!', { fontFamily: LILITA, fontSize: '46px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    if (prize.reward) this.rewardRow(c, cx, top, prize.stars ?? 1, prize.reward, moves);
+    else c.add(this.add.text(cx, top + 170, won ? `Every screw out in ${moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    const by = prize.reward ? 30 : 0;
     const btn = (y: number, w: number, label: string, col: number, fn: () => void) => {
       const bg = this.add.graphics().fillStyle(INK, 1).fillRoundedRect(cx - w / 2 - 5, y - 40, w + 10, 80, 26).fillStyle(col, 1).fillRoundedRect(cx - w / 2, y - 35, w, 70, 22);
       const t = this.add.text(cx, y, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff' }).setOrigin(0.5);
@@ -782,8 +823,8 @@ export class ObjectYardScene extends Phaser.Scene {
       hit.once('pointerup', fn);
       c.add([bg, t, hit]);
     };
-    btn(top + 330, 420, won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.scene.restart(this.data0));
-    btn(top + 430, 260, 'EVENT', 0x8a6a4a, () => {
+    btn(top + 330 + by, 420, won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.scene.restart(this.data0));
+    btn(top + 430 + by, 260, 'EVENT', 0x8a6a4a, () => {
       this.scene.stop();
       this.data0.onEnd({ won, quit: false, moves, event: true });
     });

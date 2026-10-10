@@ -296,7 +296,7 @@ Unlocks are optional loadout picks; no Bolts / +% damage until players show dema
 - Result: the board holds still while you look at it, settles around 18-20 parts, and every merge still brings new material (lots of merges).
 - The calm cap (chapters 1-2, tray holds at 20) stays. All 80 levels refit for a 3.5 s random bot (was 3 s) so a thinking player has room; star times redone.
 
-### Round 36 — SCREW YARD weekly event (Ido: "an outside-core mini game in the logic of Screwdom 3D… for a period of time, tiers, a grand prize")
+### Round 36 — SCREW YARD weekly event (Ido: "an outside-core mini game in the logic of a screw-sorting puzzle… for a period of time, tiers, a grand prize")
 - `src/core/screw.ts` (pure) + `src/game/ScrewScene.ts`. Stacked metal plates held by coloured screws; a screw comes out only if no higher plate covers it; a plate falls with its last screw. Screws go to the 2 open toolboxes of their colour (3 each, a full box leaves and the next colour rolls in) or to the 5-slot tray; tray full = lost.
 - Generator: random plates -> a covering-respecting removal order -> coloured in triples (= toolbox queue) -> nearby colour swaps so the tray matters -> kept only if a sensible greedy player clears it (tests: yards 1-24 all solvable). Probe (`tools/yard-probe.ts`): a random tapper wins 100% of yard 1-3, 67% of yard 8, 12% of yard 20.
 - Weekly event (week = Rush week): yard n = this week's clears + 1, seed = week*1000+n (a retry is the same pile). 8 tiers at 1/3/5/8/11/14/17/20 clears: 60 Bolts, 10 Gems, Wood crate, 200 Bolts, Iron crate, 30 Gems, Iron crate, GRAND PRIZE Gold crate + an epic unit card (a missing one first). Every clear also pays 15+3n Bolts.

@@ -4,7 +4,7 @@ import type { Family } from '../../core/types';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { META_KEY } from '../../platform/backup';
-import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, UNIT_PERKS, levelPerkText, MAX_UNIT_LEVEL, SHOP, unitDef, UNITS, type CrateKind, type UnitDef, RARITY_COLOR, LATCH_B, CRATES_B } from '../../content/units';
+import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, UNIT_PERKS, levelPerkText, MAX_UNIT_LEVEL, SHOP, UNITS, type CrateKind, type UnitDef, RARITY_COLOR, LATCH_B, CRATES_B } from '../../content/units';
 import { Rng } from '../../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, openCrateB } from '../../core/crates';
 import { localDate, store } from '../meta';
@@ -12,7 +12,7 @@ import { GUIDE, unitsTitle, relayLockNote } from '../../content/sceneCopy';
 import type { GameScene } from '../GameScene';
 import { W, H, PUZZLES } from '../sceneKit';
 import { addUnitJob, addMergedLine, showUnitJobPopup } from './unitJobUi';
-import { cardsAvailable, spareOf, spendCards, sweepSpare } from '../../core/spareParts';
+import { addCards, cardsAvailable, spareOf, spendCards, sweepSpare } from '../../core/spareParts';
 import { unitJob } from '../../content/unitJobs';
 import { ROSTER_1_GUIDE, ROSTER_1_INFO } from '../../content/roster1';
 import { ROSTER_2_GUIDE, ROSTER_2_INFO } from '../../content/roster2';
@@ -266,15 +266,7 @@ export function applyCards(scene: GameScene, cards: CrateCard[]) {
   // r42: a newly unlocked unit opens its drills
   const fresh = cards.filter((cd) => cd.isNew && (PUZZLES.drills[cd.unit] ?? []).length && !scene.ownsUnit(cd.unit));
   if (fresh.length) scene.time.delayedCall(2600, () => scene.showToast(`NEW DRILLS: ${fresh.map((cd) => FAMILY_INFO[cd.unit as 'cannon'].name.toUpperCase()).join(', ')} (UNIT PAGE)`));
-  for (const cd of cards) {
-    const st = (m.units[cd.unit] = m.units[cd.unit] ?? { level: 0, cards: 0 });
-    if (st.level === 0) {
-      st.level = 1;
-      st.cards += cd.count - 1;
-      if (unitDef(cd.unit)?.slot === 'helper') m.toys[cd.unit] = m.toys[cd.unit] ?? false;
-    } else st.cards += cd.count;
-  }
-  const spare = cards.reduce((n, cd) => n + sweepSpare(m, cd.unit), 0); // ROSTER B: duplicates past level 10
+  const spare = addCards(m, cards); // ROSTER B: duplicates past level 10 become Spare Parts
   if (spare) scene.time.delayedCall(1200, () => scene.showToast(`+${spare} SPARE PARTS  ·  WILD CARDS FOR THEIR RARITY`));
   store(META_KEY, JSON.stringify(m));
   scene.checkUnlocks(); // the first new unit opens TEAM

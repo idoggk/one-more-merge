@@ -27,7 +27,7 @@ applySpamVariant(spamVariant());
 // t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
 export const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
 applyPace(qaPace());
-// t-9adea8b8 QA-only: SCREW YARD OLD (today's plates) / OBJECT (the turnable Screwdom-style object), this device only
+// t-9adea8b8 QA-only: SCREW YARD OLD (today's plates) / OBJECT (the turnable object), this device only
 const YARD_MODE_KEY = 'omm_qa_screw_yard';
 export const qaYardObject = () => {
   try {
