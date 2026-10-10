@@ -5277,21 +5277,15 @@ Now beat the real level.`, this.coachY());
   startObjectYard() {
     tlog.log('yard_object_start', { obj: CRATE.id });
     this.closeModal();
-    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r) };
+    const data: ObjectYardData = { lvl: CRATE, onEnd: (r) => this.endObjectYard(r), onResult: (r) => tlog.log('yard_object_end', { won: r.won, moves: r.moves }) };
     this.scene.launch('objectYard', data);
     this.scene.sleep();
   }
 
-  endObjectYard(r: ObjectYardResult) {
+  /** The result panel lives in the yard scene (over the yard); this only runs on EVENT / the quit button. */
+  endObjectYard(_r: ObjectYardResult) {
     this.scene.wake();
-    if (r.quit) return this.openYardEvent();
-    tlog.log('yard_object_end', { won: r.won, moves: r.moves });
-    const c = this.panel(520);
-    const top = H / 2 - 260;
-    c.add(this.add.text(W / 2, top + 70, r.won ? 'CRATE TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '48px', color: r.won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
-    c.add(this.add.text(W / 2, top + 170, r.won ? `Every screw out in ${r.moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
-    this.button(c, W / 2, top + 330, 420, r.won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.startObjectYard(), 0.9);
-    this.button(c, W / 2, top + 430, 260, 'EVENT', 0x8a6a4a, () => this.openYardEvent(), 0.75);
+    this.openYardEvent();
   }
 
   endYard(n: number, r: YardResult) {

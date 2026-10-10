@@ -20,6 +20,31 @@ const TURN_MS = 260;
 const RING_IDLE = 18;
 const RING_TURN = 10;
 
+/** Family stamp per screw colour (0 Cannon red, 1 Coil blue, 2 Bell gold, 3 Support green), in -1..1 head units.
+ *  fill = flat x,y,x,y polygons; line = polylines. Other colours get a plain cross. */
+type Mark = { fill?: number[][]; line?: number[][] };
+const CROSS: Mark = { line: [[-0.45, -0.45, 0.45, 0.45], [-0.45, 0.45, 0.45, -0.45]] };
+const MARKS: Mark[] = [
+  { fill: [Array.from({ length: 10 }, (_, i) => [Math.cos((i / 10) * Math.PI * 2) * 0.42, Math.sin((i / 10) * Math.PI * 2) * 0.42]).flat()] },
+  { line: [[-0.6, 0.35, -0.3, -0.35, 0, 0.35, 0.3, -0.35, 0.6, 0.35]] },
+  { fill: [[-0.5, 0.35, -0.38, -0.1, -0.15, -0.42, 0.15, -0.42, 0.38, -0.1, 0.5, 0.35]] },
+  { line: [[-0.5, 0, 0.5, 0], [0, -0.5, 0, 0.5]] },
+];
+const markOf = (c: number) => MARKS[c] ?? CROSS;
+const lighten = (c: number, t: number) => {
+  const k = Phaser.Display.Color.IntegerToColor(c);
+  return Phaser.Display.Color.GetColor(k.red + (255 - k.red) * t, k.green + (255 - k.green) * t, k.blue + (255 - k.blue) * t);
+};
+const darken = (c: number, t: number) => {
+  const k = Phaser.Display.Color.IntegerToColor(c);
+  return Phaser.Display.Color.GetColor(k.red * (1 - t), k.green * (1 - t), k.blue * (1 - t));
+};
+const BOX_W = 200;
+const BOX_H = BOX_W * (209 / 360);
+const WELLS = [0.217, 0.48, 0.744];
+const TRAY_W = 480;
+const TRAY_WELLS = [0.118, 0.303, 0.486, 0.671, 0.856];
+
 type Bakeable = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Visible;
 
 function norm(v: V3): V3 {
@@ -32,10 +57,14 @@ export interface ObjectYardResult {
   /** Left with the ✕ (no result panel). */
   quit: boolean;
   moves: number;
+  /** Left from the in-yard result panel with EVENT. */
+  event?: boolean;
 }
 export interface ObjectYardData {
   lvl: ObjectDef;
   onEnd: (r: ObjectYardResult) => void;
+  /** Fired once when a yard is won or lost (the result panel itself is drawn here, over the yard). */
+  onResult?: (r: ObjectYardResult) => void;
 }
 
 export class ObjectYardScene extends Phaser.Scene {
@@ -52,6 +81,7 @@ export class ObjectYardScene extends Phaser.Scene {
    *  the turn arrows + helper bar band. Phaser re-triangulates every Graphics each frame, which cost ~60 ms a frame on
    *  a throttled phone even when nothing moved; a baked band is one quad. */
   snap!: Phaser.GameObjects.RenderTexture;
+  snapY = 0;
   topSnap!: Phaser.GameObjects.RenderTexture;
   botSnap!: Phaser.GameObjects.RenderTexture;
   topStatic: Bakeable[] = [];
@@ -92,6 +122,7 @@ export class ObjectYardScene extends Phaser.Scene {
     const addText = this.add.text.bind(this.add);
     (this.add as unknown as { text: typeof addText }).text = (x, y, txt, style = {}) => addText(x, y, txt, { resolution: RS, ...style });
     this.st = newObject(this.data0.lvl);
+    this.bakeFx();
     if (this.textures.exists('sy_background')) {
       const bg = this.add.image(W / 2, 0, 'sy_background').setOrigin(0.5, 0);
       bg.setScale(Math.max(W / bg.width, H / bg.height));
@@ -109,12 +140,13 @@ export class ObjectYardScene extends Phaser.Scene {
     this.S = Math.min(150, (bottom - top) / 3.1, (W - 60) / 4.2);
     this.obj = this.add.graphics();
     this.snap = this.band(this.cy - this.S * 3, this.cy + this.S * 2.4);
+    this.snapY = this.snap.y;
     // the baked bands sit where their live pieces did in the draw order. Anything still that is not in
     // topStatic / ui / botStatic / bar must be added AFTER the bands (like ✕, the label and the hint) or a band paints over it
     const ty = H - 205;
     this.topSnap = this.band(0, this.rowY + 130);
     this.botSnap = this.band(ty - 60, H);
-    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setDepth(200).setInteractive({ useHandCursor: true });
     back.on('pointerup', () => this.finish(false, true));
     this.ui = this.add.container(0, 0);
     this.bar = this.add.container(0, 0);
@@ -140,6 +172,46 @@ export class ObjectYardScene extends Phaser.Scene {
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) return this.rotate(dx < 0 ? 1 : -1);
       if (Math.hypot(dx, dy) < 30) this.onTap(p.worldX, p.worldY);
     });
+  }
+
+  /** Glossy screw heads (one per colour, family stamp engraved), a spark and a dust puff: baked once, shared by every redraw. */
+  bakeFx() {
+    SCREW_COLORS.forEach((col, c) => {
+      const key = `oy_screw_${c}`;
+      if (this.textures.exists(key)) return;
+      const g = this.add.graphics().setVisible(false);
+      const R = 64;
+      g.fillStyle(INK, 1).fillCircle(R, R, 60);
+      g.fillStyle(darken(col, 0.3), 1).fillCircle(R, R, 54);
+      g.fillStyle(col, 1).fillCircle(R, R, 46);
+      g.fillStyle(lighten(col, 0.3), 1).fillCircle(R - 4, R - 5, 34);
+      g.fillStyle(col, 1).fillCircle(R - 2, R - 2, 28);
+      g.fillStyle(0xffffff, 0.75).fillEllipse(R - 24, R - 28, 26, 13);
+      g.fillStyle(0xffffff, 0.35).fillCircle(R + 26, R + 28, 5);
+      const m = markOf(c);
+      const S = 26;
+      for (const [dx, col2, a] of [[3, 0xffffff, 0.5], [0, INK, 0.9]] as const) {
+        g.fillStyle(col2, a).lineStyle(9, col2, a);
+        for (const poly of m.fill ?? []) g.fillPoints(poly.reduce<Phaser.Math.Vector2[]>((o, v, i) => (i % 2 ? o : [...o, new Phaser.Math.Vector2(R + dx + v * S, R + dx + poly[i + 1] * S)]), []), true);
+        for (const ln of m.line ?? []) for (let i = 0; i + 3 < ln.length; i += 2) g.lineBetween(R + dx + ln[i] * S, R + dx + ln[i + 1] * S, R + dx + ln[i + 2] * S, R + dx + ln[i + 3] * S);
+      }
+      g.generateTexture(key, 128, 128);
+      g.destroy();
+    });
+    if (!this.textures.exists('oy_spark')) {
+      const g = this.add.graphics().setVisible(false);
+      const pts: Phaser.Math.Vector2[] = [];
+      for (let i = 0; i < 8; i++) pts.push(new Phaser.Math.Vector2(32 + Math.cos((i / 8) * Math.PI * 2) * (i % 2 ? 9 : 30), 32 + Math.sin((i / 8) * Math.PI * 2) * (i % 2 ? 9 : 30)));
+      g.fillStyle(0xfff3a0, 1).fillPoints(pts, true).fillStyle(0xffffff, 1).fillCircle(32, 32, 7);
+      g.generateTexture('oy_spark', 64, 64);
+      g.destroy();
+    }
+    if (!this.textures.exists('oy_dust')) {
+      const g = this.add.graphics().setVisible(false);
+      g.fillStyle(0xf3e3c3, 1).fillCircle(32, 32, 26).fillCircle(14, 38, 12).fillCircle(50, 38, 12);
+      g.generateTexture('oy_dust', 64, 64);
+      g.destroy();
+    }
   }
 
   /** A screen band [y0, y1) baked at the canvas resolution (the camera zooms by RS). */
@@ -227,14 +299,22 @@ export class ObjectYardScene extends Phaser.Scene {
     };
     if (live) g.fillStyle(0xffffff, 0.95).fillPoints(ring(SCREW_R * 1.32), true);
     g.fillStyle(INK, 1).fillPoints(ring(SCREW_R * 1.08), true);
-    g.fillStyle(col, 1).fillPoints(ring(SCREW_R), true);
-    // the cross slot
+    g.fillStyle(darken(col, 0.3), 1).fillPoints(ring(SCREW_R), true);
+    g.fillStyle(col, 1).fillPoints(ring(SCREW_R * 0.82), true);
+    g.fillStyle(lighten(col, 0.3), 1).fillPoints(ring(SCREW_R * 0.6), true);
+    // the family stamp (skipped while the object is turning: the live redraw runs every frame)
     const at = (a: number, b: number) => {
       const s = this.project([c[0] + (u[0] * a + v[0] * b) * SCREW_R, c[1] + (u[1] * a + v[1] * b) * SCREW_R, c[2] + (u[2] * a + v[2] * b) * SCREW_R]);
       return [s.x + off.x, s.y + off.y] as const;
     };
-    g.lineStyle(Math.max(2, 5 * k), INK, 0.85);
-    g.lineBetween(...at(-0.55, -0.55), ...at(0.55, 0.55)).lineBetween(...at(-0.55, 0.55), ...at(0.55, -0.55));
+    if (!this.turning) {
+      const m = markOf(sc.color);
+      const gl = at(-0.45, -0.5);
+      g.fillStyle(0xffffff, 0.7).fillEllipse(gl[0], gl[1], Math.max(3, 9 * k), Math.max(2, 5 * k));
+      g.fillStyle(INK, 0.85).lineStyle(Math.max(2, 4 * k), INK, 0.85);
+      for (const poly of m.fill ?? []) g.fillPoints(poly.reduce<Phaser.Math.Vector2[]>((o, x, i) => (i % 2 ? o : [...o, new Phaser.Math.Vector2(...at(x, poly[i + 1]))]), []), true);
+      for (const ln of m.line ?? []) for (let i = 0; i + 3 < ln.length; i += 2) g.lineBetween(...at(ln[i], ln[i + 1]), ...at(ln[i + 2], ln[i + 3]));
+    }
     if (!live) g.fillStyle(INK, 0.5).fillPoints(ring(SCREW_R * 1.08), true);
   }
 
@@ -244,7 +324,9 @@ export class ObjectYardScene extends Phaser.Scene {
     // shadow on the floor
     g.fillStyle(INK, 0.22).fillEllipse(this.cx, this.cy + this.S * 1.45, this.S * 4.2, this.S * 0.9);
     this.paintFaces(g, shownFaces(this.st, this.turn));
-    this.viewLabel?.setText(`${VIEW_NAMES[this.view]}  ·  ${this.view + 1}/4`);
+    // follows the turn while it tweens (the nearest quarter), not only the snapped view
+    const shown = ((Math.round(this.turn) % 4) + 4) % 4;
+    this.viewLabel?.setText(`${VIEW_NAMES[shown as View]}  ·  ${shown + 1}/4`);
     if (this.turning) {
       g.setVisible(true);
       this.snap.setVisible(false);
@@ -290,38 +372,41 @@ export class ObjectYardScene extends Phaser.Scene {
   get rowN() {
     return this.st.rules.dock;
   }
-  rowX = (i: number) => W / 2 + (i - (this.rowN - 1) / 2) * Math.min(96, (W - 80) / this.rowN);
+  /** The tray art (5 wells) when it fits the row, else a drawn bar. */
+  get trayArt() {
+    return this.textures.exists('sy_tray') && this.rowN === 5;
+  }
+  rowX = (i: number) => (this.trayArt ? W / 2 + (TRAY_WELLS[i] - 0.5) * TRAY_W : W / 2 + (i - (this.rowN - 1) / 2) * Math.min(96, (W - 80) / this.rowN));
   barY = H - 74;
   barX = (i: number) => W / 2 + (i - 1) * 228;
 
+  /** A glossy screw head (baked per colour, family stamp engraved), ~50 px at scale 1. */
   screwSprite(color: number, scale = 1) {
     const c = this.add.container(0, 0);
-    if (this.textures.exists('sy_screw')) {
-      const im = this.add.image(0, 0, 'sy_screw').setTint(color);
-      im.setScale((50 * scale) / im.width);
-      c.add(im);
-      return c;
-    }
-    const g = this.add.graphics();
-    g.fillStyle(INK, 1).fillCircle(0, 3, 24 * scale);
-    g.fillStyle(color, 1).fillCircle(0, 0, 21 * scale);
-    g.fillStyle(0xffffff, 0.35).fillCircle(-6 * scale, -7 * scale, 7 * scale);
-    g.lineStyle(5 * scale, INK, 0.85).lineBetween(-10 * scale, -10 * scale, 10 * scale, 10 * scale).lineBetween(-10 * scale, 10 * scale, 10 * scale, -10 * scale);
-    c.add(g);
+    const im = this.add.image(0, 0, `oy_screw_${Math.max(0, SCREW_COLORS.indexOf(color))}`);
+    im.setScale((54 * scale) / im.width);
+    c.add(im);
     return c;
   }
 
+  /** The game's open toolbox crate (sy_toolbox_open + brass trim), tinted by its colour, with `n` screws in its wells. */
+  boxArt(into: Phaser.GameObjects.Container, x: number, y: number, s: number, color: number | null) {
+    const w = BOX_W * s;
+    const im = this.add.image(x, y, 'sy_toolbox_open').setScale(w / 360);
+    if (color !== null) im.setTint(lighten(SCREW_COLORS[color], 0.5));
+    else im.setTint(INK).setAlpha(0.35);
+    into.add(im);
+    // the art is mid-grey, so a plain tint comes out muddy (gold -> olive): a coloured additive pass brings the paint back
+    if (color !== null) into.add(this.add.image(x, y, 'sy_toolbox_open').setScale(w / 360).setTint(SCREW_COLORS[color]).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.3));
+    if (color !== null && this.textures.exists('sy_toolbox_open_brass')) into.add(this.add.image(x, y, 'sy_toolbox_open_brass').setDisplaySize(im.displayWidth, im.displayHeight));
+  }
+  wellX = (x: number, k: number, s = 1) => x + (WELLS[k] - 0.5) * BOX_W * s;
+  wellY = (y: number, s = 1) => y + 0.12 * BOX_H * s;
+
   drawBox(x: number, y: number, s: number, color: number | null, n: number) {
-    const g = this.add.graphics();
-    this.ui.add(g);
-    g.lineStyle(10 * s, INK, 1).strokeRoundedRect(x - 44 * s, y - 74 * s, 88 * s, 40 * s, 12 * s);
-    g.fillStyle(INK, 1).fillRoundedRect(x - 100 * s, y - 46 * s, 200 * s, 92 * s, 20 * s);
+    this.boxArt(this.ui, x, y, s, color);
     if (color === null) return;
-    g.fillStyle(SCREW_COLORS[color], 1).fillRoundedRect(x - 94 * s, y - 40 * s, 188 * s, 80 * s, 16 * s);
-    for (let k = 0; k < BOX_SIZE; k++) {
-      g.fillStyle(INK, 0.55).fillCircle(x + (k - 1) * 58 * s, y, 23 * s);
-      if (k < n) this.ui.add(this.screwSprite(SCREW_COLORS[color], 0.9 * s).setPosition(x + (k - 1) * 58 * s, y));
-    }
+    for (let k = 0; k < n; k++) this.ui.add(this.screwSprite(SCREW_COLORS[color], 0.8 * s).setPosition(this.wellX(x, k, s), this.wellY(y, s)));
   }
 
   drawUi() {
@@ -332,7 +417,7 @@ export class ObjectYardScene extends Phaser.Scene {
     st.boxes.forEach((b, slot) => this.drawBox(this.boxX(slot), this.boxY, 1, b ? b.color : null, b ? b.n : 0));
     const pv = previewColors(st);
     txt((this.prevX(0) + this.prevX(1)) / 2, this.boxY - 62, 'NEXT', 22, '#ffcf33');
-    for (let k = 0; k < 2; k++) this.drawBox(this.prevX(k), this.boxY + 4, 0.44, k < pv.length ? pv[k] : null, 0);
+    for (let k = 0; k < 2; k++) this.drawBox(this.prevX(k), this.boxY + 4, 0.42, k < pv.length ? pv[k] : null, 0);
     const left = st.lvl.queue.length - st.qi + st.boxes.filter(Boolean).length;
     txt((this.boxX(0) + this.boxX(1)) / 2, this.boxY + 70, left ? `${left} BOXES TO GO` : 'DONE!', 20);
     // the holding row
@@ -340,10 +425,16 @@ export class ObjectYardScene extends Phaser.Scene {
     const step = Math.min(96, (W - 80) / N);
     const g = this.add.graphics();
     this.ui.add(g);
-    g.fillStyle(INK, 0.85).fillRoundedRect(W / 2 - (N * step) / 2 - 12, this.rowY - 44, N * step + 24, 88, 22);
+    if (this.trayArt) {
+      const im = this.add.image(W / 2, this.rowY, 'sy_tray');
+      im.setScale(TRAY_W / im.width);
+      this.ui.add(im);
+    } else g.fillStyle(INK, 0.85).fillRoundedRect(W / 2 - (N * step) / 2 - 12, this.rowY - 44, N * step + 24, 88, 22);
+    const g2 = this.add.graphics();
+    this.ui.add(g2);
     for (let i = 0; i < N; i++) {
       const x = this.rowX(i);
-      g.fillStyle(0x000000, 0.35).fillCircle(x, this.rowY, 32);
+      if (!this.trayArt) g2.fillStyle(0x000000, 0.35).fillCircle(x, this.rowY, 32);
       const c = st.tray[i];
       if (c === undefined) continue;
       this.ui.add(this.screwSprite(SCREW_COLORS[c]).setPosition(x, this.rowY));
@@ -357,7 +448,8 @@ export class ObjectYardScene extends Phaser.Scene {
     }
     const used = st.tray.length;
     if (used >= N - 1 && used > 0) {
-      g.lineStyle(6, 0xe8452c, 1).strokeRoundedRect(W / 2 - (N * step) / 2 - 16, this.rowY - 48, N * step + 32, 96, 24);
+      const hw = this.trayArt ? TRAY_W / 2 + 4 : (N * step) / 2 + 16;
+      g2.lineStyle(6, 0xe8452c, 1).strokeRoundedRect(W / 2 - hw, this.rowY - 62, hw * 2, 124, 24);
       txt(W / 2, this.rowY + 64, used >= N ? 'ROW FULL!' : '1 SLOT LEFT: THE NEXT MISS LOSES!', 22, '#ff8a6a');
     } else txt(W / 2, this.rowY + 64, `HOLDING ROW  ·  ${used}/${N}  ·  full = lost`, 20);
     // Broom's side tray: waiting screws that drop into boxes later
@@ -366,6 +458,35 @@ export class ObjectYardScene extends Phaser.Scene {
       st.stash.forEach((c, i) => this.ui.add(this.screwSprite(SCREW_COLORS[c], 0.5).setPosition(W / 2 - 70 + i * 30, this.rowY + 104)));
     }
     this.bake(this.topSnap, [...this.topStatic, ...(this.ui.list as Bakeable[])]);
+  }
+
+  /** Broom / hammer / drill pictures, drawn from rotated polygons (so the bake keeps them). */
+  boosterIcon(g: Phaser.GameObjects.Graphics, k: Helper, cx: number, cy: number, on: boolean) {
+    const ang = k === 'broom' ? 0.7 : k === 'hammer' ? -0.7 : 0;
+    const co = Math.cos(ang), si = Math.sin(ang);
+    const Z = 0.74;
+    const poly = (fill: number, pts: number[][], a = 1) => {
+      const q = pts.map(([x, y]) => new Phaser.Math.Vector2(cx + (x * co - y * si) * Z, cy + (x * si + y * co) * Z));
+      g.fillStyle(on ? fill : darken(fill, 0.45), a).fillPoints(q, true).lineStyle(2.5, INK, 1).strokePoints(q, true);
+    };
+    const rect = (fill: number, x: number, y: number, w: number, h: number) => poly(fill, [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
+    g.fillStyle(0xffffff, on ? 0.9 : 0.35).fillCircle(cx, cy, 25).lineStyle(4, INK, 1).strokeCircle(cx, cy, 25);
+    if (k === 'broom') {
+      rect(0x9a6a3a, -3, -26, 6, 26);
+      rect(0xb8bec8, -11, -2, 22, 8);
+      poly(0xf2c12e, [[-11, 6], [11, 6], [15, 24], [-15, 24]]);
+      g.lineStyle(2, INK, 0.6);
+      for (const bx of [-6, 0, 6]) g.lineBetween(cx + (bx * co - 8 * si) * Z, cy + (bx * si + 8 * co) * Z, cx + (bx * 1.3 * co - 22 * si) * Z, cy + (bx * 1.3 * si + 22 * co) * Z);
+    } else if (k === 'hammer') {
+      rect(0xb47838, -3, -8, 7, 34);
+      rect(0xc2c8d2, -16, -22, 30, 15);
+      poly(0xe8452c, [[-16, -22], [-26, -18], [-26, -11], [-16, -7]]);
+    } else {
+      poly(0xff8a1f, [[-20, -9], [8, -9], [10, 5], [-20, 5]]);
+      rect(0x5a4a5a, -13, 5, 12, 20);
+      rect(0xc2c8d2, 8, -4, 16, 6);
+      rect(0x5a4a5a, 24, -2, 5, 2);
+    }
   }
 
   drawBar() {
@@ -378,13 +499,15 @@ export class ObjectYardScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(INK, 0.92).fillRoundedRect(x - 104, y - 46, 208, 92, 22);
       g.fillStyle(armed ? 0xe0a020 : have ? 0x5fbf4a : 0x6a5a6a, 1).fillRoundedRect(x - 98, y - 40, 196, 80, 18);
-      const name = this.add.text(x - 14, y - 12, COPY[k][0], { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: have ? '#ffffff' : '#bfb0bf' }).setOrigin(0.5);
-      const sub = this.add.text(x - 14, y + 20, armed ? 'TAP A BLOCK' : COPY[k][1], { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '17px', color: have ? '#fff0cf' : '#bfb0bf' }).setOrigin(0.5);
+      const icon = this.add.graphics();
+      this.boosterIcon(icon, k, x - 74, y + 2, have > 0);
+      const name = this.add.text(x + 20, y - 12, COPY[k][0], { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: have ? '#ffffff' : '#bfb0bf' }).setOrigin(0.5);
+      const sub = this.add.text(x + 20, y + 20, armed ? 'TAP A BLOCK' : COPY[k][1], { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '16px', color: have ? '#fff0cf' : '#bfb0bf' }).setOrigin(0.5);
       const badge = this.add.graphics().fillStyle(have ? 0xe8452c : 0x3b2533, 1).fillCircle(x + 80, y - 34, 20).lineStyle(3, 0xfff0cf, 1).strokeCircle(x + 80, y - 34, 20);
       const cnt = this.add.text(x + 80, y - 34, String(have), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#ffffff' }).setOrigin(0.5);
       const hit = this.add.zone(x, y, 208, 92).setInteractive({ useHandCursor: true });
       hit.on('pointerup', () => this.onHelper(k));
-      this.bar.add([g, name, sub, badge, cnt, hit]);
+      this.bar.add([g, icon, name, sub, badge, cnt, hit]);
     });
     this.bake(this.botSnap, [...this.botStatic, ...(this.bar.list as Bakeable[])]);
   }
@@ -447,6 +570,7 @@ export class ObjectYardScene extends Phaser.Scene {
     }
     sfx.click();
     this.drawObject();
+    this.spark(before.x, before.y, lighten(SCREW_COLORS[this.st.lvl.screws[sid].color], 0.5));
     this.flyFrom(before.x, before.y, this.st.lvl.screws[sid].color, r, r.to === 'box' ? r.box! : -1);
   }
 
@@ -492,12 +616,69 @@ export class ObjectYardScene extends Phaser.Scene {
       this.tweens.chain({
         targets: g,
         tweens: [
-          { y: Math.max(40, floor), duration: 420, ease: 'Bounce.Out', onComplete: () => sfx.scrap() },
+          { y: Math.max(40, floor), duration: 420, ease: 'Bounce.Out', onComplete: () => { sfx.scrap(); this.landFx(this.project(this.bpos(bid)).x, this.cy + this.S * 1.45); } },
           { x: (this.bpos(bid)[0] >= 0 ? 1 : -1) * 520, alpha: 0, angle: this.bpos(bid)[0] >= 0 ? 25 : -25, duration: 420, delay: 160, ease: 'Quad.In' },
         ],
         onComplete: () => g.destroy(),
       });
     }
+  }
+
+  /** A full box shuts its lid with a clack, latches, then lifts away (the next box is already in its place under it). */
+  latchBox(slot: number, color: number, delay = 0) {
+    const x = this.boxX(slot), y = this.boxY;
+    const col = SCREW_COLORS[color];
+    const c = this.add.container(x, y).setDepth(60);
+    const body = this.add.image(0, 0, 'sy_toolbox_open').setScale(BOX_W / 360).setTint(lighten(col, 0.5));
+    c.add([body, this.add.image(0, 0, 'sy_toolbox_open').setScale(BOX_W / 360).setTint(col).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.3)]);
+    if (this.textures.exists('sy_toolbox_open_brass')) c.add(this.add.image(0, 0, 'sy_toolbox_open_brass').setDisplaySize(body.displayWidth, body.displayHeight));
+    for (let k = 0; k < BOX_SIZE; k++) c.add(this.screwSprite(col, 0.8).setPosition(this.wellX(0, k), this.wellY(0)));
+    // the lid hangs from the hinge line and swings down over the wells (scaleY 0 -> 1)
+    const hy = -BOX_H * 0.2, lh = BOX_H * 0.62, lw = BOX_W * 0.9;
+    const lid = this.add.graphics().setPosition(0, hy).setScale(1, 0);
+    lid.fillStyle(INK, 1).fillRoundedRect(-lw / 2 - 4, -4, lw + 8, lh + 8, 14);
+    lid.fillStyle(darken(col, 0.1), 1).fillRoundedRect(-lw / 2, 0, lw, lh, 11);
+    lid.fillStyle(0xffffff, 0.3).fillRoundedRect(-lw / 2 + 8, 6, lw - 16, 10, 5);
+    for (const lx of [-lw * 0.28, lw * 0.28]) lid.fillStyle(INK, 1).fillRoundedRect(lx - 14, lh - 18, 28, 30, 6).fillStyle(0xd9a53a, 1).fillRoundedRect(lx - 10, lh - 14, 20, 22, 4);
+    lid.fillStyle(0xd9a53a, 1).fillCircle(-lw / 2 + 12, 12, 7).fillCircle(lw / 2 - 12, 12, 7);
+    c.add(lid);
+    c.setAlpha(0);
+    this.tweens.chain({
+      targets: lid,
+      tweens: [
+        { delay, duration: 1, onStart: () => c.setAlpha(1) },
+        { scaleY: 1, duration: 230, ease: 'Back.Out', onComplete: () => { sfx.snap(); this.pulse(c, 1.12); } },
+        { duration: 260 },
+      ],
+      onComplete: () => this.tweens.add({ targets: c, y: y - 110, alpha: 0, scale: 0.7, duration: 320, ease: 'Quad.In', onComplete: () => c.destroy() }),
+    });
+  }
+
+  /** A quick scale pop (a latch clack, a landing). */
+  pulse(o: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, to: number) {
+    this.tweens.add({ targets: o, scale: to, duration: 70, yoyo: true, ease: 'Quad.Out' });
+  }
+
+  /** A few sparks fly off at (x, y) when a screw pops. */
+  spark(x: number, y: number, tint = 0xffffff) {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + Math.random() * 0.5;
+      const im = this.add.image(x, y, 'oy_spark').setDepth(55).setScale(0.35).setTint(tint).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: im, x: x + Math.cos(a) * 46, y: y + Math.sin(a) * 46 - 8, scale: 0, alpha: 0, angle: 90, duration: 380, ease: 'Quad.Out', onComplete: () => im.destroy() });
+    }
+    const ring = this.add.circle(x, y, 10, 0xffffff, 0).setStrokeStyle(4, 0xffffff, 0.9).setDepth(55);
+    this.tweens.add({ targets: ring, scale: 3.2, alpha: 0, duration: 300, ease: 'Quad.Out', onComplete: () => ring.destroy() });
+  }
+
+  /** A block lands: a dust puff either side and the object takes a small bump. */
+  landFx(x: number, y: number) {
+    for (const dir of [-1, 1]) {
+      const im = this.add.image(x + dir * 20, y, 'oy_dust').setDepth(31).setScale(0.3).setAlpha(0.8);
+      this.tweens.add({ targets: im, x: x + dir * 80, y: y - 14, scale: 1, alpha: 0, duration: 420, ease: 'Quad.Out', onComplete: () => im.destroy() });
+    }
+    this.tweens.killTweensOf(this.snap);
+    this.snap.y = this.snapY;
+    this.tweens.add({ targets: this.snap, y: this.snapY + 7, duration: 90, yoyo: true, ease: 'Quad.Out' });
   }
 
   onHelper(k: Helper) {
@@ -548,6 +729,7 @@ export class ObjectYardScene extends Phaser.Scene {
 
   afterMove(r: ObjTap) {
     if (r.left.length) sfx.rankUp(4);
+    r.left.forEach((l, i) => this.latchBox(l.slot, l.color, i * 160));
     this.drawUi();
     this.drawObject();
     if (this.st.won) this.finish(true);
@@ -564,15 +746,48 @@ export class ObjectYardScene extends Phaser.Scene {
   finish(won: boolean, quit = false) {
     if (this.ended) return;
     this.ended = true;
-    if (!quit) {
-      const tx = this.add.text(W / 2, this.cy, won ? 'TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: won ? '#ffcf33' : '#ff684a', stroke: '#2b1d2e', strokeThickness: 12 }).setOrigin(0.5).setDepth(70);
-      this.tweens.add({ targets: tx, scale: { from: 0.6, to: 1 }, duration: 300, ease: 'Back.Out' });
-      if (won) sfx.star(3);
-      else sfx.invalid();
-    }
-    this.time.delayedCall(quit ? 0 : 1300, () => {
-      this.data0.onEnd({ won, quit, moves: this.st.moves });
+    if (quit) {
       this.scene.stop();
+      this.data0.onEnd({ won, quit, moves: this.st.moves });
+      return;
+    }
+    const tx = this.add.text(W / 2, this.cy, won ? 'TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: won ? '#ffcf33' : '#ff684a', stroke: '#2b1d2e', strokeThickness: 12 }).setOrigin(0.5).setDepth(70);
+    this.tweens.add({ targets: tx, scale: { from: 0.6, to: 1 }, duration: 300, ease: 'Back.Out' });
+    if (won) sfx.star(3);
+    else {
+      sfx.invalid();
+      this.cameras.main.shake(260, 0.008);
+    }
+    this.data0.onResult?.({ won, quit: false, moves: this.st.moves });
+    this.time.delayedCall(1100, () => this.resultPanel(won, tx));
+  }
+
+  /** The result panel, drawn over the yard (the object stays visible behind a dim). */
+  resultPanel(won: boolean, banner: Phaser.GameObjects.Text) {
+    banner.destroy();
+    const moves = this.st.moves;
+    const cx = W / 2, top = H / 2 - 250;
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f1c, 0.55).setDepth(80).setAlpha(0);
+    this.tweens.add({ targets: dim, alpha: 1, duration: 200 });
+    const c = this.add.container(0, 0).setDepth(81);
+    const g = this.add.graphics();
+    g.fillStyle(INK, 1).fillRoundedRect(cx - 270, top - 6, 540, 512, 40).fillStyle(0xfff0cf, 1).fillRoundedRect(cx - 262, top, 524, 500, 34);
+    c.add(g);
+    c.add(this.add.text(cx, top + 70, won ? 'CRATE TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '46px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    c.add(this.add.text(cx, top + 170, won ? `Every screw out in ${moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    const btn = (y: number, w: number, label: string, col: number, fn: () => void) => {
+      const bg = this.add.graphics().fillStyle(INK, 1).fillRoundedRect(cx - w / 2 - 5, y - 40, w + 10, 80, 26).fillStyle(col, 1).fillRoundedRect(cx - w / 2, y - 35, w, 70, 22);
+      const t = this.add.text(cx, y, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff' }).setOrigin(0.5);
+      const hit = this.add.zone(cx, y, w, 80).setInteractive({ useHandCursor: true });
+      hit.once('pointerup', fn);
+      c.add([bg, t, hit]);
+    };
+    btn(top + 330, 420, won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.scene.restart(this.data0));
+    btn(top + 430, 260, 'EVENT', 0x8a6a4a, () => {
+      this.scene.stop();
+      this.data0.onEnd({ won, quit: false, moves, event: true });
     });
+    c.setAlpha(0).setY(30);
+    this.tweens.add({ targets: c, alpha: 1, y: 0, duration: 240, ease: 'Back.Out' });
   }
 }
