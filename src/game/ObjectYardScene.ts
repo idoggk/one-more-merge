@@ -103,18 +103,19 @@ export class ObjectYardScene extends Phaser.Scene {
       this.add.text(W / 2, 56, `SCREW YARD  ·  ${this.st.lvl.name}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#ffcf33' }).setOrigin(0.5),
     ];
     this.botStatic = [];
-    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    back.on('pointerup', () => this.finish(false, true));
     // the object fills the space between the row and the turn controls
     const top = 450, bottom = H - 270;
     this.cy = (top + bottom) / 2 + 20;
     this.S = Math.min(150, (bottom - top) / 3.1, (W - 60) / 4.2);
     this.obj = this.add.graphics();
     this.snap = this.band(this.cy - this.S * 3, this.cy + this.S * 2.4);
-    // the baked bands sit where their live pieces did in the draw order (the label / hint stay on top)
+    // the baked bands sit where their live pieces did in the draw order. Anything still that is not in
+    // topStatic / ui / botStatic / bar must be added AFTER the bands (like ✕, the label and the hint) or a band paints over it
     const ty = H - 205;
     this.topSnap = this.band(0, this.rowY + 130);
     this.botSnap = this.band(ty - 60, H);
+    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    back.on('pointerup', () => this.finish(false, true));
     this.ui = this.add.container(0, 0);
     this.bar = this.add.container(0, 0);
     // turn controls: ◀ VIEW ▶ (swipe left / right on the object does the same)
@@ -125,6 +126,10 @@ export class ObjectYardScene extends Phaser.Scene {
     this.drawObject();
     this.drawUi();
     this.drawBar();
+    // a lost WebGL context (iOS backgrounding) wipes the bands: bake them again once it is back
+    const rebake = () => { this.drawObject(); this.drawUi(); this.drawBar(); };
+    this.game.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, rebake);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.renderer.off(Phaser.Renderer.Events.RESTORE_WEBGL, rebake));
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       this.down = { x: p.worldX, y: p.worldY, t: p.downTime, on: !over?.length };
     });
@@ -150,11 +155,12 @@ export class ObjectYardScene extends Phaser.Scene {
    *  pieces stay live (hit tests never look at the band). */
   bake(rt: Phaser.GameObjects.RenderTexture, items: Bakeable[]) {
     rt.clear();
-    for (const o of items) {
-      if (o.input || this.live.has(o) || o.type === 'Zone') continue;
-      rt.draw(o.setVisible(true));
-      o.setVisible(false);
-    }
+    const still = items.filter(o => !o.input && !this.live.has(o) && o.type !== 'Zone');
+    // one capture + one blit for the whole band, rather than one per piece
+    rt.beginDraw();
+    for (const o of still) rt.batchDraw(o.setVisible(true));
+    rt.endDraw();
+    for (const o of still) o.setVisible(false);
   }
 
   arrow(x: number, y: number, label: string, dir: 1 | -1) {
