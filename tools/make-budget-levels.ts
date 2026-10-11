@@ -18,7 +18,9 @@ const arg = (k: string) => process.argv.find((a) => a.startsWith(`--${k}=`))?.sp
 const TRIES = +(arg("tries") ?? 60);
 const ONLY = arg("only");
 
-type Spec = { id: string; name: string; level: number; merge_budget: number; want: number; rows: string[]; note: string };
+/** A 1-second spammer may win at most this share of games (else the level is a push-over). */
+const SPAM_MAX = 0.1;
+type Spec = { id: string; name: string; level: number; merge_budget: number; want: number; share?: number; rows: string[]; note: string };
 const FAM: Record<string, string> = { c: 'cannon', k: 'coil', b: 'bell' };
 
 /** ASCII board, 6 rows of 5 cells: `.` empty, else family letter (c cannon, k coil, b bell) + rank digit. */
@@ -40,7 +42,7 @@ const SPECS: Spec[] = [
     name: 'LAST 8',
     level: 17,
     merge_budget: 8,
-    want: 1, // (was 2: a 1-second spammer still won 46% of games at HP 1046, so HP rises until it fails)
+    want: 2, // best line banks 2 spare => star lines [1,2]: a real 2-star step. Boards where the spammer wins more than SPAM_MAX are rejected.
     note: 'A ladder of rank-1 cannons climbs to one big hit; the ready-made pairs are decoys that spend merges for less.',
     rows: ['c3 . . . c3', '. c1 c1 . k2', 'k1 c1 c1 . .', 'b2 . . b2 .', '. k1 k2 . c2', '. c2 . . .'],
   },
@@ -50,6 +52,7 @@ const SPECS: Spec[] = [
     level: 31,
     merge_budget: 10,
     want: 2,
+    share: 0.98, // tighter: HP up to D*(budget-2) (was 75% of best = 5 of 10 merges), so the best line needs about 8 of 10
     note: 'Ten merges for a ladder, a coil row and a bell pair: every merge that does not build toward the top hit is a merge wasted.',
     // (kept to 16 parts: the exact planner's search grows with the parts on the board)
     rows: ['c1 c1 k1 k1 .', 'c1 . b2 . .', 'c2 c2 . b2 .', '. . c3 . c3', 'b1 b1 . . .', 'c4 . . . .'],
@@ -85,15 +88,17 @@ function measure(sp: Spec, board: BudgetLevel['board'], exact: boolean): Cand {
   const planner = new Planner();
   const top = exact ? Array.from({ length: sp.merge_budget }, (_, k) => planner.line(base, k + 1).dmg.at(-1) ?? 0) : beamBest(base);
   const best = top[sp.merge_budget - 1];
-  const hp = Math.floor(Math.min(HP_SHARE * best, top[sp.merge_budget - sp.want - 1] ?? 0));
+  const hp = Math.floor(Math.min((sp.share ?? HP_SHARE) * best, top[sp.merge_budget - sp.want - 1] ?? 0));
   const minMerges = top.findIndex((d) => d >= hp) + 1;
   const spareBest = sp.merge_budget - minMerges;
   const star: [number, number] = spareBest >= DEFAULT_STAR_SPARE[1] ? DEFAULT_STAR_SPARE : [Math.max(1, spareBest - 1), Math.max(1, spareBest)];
   // greedy: average over tie-breaks
   const g = Array.from({ length: 30 }, (_, i) => playout(base, BOTS[2].pick(new Rng(i + 1))).dmg.at(-1) ?? 0).reduce((a, b) => a + b, 0) / 30;
   const short = hp > 0 ? 1 - g / hp : 0;
-  const ok = short >= GREEDY_SHORT[0] && short <= GREEDY_SHORT[1] && spareBest >= sp.want;
-  const score = (ok ? 0 : 10) + Math.abs(short - (GREEDY_SHORT[0] + GREEDY_SHORT[1]) / 2) + (spareBest >= sp.want ? 0 : 5) + (best < 400 ? 20 : 0);
+  // the 1-second spammer (first pair scanning the board, 80%): win share against this HP
+  const spam = Array.from({ length: 40 }, (_, i) => (playout(base, BOTS[1].pick(new Rng(i * 977 + 13))).dmg.some((d) => d >= hp) ? 1 : 0) as number).reduce((a, b) => a + b, 0) / 40;
+  const ok = short >= GREEDY_SHORT[0] && short <= GREEDY_SHORT[1] && spareBest >= sp.want && spam <= SPAM_MAX;
+  const score = (ok ? 0 : 10) + Math.max(0, spam - SPAM_MAX) * 3 +Math.abs(short - (GREEDY_SHORT[0] + GREEDY_SHORT[1]) / 2) + (spareBest >= sp.want ? 0 : 5) + (best < 400 ? 20 : 0);
   return {
     short, spareBest, score,
     level: {

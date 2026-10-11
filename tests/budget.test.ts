@@ -137,10 +137,10 @@ describe('the generated bench levels (src/content/budgetLevels.json, tools/make-
     }
   });
 
-  it('HP is about 75% of the best line, and a greedy line misses it', () => {
+  it('HP is 55-98% of the best line, and a greedy line misses it', () => {
     for (const b of BUDGET_LEVELS) {
       expect(b.planner.hp_share, b.id).toBeGreaterThan(0.55);
-      expect(b.planner.hp_share, b.id).toBeLessThanOrEqual(0.75);
+      expect(b.planner.hp_share, b.id).toBeLessThanOrEqual(0.98);
       expect(b.planner.greedy_damage, b.id).toBeLessThan(b.hp);
     }
   });
