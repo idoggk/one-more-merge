@@ -1,1 +1,2 @@
 date,asset,version,silhouette,material_light,style_match,colour,rank_progression,technical,caps_hit,final_absolute,verdict,five_worst_flaws
+2026-10-11,piston ladder,v1,5.5,7.5,6.5,6.5,5.5,9.0,none,6.5,REDO,"1 reads as Hydraulic Press not Piston; 2 ranks 1-3 near-identical silhouettes (IoU .87/.90); 3 ladder not additive (r5-r7 reshuffle parts); 4 outline about half the anchors' weight and more 3D-rendered look; 5 r4/r5/r8 pipe clutter at 62 px and gold takes the eye from red at r5-r8"

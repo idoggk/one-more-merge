@@ -30,15 +30,18 @@ Format: what each rank adds. Write plans for a unit only when its sheet is about
 
 ### Piston (pilot) · shooter, Common · rust red `#d05a3a`
 Job: pneumatic punch that hits harder with open space around it (steam vents toward empty cells).
+Plan v2 (v1 failed review, see `reviews/piston_v1.md`: it drew a vertical hydraulic press, which is another unit). The rank axis is a **count**: pistons 1, 2, 3, 4, then tiers.
 
-1. One stubby red cylinder with a flat piston head on a plain cream plate, one small nozzle.
-2. + a small silver pressure gauge on the side and a second short rod.
-3. + brass rings on the cylinder, brass rivets and brass corners on the plate.
-4. + four short pistons in a cross around the cylinder, with a steam vent pipe on each side.
-5. Gold rings and piston heads; a round glass window showing a glowing orange pressure core; gold plate edge.
-6. + a tall central hydraulic cylinder rising behind, with a big gold flywheel on the back; clearly bigger body.
-7. The core becomes a blue-white crystal pressure chamber; a ring of gold mini-pistons attached by short pipes floats around the top.
-8. Eight pistons in a star around a crowned gold manifold, glowing crystal core, small solid gears riding on the pipes; gold-and-white ornate plate.
+1. Red block body on a cream plate with red feet, ONE short grey piston poking out of the front.
+2. + a second piston beside it.
+3. + a third piston and brass rings on every piston; plate feet turn brass.
+4. + a fourth piston on the side, a short steam pipe on the back.
+5. + two tall brass exhaust stacks on top and a round glass window with a glowing orange core.
+6. + a second, smaller red block stacked on top with four more pistons (eight in total), gold piston tips.
+7. + a blue-white crystal pressure tank on the very top.
+8. + a gold crown-shaped manifold around the crystal, two gold fins, an ornate gold-and-white plate.
+
+Lessons that apply to every unit: check the unit's identity against its roster neighbours before writing the plan (Piston vs Hydraulic Press); give the ladder **one counted axis** where the unit allows it; every prompt states outline thickness, "painted not rendered", a minimum share of the family colour, and a part budget (`prompts/00_style_block.md`).
 
 ### Blowtorch (next) · shooter, Rare · orange `#ff7a1a`
 Job: a flame cone up the column.

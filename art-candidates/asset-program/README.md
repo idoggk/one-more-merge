@@ -27,13 +27,15 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 | `tools/` | `slice-sheet.mjs`, `review-sheet.mjs`, `make-anchors.mjs` (all use only `sharp`, already a dev dependency) |
 | `inbox/` | Where GPT sheets go (`<unit>_sheet_vN.png`) |
 | `refs/` | Reference screenshots of other games, kept out of git, analysis only |
-| `scores/scores.csv` | Review log |
+| `scores/scores.csv` | Review log (one row per review) |
+| `reviews/` | The written harsh reviews, one per sheet round |
 
 ## Status
 
 | Item | State |
 |---|---|
-| Pilot Piston prompt | **Ready, waiting for the first sheet** |
+| Pilot Piston, round 1 | **Reviewed: 6.5 / 10, REDO** (`reviews/piston_v1.md`). Wrong machine (a hydraulic press) and a non-additive ladder; format, slicing and materials worked |
+| Pilot Piston, round 2 | **Prompt ready** (`prompts/02_piston_v2.md`), waiting for the sheet |
 | Slicer and review tool | Built and tested on the shipped Coil ladder (cuts cleanly, fringe 0.1-0.4%, finds that Coil rank 5 breaks the ladder) |
 | Benchmark of top games | **Partial**: text sources only. Needs store screenshots (network allowlist or your upload) |
 | Browser-driven generation | Needs a session on your computer (Desktop app or `claude remote-control`); this cloud session cannot reach it |
@@ -50,4 +52,4 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 
 - I cannot generate images with GPT myself and I do not use API keys or paid services; the image generation runs in your ChatGPT.
 - Scores are my judgement from pictures at phone size. The tool flags are objective, the scores are not. Calibration against real top-game screenshots is still pending.
-- Nothing here has been tried with a real GPT sheet yet. The slicer and review tool are tested on the shipped art only, so expect fixes after the first real sheet.
+- The slicer and review tool ran on one real GPT sheet (Piston v1): clean cut, 0 flags. One sheet is not a lot of evidence, so expect fixes as more come in.
