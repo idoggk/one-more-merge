@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rank looks</title>
+<style>
+@font-face { font-family: 'Lilita One'; src: url('%%FONT%%') format('woff2'); font-display: block; }
+:root {
+  --ink: #2b1d2e; --cream: #fbe7c6; --cream2: #e0c0a0; --brass: #e0a040; --brass2: #a06020; --txt: #5a3a2a;
+  --gold: #ffc83a; --u: 0.68px; /* css px per design px; the board cell is 124 design px */
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: #2b1d2e; }
+body {
+  font-family: 'Lilita One', 'Arial Black', system-ui, sans-serif; color: var(--cream); min-height: 100vh;
+  background: radial-gradient(120% 60% at 50% 0%, #5a3a3e 0%, #2b1d2e 62%) fixed;
+  padding: 0 0 40px; overflow-x: hidden;
+}
+.wrap { max-width: 430px; margin: 0 auto; padding: 10px 16px 0; }
+h1 { font-size: 26px; font-weight: 400; margin: 2px 0 0; letter-spacing: .5px; text-shadow: 0 3px 0 #1a1020; }
+h1 small { display: block; font-size: 14px; color: #e0c0a0; font-family: system-ui, sans-serif; font-weight: 700; letter-spacing: .3px; text-shadow: none; margin-top: 2px; }
+.note { font: 600 12px/1.35 system-ui, sans-serif; color: #e8d2b4; margin: 4px 0 0; }
+.note b { color: #ffd84a; }
+.bar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.bar::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; font: 400 15px/1 'Lilita One', sans-serif; color: var(--cream); background: #4a3040; border: 2px solid #1a1020; border-radius: 16px;
+  padding: 9px 12px 8px; cursor: pointer; box-shadow: 0 3px 0 #1a1020; position: relative; white-space: nowrap;
+}
+.chip.on { background: linear-gradient(#ffd84a, #f0a820); color: #5a2e08; border-color: #7a4a10; box-shadow: 0 3px 0 #7a4a10; }
+.chip .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; border: 1.5px solid rgba(0,0,0,.45); vertical-align: 0; }
+.chip.rec::after { content: '★'; position: absolute; top: -9px; right: -4px; font-size: 18px; color: #ffd84a; text-shadow: 0 2px 0 #7a4a10, 0 0 6px #ffc83a; }
+.seg { display: flex; background: #1a1020; border-radius: 18px; padding: 3px; gap: 3px; margin: 8px 0 0; }
+.seg button { flex: 1; font: 400 15px/1 'Lilita One', sans-serif; border: 0; border-radius: 15px; padding: 10px 4px 9px; background: transparent; color: #c9b08e; cursor: pointer; }
+.seg button.on { background: linear-gradient(#ffd84a, #f0a820); color: #5a2e08; box-shadow: 0 2px 0 #7a4a10; }
+.row2 { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.row2 .seg { margin: 0; flex: 1; }
+.card {
+  margin-top: 12px; background: var(--cream); color: var(--txt); border-radius: 22px; border: 3px solid var(--ink); position: relative;
+  box-shadow: 0 0 0 3px var(--brass), 0 0 0 5px var(--ink), 0 8px 18px rgba(0,0,0,.35); padding: 14px 12px 12px;
+}
+.card h2 { margin: 0 0 2px; font: 400 21px/1.1 'Lilita One', sans-serif; color: #5a2e08; }
+.card p { margin: 3px 0 0; font: 600 12.5px/1.35 system-ui, sans-serif; color: var(--txt); }
+.card .tiers { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 8px 0 0; font: 600 12px/1.3 system-ui, sans-serif; }
+.card .tiers b { color: #8a4a10; font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(4, calc(var(--u) * 124)); gap: 8px 6px; justify-content: center; margin-top: 10px; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.cell .cap { font: 400 11px/1 'Lilita One', sans-serif; color: #8a6a4a; letter-spacing: .3px; }
+.cell.ghost { opacity: .6; }
+.cell.ghost .cap { color: #b04a30; }
+.vlabel { display: flex; align-items: center; justify-content: space-between; margin: 12px 2px 0; font: 400 17px/1 'Lilita One', sans-serif; color: #5a2e08; }
+.vlabel i { font: 700 11px/1 system-ui, sans-serif; color: #8a6a4a; font-style: normal; }
+.board { display: grid; grid-template-columns: repeat(5, calc(var(--u) * 124)); gap: 0; justify-content: center; padding: 8px; margin: 10px auto 0; width: max-content; border-radius: 18px; border: 3px solid #5a2e10;
+  background: linear-gradient(135deg, #d98e44 0%, #b8691f 55%, #9a5418 100%); box-shadow: inset 0 3px 0 rgba(255,255,255,.25), inset 0 -4px 0 rgba(0,0,0,.2); }
+
+/* ---------------- tile ---------------- */
+.tile { position: relative; width: calc(var(--u) * 124); height: calc(var(--u) * 124); border-radius: calc(var(--u) * 22); overflow: hidden; flex: none; }
+.tile > * { position: absolute; pointer-events: none; }
+.tile .slot { left: calc(var(--u) * 3); top: calc(var(--u) * 3); width: calc(var(--u) * 118); height: calc(var(--u) * 118); }
+.tile svg { left: 0; top: 0; width: calc(var(--u) * 124); height: calc(var(--u) * 124); overflow: visible; }
+.tile .unit { transform-origin: 50% 100%; }
+.tile .grow { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.tile .breath { position: absolute; inset: 0; transform-origin: 50% 100%; animation: breath 2.4s ease-in-out infinite; animation-delay: var(--ph, 0s); }
+.tile .breath img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.tile .glint { position: absolute; inset: 0; background: linear-gradient(90deg, transparent 38%, rgba(255,255,255,.55) 44%, rgba(255,255,255,.95) 50%, rgba(255,255,255,.55) 56%, transparent 62%) no-repeat; background-size: 260% 100%;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; animation: glint 3.2s ease-in-out infinite; animation-delay: var(--gd, 0s); mix-blend-mode: screen; }
+.tile .glint.fast { animation-duration: 2.2s; }
+.tile .plate { left: 0; top: calc(var(--u) * 73); width: calc(var(--u) * 52); height: calc(var(--u) * 46); }
+.tile .num { left: 0; top: calc(var(--u) * 73); width: calc(var(--u) * 52); height: calc(var(--u) * 44); display: flex; align-items: center; justify-content: center;
+  font: 400 calc(var(--u) * 34)/1 'Lilita One', sans-serif; color: #2a2233; }
+.tile .max { left: calc(var(--u) * 74); top: calc(var(--u) * 78); width: calc(var(--u) * 48); height: calc(var(--u) * 48); transform: rotate(15deg); }
+.tile .rays { left: calc(var(--u) * -8); top: calc(var(--u) * -8); width: calc(var(--u) * 140); height: calc(var(--u) * 140);
+  -webkit-mask-image: radial-gradient(circle, #000 12%, transparent 66%); mask-image: radial-gradient(circle, #000 12%, transparent 66%); animation: spin 22s linear infinite; }
+.tile .spill { inset: 0; }
+.tile .pulse { transform-origin: 62px 62px; animation: pulse 1.8s ease-in-out infinite; }
+.tile .bob { animation: bob 1.9s ease-in-out infinite; }
+.tile .tw { transform-box: fill-box; transform-origin: center; animation: twinkle 1.7s ease-in-out infinite; animation-delay: var(--d, 0s); }
+.tile .orbit { transform-origin: 62px 62px; animation: spin 9s linear infinite; }
+.tile .glintstar { transform-box: fill-box; transform-origin: center; animation: gstar 2.6s ease-in-out infinite; animation-delay: var(--gd, 0s); opacity: 0; }
+body.still .tile *, body.still .tile { animation-play-state: paused !important; }
+@keyframes breath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.02); } }
+@keyframes glint { 0% { background-position: 120% 0; } 38%, 100% { background-position: -20% 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); opacity: .82; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes twinkle { 0%, 100% { transform: scale(.2); opacity: 0; } 45%, 55% { transform: scale(1); opacity: 1; } }
+@keyframes gstar { 0%, 100% { transform: scale(.6) rotate(0); opacity: 0; } 15% { opacity: 1; transform: scale(1.3) rotate(45deg); } 36% { opacity: 0; transform: scale(.9) rotate(90deg); } }
+@media (prefers-reduced-motion: reduce) { .tile *, .tile { animation: none !important; } }
+.foot { font: 600 11.5px/1.4 system-ui, sans-serif; color: #b89a78; margin: 14px 2px 0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#ffc83a"/><stop offset="1" stop-color="#c47a14"/></linearGradient>
+    <linearGradient id="gGoldSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8a82a"/><stop offset="1" stop-color="#8a4c0c"/></linearGradient>
+    <linearGradient id="gPlat" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".4" stop-color="#ffe9a0"/><stop offset="1" stop-color="#d89a28"/></linearGradient>
+    <linearGradient id="gPlatSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0c860"/><stop offset="1" stop-color="#9a5a14"/></linearGradient>
+    <linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8eef4"/><stop offset=".5" stop-color="#aab6c4"/><stop offset="1" stop-color="#6a7888"/></linearGradient>
+    <linearGradient id="gSteelSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a98a8"/><stop offset="1" stop-color="#4a5666"/></linearGradient>
+    <linearGradient id="gBrass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe2a8"/><stop offset=".45" stop-color="#f2a63a"/><stop offset="1" stop-color="#a65a12"/></linearGradient>
+    <linearGradient id="gBrassSide" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d88a24"/><stop offset="1" stop-color="#6a3a0c"/></linearGradient>
+    <linearGradient id="gRibbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6a4a"/><stop offset="1" stop-color="#b8281a"/></linearGradient>
+  </defs>
+</svg>
+<div class="wrap">
+  <h1>Rank looks<small>Preview only · nothing here is wired into the game</small></h1>
+  <p class="note"><b>Today</b> = what the game does now. <b>V1-V3</b> = proposals. Ranks 7-8 exist for core shooters/relays (Saga L21+); helpers stop at 6, so their rank 6 gets the crown look.</p>
+  <div class="bar" id="units"></div>
+  <div class="seg" id="views"></div>
+  <div class="bar" id="variants" style="padding-top:8px"></div>
+  <div class="row2">
+    <div class="seg" id="sizes" style="max-width:190px"></div>
+    <div class="seg" id="motion" style="max-width:150px"></div>
+  </div>
+  <div id="main"></div>
+  <p class="foot">Light comes from the top left. Tile = one 124 px board cell. Real unit pictures from src/assets/art; overlays are drawn here as stand-ins for the Phaser versions listed in README.md.</p>
+</div>
+<script>
+const D = %%DATA%%;
+const $ = (s) => document.querySelector(s);
+const Q = new URLSearchParams(location.search);
+
+/* ---------------- colour helpers ---------------- */
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const toHex = (a) => '#' + a.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const mix = (a, b, t) => { const A = hex(a), B = hex(b); return toHex(A.map((v, i) => v + (B[i] - v) * t)); };
+const light = (c, t) => mix(c, '#ffffff', t);
+const dark = (c, t) => mix(c, '#2b1d2e', t); // darks lean to the plum ink, never pure black
+const GOLD = '#ffc83a', GOLD_D = '#7a4a10', INK = '#2b1d2e';
+const U = (n) => `calc(var(--u) * ${n})`;
+
+/* ---------------- shared SVG bits (design px, 124 x 124 tile space) ---------------- */
+const starPts = (cx, cy, r) => Array.from({ length: 10 }, (_, k) => { const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? r * 0.47 : r; return `${(cx + Math.cos(a) * rr).toFixed(1)},${(cy + Math.sin(a) * rr).toFixed(1)}`; }).join(' ');
+const star = (cx, cy, r) => `<g><polygon points="${starPts(cx, cy + 1.2, r)}" fill="${GOLD_D}" opacity=".5"/><polygon points="${starPts(cx, cy, r)}" fill="url(#gGold)" stroke="${GOLD_D}" stroke-width="${(r * 0.3).toFixed(1)}" stroke-linejoin="round"/><polygon points="${starPts(cx - r * 0.12, cy - r * 0.16, r * 0.45)}" fill="#fff" opacity=".7"/></g>`;
+const sparkle = (cx, cy, r, d, col = '#fff6c8') => `<g transform="translate(${cx} ${cy})"><g class="tw" style="--d:${d}s"><path d="M0,${-r} Q${r * 0.14},${-r * 0.14} ${r},0 Q${r * 0.14},${r * 0.14} 0,${r} Q${-r * 0.14},${r * 0.14} ${-r},0 Q${-r * 0.14},${-r * 0.14} 0,${-r}Z" fill="${col}" stroke="${GOLD}" stroke-width="1.2" stroke-linejoin="round"/></g></g>`;
+/** Gold crown, 44 x 32, centred on cx; top at y. gem: ruby for rank 8, sapphire-white for 7. */
+const crown = (cx, y, ruby) => {
+  const x = cx - 22;
+  return `<g transform="translate(${x} ${y})"><path d="M3 29 L2 9 L12 17 L22 3 L32 17 L42 9 L41 29 Z" fill="${GOLD_D}" opacity=".45" transform="translate(0 1.6)"/>
+  <path d="M3 28 L2 9 L12 17 L22 3 L32 17 L42 9 L41 28 Z" fill="url(#gGold)" stroke="${GOLD_D}" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="3" y="22" width="38" height="7" rx="3" fill="url(#gGoldSide)" stroke="${GOLD_D}" stroke-width="2.4"/>
+  <circle cx="2.5" cy="8" r="3.3" fill="url(#gGold)" stroke="${GOLD_D}" stroke-width="2"/><circle cx="22" cy="2.6" r="3.6" fill="url(#gGold)" stroke="${GOLD_D}" stroke-width="2"/><circle cx="41.5" cy="8" r="3.3" fill="url(#gGold)" stroke="${GOLD_D}" stroke-width="2"/>
+  <circle cx="22" cy="19.5" r="4.3" fill="${ruby ? '#ff4a3a' : '#9ad8ff'}" stroke="${ruby ? '#7a1410' : '#1a5a8a'}" stroke-width="2"/><circle cx="20.6" cy="18" r="1.4" fill="#fff" opacity=".9"/>
+  <path d="M7 14 L12 18 L15 12" fill="none" stroke="#fff" stroke-width="1.6" opacity=".55" stroke-linecap="round"/></g>`;
+};
+let gid = 0;
+/** Soft elliptical glow: radial gradient disc in one colour. */
+const glowDisc = (cx, cy, rx, ry, col, a0, a1 = 0) => { const id = 'rg' + ++gid; return `<defs><radialGradient id="${id}"><stop offset="0" stop-color="${col}" stop-opacity="${a0}"/><stop offset=".62" stop-color="${col}" stop-opacity="${a0 * 0.5}"/><stop offset="1" stop-color="${col}" stop-opacity="${a1}"/></radialGradient></defs><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${id})"/>`; };
+const ringE = (cx, cy, rx, ry, col, w, a = 1, dash = '') => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${col}" stroke-width="${w}" stroke-opacity="${a}" ${dash ? `stroke-dasharray="${dash}"` : ''}/>`;
+const shadow = (cy = 108, k = 1) => `<ellipse cx="62" cy="${cy}" rx="${46 * k}" ry="${13 * k}" fill="${INK}" opacity=".13"/><ellipse cx="62" cy="${cy}" rx="${38 * k}" ry="${8.5 * k}" fill="${INK}" opacity=".3"/>`;
+/** n stars in a row, centred; at T3 they flank the crown (gap in the middle). */
+function pips(n, y, gap) {
+  if (!n) return '';
+  const r = 8.6, step = 19;
+  let xs = [];
+  if (gap) { const l = Math.ceil(n / 2), rr = n - l; for (let i = 0; i < l; i++) xs.push(62 - 29 - i * step + (l === 1 ? 0 : 0)); for (let i = 0; i < rr; i++) xs.push(62 + 29 + i * step); xs.sort((a, b) => a - b); }
+  else xs = Array.from({ length: n }, (_, i) => 62 + (i - (n - 1) / 2) * step);
+  return xs.map((x, i) => { const yy = y + (gap ? Math.abs(x - 62) > 40 ? 4 : 0 : 0); return star(x, yy, r); }).join('');
+}
+/** Brass-bezel ribbon (V2): pips sit on a small banner at the top edge. */
+const ribbon = (n) => n ? `<g><path d="M${62 - 14 - n * 10} 3 h${28 + n * 20} v18 l-6 -4 h-${16 + n * 20} l-6 4 z" fill="#3a2030" stroke="#c99a3a" stroke-width="2.6" stroke-linejoin="round"/>${pips(n, 10.5, false)}</g>` : '';
+
+/* ---------------- tiers ---------------- */
+// today's rankDecor: ranks 1-2 plain, 3-4 glow, 5-6 gold + pips, 7-8 crown. Proposals use cap-relative tiers: the cap rank always gets the top look.
+const tierAbs = (r) => (r >= 7 ? 3 : r >= 5 ? 2 : r >= 3 ? 1 : 0);
+const tierCap = (r, cap) => (r >= 7 || r === cap ? 3 : r >= 5 ? 2 : r >= 3 ? 1 : 0);
+const TODAY_DECOR = new Set(['nail_gun', 'jackhammer', 'gear', 'saw_blade', 'piston', 'tesla_tower']); // unitArt.ts DECOR_UNITS, the sample's members
+
+/* ---------------- looks ---------------- */
+// colours: ranks 5-6 use warm AMBER/brass, 7+ use bright GOLD + white, because gold #ffcf33 already means MAX in marks.ts PALETTE.
+const AMB = '#f2a63a', AMB_D = '#7a4210';
+// families whose own colour is gold-ish would make rank 3-4 look like rank 5-6, so their low-tier accent is ice blue instead
+const goldish = (c) => { const [r, g, bl] = hex(c), mx = Math.max(r, g, bl), mn = Math.min(r, g, bl); if (mx === mn) return false; let h = mx === r ? ((g - bl) / (mx - mn)) * 60 : mx === g ? (2 + (bl - r) / (mx - mn)) * 60 : (4 + (r - g) / (mx - mn)) * 60; if (h < 0) h += 360; return h > 28 && h < 62 && (mx - mn) / mx > 0.45; };
+const accent = (u) => (goldish(u.color) ? '#8fd8ff' : u.color);
+const plin = ({ cy, rx, ry, th, topFill, sideGrad, sideCol, edge, brass, rivets, inlay }) => {
+  // a short round plinth seen from above-front: bottom lip, thick side, brass rim ring, enamel top. Only the front arc shows past the unit, so rim + side carry it.
+  let o = `<ellipse cx="62" cy="${cy + th}" rx="${rx}" ry="${ry}" fill="${sideCol}" stroke="${edge}" stroke-width="3"/>`
+    + `<rect x="${62 - rx}" y="${cy}" width="${rx * 2}" height="${th}" fill="url(#${sideGrad})"/>`
+    + `<line x1="${62 - rx}" y1="${cy}" x2="${62 - rx}" y2="${cy + th}" stroke="${edge}" stroke-width="3"/><line x1="${62 + rx}" y1="${cy}" x2="${62 + rx}" y2="${cy + th}" stroke="${edge}" stroke-width="3"/>`
+    + `<path d="M${62 - rx} ${cy + th} A${rx} ${ry} 0 0 0 ${62 + rx} ${cy + th}" fill="url(#${sideGrad})" stroke="${edge}" stroke-width="3"/>`
+    + `<path d="M${62 - rx + 3} ${cy + th - 2} A${rx - 3} ${ry - 2} 0 0 0 ${62 + rx - 3} ${cy + th - 2}" fill="none" stroke="#fff" stroke-width="1.6" opacity=".35"/>`
+    + `<ellipse cx="62" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#${brass})" stroke="${edge}" stroke-width="3"/>`
+    + `<ellipse cx="62" cy="${cy}" rx="${rx - 5.5}" ry="${ry - 2.6}" fill="${topFill}" stroke="${edge}" stroke-width="1.6" stroke-opacity=".7"/>`
+    + `<ellipse cx="${62 - rx * 0.2}" cy="${cy - ry * 0.25}" rx="${rx * 0.6}" ry="${ry * 0.4}" fill="#fff" opacity=".3"/>`;
+  if (inlay) o += ringE(62, cy, rx - 11, ry - 5, inlay, 1.8, 0.9);
+  for (const [fx, fy] of rivets) o += `<circle cx="${62 + fx * (rx - 2.8)}" cy="${cy + fy}" r="2.5" fill="url(#gGold)" stroke="${edge}" stroke-width="1.1"/>`;
+  return o;
+};
+const LOOKS = {
+  today: {
+    name: 'Today', tag: 'in the game now', color: '#9aa4ae',
+    blurb: 'The game as it ships (unitArt.ts rankDecor). Only the 26 "new" units get it; Cannon, Coil, Bell, Rocket, Magnet and the other 8 originals get no rank treatment at all (their picture changes, nothing else). A faint ellipse under the plate, tiny pips and a tiny crown.',
+    tiers: [['1-2', 'plain'], ['3-4', 'soft family-colour ellipse under the plate'], ['5-6', 'gold ellipse + tiny stars on the plate'], ['7-8', 'gold ellipse pulse, 3 stars, tiny crown, a sparkle drifting across']],
+    build(u, r) {
+      const t = TODAY_DECOR.has(u.id) ? tierAbs(r) : 0, col = t === 1 ? u.color : GOLD;
+      let under = shadow(), over = '';
+      if (t) { under += Array.from({ length: 6 }, (_, i) => `<ellipse cx="62" cy="97" rx="${(108 - i * 9) / 2}" ry="${(48 - i * 4) / 2}" fill="${col}" opacity="${(t === 1 ? 0.12 : 0.15) + i * 0.06}"/>`).join('') + ringE(62, 97, 40, 15, t === 1 ? '#fff' : '#fff2b0', 3, 0.85); }
+      if (t === 3) under = under.replace(/<ellipse/, '<ellipse class="pulse"');
+      const n = t === 2 ? r - 4 : t === 3 ? 3 : 0;
+      if (n) over += Array.from({ length: n }, (_, i) => { const px = 62 + (i - (n - 1) / 2) * 11; return `<circle cx="${px}" cy="89" r="6.5" fill="${INK}"/><polygon points="${starPts(px, 89, 5.5)}" fill="${GOLD}"/>`; }).join('');
+      if (t === 3) over += `<g transform="translate(49 -1)"><path d="M1 17 L1 5 L8 11 L13 1 L18 11 L25 5 L25 17 Z" fill="${INK}"/><path d="M4 14 L4 9 L9 13 L13 5 L17 13 L22 9 L22 14 Z" fill="${GOLD}"/></g>` + `<g class="glintstar" style="--gd:${(r % 3) * 0.4}s"><path d="M62 43 Q64 49 70 51 Q64 53 62 59 Q60 53 54 51 Q60 49 62 43Z" fill="#fff" /></g>`;
+      return { under, over, rim: '', sc: 1, lift: 0, glint: false };
+    },
+  },
+  v1: {
+    name: 'V1 Halo', tag: 'ornament around a still unit', color: '#7ccf2e',
+    blurb: 'The unit keeps its size and position. A bright ring on the floor and a coloured rim around the picture show the tier; stars and a crown float above. Cheapest to build: a few baked sprites per piece, no layout change to the unit.',
+    tiers: [['1-2', 'plain (rank 2: thin steel floor ring)'], ['3-4', 'family-colour floor glow + rim; rank 4 gets a second ring'], ['5-6', 'amber double ring + amber rim, 1-2 stars'], ['7-8', 'crown (rank 8: ruby) flanked by 3-4 stars, white-gold halo pulse, glint sweep, sparkles']],
+    build(u, r) {
+      const t = tierCap(r, u.cap), c = accent(u); let under = shadow(), over = '', rim = '';
+      if (t === 0 && r === 2) under += ringE(62, 103, 40, 12.5, '#b8c4d0', 2.4, 0.7);
+      if (t === 1) { under += glowDisc(62, 102, 54, 19, c, 0.6) + ringE(62, 103, 40, 13, light(c, 0.5), 3.2, 1) + ringE(62, 103, 40, 13, '#fff', 1.2, 0.85); if (r === 4) under += ringE(62, 103, 50, 17, c, 2.6, 0.85); rim = `drop-shadow(0 0 ${r === 4 ? 3.5 : 2.5}px ${c}) drop-shadow(0 0 1px ${light(c, .6)})`; }
+      if (t === 2) { under += glowDisc(62, 102, 58, 21, AMB, 0.6) + ringE(62, 103, 42, 14, '#ffe2a8', 3.4, 1) + ringE(62, 103, 52, 18, AMB, 2.8, 0.95); rim = `drop-shadow(0 0 3px ${AMB}) drop-shadow(0 0 7px rgba(242,166,58,.55))`; over += pips(r - 4, 12, false); }
+      if (t === 3) { under += glowDisc(62, 102, 60, 22, '#fff0a0', 0.8) + ringE(62, 103, 42, 14, '#fff', 3.4, 1) + ringE(62, 103, 52, 18, GOLD, 2.8, 0.95); under = under.replace(/<ellipse/, '<ellipse class="pulse"'); rim = `drop-shadow(0 0 3px #fff) drop-shadow(0 0 8px rgba(255,200,58,.7))`; over += `<g class="bob">${crown(62, -1, r >= 8)}</g>` + pips(r - 4, 9, true) + sparkle(24, 40, 7, 0) + sparkle(100, 52, 6, 0.5) + sparkle(30, 86, 5, 1) + (r >= 8 ? sparkle(96, 30, 6, 0.9) + sparkle(14, 62, 5, 1.2) : ''); if (r >= 8) under += `<g class="orbit">${ringE(62, 62, 56, 56, '#fff6c8', 1.6, 0.8, '3 9')}</g>`; }
+      return { under, over, rim, sc: 1, lift: 0, glint: t === 3 };
+    },
+  },
+  v2: {
+    name: 'V2 Plinth', tag: 'the ground evolves', color: '#3a8adf',
+    blurb: 'The plate the unit stands on changes material: bare floor, steel pad, family-colour plinth with a brass rim, amber two-step plinth, then a platinum-gold plinth with slow light rays. Units sit a little higher on a plinth; the top tier grows 3%.',
+    tiers: [['1-2', 'shadow only (rank 2: thin steel pad)'], ['3-4', 'family-colour enamel plinth, brass rim + rivets; rank 4 adds an inlay ring and 2 more rivets'], ['5-6', 'amber two-step plinth, warm light on the cell, plum banner with 1-2 stars'], ['7-8', 'platinum-gold plinth, slow light rays, floating crown, glint; rank 8 = ruby, 4 stars, faster rays']],
+    build(u, r) {
+      const t = tierCap(r, u.cap), c = accent(u); let under = '', over = '', rim = '', rays = '', spill = '', sc = 1, lift = 0;
+      const rv = [[-0.82, 10.5], [-0.42, 14], [0.42, 14], [0.82, 10.5]];
+      if (t === 0) { under = shadow(); if (r === 2) { under += `<ellipse cx="62" cy="106" rx="38" ry="10.5" fill="url(#gSteel)" stroke="#4a5666" stroke-width="2.6"/><ellipse cx="57" cy="104" rx="24" ry="5" fill="#fff" opacity=".35"/>`; lift = 2; } }
+      if (t === 1) { const id = 'pt' + ++gid; under = `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${light(c, 0.5)}"/><stop offset=".55" stop-color="${c}"/><stop offset="1" stop-color="${dark(c, 0.3)}"/></linearGradient><linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c}"/><stop offset="1" stop-color="${dark(c, 0.55)}"/></linearGradient></defs>` + shadow(113, 1.1) + plin({ cy: 96, rx: 45, ry: 14.5, th: 9, topFill: `url(#${id})`, sideGrad: id + 's', sideCol: dark(c, 0.5), edge: dark(c, 0.62), brass: 'gBrass', rivets: r === 4 ? rv : [rv[1], rv[2]], inlay: r === 4 ? '#fff' : null }); lift = 7; sc = 0.95; }
+      if (t >= 2) { const top = t === 3, g = top ? 'gPlat' : 'gBrass', sg = top ? 'gPlatSide' : 'gBrassSide';
+        under = shadow(115, 1.14) + plin({ cy: 94, rx: 51, ry: 16, th: 10, topFill: `url(#${g})`, sideGrad: sg, sideCol: top ? '#b8781a' : '#a8620e', edge: top ? '#7a4a10' : AMB_D, brass: g, rivets: rv, inlay: top ? '#fff' : '#ffe2a8' })
+          + plin({ cy: 90, rx: 36, ry: 11, th: 4, topFill: `url(#${g})`, sideGrad: sg, sideCol: '#a8620e', edge: top ? '#7a4a10' : AMB_D, brass: g, rivets: [], inlay: null });
+        spill = `<div class="spill" style="background: radial-gradient(70% 55% at 50% 78%, rgba(255,${top ? 214 : 180},${top ? 100 : 60},${top ? 0.6 : 0.42}), transparent 72%)"></div>`; lift = 12; sc = top ? 0.96 : 0.93; rim = top ? `drop-shadow(0 0 2.5px #fff6c8)` : `drop-shadow(0 0 2px rgba(242,166,58,.8))`; }
+      if (t === 2) over += ribbon(r - 4);
+      if (t === 3) { rays = `<div class="rays" style="background: repeating-conic-gradient(rgba(255,230,130,${r >= 8 ? 0.8 : 0.58}) 0 6deg, rgba(255,230,130,0) 6deg 18deg); ${r >= 8 ? 'animation-duration:13s;' : ''}"></div>`; over += `<g class="bob">${crown(62, -1, r >= 8)}</g>` + pips(r - 4, 9, true) + sparkle(22, 44, 6.5, 0) + sparkle(102, 56, 6, 0.6) + (r >= 8 ? sparkle(94, 28, 6, 1) + sparkle(18, 70, 5.5, 1.3) : ''); }
+      return { under, over, rim, sc, lift, rays, spill, glint: t === 3 };
+    },
+  },
+  v3: {
+    name: 'V3 Growth', tag: 'the unit itself grows', color: '#ff8a3c',
+    blurb: 'The picture itself changes: it grows rank by rank (86% to 109%), its rim colour climbs from none to family colour to amber to white-gold, and a backlight swells behind it. No floor ring, so the cell stays clean. Crown + glint on top.',
+    tiers: [['1-2', 'smallest size, no rim (rank 2: faint warm glow)'], ['3-4', 'grows, family-colour rim, soft family backlight'], ['5-6', 'bigger, amber rim, amber backlight with a thin ring, 1-2 stars'], ['7-8', 'biggest, white-gold rim, rotating rays, crown (rank 8 ruby), glint']],
+    build(u, r) {
+      const t = tierCap(r, u.cap), c = accent(u); let under = shadow(108, 0.8 + 0.04 * r), over = '', rim = '', rays = '', spill = '';
+      const sc = [0.86, 0.9, 0.94, 0.98, 1.02, 1.05, 1.07, 1.09][r - 1];
+      if (r === 2) under = glowDisc(62, 66, 44, 40, '#ffe6b0', 0.4) + under;
+      if (t === 1) { under = glowDisc(62, 68, 54, 50, c, r === 4 ? 0.6 : 0.46) + under; rim = `drop-shadow(0 0 ${r === 4 ? 3 : 2}px ${c}) drop-shadow(0 0 1px ${light(c, .6)})`; }
+      if (t === 2) { under = glowDisc(62, 68, 58, 54, AMB, r === 6 ? 0.7 : 0.55) + ringE(62, 68, 50, 46, '#ffe2a8', 2, 0.55) + under; rim = `drop-shadow(0 0 3px ${AMB}) drop-shadow(0 0 6px rgba(242,166,58,.6))`; over += pips(r - 4, 12, false); }
+      if (t === 3) { rays = `<div class="rays" style="background: repeating-conic-gradient(rgba(255,230,130,${r >= 8 ? 0.8 : 0.6}) 0 6deg, rgba(255,230,130,0) 6deg 18deg);"></div>`; under = glowDisc(62, 68, 60, 56, '#fff2b0', 0.9) + under; rim = `drop-shadow(0 0 3px #fff) drop-shadow(0 0 8px ${GOLD})`; over += `<g class="bob">${crown(62, -1, r >= 8)}</g>` + pips(r - 4, 9, true) + sparkle(20, 36, 6.5, 0) + sparkle(104, 48, 6, .5) + (r >= 8 ? sparkle(26, 84, 5.5, 1) + sparkle(98, 80, 5, 1.3) : ''); }
+      return { under, over, rim, sc, lift: 0, rays, spill, glint: t === 3 };
+    },
+  },
+};
+const ORDER = ['today', 'v1', 'v2', 'v3'];
+const RECOMMENDED = 'v2';
+
+/* ---------------- tile ---------------- */
+let tileSeq = 0;
+function tile(look, unit, rank) {
+  const L = LOOKS[look], o = L.build(unit, rank), R = unit.ranks[rank - 1];
+  const w = R.w, h = R.h, base = 109.1 - o.lift, x = 62 - w / 2, y = base - h;
+  const seq = tileSeq++, ph = ((seq * 0.37) % 2.4).toFixed(2);
+  const ghost = R.ghost;
+  const maxBadge = rank === unit.cap ? `<img class="max" src="${D.crown}" alt="">` : '';
+  const glint = o.glint ? `<div class="glint ${rank >= 8 ? 'fast' : ''}" data-m="${seq}" style="--gd:${((seq * 0.53) % 2.6).toFixed(2)}s"></div>` : '';
+  return `<div class="tile" data-seq="${seq}" style="--c:${unit.color}">
+    <img class="slot" src="${D.slot}" alt="">${o.spill || ''}${o.rays || ''}
+    <svg viewBox="0 0 124 124">${o.under}</svg>
+    <div class="unit" style="left:${U(x)};top:${U(y)};width:${U(w)};height:${U(h)};${o.rim ? `filter:${o.rim};` : ''}">
+      <div class="grow" style="transform:scale(${o.sc})"><div class="breath" style="--ph:-${ph}s"><img src="${R.src}" alt="" ${ghost ? 'style="opacity:.55"' : ''}>${glint}</div></div></div>
+    <svg viewBox="0 0 124 124">${o.over}</svg>
+    <svg class="plate" viewBox="0 0 52 46"><rect width="52" height="46" rx="12" fill="#3a2030"/><rect x="2" y="2" width="48" height="42" rx="10" fill="#c99a3a"/><rect x="5" y="5" width="42" height="36" rx="8" fill="#fdf3dc"/></svg>
+    <div class="num">${rank}</div>${maxBadge}
+  </div>`;
+}
+function wireGlints(root) {
+  root.querySelectorAll('.glint[data-m]').forEach((g) => {
+    const tileEl = g.closest('.tile'), img = g.parentElement.querySelector('img');
+    const m = `url(${img.src})`; g.style.webkitMaskImage = m; g.style.maskImage = m;
+  });
+}
+
+/* ---------------- views ---------------- */
+const st = { unit: Q.get('unit') || 'cannon', view: Q.get('view') || 'ladder', look: Q.get('look') || RECOMMENDED, size: Q.get('size') || 'M', still: Q.get('motion') === 'off' };
+const SIZES = { S: 0.516, M: 0.68, L: 0.9 };
+const COLS = { S: 4, M: 4, L: 3 };
+function setUnit() { $('#main').style.setProperty('--u', SIZES[st.size] + 'px'); }
+
+function ladder(look, unit) {
+  const cols = COLS[st.view === 'compare' && st.size === 'L' ? 'M' : st.size];
+  return `<div class="grid" style="grid-template-columns:repeat(${cols}, calc(var(--u) * 124))">${unit.ranks.map((_, i) => { const r = i + 1, g = unit.ranks[i].ghost; return `<div class="cell ${g ? 'ghost' : ''}">${tile(look, unit, r)}<span class="cap">${g ? 'RANK ' + r + ' · NOT REACHABLE' : r === unit.cap ? 'RANK ' + r + ' · MAX' : 'RANK ' + r}</span></div>`; }).join('')}</div>`;
+}
+function renderLadder() {
+  const unit = D.units[st.unit], L = LOOKS[st.look];
+  return `<div class="card" style="padding-top:8px"><div class="vlabel" style="margin-top:2px"><span>${L.name} · ${unit.name}${st.look === RECOMMENDED ? ' ★' : ''}</span><i>${L.tag}</i></div>${ladder(st.look, unit)}</div>
+  <div class="card"><h2>${L.name}${st.look === RECOMMENDED ? ' <span style="color:#d08a10">★ recommended</span>' : ''}</h2><p>${L.blurb}</p><div class="tiers">${L.tiers.map((t) => `<b>${t[0]}</b><span>${t[1]}</span>`).join('')}</div></div>`;
+}
+function renderCompare() {
+  const unit = D.units[st.unit];
+  return ORDER.map((k) => `<div class="card" style="margin-top:12px"><div class="vlabel" style="margin-top:0"><span>${LOOKS[k].name}${k === RECOMMENDED ? ' ★' : ''}</span><i>${LOOKS[k].tag}</i></div>${ladder(k, unit)}</div>`).join('');
+}
+function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function renderBoard() {
+  const rand = rng(7), ids = D.order, cells = [];
+  // a mid-game board: 30 cells, ranks spread 1-8 (helpers stop at 6), a few holes
+  const pick = [[1, 'cannon'], [3, 'coil'], [5, 'bell'], [8, 'rocket'], [2, 'magnet'], [4, 'nail_gun'], [7, 'jackhammer'], [6, 'gear'], [1, 'saw_blade'], [5, 'piston'], [3, 'tesla_tower'], [8, 'cannon'], [2, 'coil'], [6, 'magnet'], [4, 'bell'], [7, 'tesla_tower'], [1, 'rocket'], [5, 'saw_blade'], [3, 'nail_gun'], [8, 'gear'], [2, 'piston'], [6, 'cannon'], [4, 'jackhammer'], [7, 'coil'], [5, 'magnet']];
+  const holes = new Set([2, 9, 13, 20, 27]);
+  let k = 0;
+  for (let i = 0; i < 30; i++) { if (holes.has(i)) { cells.push(`<div class="tile"><img class="slot" src="${D.slot}" alt=""></div>`); continue; } const [r, id] = pick[k++ % pick.length], u = D.units[id]; cells.push(tile(st.look, u, Math.min(r, u.cap))); }
+  const L = LOOKS[st.look];
+  return `<div class="card"><h2>${L.name} · a mid-game board</h2><p>Actual game proportions: 5 columns, this is what the board looks like at phone size. Judge whether the tiers still read at arm's length.</p></div><div class="board" style="--u:${0.516}px">${cells.join('')}</div>`;
+}
+
+function render() {
+  document.body.classList.toggle('still', st.still);
+  $('#units').innerHTML = D.order.map((id) => { const u = D.units[id]; return `<button class="chip ${st.unit === id ? 'on' : ''}" data-u="${id}"><span class="dot" style="background:${u.color}"></span>${u.name}</button>`; }).join('');
+  $('#views').innerHTML = [['ladder', 'Ladder'], ['compare', 'Compare'], ['board', 'Board']].map(([k, n]) => `<button class="${st.view === k ? 'on' : ''}" data-v="${k}">${n}</button>`).join('');
+  $('#variants').innerHTML = ORDER.map((k) => `<button class="chip ${st.look === k ? 'on' : ''} ${k === RECOMMENDED ? 'rec' : ''}" data-l="${k}">${LOOKS[k].name}</button>`).join('');
+  $('#variants').style.display = st.view === 'compare' ? 'none' : '';
+  $('#sizes').innerHTML = [['S', 'Actual'], ['M', 'Zoom'], ['L', 'Big']].map(([k, n]) => `<button class="${st.size === k ? 'on' : ''}" data-s="${k}">${n}</button>`).join('');
+  $('#sizes').style.display = st.view === 'board' ? 'none' : '';
+  $('#motion').innerHTML = [['on', 'Motion'], ['off', 'Still']].map(([k, n]) => `<button class="${(st.still ? 'off' : 'on') === k ? 'on' : ''}" data-mo="${k}">${n}</button>`).join('');
+  tileSeq = 0;
+  $('#main').innerHTML = st.view === 'ladder' ? renderLadder() : st.view === 'compare' ? renderCompare() : renderBoard();
+  setUnit();
+  // the size toggle only applies to the ladder views; in compare the S tile keeps 4 per row
+  if (st.view === 'compare') $('#main').style.setProperty('--u', SIZES[st.size === 'L' ? 'M' : st.size] + 'px');
+  wireGlints($('#main'));
+  if (Q.get('sync')) document.querySelectorAll('.tile *').forEach((e) => e.style.animationDelay = '0s');
+  const p = new URLSearchParams(); p.set('unit', st.unit); p.set('view', st.view); p.set('look', st.look); p.set('size', st.size); if (st.still) p.set('motion', 'off'); if (Q.get('sync')) p.set('sync', 1);
+  try { history.replaceState(null, '', '?' + p.toString()); } catch (e) { /* file:// in some browsers */ }
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.u) st.unit = b.dataset.u; if (b.dataset.v) st.view = b.dataset.v; if (b.dataset.l) st.look = b.dataset.l; if (b.dataset.s) st.size = b.dataset.s; if (b.dataset.mo) st.still = b.dataset.mo === 'off';
+  render();
+});
+render();
+/* ?freeze=<ms> pauses every animation at that time: used for the committed screenshots */
+const fz = Q.get('freeze');
+if (fz !== null) requestAnimationFrame(() => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = +fz; }));
+</script>
+</body>
+</html>
