@@ -26,6 +26,7 @@ import { TUNING } from '../../content/tuning';
 import { crateName, latchRollUp, popToolboxLatch, toolboxCrateKey, toolboxOn } from '../fx/toolboxCrates';
 import { pctB, pityView, guaranteeText } from '../../core/crateOdds';
 import { addOddsButton, showOddsPanel } from './oddsPanel';
+import { addPortrait, crateArtReady, presentCrateToolbox } from './crateScreen';
 
 export function openUnitsTab(scene: GameScene) {
   scene.closeModal();
@@ -124,11 +125,8 @@ export function unitCard(scene: GameScene, u: UnitDef, x: number, y: number) {
   cc.add(scene.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-102, -132, 204, 268, 22).fillStyle(rc, 1).fillRoundedRect(-98, -128, 196, 260, 19).fillStyle(0xfbe7c6, 1).fillRoundedRect(-90, -100, 180, 170, 14));
   cc.add(scene.add.text(0, -114, u.rarity.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
   const art = scene.unitPortrait(u.id);
-  if (scene.textures.exists(art)) {
-    const im = scene.fitVisible(scene.add.image(0, -16, art), 140);
-    if (!owned) im.setTint(0x2b1d2e).setAlpha(0.6);
-    cc.add(im);
-  }
+  if (owned) addPortrait(scene, cc, u.id, u.rarity, 0, -16, 140); // real art, or a clean framed glyph tile while the unit has none
+  else if (scene.textures.exists(art)) cc.add(scene.fitVisible(scene.add.image(0, -16, art), 140).setTint(0x2b1d2e).setAlpha(0.6));
   addUnitJob(scene, cc, u.id, 0, 58);
   // r38 rarity frame art (ChatGPT v22, transparent centre) over the card edge
   if (scene.hasArt(`card_${u.rarity}`)) cc.add(scene.add.image(0, 2, `card_${u.rarity}`).setDisplaySize(214, 274));
@@ -296,6 +294,8 @@ export function openPack(scene: GameScene, packId: string, role?: UnitDef['slot'
 
 /** `from` = the Tool Bag whose latch rolled up into `kind` (ROSTER B): it shows as the bag first, then pops into `kind`. */
 export function presentCrate(scene: GameScene, kind: CrateKind, cards: CrateCard[], title?: string, from?: CrateKind) {
+  // CRATES = TOOLBOX: the ChatGPT crate pictures + the new layout and opening moment (the baked old toolbox stays as the fallback until the art has loaded)
+  if (toolboxOn() && crateArtReady(scene, from ?? kind, kind)) return presentCrateToolbox(scene, kind, cards, title, from);
   scene.closeModal();
   const c = scene.panel(1000);
   const top = H / 2 - 500;
