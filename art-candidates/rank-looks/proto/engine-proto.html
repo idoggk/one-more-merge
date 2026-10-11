@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- Throwaway check that the rank-look overlays are possible in the game's own engine (Phaser 3.90, WebGL), inside a Container like GameScene.makeView.
+     Left to right: plain unit | gold halo copy behind (tint-fill copy) | halo + glint (white silhouette canvas + sweeping setCrop strip).
+     Not game code. Run: node art-candidates/rank-looks/proto/run.mjs -->
+<meta charset="utf-8"><body style="margin:0;background:#b8691f"><script src="../../../node_modules/phaser/dist/phaser.min.js"></script><script>
+new Phaser.Game({ type: Phaser.WEBGL, width: 600, height: 200, backgroundColor: '#b8691f', parent: document.body,
+  scene: { preload() { this.load.image('t', '../../../src/assets/art/unit_tesla_tower.webp'); },
+    create() {
+      const src = this.textures.get('t').getSourceImage();
+      const silhouette = (key, color) => { const cv = this.textures.createCanvas(key, src.width, src.height), cx = cv.getContext(); cx.drawImage(src, 0, 0); cx.globalCompositeOperation = 'source-in'; cx.fillStyle = color; cx.fillRect(0, 0, src.width, src.height); cv.refresh(); };
+      silhouette('t_white', '#fff6d0'); silhouette('t_gold', '#ffc83a');
+      const plain = this.add.container(100, 110); plain.add(this.add.image(0, 0, 't').setScale(0.5));
+      const halo = this.add.container(300, 110); halo.add([this.add.image(0, 0, 't_gold').setScale(0.5 * 1.07).setAlpha(0.8), this.add.image(0, 0, 't').setScale(0.5)]);
+      const full = this.add.container(500, 110), w = this.add.image(0, 0, 't_white').setScale(0.5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.95);
+      full.add([this.add.image(0, 0, 't_gold').setScale(0.5 * 1.07).setAlpha(0.8), this.add.image(0, 0, 't').setScale(0.5), w]);
+      const sw = { p: 0 }, bw = 46;
+      this.tweens.add({ targets: sw, p: 1, duration: 2600, repeat: -1, ease: 'Sine.InOut', onUpdate: () => { const x = Phaser.Math.Clamp(-bw + sw.p * (src.width + bw * 2), 0, src.width); w.setCrop(x, 0, Phaser.Math.Clamp(bw, 0, src.width - x), src.height); } });
+      window.__ready = true;
+    } } });
+</script>

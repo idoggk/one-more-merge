@@ -1,0 +1,72 @@
+{
+  "01_ladder_cannon_today": [
+    "unit=cannon&view=ladder&look=today&size=M",
+    1200,
+    false
+  ],
+  "02_ladder_cannon_v1_halo": [
+    "unit=cannon&view=ladder&look=v1&size=M",
+    1200,
+    false
+  ],
+  "03_ladder_cannon_v2_plinth": [
+    "unit=cannon&view=ladder&look=v2&size=M",
+    1200,
+    false
+  ],
+  "04_ladder_cannon_v3_growth": [
+    "unit=cannon&view=ladder&look=v3&size=M",
+    1200,
+    false
+  ],
+  "05_ladder_tesla_today": [
+    "unit=tesla_tower&view=ladder&look=today&size=M",
+    1200,
+    false
+  ],
+  "06_ladder_tesla_v2_plinth": [
+    "unit=tesla_tower&view=ladder&look=v2&size=M",
+    1200,
+    false
+  ],
+  "07_ladder_tesla_v3_growth": [
+    "unit=tesla_tower&view=ladder&look=v3&size=M",
+    1200,
+    false
+  ],
+  "08_ladder_magnet_v2_cap6": [
+    "unit=magnet&view=ladder&look=v2&size=M",
+    1200,
+    false
+  ],
+  "09_ladder_bell_v2_goldfamily": [
+    "unit=bell&view=ladder&look=v2&size=M",
+    1200,
+    false
+  ],
+  "10_compare_piston": [
+    "unit=piston&view=compare&size=M",
+    1200,
+    true
+  ],
+  "11_board_today": [
+    "view=board&look=today",
+    1200,
+    false
+  ],
+  "12_board_v1_halo": [
+    "view=board&look=v1",
+    1200,
+    false
+  ],
+  "13_board_v2_plinth": [
+    "view=board&look=v2",
+    1200,
+    false
+  ],
+  "14_board_v3_growth": [
+    "view=board&look=v3",
+    1200,
+    false
+  ]
+}
