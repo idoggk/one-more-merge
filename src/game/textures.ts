@@ -18,6 +18,10 @@ import { drawJobIcon7, drawRoster7 } from './roster7Art';
 /** Generated art (from ChatGPT) lives in src/assets/art/<key>.png. Missing keys fall back to procedural drawings. */
 const ART = import.meta.glob('../assets/art/*.{png,webp}', { eager: true, import: 'default', query: '?url' }) as Record<string, string>;
 
+const SHIPPED = new Set(Object.keys(ART).map((p) => p.split('/').pop()!.replace(/\.(png|webp)$/, '')));
+/** True when real art ships for `key` (not just a procedural stand-in), whether or not it has finished loading yet. */
+export const hasShippedArt = (key: string) => SHIPPED.has(key);
+
 const artEntries = () => Object.entries(ART).map(([path, url]) => [path.split('/').pop()!.replace(/\.(png|webp)$/, ''), url] as const);
 
 /** Chapter-specific art: chapter stage, cast (and hurt faces), mini-boss and chapter boss phases, boss attack tags. */
