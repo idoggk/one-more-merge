@@ -47,7 +47,7 @@ The Units shot shows the shipped collection of 13 units. The new units are still
 ### The board and ranks
 
 - The board is **5 columns x 6 rows**. Gadgets are placed on it; the next gadget arrives on a timer and shows in the NEXT slot.
-- **Drag a gadget onto an identical one** (same family, same rank) to merge. A merge frees one cell, keeps the family, and raises the rank. Ranks go 1 to 8.
+- **Drag a gadget onto an identical one** (same family, same rank) to merge. A merge frees one cell, keeps the family, and raises the rank. Ranks go 1 to 6.
 - Moving or swapping gadgets never deals damage. Only merges and the chains they start do.
 - **SCRAP** removes a gadget you do not want.
 - Every level has a clock and a machine (or boss) to beat; levels can also ask for a goal such as a chain of a given length.
@@ -61,7 +61,7 @@ The Units shot shows the shipped collection of 13 units. The new units are still
 
 ### Units
 
-Units come in three types: **Shooter** (hits the target), **Relay** (passes the chain on to other gadgets) and **Support** (a helper card you tap). Each unit has one clear job, and levels 3 / 6 / 9 of a unit change how its job works, not just its numbers. Rarities are Common, Rare, Epic and Legendary. The full rules, upgrade lines and caps are in [docs/ROSTER.md](docs/ROSTER.md).
+Units come in four types: **Shooter** (hits the target), **Relay** (passes the chain on to other gadgets), **Mover** (rearranges gadgets on the board, like Fan and Magnet) and **Support** (a helper card you tap). Each unit has one clear job, and levels 3 / 6 / 9 of a unit change how its job works, not just its numbers. Rarities are Common, Rare, Epic and Legendary. The full rules, upgrade lines and caps are in [docs/ROSTER.md](docs/ROSTER.md).
 
 **In the shipped game today (13 units):** Cannon, Coil, Bell, Horn, Fan (Common); Rocket, Mortar, Fuse Box, Magnet, Battery, Amplifier (Rare); Arc Welder, Signal Beacon (Epic).
 
@@ -83,7 +83,7 @@ Crates drop from level rewards and bosses, and hold unit cards (duplicates level
 ### Modes
 
 - **Saga levels:** 80 levels in 8 chapters of 10, with monsters, mini-bosses and chapter bosses, 1 to 3 stars each, and perks between phases.
-- **Workshop puzzles and drills:** "win in N merges" boards with no clock, like chess puzzles. Every unit has drills that teach its job.
+- **Workshop puzzles and drills:** "win in N merges" boards with no clock, like chess puzzles. Drills teach what the units do.
 - **Daily:** one puzzle per day.
 - **Bounties:** bounty boards with their own targets and rewards.
 - **Screw Yard:** a separate sorting mode. Unscrew plates, drop the screws in the matching coloured boxes, and keep the dock from overflowing. Boosters (Drill, Magnet, +Well) help, and the yards ramp up in difficulty.
