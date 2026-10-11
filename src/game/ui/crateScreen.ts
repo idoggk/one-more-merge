@@ -9,6 +9,7 @@ import { TUNING } from '../../content/tuning';
 import type { CrateCard } from '../../core/crates';
 import { guaranteeText, pctB, pityView } from '../../core/crateOdds';
 import { sfx } from '../audio';
+import { stopLoop } from '../loopTween';
 import type { GameScene } from '../GameScene';
 import { W, H, REDUCED_MOTION } from '../sceneKit';
 import { hasShippedArt } from '../textures';
@@ -203,12 +204,20 @@ export function presentCrateToolbox(scene: GameScene, kind: CrateKind, cards: Cr
     latchGlow.setPosition(g.lx, g.ly);
   };
   placeLatch();
-  if (!calm) scene.tweens.add({ targets: rays, angle: 360, duration: 36000, repeat: -1 });
-  scene.tweens.add({ targets: glow, alpha: { from: 0.45, to: 0.7 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  // every endless tween of this screen is kept here and stopped on skip and on close (they would otherwise run for the rest of the session)
+  const loops: Phaser.Tweens.Tween[] = [];
+  const stopLoops = () => {
+    loops.splice(0).forEach(stopLoop);
+    scene.tweens.killTweensOf([rays, glow, box, tapTxt]);
+  };
+  if (!calm) loops.push(scene.tweens.add({ targets: rays, angle: 360, duration: 36000, repeat: -1 }));
+  loops.push(scene.tweens.add({ targets: glow, alpha: { from: 0.45, to: 0.7 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' }));
   const idle = calm ? null : scene.tweens.add({ targets: box, y: { from: 0, to: -10 }, scaleX: { from: 1, to: 1.025 }, scaleY: { from: 1, to: 1.025 }, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  if (idle) loops.push(idle);
 
   const tapTxt = scene.add.text(W / 2, top + 790, 'TAP TO OPEN', { fontFamily: FONT, fontSize: '46px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 8 }).setOrigin(0.5);
-  scene.tweens.add({ targets: tapTxt, scale: { from: 0.94, to: 1.06 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  const tapLoop = scene.tweens.add({ targets: tapTxt, scale: { from: 0.94, to: 1.06 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  loops.push(tapLoop);
 
   // ---- counter + progress dots (closed: hollow, under TAP; opened: under the title) ----
   const dotStep = Math.min(30, 560 / Math.max(1, total)), dotR = Math.min(9, dotStep / 2 - 2);
@@ -228,6 +237,8 @@ export function presentCrateToolbox(scene: GameScene, kind: CrateKind, cards: Cr
   cText.setY(top + 886).setText(`${total} CARD${total > 1 ? 'S' : ''}`);
 
   c.add([titleTxt, hdr, stage, tapTxt, counter]);
+  c.once('modalclose', stopLoops);
+  c.once('destroy', stopLoops);
 
   // ---- tap handling: closed -> open, opening -> skip ----
   let state: 'closed' | 'opening' | 'done' = 'closed';
@@ -474,6 +485,7 @@ export function presentCrateToolbox(scene: GameScene, kind: CrateKind, cards: Cr
     state = 'opening';
     scene.tweens.add({ targets: [hdr, tapTxt, counter], alpha: 0, duration: 140 });
     idle?.stop();
+    stopLoop(tapLoop); // TAP TO OPEN is fading out
     box.setPosition(0, 0).setScale(1);
     // counter moves up under the title once the shaking is done
     at(180, () => {
@@ -496,6 +508,7 @@ export function presentCrateToolbox(scene: GameScene, kind: CrateKind, cards: Cr
   function skip() {
     if (state !== 'opening') return;
     timers.forEach((tm) => tm.remove(false));
+    stopLoops();
     flyTw.forEach((tw) => tw.stop());
     if (halves) scene.tweens.killTweensOf([halves.lid, halves.lower]);
     scene.tweens.killTweensOf(box);

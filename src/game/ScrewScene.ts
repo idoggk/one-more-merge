@@ -11,6 +11,7 @@ import type { BoosterCounts, WeekYard } from '../core/yardWeek';
 import { H, RS, W } from './GameScene';
 import { Coach } from './coach';
 import { sfx } from './audio';
+import { loopTween } from './loopTween';
 import { BoxMomentFx } from './fx/boxMomentFx';
 import { LAYERS } from './fx/boxMoment';
 
@@ -277,7 +278,7 @@ export class ScrewScene extends Phaser.Scene {
       if (fitSlot(st, c) >= 0) {
         const ring = this.add.graphics().lineStyle(6, YARD_MARKS.fits.hue, 1).strokeCircle(x, this.trayY, 34);
         this.ui.add(ring);
-        this.tweens.add({ targets: ring, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
+        loopTween(this, { targets: ring, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 }, ring);
         this.ui.add(this.add.text(x, this.trayY - 50, YARD_MARKS.fits.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '20px', color: '#2b1d2e', backgroundColor: hex(YARD_MARKS.fits.hue), padding: { x: 8, y: 1 } }).setOrigin(0.5));
         this.queueTip('yard_dockfit', [{ x, y: this.trayY, r: 50 }]);
       }
