@@ -82,6 +82,8 @@ const sheetSpecs: SheetSpec[] = [];
 const sheetCanvases: HTMLCanvasElement[] = [];
 const sheetMeta: { name: string; title: string; tiles: number }[] = [];
 const skipped: string[] = [];
+/** How many textures textures.ts ensureTextures() baked (the AUDIT said 72). */
+let ensureCount = 0;
 
 const byId = new Map<string, Item>();
 function register(it: Item): Item {
@@ -372,7 +374,10 @@ const SLOT_COL = 0xd99d63;
 const ROSTER_B_IDS: Family[] = ROSTERS.filter(([n]) => n >= 2).flatMap(([, l]) => l);
 
 async function renderTextures() {
+  const before = new Set(scene.textures.getTextureKeys());
   ensureTextures(scene);
+  ensureCount = scene.textures.getTextureKeys().filter((k) => !before.has(k)).length;
+  log(`ensureTextures() baked ${ensureCount} textures`);
   // 1. gadgets: every family x rank
   for (const fam of FAMILIES) {
     const r = rosterOf(fam);
@@ -974,6 +979,7 @@ const api = {
     sheets: sheetMeta,
     skipped,
     rankSpread,
+    ensureCount,
   }),
   itemPng: (i: number) => items[i].canvas.toDataURL('image/png'),
   sheetPng: (i: number) => sheetCanvases[i].toDataURL('image/png'),

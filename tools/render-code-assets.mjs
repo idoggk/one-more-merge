@@ -142,6 +142,7 @@ async function main() {
       sheets.push({ name: sh.name, title: sh.title, file, preview, width: info.width, height: info.height, tiles: sh.tiles });
     }
     writeFileSync(join(OUT, 'sheets.json'), `${JSON.stringify(sheets, null, 1)}\n`);
+    writeFileSync(join(OUT, 'meta.json'), `${JSON.stringify({ ensureTexturesBaked: manifest.ensureCount, pngs: index.length, sheets: sheets.length }, null, 1)}\n`);
     if (problems.length) {
       console.log('[render] page problems (first 12):');
       for (const p of [...new Set(problems)].slice(0, 12)) console.log('  ', p);
