@@ -134,9 +134,9 @@ for (const [name, h, layers, bgc] of rowDefs) {
 }
 // metric strip
 const flagLines = flags.slice(0, 14);
-const metricTxt = metrics.map((m, i) => `<text x="${cellOf(i) + 4}" y="${y + 14}" font-size="11" fill="#e8d2b4">r${m.rank}${m.silhouetteIoUWithPrevious !== undefined ? ` IoU ${m.silhouetteIoUWithPrevious}` : ''}</text><text x="${cellOf(i) + 4}" y="${y + 28}" font-size="11" fill="#e8d2b4">fringe ${m.whiteFringePct}% halo ${m.greyHaloPct}% hue ${m.familyHuePct}%</text>`).join('');
-const flagTxt = (flagLines.length ? flagLines : ['no automatic flags (a human still has to look)']).map((t, i) => `<text x="16" y="${y + 52 + i * 16}" font-size="12" fill="${flagLines.length ? '#ffb4a0' : '#a8e8a0'}">${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`).join('');
-const totalH = y + 60 + Math.max(1, flagLines.length) * 16;
+const metricTxt = metrics.map((m, i) => `<text x="${cellOf(i) + 4}" y="${y + 14}" font-size="11" fill="#e8d2b4">r${m.rank}${m.silhouetteIoUWithPrevious !== undefined ? ` IoU ${m.silhouetteIoUWithPrevious}` : ''}</text><text x="${cellOf(i) + 4}" y="${y + 28}" font-size="10" fill="#e8d2b4">hue ${m.familyHuePct}%</text><text x="${cellOf(i) + 4}" y="${y + 41}" font-size="10" fill="#e8d2b4">fringe ${m.whiteFringePct} halo ${m.greyHaloPct}</text>`).join('');
+const flagTxt = (flagLines.length ? flagLines : ['no automatic flags (a human still has to look)']).map((t, i) => `<text x="16" y="${y + 62 + i * 16}" font-size="12" fill="${flagLines.length ? '#ffb4a0' : '#a8e8a0'}">${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`).join('');
+const totalH = y + 70 + Math.max(1, flagLines.length) * 16;
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${totalH}" font-family="DejaVu Sans, Arial, sans-serif"><rect width="100%" height="100%" fill="#2b1d2e"/><text x="16" y="30" font-size="20" font-weight="700" fill="#ffd84a">${ID} review sheet</text><text x="16" y="52" font-size="12" fill="#e8d2b4">family colour ${COLOR}${ANCHOR ? ' · anchor row = shipped ' + ANCHOR + ' at the same ranks' : ''} · board/tray fitted like GameScene.fitSprite · IoU = silhouette overlap with previous rank</text></svg>`;
 const base = await sharp(Buffer.from(svg)).png().toBuffer();
 const overlay = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${totalH}" font-family="DejaVu Sans, Arial, sans-serif">${labels.join('')}${metricTxt}${flagTxt}</svg>`;

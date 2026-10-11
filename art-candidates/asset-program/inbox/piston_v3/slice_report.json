@@ -1,0 +1,121 @@
+{
+ "sheet": "art-candidates/asset-program/inbox/piston_sheet_v3.png",
+ "cols": 4,
+ "rows": 2,
+ "objects": [
+  {
+   "file": "piston_1",
+   "srcBox": [
+    39,
+    154,
+    353,
+    402
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    315,
+    249
+   ]
+  },
+  {
+   "file": "piston_2",
+   "srcBox": [
+    405,
+    154,
+    735,
+    402
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    331,
+    249
+   ]
+  },
+  {
+   "file": "piston_3",
+   "srcBox": [
+    779,
+    154,
+    1121,
+    402
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    343,
+    249
+   ]
+  },
+  {
+   "file": "piston_4",
+   "srcBox": [
+    1153,
+    86,
+    1523,
+    407
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    371,
+    322
+   ]
+  },
+  {
+   "file": "piston_5",
+   "srcBox": [
+    12,
+    522,
+    380,
+    902
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    369,
+    381
+   ]
+  },
+  {
+   "file": "piston_6",
+   "srcBox": [
+    399,
+    499,
+    764,
+    902
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    366,
+    404
+   ]
+  },
+  {
+   "file": "piston_7",
+   "srcBox": [
+    780,
+    427,
+    1148,
+    908
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    369,
+    482
+   ]
+  },
+  {
+   "file": "piston_8",
+   "srcBox": [
+    1167,
+    424,
+    1521,
+    930
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    355,
+    507
+   ]
+  }
+ ],
+ "speckComponentsDropped": 0,
+ "areaRatioSmallestToLargest": 0.45
+}
