@@ -27,7 +27,7 @@ Two numbers are always given: **vs anchors** (does it look like the same artist 
 | Style match | 15% | Same outline treatment (dark tint of each part's own colour, never pure black), same top-left light, brass trim and rivets, cream base plate with rounded feet, same 3/4 camera, same chunkiness as the anchors. |
 | Colour | 10% | Family colour dominant (about 60% family hue, 25% brass/gold, 15% cream), saturated but not neon, reads on the wood slot. |
 | Rank progression (ladders only; single pictures score this dimension 0 and the weight moves to Silhouette) | 20% | Each rank = previous rank plus one visible change; silhouette changes at every step (IoU with previous rank below 0.93); the ladder is monotone: no rank looks like a different object; rank 8 clearly beats rank 7. Shuffle test: a stranger can put the ranks in order. |
-| Technical cleanliness | 10% | Transparent background, no white fringe or specks, centred with padding, nothing clipped, no text or watermark, file size sane. Check with the review sheet flags. |
+| Technical cleanliness | 10% | Transparent background, no white fringe, grey halo / leftover floor shadow or specks (both are review-sheet flags), centred with padding, nothing clipped, no text or watermark, file size sane. Check with the review sheet flags. |
 
 Appeal ("do I want to collect this") is the tie-breaker, +/- 0.5.
 

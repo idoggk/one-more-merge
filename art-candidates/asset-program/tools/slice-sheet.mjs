@@ -1,7 +1,7 @@
 // Slice a ChatGPT sheet (N objects on a flat white background) into one transparent PNG per object, in reading order.
 // Usage: node art-candidates/asset-program/tools/slice-sheet.mjs <sheet.png> <outDir> --cols 4 --rows 2 --prefix piston [--first 1] [--fit 460] [--size 512] [--keep-scale] [--bg #ffffff] [--tol 28]
 // Output: <outDir>/<prefix>_<n>.png (size x size, transparent, object fitted to `fit` px, centred), <prefix>_<n>.webp (256), slice_report.json.
-// Method: flood-fill the white background in from the sheet border (interior whites are kept), erode the mask 1 px to drop the white
+// Method: flood-fill the white background (and light neutral floor shadows) in from the sheet border (interior whites are kept), erode the mask 1 px to drop the white
 // fringe, keep the big connected pieces as the objects, merge small detached bits (flame tip, steam) into the nearest object, drop specks.
 import sharp from 'sharp';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -15,13 +15,18 @@ if (!sheet || !outDir) { console.error('usage: slice-sheet.mjs <sheet.png> <outD
 const COLS = +opt('cols', 4), ROWS = +opt('rows', 2), PREFIX = opt('prefix', 'obj'), FIRST = +opt('first', 1);
 const FIT = +opt('fit', 460), SIZE = +opt('size', 512), TOL = +opt('tol', 28), KEEP_SCALE = args.includes('--keep-scale');
 const bgHex = opt('bg', '#ffffff');
+const SHADOW = !args.includes('--no-shadow-clean'); // also treat light neutral grey as background: GPT often draws a faint floor shadow despite being told not to
+const SH_LUM = +opt('shadow-lum', 0.6), SH_SAT = +opt('shadow-sat', 0.12);
 const ERODE = +opt('erode', 2); // px of the source sheet shaved off the object edge (the white halo of the anti-aliasing)
 const bg = [1, 3, 5].map((i) => parseInt(bgHex.slice(i, i + 2), 16));
 mkdirSync(outDir, { recursive: true });
 
 const { data, info } = await sharp(sheet).removeAlpha().raw().toBuffer({ resolveWithObject: true });
 const W = info.width, H = info.height, N = W * H;
-const isBg = (p) => Math.abs(data[p * 3] - bg[0]) <= TOL && Math.abs(data[p * 3 + 1] - bg[1]) <= TOL && Math.abs(data[p * 3 + 2] - bg[2]) <= TOL;
+const isBgColour = (p) => Math.abs(data[p * 3] - bg[0]) <= TOL && Math.abs(data[p * 3 + 1] - bg[1]) <= TOL && Math.abs(data[p * 3 + 2] - bg[2]) <= TOL;
+// a floor-shadow pixel: light and neutral (low saturation). The object's dark outline stops the flood, so shadows outside it go and the object stays.
+const isShadow = (p) => { const r = data[p * 3], g = data[p * 3 + 1], b = data[p * 3 + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b); return mx / 255 > SH_LUM && (mx - mn) / (mx || 1) < SH_SAT; };
+const isBg = (p) => isBgColour(p) || (SHADOW && isShadow(p));
 
 // 1. background = flood fill from the border over bg-coloured pixels
 const outside = new Uint8Array(N);

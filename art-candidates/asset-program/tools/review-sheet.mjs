@@ -58,13 +58,24 @@ for (const { r, file } of ranks) {
     }
     if (a > 10 && a < 245) { edge++; if (Math.min(data[p], data[p + 1], data[p + 2]) > 215) fringe++; }
   }
+  // grey halo / leftover floor shadow: light neutral opaque pixels in the outer 5 px band of the silhouette (outside the dark outline there should be nothing)
+  let band = 0, greyBand = 0;
+  for (let y = 5; y < h - 5; y++) for (let x = 5; x < w - 5; x++) {
+    const p = (y * w + x) * 4; if (data[p + 3] <= 24) continue;
+    let near = false;
+    for (let d = 1; d <= 5 && !near; d++) if (data[((y - d) * w + x) * 4 + 3] <= 24 || data[((y + d) * w + x) * 4 + 3] <= 24 || data[(y * w + x - d) * 4 + 3] <= 24 || data[(y * w + x + d) * 4 + 3] <= 24) near = true;
+    if (!near) continue;
+    band++;
+    const r = data[p], g = data[p + 1], b = data[p + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if (mx / 255 > 0.6 && (mx - mn) / (mx || 1) < 0.12) greyBand++;
+  }
   // specks: components of alpha>24 that are tiny next to the biggest one
   const N = w * h, seen = new Uint8Array(N); const sizes = [];
   const st = [];
   for (let s = 0; s < N; s++) { if (seen[s] || data[s * 4 + 3] <= 24) continue; let n = 0; seen[s] = 1; st.push(s); while (st.length) { const p = st.pop(); n++; const x = p % w, y = (p / w) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue; const q = ny * w + nx; if (!seen[q] && data[q * 4 + 3] > 24) { seen[q] = 1; st.push(q); } } } sizes.push(n); }
   sizes.sort((a, b) => b - a);
   const specks = sizes.slice(1).filter((n) => n < sizes[0] * 0.01).length;
-  metrics.push({ rank: r, size: [w, h], visibleBox: box, fillOfBox: +(opaque / (box.w * box.h)).toFixed(2), padding: { left: box.x, right: w - box.x - box.w, top: box.y, bottom: h - box.y - box.h }, whiteFringePct: edge ? +((fringe / edge) * 100).toFixed(1) : 0, specks, familyHuePct: opaque ? +((famHue / opaque) * 100).toFixed(1) : 0, saturatedPct: opaque ? +((sat / opaque) * 100).toFixed(1) : 0, darkPct: +((dark / opaque) * 100).toFixed(0), midPct: +((mid / opaque) * 100).toFixed(0), lightPct: +((light / opaque) * 100).toFixed(0) });
+  metrics.push({ rank: r, size: [w, h], visibleBox: box, fillOfBox: +(opaque / (box.w * box.h)).toFixed(2), padding: { left: box.x, right: w - box.x - box.w, top: box.y, bottom: h - box.y - box.h }, whiteFringePct: edge ? +((fringe / edge) * 100).toFixed(1) : 0, greyHaloPct: band ? +((greyBand / band) * 100).toFixed(1) : 0, specks, familyHuePct: opaque ? +((famHue / opaque) * 100).toFixed(1) : 0, saturatedPct: opaque ? +((sat / opaque) * 100).toFixed(1) : 0, darkPct: +((dark / opaque) * 100).toFixed(0), midPct: +((mid / opaque) * 100).toFixed(0), lightPct: +((light / opaque) * 100).toFixed(0) });
 }
 // silhouette change between consecutive ranks: both fitted into a 128 box like the game, IoU of the alpha masks
 async function mask128(file, im) {
@@ -83,6 +94,7 @@ const flags = [];
 for (const m of metrics) {
   const t = `rank ${m.rank}`;
   if (m.whiteFringePct > 12) flags.push(`${t}: white fringe on ${m.whiteFringePct}% of edge pixels (halo on dark backgrounds)`);
+  if (m.greyHaloPct > 2.5) flags.push(`${t}: ${m.greyHaloPct}% of the outer edge band is light neutral grey (leftover floor shadow or halo: visible as a pale strip on the dark slot)`);
   if (m.specks) flags.push(`${t}: ${m.specks} stray speck(s) next to the object`);
   const { left, right, top, bottom } = m.padding; if (Math.min(left, right, top, bottom) < 2) flags.push(`${t}: object touches the canvas edge (clipped?)`);
   if (m.familyHuePct < 15) flags.push(`${t}: only ${m.familyHuePct}% of pixels are in the family hue ${COLOR} (family colour not dominant)`);
@@ -122,7 +134,7 @@ for (const [name, h, layers, bgc] of rowDefs) {
 }
 // metric strip
 const flagLines = flags.slice(0, 14);
-const metricTxt = metrics.map((m, i) => `<text x="${cellOf(i) + 4}" y="${y + 14}" font-size="11" fill="#e8d2b4">r${m.rank}${m.silhouetteIoUWithPrevious !== undefined ? ` IoU ${m.silhouetteIoUWithPrevious}` : ''}</text><text x="${cellOf(i) + 4}" y="${y + 28}" font-size="11" fill="#e8d2b4">fringe ${m.whiteFringePct}% hue ${m.familyHuePct}%</text>`).join('');
+const metricTxt = metrics.map((m, i) => `<text x="${cellOf(i) + 4}" y="${y + 14}" font-size="11" fill="#e8d2b4">r${m.rank}${m.silhouetteIoUWithPrevious !== undefined ? ` IoU ${m.silhouetteIoUWithPrevious}` : ''}</text><text x="${cellOf(i) + 4}" y="${y + 28}" font-size="11" fill="#e8d2b4">fringe ${m.whiteFringePct}% halo ${m.greyHaloPct}% hue ${m.familyHuePct}%</text>`).join('');
 const flagTxt = (flagLines.length ? flagLines : ['no automatic flags (a human still has to look)']).map((t, i) => `<text x="16" y="${y + 52 + i * 16}" font-size="12" fill="${flagLines.length ? '#ffb4a0' : '#a8e8a0'}">${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`).join('');
 const totalH = y + 60 + Math.max(1, flagLines.length) * 16;
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${totalH}" font-family="DejaVu Sans, Arial, sans-serif"><rect width="100%" height="100%" fill="#2b1d2e"/><text x="16" y="30" font-size="20" font-weight="700" fill="#ffd84a">${ID} review sheet</text><text x="16" y="52" font-size="12" fill="#e8d2b4">family colour ${COLOR}${ANCHOR ? ' · anchor row = shipped ' + ANCHOR + ' at the same ranks' : ''} · board/tray fitted like GameScene.fitSprite · IoU = silhouette overlap with previous rank</text></svg>`;
