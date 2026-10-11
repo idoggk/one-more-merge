@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { allNewState, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
 import { ASSIST_MODES, MERGE_ASSIST_KEY, storedAssistMode, type AssistMode } from '../mergeAssist';
 import { LEVELS } from '../../content/levels';
+import { BUDGET_LEVELS } from '../../core/budget';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
@@ -72,6 +73,9 @@ applyRoster7(qaRoster7());
 // t-c78bf16f QA-only: the chapter unlock plan (gifts, crate tiers, rarity-gated crate pool), default OFF
 export const qaRosterUnlocks = () => storedRosterUnlocks(() => localStorage.getItem(ROSTER_UNLOCKS_KEY));
 applyRosterUnlocks(qaRosterUnlocks());
+// t-4c676288 QA-only: LAST MERGES merge-budget bench levels (TUNING.mergeBudget), default OFF, this device only
+export const qaMergeBudget = () => storedMergeBudget(() => localStorage.getItem(MERGE_BUDGET_KEY));
+applyMergeBudget(qaMergeBudget());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
@@ -385,6 +389,24 @@ export const QA_ROWS: QaRow[] = [
         scene.showToast('ALL NEW UNITS ON  ·  BATCHES 1..7 + UNLOCK PLAN');
         reopen();
       }, 0.5);
+    },
+  },
+  // 7c) t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left); the flag is this device only
+  {
+    h: 118,
+    draw: ({ scene, c, reopen }, y) => {
+      const on = qaMergeBudget();
+      scene.button(c, W / 2, y + 30, 560, `BUDGET LEVELS: ${on ? '[ON]' : '[OFF]'}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(MERGE_BUDGET_KEY, on ? null : 'on');
+        applyMergeBudget(!on);
+        tlog.log('qa_merge_budget', { on: !on });
+        scene.showToast(on ? 'BUDGET LEVELS OFF (live game)' : 'BUDGET LEVELS ON  ·  PICK ONE BELOW');
+        reopen();
+      }, 0.9);
+      BUDGET_LEVELS.forEach((b, i) => {
+        const x = W / 2 + (i - (BUDGET_LEVELS.length - 1) / 2) * 190;
+        scene.button(c, x, y + 84, 180, `${b.name}`, on ? 0x8e58c9 : 0x8a6a4a, () => (on ? scene.startBudget(b) : scene.showToast('TURN BUDGET LEVELS ON FIRST')), 0.62).setAlpha(on ? 1 : 0.55);
+      });
     },
   },
   // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)

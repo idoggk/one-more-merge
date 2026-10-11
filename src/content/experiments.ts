@@ -130,6 +130,20 @@ export function applyRosterUnlocks(on: boolean) {
   TUNING.rosterUnlocks = on;
 }
 
+/** QA panel BUDGET LEVELS switch (t-4c676288, TUNING.mergeBudget; this device only, not in the save): 'on' = the LAST MERGES bench levels can be
+ *  launched, anything else / missing / unreadable = OFF. */
+export const MERGE_BUDGET_KEY = 'omm_qa_merge_budget';
+export function storedMergeBudget(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyMergeBudget(on: boolean) {
+  TUNING.mergeBudget = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

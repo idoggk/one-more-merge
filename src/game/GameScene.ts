@@ -52,6 +52,8 @@ import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos } from '../core/endless';
 import { contractsFor, contractText } from '../core/mastery';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { budgetPuzzleDef, newBudgetState, type BudgetLevel } from '../core/budget';
+import * as budgetUi from './ui/budget';
 import { applyMergeRule, type SandwichPlan } from '../core/sandwich';
 import { playSandwich, SandwichPreview, SANDWICH_TIP } from './sandwichFx';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, type Move, type PuzzleRec } from '../core/puzzle';
@@ -663,7 +665,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(1300, () => this.showEvent('BUILD YOUR MACHINE!', '#ffd24a', 1400));
         return;
       }
-      const label = this.s.puzzle ? `WIN IN ${mergesText(this.s.puzzle.moves).toUpperCase()}` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
+      const label = this.s.puzzle?.budget ? `LAST ${this.s.puzzle.moves} MERGES  ·  ${this.monName()}` : this.s.puzzle ? `WIN IN ${mergesText(this.s.puzzle.moves).toUpperCase()}` : this.s.level !== undefined ? `${this.s.endless ? `FLOOR ${this.s.endless}` : `LEVEL ${this.s.level}`}  ·  ${this.stageCount() ? `${this.stageCount()!.n} MACHINES` : this.monName()}` : this.s.daily ? `DAILY BENCH  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}` : this.s.remix ? TARGET_NAMES[this.s.target] : `ROUND 1  ·  ${TARGET_NAMES[Math.max(0, this.s.target)]}`;
       this.floatText(W / 2, STAGE_TOP + 60, label, '#ffffff', 40, 500, 'banner_chain');
     });
     at(1250, () => {
@@ -732,7 +734,8 @@ export class GameScene extends Phaser.Scene {
     // r33 stages: damaged art follows the current machine's own HP
     const hurt = this.s.stage ? !this.s.goal && this.s.hp <= this.s.maxHp / 2 : this.s.thresholds >= 2;
     let key = this.s.target < 0 ? 'demo_can' : `target_${ti}${hurt && this.hasArt(`target_${ti}_dmg`) ? '_dmg' : ''}`;
-    const cast = this.castOf(this.s.level);
+    const look = this.s.puzzle?.budget?.look; // LAST MERGES: a saga machine's face on a puzzle state
+    const cast = look ? (look.visual && CAST[look.visual] && this.hasArt(`mon_${look.visual}`) ? look.visual : undefined) : this.castOf(this.s.level);
     if (cast && !this.realBoss) key = hurt && this.hasArt(`mon_${cast}_dmg`) ? `mon_${cast}_dmg` : `mon_${cast}`;
     const b = this.realBoss;
     if (b) {
@@ -742,7 +745,8 @@ export class GameScene extends Phaser.Scene {
     this.target.setTexture(key);
     // remix opponents reuse the three backdrops (alley / kitchen / junkyard)
     // r28: each chapter has its own backdrop when the art exists (stage_ch1..6), else the three classic stages
-    const chk = this.s.level !== undefined ? `stage_ch${Math.ceil(this.s.level / 10)}` : '';
+    const chLevel = this.s.puzzle?.budget?.look.level ?? this.s.level;
+    const chk = chLevel !== undefined ? `stage_ch${Math.ceil(chLevel / 10)}` : '';
     const sk = chk && this.hasArt(chk) ? chk : `stage_${Math.max(0, this.s.target) % 3}`;
     if (this.hasArt(sk)) {
       this.stage.setTexture(sk).setVisible(true);
@@ -1030,7 +1034,7 @@ export class GameScene extends Phaser.Scene {
     return st ? { n: st.hps.length + (st.goal ? 1 : 0), at: st.i + 1, goal: st.i >= st.hps.length } : undefined;
   }
   monName(short = false) {
-    const lv = this.s.level;
+    const lv = this.s.puzzle?.budget?.look.level ?? this.s.level;
     const vis = this.stageVis() ?? (lv !== undefined ? LEVELS[lv - 1]?.visual : undefined);
     return machineName(vis, this.s.target, (v) => this.hasArt(`mon_${v}`), short);
   }
@@ -4240,6 +4244,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   }
 
   puzzleHelpNow() {
+    if (this.s.puzzle?.budget) return { restart: true as const, hint: false, showMove: false, skip: false }; // LAST MERGES: no hints, nothing recorded
     const help = puzzleHelp(this.puzzleDef ? (this.puzzleRec().fails?.[this.puzzleDef.id] ?? 0) : 0, this.puzzleKind);
     return { ...help, hint: help.hint || this.puzzleNudged };
   }
@@ -4247,7 +4252,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** r45: a fresh attempt left idle for HELP.idleNudge s shows the (free) HINT and pulses it once. Never mid-animation. */
   puzzleNudge() {
     if (this.modal || this.explaining) this.idleTime = 0; // reading a card isn't being stuck
-    if (this.nudgedThisTry || this.puzzlePlayed.length || this.idleTime < HELP.idleNudge || this.dragIdx >= 0 || this.hintPair || !this.helpBtn) return;
+    if (this.s.puzzle?.budget || this.nudgedThisTry || this.puzzlePlayed.length || this.idleTime < HELP.idleNudge || this.dragIdx >= 0 || this.hintPair || !this.helpBtn) return;
     if (this.s.grid.some((g) => (g && this.views.get(g.id) ? this.tweens.isTweening(this.views.get(g.id)!) : false))) return;
     this.nudgedThisTry = this.puzzleNudged = true;
     this.helpBtn.setVisible(true).setScale(1);
@@ -4258,14 +4263,22 @@ Merge them into a RANK ${rank}!`, this.coachY());
 
   /** Fresh board; puzzles are exact, so unit levels never change them. */
   resetPuzzle(def: PuzzleDef) {
-    this.startState(newPuzzle(def));
+    const b = this.budgetDef;
+    this.startState((b && def.id === budgetPuzzleDef(b).id ? newBudgetState(b) : null) ?? newPuzzle(def));
     this.s.unitMult = {};
     this.s.unitLevel = {};
     this.puzzlePlayed = [];
     this.nudgedThisTry = false;
   }
 
+  /** LAST MERGES bench level being played (src/game/ui/budget.ts), or null. */
+  budgetDef: BudgetLevel | null = null;
+  startBudget(b: BudgetLevel) {
+    return budgetUi.startBudget(this, b);
+  }
+
   startPuzzle(def: PuzzleDef, kind: 'daily' | 'drill') {
+    if (this.budgetDef && def.id !== budgetPuzzleDef(this.budgetDef).id) this.budgetDef = null;
     this.puzzleDef = def;
     this.puzzleKind = kind;
     tlog.log('puzzle_start', { id: def.id, kind, score: def.score });
@@ -4285,7 +4298,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     }
     const rule = def.only ? `Merge ONLY ${def.only.map((f) => FAMILY_INFO[f as 'cannon'].name).join(' + ')}.` : 'Any merge counts.';
     this.time.delayedCall(300, () =>
-      this.explain(`puzzle_${def.id}`, [{ text: `WIN IN ${def.moves} MERGE${def.moves > 1 ? 'S' : ''}\nDeal ${fmt(def.hp)} damage. ${rule}\nNo clock - plan your chain!`, spots: [], y: TRAY_Y - 40 }]),
+      this.explain(`puzzle_${def.id}`, [{ text: this.budgetDef ? budgetUi.budgetIntro(this.budgetDef) : `WIN IN ${def.moves} MERGE${def.moves > 1 ? 'S' : ''}\nDeal ${fmt(def.hp)} damage. ${rule}\nNo clock - plan your chain!`, spots: [], y: TRAY_Y - 40 }]),
     );
   }
 
@@ -4295,7 +4308,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     if (!def) return;
     sfx.click();
     const before = this.puzzleHelpNow();
-    if (this.puzzlePlayed.length && this.s.phase === 'playing') {
+    if (this.puzzlePlayed.length && this.s.phase === 'playing' && !this.s.puzzle?.budget) {
       notePuzzleAttempt(this.puzzleRec(), def.id, false);
       store(META_KEY, JSON.stringify(this.meta));
     }
