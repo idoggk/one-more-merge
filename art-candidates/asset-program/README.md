@@ -25,7 +25,7 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 | `prompts/` | Ready-to-paste GPT prompts (pilot: Piston), follow-up fixes, how to run |
 | `anchors/` | Cannon, Coil, Bell rank 1-8 on white: style and format reference to attach in ChatGPT |
 | `units/`, `tools/make-prompt.mjs` | One JSON spec per unit (identity, colour, 8 rank lines) and the generator that builds the paste-ready prompt from it and the shared style block |
-| `tools/` | `slice-sheet.mjs`, `review-sheet.mjs`, `compare-pair.mjs` (original vs new: silhouette overlap, board/tray view), `make-anchors.mjs` (all use only `sharp`, already a dev dependency) |
+| `tools/` | `slice-sheet.mjs`, `review-sheet.mjs`, `compare-pair.mjs` (original vs new: silhouette overlap, board/tray view), `ingame-preview.mjs` (candidate art inside the real game on a real board), `make-anchors.mjs` (all use only `sharp`, already a dev dependency) |
 | `inbox/` | Where GPT sheets go (`<unit>_sheet_vN.png`) |
 | `refs/` | Reference screenshots of other games, kept out of git, analysis only |
 | `scores/scores.csv` | Review log (one row per review) |
@@ -41,6 +41,8 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 | Polish-pass test | **Done: 7.5 overall, design NOT preserved** (`reviews/piston_polish_v1.md`). Polish language moved into the first-pass style block (v3); a per-rank polish pass is dropped |
 | Blowtorch, first pass with the v3 template | **Reviewed: 7.7 / 10 on the first try** (`reviews/blowtorch_v1.md`), the best sheet so far. Template adopted (now v4) |
 | Blowtorch, round 2 | **Reviewed: 7.8 / 10** (`reviews/blowtorch_v2.md`): candidate under a 7.5 bar. Scale drift between rank 5 and 6 is a model limit, not fixable by wording |
+| In-game test of Blowtorch v2 | **Done: 7.5 at real board size** (`reviews/blowtorch_v2_ingame.md`). Ranks readable at a glance, ranks 6-8 small and busy; `tools/ingame-preview.mjs` is now part of every review |
+| Autopilot (a Claude session on your computer drives ChatGPT) | **Instructions ready** (`AUTOPILOT.md`); needs the one-time setup on your computer |
 | Batch P1 (Piston re-run, Tesla Tower, Spring, Wrench) | **Prompts ready** (`prompts/BATCH_P1.md`, generated from `units/*.json` by `tools/make-prompt.mjs`), waiting for four sheets |
 | Slicer and review tool | Built and tested on the shipped Coil ladder (cuts cleanly, fringe 0.1-0.4%, finds that Coil rank 5 breaks the ladder) |
 | Benchmark of top games | **Partial**: text sources only. Needs store screenshots (network allowlist or your upload) |
