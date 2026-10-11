@@ -13,6 +13,7 @@ import {
   odByChain,
   odNeeded,
   previewMerge,
+  sandwichFor,
   serialize,
   type GameEvent,
   type GameState,
@@ -50,8 +51,8 @@ import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos } from '../core/endless';
 import { contractsFor, contractText } from '../core/mastery';
 import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
-import { applyMergeRule } from '../core/sandwich';
-import { playSandwich } from './sandwichFx';
+import { applyMergeRule, type SandwichPlan } from '../core/sandwich';
+import { playSandwich, SandwichPreview, SANDWICH_TIP } from './sandwichFx';
 import { dailyIndex, HELP, nextWinningMove, notePuzzleAttempt, puzzleHelp, type Move, type PuzzleRec } from '../core/puzzle';
 import { newRunLog, recordCommand, recordTick, type RunLog } from '../core/replay';
 import { decodeCurve, levelProgress, type PaceCurve } from '../core/pace';
@@ -1516,11 +1517,14 @@ Now beat the real level.`, this.coachY());
         }
         this.drawPreview(p, hov, a);
         this.drawChips(src, hov);
+        this.drawSandwichPreview(sandwichFor(this.s, src, hov), hov);
       } else {
+        this.drawSandwichPreview(null, -1);
         this.drawPreview(null, -1, a);
         this.drawChips(-1, -1);
       }
     } else {
+      this.drawSandwichPreview(null, -1);
       this.drawPreview(null, -1, null);
       this.drawChips(-1, -1);
     }
@@ -1532,6 +1536,27 @@ Now beat the real level.`, this.coachY());
       }
     }
   }
+
+  /** Sandwich merge feel (t-1e79e325): the preview promise while hovering a real sandwich, and what the impact borrows from the scene. */
+  sandwichPreview?: SandwichPreview;
+  drawSandwichPreview(plan: SandwichPlan | null, hov: number) {
+    if (!plan) {
+      this.sandwichPreview?.hide();
+      return;
+    }
+    (this.sandwichPreview ??= new SandwichPreview(this, cellXY)).show(plan, hov);
+  }
+  sandwichHost = {
+    banner: (text: string, x: number, y: number) => this.floatText(x, y, text, '#ffcf33', 56, 350, 'banner_chain'),
+    shake: () => this.shake('sandwich'),
+    view: (id: number) => this.views.get(id),
+    tip: (x: number, y: number) => {
+      if (this.meta.tips.x_sandwich) return;
+      this.meta.tips.x_sandwich = true;
+      store(META_KEY, JSON.stringify(this.meta));
+      this.time.delayedCall(700, () => this.dropHint(x, y, SANDWICH_TIP));
+    },
+  };
 
   /** ChatGPT r10 #1: show WHY a merge is good. The first three real links at 35%, MAX endpoints emphasised,
    *  and a 35% ghost of the resulting rank. Stationary; fades in over 80ms whenever the destination changes. */
@@ -2044,7 +2069,8 @@ Now beat the real level.`, this.coachY());
           this.playPassiveShot(e.idx, e.damage);
           break;
         case 'sandwich':
-          playSandwich(this, e, cellXY);
+          this.sandwichPreview?.hide();
+          playSandwich(this, e, cellXY, this.sandwichHost, this.s.grid[e.idx]?.id);
           break;
         case 'support':
           playSupportFx(this, e, cellXY, FAMILY_INFO[e.family as 'fan']?.color ?? 0xffffff, { x: W / 2, y: BY + (CELL * ROWS) / 2 });

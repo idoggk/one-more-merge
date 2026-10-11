@@ -177,6 +177,19 @@ export const sfx = {
     if (rank >= 3) tone(vary(150), 0.16, 'sine', 0.18, 0.01, 325);
     if (rank >= 5) tone(vary(600), 0.12, 'sine', 0.08, 0.02, 1300);
   },
+  /** Sandwich preview: a soft rising two-step when a drag lands on a sandwich (once per target). */
+  sandwichPromise: () => {
+    tone(520, 0.14, 'sine', 0.05, 0, 700);
+    tone(780, 0.1, 'triangle', 0.035, 0.07, 1040);
+  },
+  /** Sandwich impact: the merge thud pitched down, a crunch of noise and a bright rising stab on top. */
+  sandwich: (rank: number) => {
+    bandNoise(0.05, 0.3, 0, 1800, 1);
+    tone(150, 0.2, 'sine', 0.3, 0, 90);
+    tone(vary(420), 0.1, 'square', 0.1, 0.02, 840);
+    tone(note(523, Math.min(rank, 6)), 0.2, 'triangle', 0.16, 0.1);
+    tone(note(523, Math.min(rank, 6) + 2), 0.24, 'sine', 0.1, 0.17);
+  },
   rankUp: (rank: number) => tone(note(523, Math.min(rank, 6)), 0.1, 'triangle', 0.14, 0.06),
   /** cascade_phrase: one soft pluck per presentation beat (depth), max 4 rising steps. */
   cascadeStep: (beat: number, delay: number) => {
