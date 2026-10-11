@@ -118,11 +118,19 @@ export const sfx = {
     if (k >= 2) tone(1320, 0.18, 'sine', 0.035, 0.14);
   },
   /** Chest: two woody knocks + rattle, then the open creak and a rounded thunk. */
-  chestShake: () => {
+  chestShake: (pitch = 1) => {
     for (const d of [0, 0.09]) {
-      tone(200, 0.045, 'triangle', 0.08, d, 150);
-      bandNoise(0.04, 0.04, d, 3200, 3);
+      tone(200 * pitch, 0.045, 'triangle', 0.08, d, 150 * pitch);
+      bandNoise(0.04, 0.04, d, 3200 * pitch, 3);
     }
+  },
+  /** Crate screen (CRATES = TOOLBOX): the card landing for rarity tier 0..3 (common, rare, epic, legendary), pitched from the star / chest voices. */
+  rarityHit: (tier: number) => {
+    const t = Math.max(0, Math.min(3, tier));
+    const steps = [[0], [0, 4], [0, 4, 7], [0, 4, 7, 12, 16]][t];
+    steps.forEach((s, i) => tone(523 * Math.pow(2, s / 12), 0.2 + t * 0.05, t > 1 ? 'triangle' : 'sine', 0.06 + t * 0.012, i * (0.07 - t * 0.008), undefined, true));
+    if (t >= 2) bandNoise(0.2, 0.05, 0, 5200, 1);
+    if (t >= 3) tone(110, 0.35, 'triangle', 0.16, 0, 60, true);
   },
   chestOpen: () => {
     bandNoise(0.22, 0.05, 0, 900, 1.2);

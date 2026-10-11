@@ -66,6 +66,7 @@ import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, typ
 import { grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, type Feature } from './unlocks';
 import { admitTip, newTipLedger } from './tips';
 import { MODE_INTRO, modeIntroFor } from './modeIntro';
+import { assistActive, ASSIST_OFFSET, partnersOf, snapTarget, soleMergePair, toastAllowed } from './mergeAssist';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
 import { playJobTag, playSupportFx } from './rosterFx';
@@ -77,7 +78,7 @@ import { playBeatSounds, UNIT_SOUND } from './unitSounds';
 import { bossLesson, joinRewards, machineName, OverlayQueue } from './flow';
 import { hitFormula, type HitFormula } from '../core/hitFormula';
 import { BIG_CHAIN, bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
-import { shakeCamera, type ShakeKind } from './fx/shake';
+import { getShakeLevel, shakeCamera, type ShakeKind } from './fx/shake';
 import { PartReact } from './fx/partReact';
 import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES, pooledText, recycleWith, bakeTexture } from './sceneKit';
 import * as qa from './ui/qaPanel';
@@ -1108,6 +1109,11 @@ export class GameScene extends Phaser.Scene {
     if (!this.moved) {
       this.moved = true;
       this.lift = p.wasTouch ? DRAG_LIFT_TOUCH : DRAG_LIFT;
+      this.liftX = 0;
+      if (this.assistOn()) {
+        this.lift = Math.max(this.lift, ASSIST_OFFSET * CELL);
+        this.liftX = -ASSIST_OFFSET * CELL;
+      }
       sfx.pickup();
       haptic(5); // light lift tick
       this.dragView.setDepth(55).setVisible(true);
@@ -1121,7 +1127,7 @@ export class GameScene extends Phaser.Scene {
     this.placeDrag(p);
     // weighty drag: piece leans into the motion
     this.dragView.setAngle(Phaser.Math.Linear(this.dragView.angle, Phaser.Math.Clamp(dx * 0.9, -14, 14), 0.35));
-    const h = this.targetCell(this.dragView.x, this.dragView.y);
+    const h = this.assistCell(this.targetCell(this.dragView.x, this.dragView.y));
     if (h !== this.hoverIdx) {
       this.hoverIdx = h;
       // snap cue: one soft tick + tap as the piece reaches a NEW cell it can merge with (never for empty/mismatch cells)
@@ -1143,7 +1149,98 @@ export class GameScene extends Phaser.Scene {
    *  touch lift never turns a drop on the bottom-right cell into a scrap. Only where the zone is shown, and a
    *  highlighted merge always wins over it. */
   heldOverScrap(p: Phaser.Input.Pointer) {
-    return this.scrapShown() && !this.mergeHighlighted() && this.overScrap(p.worldX, p.worldY - (this.lift - DRAG_LIFT));
+    return this.scrapShown() && !this.mergeHighlighted() && this.overScrap(p.worldX + this.liftX, p.worldY - (this.lift - DRAG_LIFT));
+  }
+
+  // ---------- MERGE ASSIST (t-8426336a; default OFF, src/game/mergeAssist.ts) ----------
+
+  /** The assist is helping now (Settings / QA: OFF / ON / AUTO). Presentation only: rules, supply and clock never read it. */
+  assistOn() {
+    return assistActive(TUNING.mergeAssist, this.s.puzzle ? undefined : this.s.level, this.meta.merges ?? 0);
+  }
+  /** Forgiving drop target: a release/hover just outside a valid partner snaps to the nearest one (from legalPairs, so never a
+   *  non-matching part). A plain cell that already merges wins. `h`: the normal target cell (-1 none). */
+  assistCell(h: number) {
+    if (!this.assistOn() || this.dragIdx < 0 || !this.dragView) return h;
+    if (h >= 0 && h !== this.dragIdx && canMerge(this.s.grid[this.dragIdx], this.s.grid[h], this.s) && partnersOf(this.s, this.dragIdx).includes(h)) return h;
+    const t = snapTarget(this.s, this.dragIdx, this.dragView.x, this.dragView.y, cellXY, CELL);
+    return t >= 0 ? t : h;
+  }
+  /** Held part offset (design px): up-left of the finger by ~0.6 cell with the assist, so the thumb never hides it. */
+  liftX = 0;
+  assistG?: Phaser.GameObjects.Graphics;
+  assistLabel?: Phaser.GameObjects.Text;
+  /** The one legal pair on the board while its MERGE hint shows; a tap on either part merges them. */
+  assistPair: [number, number] | null = null;
+  assistToasts = { s: null as unknown, n: 0 };
+  /** Per frame while the assist is on: pulsing rings on every valid target, a thin snap line to the nearest one, and the
+   *  MERGE hint on a sole pair after a short idle. Reduced motion: steady rings, no pulse. */
+  drawAssist() {
+    const on = this.assistOn() && this.canAct();
+    if (!this.assistG) {
+      if (!on) return;
+      this.assistG = this.add.graphics().setDepth(11);
+      this.assistLabel = this.add.text(0, 0, 'MERGE', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5).setDepth(12).setVisible(false);
+    }
+    const g = this.assistG.clear();
+    const lab = this.assistLabel!;
+    lab.setVisible(false);
+    // a press on the pair keeps its hint alive until the finger lifts (the press itself resets the idle clock)
+    const keep = this.dragIdx >= 0 && !this.moved ? this.assistPair : null;
+    this.assistPair = null;
+    if (!on) return;
+    const pulse = REDUCED_MOTION ? 0.6 : 0.5 + 0.5 * Math.sin(this.time.now / 160);
+    const holding = this.dragIdx >= 0 && this.moved && this.dragView;
+    const held = holding ? this.s.grid[this.dragIdx] : null;
+    if (holding && held) {
+      const col = FAMILY_INFO[held.family].color;
+      let near = -1, nd = Infinity;
+      for (const i of partnersOf(this.s, this.dragIdx)) {
+        const c = cellXY(i);
+        const snapped = i === this.hoverIdx;
+        g.fillStyle(col, 0.1 + 0.12 * pulse).fillCircle(c.x, c.y, 58);
+        g.lineStyle(snapped ? 8 : 5, 0xffffff, 0.5 + 0.5 * pulse).strokeCircle(c.x, c.y, 56 + 5 * pulse);
+        const d = Math.hypot(this.dragView!.x - c.x, this.dragView!.y - c.y);
+        if (snapped) [near, nd] = [i, -1];
+        else if (d < nd) [near, nd] = [i, d];
+      }
+      if (near >= 0) {
+        const c = cellXY(near);
+        g.lineStyle(3, 0xffffff, 0.85).lineBetween(this.dragView!.x, this.dragView!.y, c.x, c.y);
+        g.fillStyle(0xffffff, 0.9).fillCircle(c.x, c.y, 7);
+      }
+      return;
+    }
+    if (this.s.phase !== 'playing' || (!keep && (this.dragIdx >= 0 || this.idleTime < 1.2))) return;
+    const pair = soleMergePair(this.s);
+    if (!pair || (keep && (keep[0] !== pair[0] || keep[1] !== pair[1]))) return;
+    this.assistPair = pair;
+    for (const i of pair) {
+      const c = cellXY(i);
+      g.lineStyle(6, 0xffffff, 0.5 + 0.5 * pulse).strokeCircle(c.x, c.y, 56 + 5 * pulse);
+    }
+    const a = cellXY(pair[0]), b = cellXY(pair[1]);
+    lab.setPosition(Phaser.Math.Clamp((a.x + b.x) / 2, 70, W - 70), Math.min(a.y, b.y) - 66).setScale(REDUCED_MOTION ? 1 : 1 + 0.08 * pulse).setVisible(true);
+  }
+  /** Failed drop with the assist on: a small shake of the part's cell (not with reduced motion / SCREEN SHAKE off) and, in
+   *  levels 1-5, the 'drop on a matching part' toast, at most twice per level. */
+  assistFail(view: GadgetView | null, from: number, toast = true) {
+    if (!this.assistOn() || this.s.phase !== 'playing') return;
+    if (view && !REDUCED_MOTION && getShakeLevel(this.meta.shake === false) !== 'off') {
+      this.time.delayedCall(150, () => {
+        const real = this.s.grid.findIndex((g) => g?.id === view.gid);
+        if (real < 0 || !view.active || this.dragView === view) return;
+        const c = this.restPart(view, real);
+        this.tweens.chain({ targets: view, tweens: [{ x: c.x - 6, duration: 45 }, { x: c.x + 6, duration: 45 }, { x: c.x, duration: 45 }] });
+      });
+    }
+    if (!toast) return;
+    if (this.assistToasts.s !== this.s) this.assistToasts = { s: this.s, n: 0 };
+    if (!toastAllowed(this.s.puzzle ? undefined : this.s.level, this.assistToasts.n)) return;
+    this.assistToasts.n++;
+    const real = view ? this.s.grid.findIndex((g) => g?.id === view.gid) : from;
+    const { x, y } = cellXY(real >= 0 ? real : from);
+    this.dropHint(x, y - 72, 'DROP ON A MATCHING PART');
   }
   /** The held piece is over a cell it can merge with (that cell wears the merge highlight). */
   mergeHighlighted() {
@@ -1164,7 +1261,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.dragView) return;
     const t = Math.min(1, (this.time.now - this.liftAt) / 90);
     const k = 1 - Math.pow(1 - t, 3);
-    this.dragView.setPosition(p.worldX - this.grabOff.x * (1 - k), p.worldY - this.grabOff.y * (1 - k) - this.lift * k);
+    this.dragView.setPosition(p.worldX - this.grabOff.x * (1 - k) + this.liftX * k, p.worldY - this.grabOff.y * (1 - k) - this.lift * k);
     if (!this.dragShadow) this.dragShadow = this.add.ellipse(0, 0, 92, 30, 0x000000, 0.28).setDepth(54);
     this.dragShadow.setPosition(this.dragView.x, this.dragView.y + 62).setVisible(true);
   }
@@ -1194,6 +1291,14 @@ export class GameScene extends Phaser.Scene {
       this.dragIdx = -1;
       this.dragView = null;
       this.drawHeld();
+      // MERGE ASSIST tap shortcut: while the MERGE hint shows on the board's one pair, a tap on either part merges them
+      const ap = this.assistPair;
+      if (ap && this.s.phase === 'playing' && ap.includes(tapped)) {
+        const to = ap[0] === tapped ? ap[1] : ap[0];
+        this.assistPair = null;
+        if (this.s.grid[tapped] && canMerge(this.s.grid[tapped], this.s.grid[to], this.s)) this.commitDrop(tapped, to, this.s.grid[tapped]!.id);
+        return;
+      }
       if (this.s.phase === 'playing') this.openInspect(tapped);
       else if (this.s.phase === 'tutorial') this.showEvent('DRAG it onto its match!', '#fff0cf', 1400); // a tap is not a merge
       return;
@@ -1202,7 +1307,7 @@ export class GameScene extends Phaser.Scene {
     const id = this.dragId;
     const view = this.dragView;
     // the piece is drawn above the finger: target where the PIECE is, same rule as the live highlight
-    const dest = this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX, p.worldY - this.lift);
+    const dest = this.assistCell(this.hoverIdx >= 0 ? this.hoverIdx : view ? this.targetCell(view.x, view.y) : this.targetCell(p.worldX + this.liftX, p.worldY - this.lift));
     const ga = this.s.grid[from], gb = dest >= 0 ? this.s.grid[dest] : null;
     tlog.log('drag_end', { from, to: dest, highlighted: this.hoverIdx, legal: !!(ga && gb && canMerge(ga, gb, this.s)), kind: !gb ? 'move' : ga && canMerge(ga, gb, this.s) ? 'merge' : 'mismatch', ms: Math.round(this.time.now - this.liftAt) });
     // SCRAP as last shown (the release may come from off the canvas), never over a merge
@@ -1217,7 +1322,10 @@ export class GameScene extends Phaser.Scene {
     const plan = planDrop({ from, dest, scrap, rank: ga?.rank ?? 0, scrapHold: this.scrapHold });
     if (plan.k === 'scrap') this.doScrap(from, id);
     else if (plan.k === 'commit') {
-      if (!this.commitDrop(from, dest, id)) this.rejectDrop(view, from, 'refused');
+      if (!this.commitDrop(from, dest, id)) {
+        this.rejectDrop(view, from, 'refused');
+        if (gb && !merge) this.assistFail(view, from, false); // a non-matching part: the bounce message already explains it, so just the shake
+      }
     } else this.rejectDrop(view, from, plan.why);
     this.reconcile(); // belt and braces: every sprite returns to its model cell
     this.scrapHold = 0;
@@ -1234,6 +1342,7 @@ export class GameScene extends Phaser.Scene {
     haptic(8);
     this.dropRejects++;
     tlog.log('drop_reject', { why });
+    if (this.assistOn() && this.s.phase === 'playing' && (why === 'offBoard' || why === 'ownCell')) return this.assistFail(view, from); // the assist's own budgeted cue
     const text = DROP_HINT[why];
     if (!text || !this.hintGate.allow(text, this.time.now)) return;
     const real = view ? this.s.grid.findIndex((g) => g?.id === view.gid) : from;
@@ -1363,6 +1472,11 @@ export class GameScene extends Phaser.Scene {
     }
     this.idleTime = 0;
     this.hintPair = null;
+    if (merging && !this.s.puzzle) {
+      // lifetime merges (MERGE ASSIST's AUTO mode); saved every 5th merge, the level end saves it too
+      this.meta.merges = (this.meta.merges ?? 0) + 1;
+      if (this.meta.merges % 5 === 0) store(META_KEY, JSON.stringify(this.meta));
+    }
     if (this.s.puzzle) this.puzzlePlayed.push([from, to]);
     if (merging) {
       this.reconcile(false, undefined, cellXY(to));
@@ -1705,6 +1819,7 @@ Now beat the real level.`, this.coachY());
     this.wrench?.sync(this.s);
     this.capBadge?.sync(this.s);
     this.copyBadges?.sync(this.s.grid);
+    this.drawAssist();
     if (this.time.now - this.lastSave > 2000) this.save();
   }
 
