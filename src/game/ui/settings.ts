@@ -10,11 +10,14 @@ import type { GameScene } from '../GameScene';
 import { W, H } from '../sceneKit';
 import { addBuildInfo } from './buildInfo';
 import { getShakeLevel, nextShakeLevel, setShakeLevel } from '../fx/shake';
+import { TUNING } from '../../content/tuning';
+import { MERGE_ASSIST_KEY, nextAssistMode } from '../mergeAssist';
+import { applyAssistMode } from './qaPanel';
 
 export function openSettings(scene: GameScene) {
   sfx.click();
-  const c = scene.sheet(1090);
-  const top = H / 2 - 480;
+  const c = scene.sheet(1170);
+  const top = H / 2 - 520;
   scene.sheetTitle(c, top, 'SETTINGS');
   const m = scene.meta;
   const onOff = (v: boolean) => (v ? 'ON' : 'OFF');
@@ -25,6 +28,13 @@ export function openSettings(scene: GameScene) {
     [() => `MUSIC: ${onOff(m.music)}`, () => ((m.music = !m.music), (audioSettings.music = m.music))],
     [shakeLabel, () => { setShakeLevel(nextShakeLevel(getShakeLevel(m.shake === false))); scene.shake('preview'); }],
     [() => `SWAP ON DROP: ${onOff(!!m.swapMismatch)}`, () => (m.swapMismatch = !m.swapMismatch)],
+    // t-8426336a: a phone setting in its own key (like SCREEN SHAKE); default OFF
+    [() => `MERGE ASSIST: ${TUNING.mergeAssist.toUpperCase()}`, () => {
+      const next = nextAssistMode(TUNING.mergeAssist);
+      store(MERGE_ASSIST_KEY, next === 'off' ? null : next);
+      applyAssistMode(next);
+      scene.showToast(next === 'off' ? 'MERGE ASSIST OFF' : next === 'on' ? 'MERGE ASSIST ON' : 'MERGE ASSIST AUTO  ·  helps in levels 1-10\nuntil your 30th merge');
+    }],
   ];
   toggles.forEach(([label, flip], i) => {
     const b = scene.button(c, W / 2, top + 180 + i * 110, 460, label(), 0x27a4c0, () => {
@@ -37,20 +47,20 @@ export function openSettings(scene: GameScene) {
   const pre = safeStorage(readPreimport, () => null);
   if (pre) {
     // a code was loaded: this line becomes the one-time undo
-    const un = scene.add.text(W / 2, top + 580, 'Loaded the wrong code? Tap to undo', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const un = scene.add.text(W / 2, top + 660, 'Loaded the wrong code? Tap to undo', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#b06a1a' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     un.on('pointerup', () => scene.confirmImport(pre, true));
     c.add(un);
-  } else c.add(scene.add.text(W / 2, top + 580, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
-  scene.button(c, W / 2 - 150, top + 640, 360, 'COPY SAVE CODE', 0x5fbf4a, () => scene.copySaveCode(), 0.78);
-  scene.button(c, W / 2 + 150, top + 640, 360, 'PASTE SAVE CODE', 0x27a4c0, () => scene.openPasteCode(), 0.78);
+  } else c.add(scene.add.text(W / 2, top + 660, 'SAVE BACKUP  ·  move or keep your progress', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
+  scene.button(c, W / 2 - 150, top + 720, 360, 'COPY SAVE CODE', 0x5fbf4a, () => scene.copySaveCode(), 0.78);
+  scene.button(c, W / 2 + 150, top + 720, 360, 'PASTE SAVE CODE', 0x27a4c0, () => scene.openPasteCode(), 0.78);
   // the two text links share one row so each gets a finger-sized hit box (they were 52 px apart, one above the other)
   const link = { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#b06a1a' };
-  c.add(scene.tapLink(scene.add.text(W / 2 - 150, top + 722, 'Playtest stats', link).setOrigin(0.5), () => scene.openPlaytestStats()));
-  c.add(scene.tapLink(scene.add.text(W / 2 + 150, top + 722, 'Replay tutorial', link).setOrigin(0.5), () => scene.startTutorial()));
+  c.add(scene.tapLink(scene.add.text(W / 2 - 150, top + 802, 'Playtest stats', link).setOrigin(0.5), () => scene.openPlaytestStats()));
+  c.add(scene.tapLink(scene.add.text(W / 2 + 150, top + 802, 'Replay tutorial', link).setOrigin(0.5), () => scene.startTutorial()));
   // r33 (Ido: "a reset button to check things from the start, a jump-to button for later levels")
-  scene.button(c, W / 2, top + 808, 360, 'QA TOOLS', 0xe8452c, () => scene.openQaTools(), 0.8);
-  scene.button(c, W / 2, top + 900, 300, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.85);
-  addBuildInfo(scene, c, W / 2, top + 990);
+  scene.button(c, W / 2, top + 888, 360, 'QA TOOLS', 0xe8452c, () => scene.openQaTools(), 0.8);
+  scene.button(c, W / 2, top + 980, 300, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.85);
+  addBuildInfo(scene, c, W / 2, top + 1070);
 }
 
 /** r43 save backup: the whole save as a code on the clipboard; a select-all text box when the clipboard is refused. */

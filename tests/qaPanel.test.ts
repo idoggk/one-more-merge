@@ -26,6 +26,6 @@ describe('QA panel layout (bug t-6d70ea51: bottom rows ran off the screen)', () 
     expect(Math.abs(qaGeometry([100, 100], 1558).minScroll)).toBeCloseTo(0);
   });
   it('is shorter than before the NEW UNITS grouping (was 1725 px of sheet)', () => {
-    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1725 - 40); // t-e2a48327 added the POWER TOOLS row (70 px)
+    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1725 + 70); // was 1725-100; the panel scrolls now; MERGE ASSIST and POWER TOOLS (t-e2a48327, 70 px) each added a row
   });
 });

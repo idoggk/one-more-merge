@@ -163,6 +163,10 @@ export const TUNING = {
    *  Combos: Surge+Surge 3 rows, Bomb+Surge a row with +1 rank, Bomb+Bomb a 3x3 block with +1 rank. Turning the flag on in the QA panel also sets MERGE RULE to +1 BONUS. */
   tools: false,
   tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
+  /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
+   *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation
+   *  only: rules, supply and clock are untouched (src/game/mergeAssist.ts). Settings > MERGE ASSIST and a QA row set it. */
+  mergeAssist: 'off' as 'off' | 'on' | 'auto',
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
   sandwichOdShare: 1 / 3,
   /** PROTOTYPE (t-4208f149, rival study #2 "Think Bank"), default OFF (QA switch): once the player has not touched the
