@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import puzzleRaw from '../src/content/puzzles.json';
 import { LEVELS } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { drop, legalPairs, newLevel, newPuzzle, tick, type GameState, type PuzzleDef } from '../src/core/game';
+import { choosePerk, drop, legalPairs, newLevel, newPuzzle, tick, type GameState, type PuzzleDef } from '../src/core/game';
 import { stateHash } from '../src/core/roster4';
 
 type Off = boolean | string;
@@ -36,16 +36,46 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   mergeRule: ['today', 'sandwich merge rule: today | sandwich2 | sandwichBonus'],
   sameFamilyRelay: [false, 'false = bells never ring bells, coils never zap coils (TODAY rule; true would be a change)'],
   quietPassive: [false, 'pace block param: quiet auto-shot effect (copied from the CALM pace)'],
+  'optA3.fatigue': [false, 'option A3: merge-gap fatigue multiplier'],
+  'r5.dynMates': [false, 'Dynamo wakes the block\'s own parts too'],
 };
+// Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden
+// (see the 'TUNING defaults digest' test) fails on ANY change to a default, so such a flag forces a conscious golden update.
 // Merge-train flags (sandwich preview, budget levels, tools, yardPressure) are not on this branch yet: add one line each above
 // when they land, e.g.  tools: [false, 'power-up tools on the board'],
 
-/** Default-off keys found in TUNING: false booleans plus the registered off-valued modes. */
-const offKeys = () => Object.keys(TUNING).filter((k) => (TUNING as Record<string, unknown>)[k] === false);
+/** Keys may be dotted (`optA3.fatigue`) for a flag one level inside a TUNING block. */
+const getAt = (path: string): unknown => path.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], TUNING);
+const setAt = (path: string, v: unknown) => {
+  const ks = path.split('.');
+  const last = ks.pop()!;
+  const o = ks.reduce<Record<string, unknown>>((a, k) => a[k] as Record<string, unknown>, TUNING as unknown as Record<string, unknown>);
+  o[last] = v;
+};
+
+/** Default-off keys found in TUNING: false booleans at the top level and one level inside plain blocks. */
+const offKeys = () => {
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(TUNING)) {
+    if (v === false) out.push(k);
+    else if (v && typeof v === 'object' && !Array.isArray(v)) for (const [k2, v2] of Object.entries(v)) if (v2 === false) out.push(`${k}.${k2}`);
+  }
+  return out;
+};
+
+/** Stable text of the whole TUNING defaults (every key, nested, any type): any edit to a default, even a new non-boolean flag, changes it. */
+const stable = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(stable) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable((v as Record<string, unknown>)[k])])) : v;
+const tuningDigest = (): string => {
+  const text = JSON.stringify(stable(TUNING));
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return `${h.toString(16).padStart(8, '0')}:${text.length}`;
+};
 
 const OFF_STATE = () => Object.entries(FLAG_REGISTRY).map(([k, [v]]) => [k, v] as const);
 const resetFlags = () => {
-  for (const [k, v] of OFF_STATE()) (TUNING as Record<string, unknown>)[k] = v;
+  for (const [k, v] of OFF_STATE()) setAt(k, v);
 };
 afterEach(resetFlags);
 
@@ -65,26 +95,36 @@ const SCRIPT_LEVELS: [string, number][] = [
   ['L25', 25],
   ['L30-boss', 30],
 ];
-const STEPS = 60;
+const MAX_STEPS = 400; // a level normally ends (won / lost) well before this
+const AFTER_END = 8; // keep ticking this many steps after the end so the result state is hashed too
+const CHECK_EVERY = 5;
 const TICKS_PER_STEP = 45; // 2.25 s: long enough that Think Bank's 2 s grace shows
 
-/** Deterministic bot: let time pass, then merge the first legal pair. */
-function play(s: GameState, steps: number, ticks: number): string {
+/** Full hash: stateHash (which leaves out `support`) plus the Support card's own meter, which a flag could touch. */
+const fullHash = (s: GameState): string => `${stateHash(s)}/${JSON.stringify(s.support ?? null)}`;
+
+/** Deterministic bot: let time pass, take the first perk offered, merge the first legal pair; plays on until the end of the level (won / lost). */
+function play(s: GameState, maxSteps: number, ticks: number): string {
   const trail: string[] = [];
-  for (let i = 0; i < steps; i++) {
+  let endedAt = -1;
+  for (let i = 0; i < maxSteps; i++) {
     for (let k = 0; k < ticks; k++) tick(s, new Set());
+    if (s.phase === 'choice') choosePerk(s, s.offer[0]);
     const p = legalPairs(s)[0];
     if (p) drop(s, p[0], p[1], s.grid[p[0]]!.id);
-    if (i % 15 === 14) trail.push(stateHash(s));
+    if (i % CHECK_EVERY === CHECK_EVERY - 1) trail.push(fullHash(s));
+    if (endedAt < 0 && (s.phase === 'won' || s.phase === 'lost')) endedAt = i;
+    if (endedAt >= 0 && i - endedAt >= AFTER_END) break;
   }
-  trail.push(stateHash(s));
+  // The end-of-level result: phase, step it ended on, stats, perks and the final hash (what the reward is computed from).
+  trail.push(`end:${s.phase}@${endedAt}:${JSON.stringify(stable({ stats: s.stats, perks: s.perks, target: s.target }))}`, fullHash(s));
   return trail.join(',');
 }
 const daily = (puzzleRaw as unknown as { daily: PuzzleDef[] }).daily;
 export function runScript(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [label, n] of SCRIPT_LEVELS) out[label] = play(newLevel(lvl(n)), STEPS, TICKS_PER_STEP);
-  out['puzzle'] = play(newPuzzle(daily[0]), 8, 1);
+  for (const [label, n] of SCRIPT_LEVELS) out[label] = play(newLevel(lvl(n)), MAX_STEPS, TICKS_PER_STEP);
+  out['puzzle'] = play(newPuzzle(daily[0]), 40, 1);
   return out;
 }
 const GOLDEN = new URL('./golden/flagsOff.json', import.meta.url);
@@ -94,8 +134,8 @@ describe('flags-off golden guard', () => {
     const unlisted = offKeys().filter((k) => !(k in FLAG_REGISTRY));
     expect(unlisted, `unlisted default-false TUNING flags: ${unlisted.join(', ')} - add them to FLAG_REGISTRY in tests/flagsOff.test.ts`).toEqual([]);
     for (const [k, [off]] of Object.entries(FLAG_REGISTRY)) {
-      expect(k in TUNING, `registry lists ${k}, which is not in TUNING (remove or rename it)`).toBe(true);
-      expect((TUNING as Record<string, unknown>)[k], `${k} must default to its OFF value`).toBe(off);
+      expect(getAt(k) !== undefined, `registry lists ${k}, which is not in TUNING (remove or rename it)`).toBe(true);
+      expect(getAt(k), `${k} must default to its OFF value`).toBe(off);
     }
   });
 
@@ -110,12 +150,24 @@ describe('flags-off golden guard', () => {
 
   it('~12 levels + a puzzle with every flag OFF hash to the checked-in golden', () => {
     resetFlags();
-    const now = runScript();
+    const now = { ...runScript(), '_tuningDigest': tuningDigest() };
     if (process.env.OMM_UPDATE_GOLDEN) {
       writeFileSync(GOLDEN, JSON.stringify(now, null, 1) + '\n');
       return;
     }
-    expect(now).toEqual(JSON.parse(readFileSync(GOLDEN, 'utf8')));
+    const golden = JSON.parse(readFileSync(GOLDEN, 'utf8')) as Record<string, string>;
+    // TUNING defaults digest: any edit to a default (a new string / number / nested flag included) fails here until the golden is regenerated on purpose.
+    expect(now['_tuningDigest'], 'TUNING defaults changed: if intended, add the new flag to FLAG_REGISTRY and regenerate the golden').toBe(golden['_tuningDigest']);
+    expect(now).toEqual(golden);
+  });
+
+  it('probe: the bot plays each level through to its end (or the step cap), then hashes the result', () => {
+    const run = runScript();
+    const ends = Object.entries(run).map(([l, t]) => [l, /end:(\w+)@(-?\d+)/.exec(t)!] as const);
+    for (const [l, m] of ends) expect(m, l).toBeTruthy();
+    // most levels must reach won / lost; the number of checkpoints is large enough to cover late play
+    expect(ends.filter(([, m]) => m[2] !== '-1').length).toBeGreaterThanOrEqual(10);
+    for (const [l, t] of Object.entries(run)) expect(new Set(t.split(',')).size, `${l} hashes should keep changing`).toBeGreaterThan(3);
   });
 
   it('flipping a representative flag ON changes the hash (the guard can fail)', () => {
@@ -123,7 +175,7 @@ describe('flags-off golden guard', () => {
     const flips: [string, Off][] = [['optionA', true], ['thinkBank', true], ['mergeRule', 'sandwichBonus'], ['unitsB1', true]];
     let changed = 0;
     for (const [k, v] of flips) {
-      (TUNING as Record<string, unknown>)[k] = v;
+      setAt(k, v);
       const on = runScript();
       resetFlags();
       if (Object.keys(base).some((l) => on[l] !== base[l])) changed++;
