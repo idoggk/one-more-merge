@@ -26,6 +26,7 @@ import { TUNING } from '../../content/tuning';
 import { crateName, latchRollUp, popToolboxLatch, toolboxCrateKey, toolboxOn } from '../fx/toolboxCrates';
 import { pctB, pityView, guaranteeText } from '../../core/crateOdds';
 import { addOddsButton, showOddsPanel } from './oddsPanel';
+import { loopTween } from '../loopTween';
 import { addPortrait, crateArtReady, presentCrateToolbox } from './crateScreen';
 
 export function openUnitsTab(scene: GameScene) {
@@ -142,7 +143,7 @@ export function unitCard(scene: GameScene, u: UnitDef, x: number, y: number) {
     if (scene.canUpgrade(u)) {
       const up = scene.add.text(70, -112, '\u2191', { fontFamily: 'Arial Black', fontSize: '30px', color: '#ffffff', backgroundColor: '#5fbf4a', padding: { x: 8, y: 0 } }).setOrigin(0.5);
       cc.add(up);
-      scene.tweens.add({ targets: up, y: -118, duration: 500, yoyo: true, repeat: -1 });
+      loopTween(scene, { targets: up, y: -118, duration: 500, yoyo: true, repeat: -1 }, up);
     }
   } else {
     // UI audit: the loose Arial caption spilled past the frame onto '???'; it now sits in the same pill as the owned card's bar

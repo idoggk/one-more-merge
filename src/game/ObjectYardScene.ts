@@ -13,6 +13,7 @@ import { SCREW_COLORS } from './ScrewScene';
 import { sfx } from './audio';
 import { UNIT_NAMES, YARD_UNITS, yardReward, yardStars, type YardUnit } from '../content/yardObjects';
 import { shakeCamera } from './fx/shake';
+import { loopTween } from './loopTween';
 import { BoxMomentFx } from './fx/boxMomentFx';
 import { LAYERS } from './fx/boxMoment';
 
@@ -469,7 +470,7 @@ export class ObjectYardScene extends Phaser.Scene {
         const ring = this.add.graphics().lineStyle(6, 0x8ef08a, 1).strokeCircle(x, this.rowY, 34);
         this.ui.add(ring);
         this.live.add(ring);
-        this.tweens.add({ targets: ring, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
+        loopTween(this, { targets: ring, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 }, ring);
       }
     }
     const used = st.tray.length;
