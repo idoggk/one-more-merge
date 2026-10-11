@@ -46,6 +46,9 @@ interface Rig {
   sparks: Phaser.GameObjects.Image[];
   stamp: Phaser.GameObjects.Text;
   plus: Phaser.GameObjects.Text;
+  /** The running moment's tweens, stopped when it ends so a stale one can never drive the next moment on this rig. */
+  tween: Phaser.Tweens.Tween | null;
+  plusTween: Phaser.Tweens.Tween | Phaser.Tweens.TweenChain | null;
 }
 
 export function ensureBoxFxTextures(scene: Phaser.Scene) {
@@ -109,6 +112,8 @@ export class BoxMomentFx {
       sparks: Array.from({ length: SPARKS }, () => s.add.image(0, 0, 'bm_spark').setDepth(d + 1).setVisible(false)),
       stamp: s.add.text(0, 0, '✓', { fontFamily: 'Lilita One, Arial Black', fontSize: '110px', color: '#5fe05a', stroke: '#2b1d2e', strokeThickness: 14 }).setOrigin(0.5).setDepth(d + 2).setVisible(false),
       plus: s.add.text(0, 0, '+1 BOXES', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#8ef08a', stroke: '#2b1d2e', strokeThickness: 8 }).setOrigin(0.5).setDepth(d + 2).setVisible(false),
+      tween: null,
+      plusTween: null,
     };
   }
 
@@ -117,7 +122,7 @@ export class BoxMomentFx {
     const host = this.host;
     const scene = host.scene;
     const rm = prefersReducedMotion();
-    this.active.get(slot) && this.finish(slot);
+    this.finish(slot, false); // a repeat in the same slot ends the old moment (and its tweens) first, without a redraw
     const rig = this.free.pop() ?? this.makeRig();
     this.active.set(slot, rig);
     const { x, y } = host.pos(slot);
@@ -162,7 +167,7 @@ export class BoxMomentFx {
     };
     run(mom.start());
     const total = mom.times.total + 16;
-    scene.tweens.addCounter({
+    rig.tween = scene.tweens.addCounter({
       from: 0,
       to: total,
       duration: total,
@@ -180,8 +185,8 @@ export class BoxMomentFx {
     const at = this.host.counterAt();
     rig.plus.setPosition(at.x, at.y - 30).setAlpha(1).setScale(rm ? 1 : 0.5).setVisible(true);
     const tw = this.host.scene.tweens;
-    if (rm) tw.add({ targets: rig.plus, alpha: 0, delay: 320, duration: 160 });
-    else tw.chain({ targets: rig.plus, tweens: [{ scale: 1.2, duration: 110, ease: 'Back.Out' }, { scale: 1, y: at.y - 62, alpha: 0, duration: 360, ease: 'Quad.Out' }] });
+    if (rm) rig.plusTween = tw.add({ targets: rig.plus, alpha: 0, delay: 320, duration: 160 });
+    else rig.plusTween = tw.chain({ targets: rig.plus, tweens: [{ scale: 1.2, duration: 110, ease: 'Back.Out' }, { scale: 1, y: at.y - 62, alpha: 0, duration: 360, ease: 'Quad.Out' }] });
   }
 
   /** Put every display object at its pose for this moment of the animation (transforms only). */
@@ -205,10 +210,13 @@ export class BoxMomentFx {
     }
   }
 
-  private finish(slot: number) {
+  private finish(slot: number, redraw = true) {
     const rig = this.active.get(slot);
     if (!rig) return;
     this.active.delete(slot);
+    rig.tween?.stop();
+    rig.plusTween?.stop();
+    rig.tween = rig.plusTween = null;
     rig.oldC.setVisible(false);
     rig.newC.setVisible(false);
     rig.lid.setVisible(false);
@@ -217,7 +225,7 @@ export class BoxMomentFx {
     rig.stamp.setVisible(false);
     for (const sp of rig.sparks) sp.setVisible(false);
     this.free.push(rig);
-    this.host.redraw();
+    if (redraw) this.host.redraw();
   }
 }
 
