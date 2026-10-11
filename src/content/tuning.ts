@@ -53,7 +53,7 @@ export const TUNING = {
   clarity: true,
   rankMult: 2.25,
   // rocket = chain-only shooter, 1.3x a cannon full shot (r14 said 1.5; sim: 1.5 beat Cannon teams by ~12% clear time)
-  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18, robot_arm: 12, tilt_lever: 0, rivet_gun: 10, vice: 3, router: 3, hydraulic_press: 12, lathe: 9 } as Record<string, number>,
+  base: { cannon: 10, coil: 4, bell: 3, magnet: 0, battery: 0, fan: 0, rocket: 13, mortar: 11, arc_welder: 10, horn: 3, fuse_box: 4, amplifier: 0, signal_beacon: 0, nail_gun: 9, jackhammer: 12, gear: 3, saw_blade: 10, wrench: 0, piston: 9, spring: 3, belt_drive: 3, blowtorch: 12, pipe: 3, blast_plate: 0, tesla_tower: 13, capacitor: 6, ladder: 8, blueprint: 0, rewind_crank: 0, crane: 8, dynamo: 3, wrecking_ball: 18, robot_arm: 12, tilt_lever: 0, rivet_gun: 10, vice: 3, router: 3, hydraulic_press: 12, lathe: 9, row_surge: 0, gear_bomb: 0 } as Record<string, number>,
   cannonPeriod: 3.0,
   cannonPeriodOverdrive: 0.8,
   coilChargePerRank: 0.35,
@@ -156,6 +156,13 @@ export const TUNING = {
     need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16, blast_plate: 10, blueprint: 10, rewind_crank: 10 } as Record<string, number>,
     prime: 2, primeL3: 2.5, mark: 1.6, markL3: 2, goKick: 1.3,
   },
+  /** PROTOTYPE (t-e2a48327, src/core/tools.ts), default OFF (QA row POWER TOOLS): a player merge that fires `chain`+ machines also makes a ROW SURGE,
+   *  a sandwich merge also makes a GEAR BOMB (a board part, tapped once; no randomness: first free cell nearest the merge, else the tray). At most `maxBoard`
+   *  tools on the board + tray, `perLevel` made on a capped-merge level (state.toolCap), none before level `fromLevel` and never in puzzles / drills / daily /
+   *  bounties / boss rush. Surge wakes a row; Bomb wakes the 4 touching parts and each machine it wakes hits as if +`effectRank` rank (hit calc only).
+   *  Combos: Surge+Surge 3 rows, Bomb+Surge a row with +1 rank, Bomb+Bomb a 3x3 block with +1 rank. Turning the flag on in the QA panel also sets MERGE RULE to +1 BONUS. */
+  tools: false,
+  tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
   sandwichOdShare: 1 / 3,
   /** PROTOTYPE (t-4208f149, rival study #2 "Think Bank"), default OFF (QA switch): once the player has not touched the

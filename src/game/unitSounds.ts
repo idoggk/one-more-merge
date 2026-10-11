@@ -43,6 +43,9 @@ export const UNIT_SOUND: Record<Family, (at: number, rank: number) => void> = {
   router: (at) => sfx.roster7('router', at),
   hydraulic_press: (at) => sfx.roster7('hydraulic_press', at),
   lathe: (at) => sfx.roster7('lathe', at),
+  // power tools (TUNING.tools): reuse the zap / gear-ratchet voices; the staircase and wind-up live in toolFx.ts
+  row_surge: (at) => sfx.zap(at),
+  gear_bomb: (at) => sfx.roster1('gear', at),
 };
 
 /** Sounds for one presentation beat: each family that fires in it plays once (the first one's rank). */

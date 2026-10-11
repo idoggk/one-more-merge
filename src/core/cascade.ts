@@ -195,6 +195,8 @@ export interface CascadeOpts {
   /** Roster 5 Crane LIFT: a Crane woken in this cascade may lift a part onto its twin (once; the caller allows it once per level). `can` = the merge
    *  rule (same family and rank, rank cap), `rank` = the rank of the merged part. Given only for your own merges (never previews of other cascades). */
   crane?: { can: (a: Gadget, b: Gadget) => boolean; rank: (a: Gadget) => number; reach?: number };
+  /** TUNING.tools Gear Bomb: the machines woken directly by the tool (depth 0) hit as if this many ranks higher (hit calc only; rank perks and reach use the real rank). */
+  effectRank?: number;
 }
 
 /**
@@ -336,6 +338,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   const enqueue = (from: number, to: number, depth: number) => {
     if (visited.has(to)) return;
     const g = grid[to]!;
+    if (g.tool) return; // TUNING.tools: a tool is a board part, never a machine: nothing wakes it
     visited.set(to, { id: g.id, idx: to, family: g.family, rank: g.rank, depth, parent: from, charge: 1, contribution: 0 });
     queue.push(to);
   };
@@ -343,12 +346,14 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   visited.set(rootIdx, { id: root.id, idx: rootIdx, family: root.family, rank: effectiveRank(root.rank, opts.rankBonus ?? 0), depth: 0, parent: -1, charge: 1, contribution: 0 });
   queue.push(rootIdx);
   for (const n of opts.roots ?? []) {
-    if (!grid[n] || visited.has(n)) continue;
+    if (!grid[n] || grid[n]!.tool || visited.has(n)) continue;
     visited.set(n, { id: grid[n]!.id, idx: n, family: grid[n]!.family, rank: grid[n]!.rank, depth: 0, parent: -1, charge: 1, contribution: 0 });
     queue.push(n);
   }
 
-  const lockedSet = opts.locked ?? new Set<number>();
+  // TUNING.tools: tool cells are locked for machines (never woken, never pulled / pushed, block rays)
+  const toolCells = input.flatMap((g, i) => (g?.tool ? [i] : []));
+  const lockedSet = toolCells.length ? new Set([...(opts.locked ?? []), ...toolCells]) : (opts.locked ?? new Set<number>());
   const blockSet = new Set([...(opts.reserved ?? []), ...lockedSet]);
   // roster4 Capacitor HOLD: the releasing Capacitor is an extra root at depth 0 (a Capacitor you merged yourself is the root already)
   if (opts.capRelease) {
@@ -901,6 +906,7 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
   // roster2 Wrench: its rank bonus counts in full for rank perks and reach, but only r2.wrenchDmg of it for the hit
   const wrenchCut = opts.rankBonus ? Math.pow(TUNING.rankMult, -(visited.get(rootIdx)!.rank - root.rank) * (1 - TUNING.r2.wrenchDmg)) : 1;
   let sum = 0;
+  const toolRank = (a: Activation) => (opts.effectRank && a.depth === 0 ? opts.effectRank : 0); // TUNING.tools Gear Bomb: +rank for the hit only
   const relayCells = acts.some((x) => x.family === 'tesla_tower') ? acts.filter((x) => isRelay(x.family)).map((x) => x.idx) : []; // roster3 Tesla STORM: the relays that fired
   for (const a of acts) {
     a.charge = charge.get(a.idx) ?? 1;
@@ -953,11 +959,11 @@ export function resolveCascade(input: Grid, rootIdx: number, opts: CascadeOpts):
       Object.assign(jobs, r3j);
       const job = Object.values(jobs).reduce((m, x) => m * x, 1) * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }); // roster1 Nail Gun ROW / Jackhammer BYPASS (beat) / Saw Blade EDGE
       if (Object.keys(jobs).length) a.jobs = jobs;
-      a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * own * job * amp * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1);
+      a.contribution = rawDamage(a.family, a.rank + toolRank(a)) * a.charge * perk * prime * hot * oc * own * job * amp * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1);
       sum += a.contribution;
       continue;
     }
-    a.contribution = rawDamage(a.family, a.rank) * a.charge * perk * prime * hot * oc * deep * amp * ms * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }) * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1) * r3;
+    a.contribution = rawDamage(a.family, a.rank + toolRank(a)) * a.charge * perk * prime * hot * oc * deep * amp * ms * roster1Mult(a, grid, { level: lvl(a.family), nth: nthOf.get(a.id) ?? 0, gearKick: gearKicked.has(a.idx) }) * (opts.unitMult?.[a.family] ?? 1) * (pistonAt.get(a.id) ?? 1) * (beltKick.has(a.id) ? TUNING.r2.beltL9 : 1) * (a.id === root.id ? wrenchCut : 1) * r3;
     sum += a.contribution;
   }
   const encore = opts.perks.includes('encore');

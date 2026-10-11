@@ -1,5 +1,6 @@
 import { applyItem, choosePerk, deserialize, drop, finishTutorial, restartBossFuse, scrap, serialize, tick, useTimeCapsule, type GameEvent, type GameState } from './game';
 import { useSupport } from './support';
+import { useTool } from './tools';
 import type { PerkId } from './types';
 
 /** r43 run log (best-chain replay; later a "challenge a friend" link): the state the run started from plus every
@@ -16,6 +17,8 @@ export type RunAction =
   | { t: number; k: 'fuse' }
   /** TUNING.rosterB Support card tap (axis 1 = column, for Signal Beacon GO). */
   | { t: number; k: 'support'; cell: number; axis: 0 | 1 }
+  /** TUNING.tools: a tool tapped (`with` = the partner tool of a combo). */
+  | { t: number; k: 'tool'; idx: number; id: number; with?: number }
   | { t: number; k: 'hold'; cells: number[] };
 
 export interface RunLog {
@@ -58,6 +61,8 @@ export function applyCommand(s: GameState, a: Cmd | RunAction): { ok: boolean; e
       return { ok: true, events: [] };
     case 'support':
       return useSupport(s, a.cell, a.axis ? 'col' : 'row');
+    case 'tool':
+      return useTool(s, a.idx, a.id, a.with);
   }
 }
 
@@ -115,7 +120,7 @@ export function replayRun(log: RunLog, upTo = log.actions.length, onTick?: (s: G
 
 // ---------- compact text encoding (reusable for a later share link; not sent anywhere now) ----------
 
-const K = { drop: 'D', scrap: 'S', item: 'I', perk: 'P', capsule: 'C', tutorial: 'U', fuse: 'F', hold: 'H', support: 'G' } as const;
+const K = { drop: 'D', scrap: 'S', item: 'I', perk: 'P', capsule: 'C', tutorial: 'U', fuse: 'F', hold: 'H', support: 'G', tool: 'T' } as const;
 const KR = Object.fromEntries(Object.entries(K).map(([a, b]) => [b, a])) as Record<string, RunAction['k']>;
 
 /** Actions as one short string: `<dt base36><KIND letter><args base36, comma-joined>` joined by `;` (dt = ticks since the previous action). */
@@ -126,7 +131,7 @@ export function encodeActions(actions: RunAction[]): string {
       const dt = (a.t - prev).toString(36);
       prev = a.t;
       const args =
-        a.k === 'drop' ? [a.from, a.to, a.id] : a.k === 'scrap' || a.k === 'item' ? [a.idx, a.id] : a.k === 'perk' ? [a.perk] : a.k === 'hold' ? a.cells : a.k === 'support' ? [a.cell + 1, a.axis] : [];
+        a.k === 'drop' ? [a.from, a.to, a.id] : a.k === 'scrap' || a.k === 'item' ? [a.idx, a.id] : a.k === 'perk' ? [a.perk] : a.k === 'hold' ? a.cells : a.k === 'support' ? [a.cell + 1, a.axis] : a.k === 'tool' ? [a.idx, a.id, a.with === undefined ? 0 : a.with + 1] : [];
       return dt + K[a.k] + args.map((x) => (typeof x === 'number' ? x.toString(36) : x)).join(',');
     })
     .join(';');
@@ -137,7 +142,7 @@ export function decodeActions(text: string): RunAction[] | null {
   const out: RunAction[] = [];
   let t = 0;
   for (const part of text.split(';')) {
-    const m = /^([0-9a-z]+)([DSIPCUFHG])(.*)$/.exec(part);
+    const m = /^([0-9a-z]+)([DSIPCUFHGT])(.*)$/.exec(part);
     if (!m) return null;
     t += parseInt(m[1], 36);
     const k = KR[m[2]];
@@ -148,6 +153,7 @@ export function decodeActions(text: string): RunAction[] | null {
     else if (k === 'perk') out.push({ t, k, perk: args[0] as PerkId });
     else if (k === 'hold') out.push({ t, k, cells: n });
     else if (k === 'support') out.push({ t, k, cell: n[0] - 1, axis: n[1] ? 1 : 0 });
+    else if (k === 'tool') out.push({ t, k, idx: n[0], id: n[1], ...(n[2] ? { with: n[2] - 1 } : {}) });
     else out.push({ t, k } as RunAction);
     if (Object.values(out[out.length - 1]).some((v) => typeof v === 'number' && Number.isNaN(v))) return null;
   }

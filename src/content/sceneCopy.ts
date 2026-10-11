@@ -1,5 +1,6 @@
 import type { Family, ItemKind } from '../core/types';
 import { liveCopy } from './perks';
+import { TOOL_GUIDE } from './tools';
 
 // Static text tables shown by GameScene (moved out of GameScene.ts; GameScene re-exposes them as statics).
 
@@ -62,7 +63,7 @@ const GUIDE_TODAY: GuideRow[] = [
   { key: 'overdrive', title: 'OVERDRIVE', role: 'SPECIAL', text: 'Merges fill the OVERDRIVE meter at the top (in some modes, chain links do). Full: OVERDRIVE! For a few seconds your Cannons fire super fast, every chain hits x1.5 and the board glows orange. Then the meter starts again.', tryThis: 'When the meter is one short, save a big merge for it.', unlock: 0 },
 ];
 /** Guide pages; unit pages follow the QA UNITS experiment (perks.ts unitsCopy). */
-export const GUIDE: GuideRow[] = GUIDE_TODAY.map((g) => liveCopy(g.key, g));
+export const GUIDE: GuideRow[] = [...GUIDE_TODAY, ...TOOL_GUIDE].map((g) => liveCopy(g.key, g));
 
 /** Relays that reach past the 4 touching cells, by plural name (x_chain names only the ones on the board). */
 const RELAY_PLURAL: Partial<Record<Family, string>> = { coil: 'Coils', bell: 'Bells', horn: 'Horns', fuse_box: 'Fuse Boxes' };
