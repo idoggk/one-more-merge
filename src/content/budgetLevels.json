@@ -1,0 +1,380 @@
+{
+  "levels": [
+    {
+      "id": "last6",
+      "name": "LAST 6",
+      "level": 6,
+      "monster": "toaster_twins",
+      "visual": "colander_clatter",
+      "merge_budget": 6,
+      "hp": 600,
+      "board": [
+        [
+          "cannon",
+          3,
+          0,
+          3
+        ],
+        [
+          "cannon",
+          2,
+          1,
+          4
+        ],
+        [
+          "coil",
+          2,
+          2,
+          2
+        ],
+        [
+          "bell",
+          2,
+          5,
+          2
+        ],
+        [
+          "coil",
+          1,
+          3,
+          1
+        ],
+        [
+          "coil",
+          1,
+          3,
+          2
+        ],
+        [
+          "cannon",
+          2,
+          2,
+          0
+        ],
+        [
+          "cannon",
+          1,
+          2,
+          4
+        ],
+        [
+          "cannon",
+          1,
+          2,
+          1
+        ],
+        [
+          "bell",
+          1,
+          5,
+          0
+        ],
+        [
+          "bell",
+          1,
+          4,
+          4
+        ],
+        [
+          "cannon",
+          3,
+          0,
+          1
+        ]
+      ],
+      "star_spare": [
+        1,
+        2
+      ],
+      "solution": [
+        [
+          9,
+          10
+        ],
+        [
+          1,
+          10
+        ],
+        [
+          16,
+          17
+        ],
+        [
+          17,
+          12
+        ]
+      ],
+      "planner": {
+        "best_damage": 801,
+        "min_merges": 4,
+        "greedy_damage": 477,
+        "hp_share": 0.749
+      },
+      "note": "Coil-then-bells: the coil pair and the bell pair in the middle only pay off when they are merged in the right order."
+    },
+    {
+      "id": "last8",
+      "name": "LAST 8",
+      "level": 17,
+      "monster": "mad_fridge",
+      "visual": "sock_cyclops",
+      "merge_budget": 8,
+      "hp": 1588,
+      "board": [
+        [
+          "cannon",
+          3,
+          0,
+          0
+        ],
+        [
+          "cannon",
+          3,
+          3,
+          0
+        ],
+        [
+          "cannon",
+          1,
+          5,
+          4
+        ],
+        [
+          "cannon",
+          1,
+          1,
+          2
+        ],
+        [
+          "coil",
+          2,
+          4,
+          0
+        ],
+        [
+          "coil",
+          1,
+          1,
+          4
+        ],
+        [
+          "cannon",
+          1,
+          2,
+          1
+        ],
+        [
+          "cannon",
+          1,
+          2,
+          2
+        ],
+        [
+          "bell",
+          2,
+          2,
+          4
+        ],
+        [
+          "bell",
+          2,
+          4,
+          1
+        ],
+        [
+          "coil",
+          1,
+          5,
+          2
+        ],
+        [
+          "coil",
+          2,
+          4,
+          3
+        ],
+        [
+          "cannon",
+          2,
+          4,
+          4
+        ],
+        [
+          "cannon",
+          2,
+          5,
+          1
+        ]
+      ],
+      "star_spare": [
+        1,
+        1
+      ],
+      "solution": [
+        [
+          7,
+          11
+        ],
+        [
+          11,
+          24
+        ],
+        [
+          0,
+          24
+        ],
+        [
+          12,
+          29
+        ],
+        [
+          29,
+          26
+        ],
+        [
+          15,
+          26
+        ],
+        [
+          24,
+          26
+        ]
+      ],
+      "planner": {
+        "best_damage": 2118,
+        "min_merges": 7,
+        "greedy_damage": 1178,
+        "hp_share": 0.75
+      },
+      "note": "A ladder of rank-1 cannons climbs to one big hit; the ready-made pairs are decoys that spend merges for less."
+    },
+    {
+      "id": "last10",
+      "name": "LAST 10",
+      "level": 31,
+      "monster": "toaster_twins",
+      "visual": "pixel_pug",
+      "merge_budget": 10,
+      "hp": 1788,
+      "board": [
+        [
+          "cannon",
+          1,
+          1,
+          4
+        ],
+        [
+          "cannon",
+          1,
+          0,
+          1
+        ],
+        [
+          "coil",
+          1,
+          0,
+          2
+        ],
+        [
+          "coil",
+          1,
+          0,
+          4
+        ],
+        [
+          "cannon",
+          1,
+          1,
+          0
+        ],
+        [
+          "bell",
+          2,
+          1,
+          2
+        ],
+        [
+          "cannon",
+          2,
+          2,
+          2
+        ],
+        [
+          "cannon",
+          2,
+          3,
+          0
+        ],
+        [
+          "bell",
+          2,
+          2,
+          3
+        ],
+        [
+          "cannon",
+          3,
+          3,
+          2
+        ],
+        [
+          "cannon",
+          3,
+          5,
+          1
+        ],
+        [
+          "bell",
+          1,
+          4,
+          0
+        ],
+        [
+          "bell",
+          1,
+          4,
+          1
+        ],
+        [
+          "cannon",
+          4,
+          5,
+          0
+        ]
+      ],
+      "star_spare": [
+        1,
+        3
+      ],
+      "solution": [
+        [
+          15,
+          12
+        ],
+        [
+          26,
+          12
+        ],
+        [
+          25,
+          12
+        ],
+        [
+          13,
+          7
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "planner": {
+        "best_damage": 2385,
+        "min_merges": 5,
+        "greedy_damage": 1431,
+        "hp_share": 0.75
+      },
+      "note": "Ten merges for a ladder, a coil row and a bell pair: every merge that does not build toward the top hit is a merge wasted."
+    }
+  ]
+}

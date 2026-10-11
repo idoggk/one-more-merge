@@ -42,6 +42,8 @@ export interface LevelDef {
   /** r27 mid-chapter mini-boss id (BOSSES entry with mini: true). */
   mini_boss?: string;
   item_grant_at?: number;
+  /** LAST MERGES (TUNING.mergeBudget, src/core/budget.ts): the level is won in this many committed merges, no clock. No real level sets it. */
+  merge_budget?: number;
   teach?: { start: [string, number, number, number][]; bag?: Record<string, number>; no_kickback?: boolean; no_overdrive?: boolean; lesson: string };
 }
 

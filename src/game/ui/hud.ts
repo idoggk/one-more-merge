@@ -7,6 +7,7 @@ import { setMusicIntensity, setMusicMode, sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { META_KEY } from '../../platform/backup';
 import { BOSSES } from '../../core/boss';
+import { budgetChase } from '../../core/budget';
 import { itemFits } from '../../core/types';
 import { PALETTE } from '../../core/marks';
 import { recordCommand } from '../../core/replay';
@@ -27,7 +28,7 @@ export function drawHud(scene: GameScene, dms: number) {
     scene.headerText.setFontSize(fs);
     while (scene.headerText.width > 276 && fs > 18) scene.headerText.setFontSize((fs -= 2));
   }
-  scene.headerText.setText(demo ? 'WARM-UP' : s.puzzle ? `${scene.puzzleKind === 'drill' ? 'DRILL' : 'PUZZLE'}  \u00b7  WIN IN ${s.puzzle.moves}` : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : s.endless ? `FLOOR ${s.endless}` : `L${s.level}`} \u00b7 ${scene.realBoss ? (BOSSES[scene.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : scene.s.goal ? 'GOAL' : scene.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
+  scene.headerText.setText(demo ? 'WARM-UP' : s.puzzle?.budget ? `LAST ${s.puzzle.moves}  ·  ${scene.monName(true)}` : s.puzzle ? `${scene.puzzleKind === 'drill' ? 'DRILL' : 'PUZZLE'}  \u00b7  WIN IN ${s.puzzle.moves}` : s.level !== undefined ? `${s.rush ? `RUSH ${s.rush.slot + 1}/3` : s.bounty ? 'BOUNTY' : s.endless ? `FLOOR ${s.endless}` : `L${s.level}`} \u00b7 ${scene.realBoss ? (BOSSES[scene.realBoss.def].mini ? 'MINI-BOSS' : 'BOSS') : scene.s.goal ? 'GOAL' : scene.monName(true)}` : s.remix ? TARGET_NAMES[s.target] : `${Math.min(s.target + 1, 3)}/3 ${TARGET_NAMES[Math.min(s.target, 2)]}`);
   // Time Capsule (dynamic resource, levels 4+): +15s once per attempt while the clock runs
   const capOk = s.level !== undefined && s.level >= BOOSTER_UNLOCK.time_capsule && (scene.meta.capsules ?? 0) > 0 && !s.capsuleUsed && s.phase === 'playing';
   if (capOk && !scene.capsuleBtn) {
@@ -104,8 +105,9 @@ export function drawHud(scene: GameScene, dms: number) {
     scene.starChase.setVisible(!!goal);
   } else if (s.puzzle && s.phase === 'playing') {
     // r42: the puzzle's rule lives where the star chase usually is
-    const rule = s.puzzle.only ? `ONLY: ${s.puzzle.only.map((f) => FAMILY_INFO[f as 'cannon'].name.toUpperCase().replace('SIGNAL ', '')).join(' + ')}` : 'ANY MERGE';
-    if (scene.starChase.text !== rule) textColor(scene.starChase.setText(rule), '#d9c2ff');
+    const chase = budgetChase(s);
+    const rule = chase ? `${chase.stars}★ · win in ${chase.within} merge${chase.within === 1 ? '' : 's'}` : s.puzzle.only ?`ONLY: ${s.puzzle.only.map((f) => FAMILY_INFO[f as 'cannon'].name.toUpperCase().replace('SIGNAL ', '')).join(' + ')}` : 'ANY MERGE';
+    if (scene.starChase.text !== rule) textColor(scene.starChase.setText(rule), chase ? (chase.within <= 1 ? '#ff8a5c' : '#ffcf33') : '#d9c2ff');
     scene.starChase.setVisible(true);
   } else scene.starChase.setVisible(false);
   const hudA = scene.time.now < scene.bannerUntil ? Math.max(0, scene.starChase.alpha - dms / 120) : Math.min(1, scene.starChase.alpha + dms / 250);
@@ -331,7 +333,8 @@ export function drawClock(scene: GameScene, hidden: boolean) {
   const r = scene.clockRing.clear();
   scene.clockBase.setVisible(false);
   const sc = s.stage ? scene.stageCount() : undefined;
-  if (scene.mergesLeftLabel.visible !== !!s.puzzle) scene.mergesLeftLabel.setVisible(!!s.puzzle).setY(HP_Y - 52);
+  if (scene.mergesLeftLabel.visible !== !!s.puzzle) scene.mergesLeftLabel.setVisible(!!s.puzzle);
+  if (s.puzzle) scene.mergesLeftLabel.setY(HP_Y - (s.puzzle.budget ? 62 : 52));
   // puzzles set the pips to merges-left below: skip this text so it isn't re-rendered twice every frame
   if (!s.puzzle) scene.stagePips.setText(sc ? `${sc.goal ? 'GOAL' : `${sc.at}/${sc.n}`}` : '').setVisible(!!sc && !hidden);
   if (sc) {
@@ -341,8 +344,9 @@ export function drawClock(scene: GameScene, hidden: boolean) {
     // r42 puzzles: no time; the ring shows merges left
     scene.timerText.setText('');
     const left = s.puzzle.moves - s.puzzle.used;
-    r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, 50).fillStyle(0x8e58c9, 1).fillCircle(CLOCK_X, HP_Y, 40);
-    scene.stagePips.setText(`${left}`).setVisible(true).setPosition(CLOCK_X, HP_Y).setFontSize(44);
+    const bud = !!s.puzzle.budget; // LAST MERGES: the big ring where the clock is, red on the last merge
+    r.fillStyle(0x2b1d2e, 1).fillCircle(CLOCK_X, HP_Y, bud ? 58 : 50).fillStyle(bud && left <= 1 ? 0xe8452c : 0x8e58c9, 1).fillCircle(CLOCK_X, HP_Y, bud ? 48 : 40);
+    scene.stagePips.setText(`${left}`).setVisible(true).setPosition(CLOCK_X, HP_Y).setFontSize(bud ? 60 : 44);
     return;
   }
   scene.stagePips.setPosition(W - CLOCK_X, HP_Y).setFontSize(30);

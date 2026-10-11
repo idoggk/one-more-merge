@@ -149,7 +149,9 @@ export interface GameState {
   rush?: { id: string; slot: number; week: number };
   /** r42 WORKSHOP PUZZLE (Ido: "like a chess puzzle - win in X moves"): merges allowed, used so far. No clock, no
    *  supply, no passive fire, no kickback: the board is fully known and only merges act. */
-  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean };
+  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean;
+    /** TUNING.mergeBudget LAST MERGES level (src/core/budget.ts): same engine, saga look. `spare` = merges for 2 / 3 stars; `look` = the machine drawn. */
+    budget?: { spare: [number, number]; look: { level: number; visual?: string; monster: string } } };
   /** r40 Endless Road floor this state plays (presentation + rewards only). */
   endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */

@@ -25,6 +25,7 @@ import { BOUNTY_BOLTS, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT } fr
 import { localDate, store } from '../meta';
 import { FEATURE_INFO } from '../unlocks';
 import type { GameScene } from '../GameScene';
+import { openBudgetResult } from './budget';
 import { W, REDUCED_MOTION, TROPHY_AT, TROPHY_SHELF, YARD_UNLOCK, H, fmt, PUZZLES } from '../sceneKit';
 import { fitLine, soCloseText } from '../fx/soClose';
 import { goalDoneText, chapterChestText } from '../../content/sceneCopy';
@@ -37,6 +38,7 @@ export function openResult(scene: GameScene, won: boolean) {
   if (scene.s.rush) return scene.openRushResult(won);
   if (scene.s.bounty) return scene.openBountyResult(won);
   if (scene.s.endless) return scene.openEndlessResult(won);
+  if (scene.s.puzzle?.budget) return openBudgetResult(scene, won);
   if (scene.s.puzzle) return scene.openPuzzleResult(won);
   if (scene.s.level !== undefined) return scene.playBestChain(() => scene.openLevelResult(won));
   const s = scene.s;
