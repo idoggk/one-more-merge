@@ -27,6 +27,7 @@ const add = (e) => entries.push({ rank: undefined, notes: '', ...e });
 // ---- art files -------------------------------------------------------------------------------------------------
 const famRe = new RegExp(`^(${FAMILIES.join('|')})_(\\d+)$`);
 const hmRe = new RegExp(`^hm_(${FAMILIES.join('|')})_(\\d+)$`);
+const unitPicRe = new RegExp(`^unit_(${FAMILIES.join('|')})$`);
 const unclassified = [];
 
 /** Ordered filename rules -> [category, subcategory]. First match wins. */
@@ -75,6 +76,10 @@ for (const file of files) {
   }
   if ((m = id.match(hmRe))) {
     add({ id, category: 'units', subcategory: `hero-machine-${m[1]}`, name: `Hero machine ${title(m[1])} ${m[2]}`, rank: +m[2], file: rel, status: 'draft', source: 'chatgpt' });
+    continue;
+  }
+  if ((m = id.match(unitPicRe))) {
+    add({ id, category: 'units', subcategory: m[1], name: `${title(m[1])} picture`, file: rel, status: 'draft', source: 'chatgpt', notes: 'one picture for every rank (unitArt.ts)' });
     continue;
   }
   const rule = RULES.find(([re]) => re.test(id));

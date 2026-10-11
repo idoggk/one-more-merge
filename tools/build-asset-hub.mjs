@@ -102,6 +102,7 @@ function render(){
   if(r.k==='unit'){
     var list=(unitFamilies()[r.v]||[]).sort(function(a,b){return a.rank-b.rank});
     h+='<span class="back" data-go="cat=units">&larr; Units</span><h2>'+esc(r.v.replace(/_/g,' '))+'</h2><div class="sub">'+count(list).final+' of '+list.length+' ranks final. Every rank:</div>'+grid(list);
+    var up=DATA.filter(function(a){return a.id==='unit_'+r.v});if(up.length)h+='<div class="sec">Unit picture</div>'+grid(up);
     var hm=DATA.filter(function(a){return a.subcategory==='hero-machine-'+r.v});if(hm.length)h+='<div class="sec">Hero machine</div>'+grid(hm);
     var jb=DATA.filter(function(a){return a.id==='job_'+r.v});if(jb.length)h+='<div class="sec">Job icon</div>'+grid(jb);
   }else if(r.k==='needs'){
