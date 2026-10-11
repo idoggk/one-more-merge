@@ -1,0 +1,15 @@
+{
+  "id": "spring", "name": "Spring", "noun": "a bouncy coil SPRING on a stand", "role": "relay", "rarity": "Common",
+  "color": "#7ac060", "colorName": "fresh green",
+  "axis": "Axis: coil turns and twin springs (2, 3, 4 coils, then side springs), then a second tier, a crystal ball, a crown cage.",
+  "ranks": [
+    "A short fat fresh-green coil spring (two thick coils) standing on a cream plate with a small grey steel cap on top.",
+    "Rank 1 taller: three thick coils.",
+    "Rank 2 taller again: four thick coils, thin brass rings on the cap, brass feet on the plate.",
+    "Rank 3 plus a second, shorter green spring standing on the right side of it (twin springs).",
+    "Rank 4 plus a third, shorter green spring on the left side (symmetrical) and a small gold arrow pointing up on the main cap.",
+    "Rank 5 plus a second, smaller green spring stacked on top of the tall one, with a larger gold upward arrow on its cap.",
+    "Rank 6 where the top cap is a blue-white crystal ball clearly WIDER than the spring, with a gold ring.",
+    "Rank 7 plus a gold crown-shaped cage around the crystal ball, two gold fins at the sides and a small ornate gold and white plate. The most impressive machine on the sheet, still clean."
+  ]
+}

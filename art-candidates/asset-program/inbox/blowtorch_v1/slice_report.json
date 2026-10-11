@@ -1,0 +1,121 @@
+{
+ "sheet": "art-candidates/asset-program/inbox/blowtorch_sheet_v1.png",
+ "cols": 4,
+ "rows": 2,
+ "objects": [
+  {
+   "file": "blowtorch_1",
+   "srcBox": [
+    54,
+    100,
+    340,
+    449
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    287,
+    350
+   ]
+  },
+  {
+   "file": "blowtorch_2",
+   "srcBox": [
+    437,
+    100,
+    721,
+    448
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    285,
+    349
+   ]
+  },
+  {
+   "file": "blowtorch_3",
+   "srcBox": [
+    795,
+    100,
+    1094,
+    450
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    300,
+    351
+   ]
+  },
+  {
+   "file": "blowtorch_4",
+   "srcBox": [
+    1155,
+    99,
+    1506,
+    452
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    352,
+    354
+   ]
+  },
+  {
+   "file": "blowtorch_5",
+   "srcBox": [
+    41,
+    598,
+    367,
+    945
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    327,
+    348
+   ]
+  },
+  {
+   "file": "blowtorch_6",
+   "srcBox": [
+    427,
+    484,
+    745,
+    946
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    319,
+    463
+   ]
+  },
+  {
+   "file": "blowtorch_7",
+   "srcBox": [
+    801,
+    481,
+    1120,
+    953
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    320,
+    473
+   ]
+  },
+  {
+   "file": "blowtorch_8",
+   "srcBox": [
+    1157,
+    468,
+    1510,
+    966
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    354,
+    499
+   ]
+  }
+ ],
+ "speckComponentsDropped": 0,
+ "areaRatioSmallestToLargest": 0.52
+}

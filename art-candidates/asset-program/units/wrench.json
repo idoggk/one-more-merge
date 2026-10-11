@@ -1,0 +1,16 @@
+{
+  "id": "wrench", "name": "Wrench", "noun": "a big WRENCH TOOL (a support card unit) standing in a cream plate holder", "role": "support", "rarity": "Common",
+  "color": "#c8a050", "colorName": "polished tan brass",
+  "axis": "Axis: jaws and heads (1, 2), then grip and adjuster, a ratchet head, a crossed second wrench, a crystal nut, a crown ring.",
+  "colourLine": "polished tan brass (#c8a050) is the main colour of the tool at EVERY rank (at least 55 percent). Trim, rivets and grips are dark steel grey and warm orange rubber, not more gold. The tool is the hero, not the plate.",
+  "ranks": [
+    "A plain tan brass open-end wrench standing upright in a small cream plate holder.",
+    "Rank 1 plus a second open jaw at the other end (a double-ended wrench), the two heads at different angles.",
+    "Rank 2 plus an orange rubber grip on the handle, thin steel rings, steel feet on the plate.",
+    "Rank 3 with a larger head that has an adjustable moving jaw and a steel thumb wheel (adjustable wrench).",
+    "Rank 4 plus a round ratchet gear head at the bottom end with a small glowing core.",
+    "Rank 5 plus a second, smaller wrench crossed behind the first in an X shape.",
+    "Rank 6 plus a big blue-white crystal hex nut held in the jaws, clearly WIDER than the wrench head.",
+    "Rank 7 plus a gold crown-shaped ring around the crossed wrenches and a small ornate gold and white plate. The most impressive tool on the sheet, still clean."
+  ]
+}

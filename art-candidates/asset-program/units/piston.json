@@ -1,0 +1,16 @@
+{
+  "id": "piston", "name": "Piston (re-run with template v4)", "noun": "a PNEUMATIC PISTON PUNCH", "role": "shooter", "rarity": "Common",
+  "color": "#d05a3a", "colorName": "rust red",
+  "axis": "Axis: number of horizontal pistons (1, 2, 3, 4), then exhaust stacks, a second tier, a crystal tank, a crown manifold.",
+  "identity": "a rust-red block-shaped body on a cream plate with LONG GREY STEEL HORIZONTAL PISTONS poking out of its front and sides, like a chunky toy of punching rods. It must NOT look like a vertical hydraulic press.",
+  "ranks": [
+    "A rust-red block body with rounded corners and ONE long grey steel piston poking out of the front-left.",
+    "Rank 1 plus a second long piston, splayed slightly apart from the first (two pistons).",
+    "Rank 2 plus a third long piston (three pistons fanning out) and thin brass rings on every piston.",
+    "Rank 3 plus a fourth piston poking out of the right side and a steam pipe on the back sticking up high above the body.",
+    "Rank 4 plus two tall brass exhaust stacks on top of the body and a round glass window in the front with a glowing orange core.",
+    "Rank 5 plus a second, smaller rust-red block stacked on top with four short grey steel pistons poking out of it (eight pistons in total).",
+    "Rank 6 plus a blue-white crystal pressure tank on the very top, clearly WIDER and TALLER than the upper block, with a gold cap ring.",
+    "Rank 7 plus a gold crown-shaped manifold around the crystal, two gold fins at the sides and a small ornate gold and white plate. The most impressive machine on the sheet, still clean."
+  ]
+}
