@@ -11,6 +11,8 @@ import type { BoosterCounts, WeekYard } from '../core/yardWeek';
 import { H, RS, W } from './GameScene';
 import { Coach } from './coach';
 import { sfx } from './audio';
+import { BoxMomentFx } from './fx/boxMomentFx';
+import { LAYERS } from './fx/boxMoment';
 
 export const SCREW_COLORS = [0xe8452c, 0x27a4c0, 0xf2c12e, 0x5fbf4a, 0x8e58c9, 0xff8a1f];
 const PLATE_TINTS = [0x9aa4ad, 0xb08d57, 0x7d8a96, 0xa86b45, 0x6f8f8a, 0xc0b49a];
@@ -46,6 +48,8 @@ export class ScrewScene extends Phaser.Scene {
   ui!: Phaser.GameObjects.Container;
   bar!: Phaser.GameObjects.Container;
   coach!: Coach;
+  /** The box-complete moment (shared with the object yard, fx/boxMomentFx.ts). */
+  moment!: BoxMomentFx;
   scale0 = 1;
   cy = 0;
   busy = 0;
@@ -88,7 +92,7 @@ export class ScrewScene extends Phaser.Scene {
     // header
     this.add.graphics().fillStyle(INK, 0.9).fillRoundedRect(16, 18, W - 32, 76, 24);
     this.add.text(W / 2, 56, `SCREW YARD  ·  ${this.data0.n}/10`, { fontFamily: 'Lilita One, Arial Black', fontSize: '38px', color: '#ffcf33' }).setOrigin(0.5);
-    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setDepth(LAYERS.quit).setInteractive({ useHandCursor: true });
     back.on('pointerup', () => this.finish(false, true));
     // the pile, between the dock and the booster bar
     const top = 440, bottom = H - 150;
@@ -136,8 +140,18 @@ export class ScrewScene extends Phaser.Scene {
         this.screwViews.set(sid, sv);
       }
     }
-    this.ui = this.add.container(0, 0);
+    this.ui = this.add.container(0, 0).setDepth(LAYERS.ui);
     this.bar = this.add.container(0, 0);
+    this.moment = new BoxMomentFx({
+      scene: this,
+      size: { w: ScrewScene.BOX_W, h: ScrewScene.BOX_W * (209 / 360) },
+      pos: (slot) => ({ x: this.boxX(slot), y: this.boxY }),
+      tint: (c) => SCREW_COLORS[c],
+      buildBox: (into, color, n) => this.drawBox(into, 0, 0, 1, color, n),
+      boxAt: (slot) => this.st.boxes[slot] ?? null,
+      counterAt: () => ({ x: this.boxX(0), y: this.boxY + 84 }),
+      redraw: () => !this.ended && this.drawUi(),
+    });
     this.coach = new Coach(this, W);
     this.drawUi();
     this.drawBar();
@@ -231,7 +245,7 @@ export class ScrewScene extends Phaser.Scene {
     const st = this.st;
     const txt = (x: number, y: number, t: string, size: number, color = '#fff0cf') => this.ui.add(this.add.text(x, y, t, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, backgroundColor: '#2b1d2e', padding: { x: 10, y: 2 } }).setOrigin(0.5));
     // the open box, then NEXT: the two colours after it (always visible, empty wells when the queue runs out)
-    st.boxes.forEach((b, slot) => this.drawBox(this.ui, this.boxX(slot), this.boxY, 1, b ? b.color : null, b ? b.n : 0));
+    st.boxes.forEach((b, slot) => (this.moment.isActive(slot) ? this.moment.refresh(slot) : this.drawBox(this.ui, this.boxX(slot), this.boxY, 1, b ? b.color : null, b ? b.n : 0)));
     const pv = previewColors(st);
     txt((this.prevX(0) + this.prevX(1)) / 2, this.boxY - 76, 'NEXT', 22, '#ffcf33');
     for (let k = 0; k < 2; k++) this.drawBox(this.ui, this.prevX(k), this.boxY + 4, 0.42, k < pv.length ? pv[k] : null, 0);
@@ -384,6 +398,7 @@ export class ScrewScene extends Phaser.Scene {
     if (!r.ok) {
       if (r.reason === 'blocked' || r.reason === 'full') {
         sfx.invalid();
+        this.moment.mistake();
         this.tweens.add({ targets: sv, x: sv.x + 6, duration: 50, yoyo: true, repeat: 2 });
         if (r.reason === 'full') this.flash('NO ROOM FOR IT!', '#ff684a', 700);
       }
@@ -407,6 +422,7 @@ export class ScrewScene extends Phaser.Scene {
     const r = tapDock(this.st, i);
     if (!r.ok) {
       sfx.invalid();
+      this.moment.mistake();
       this.flash('NOT THIS BOX YET', '#ff684a', 600);
       return;
     }
@@ -526,28 +542,13 @@ export class ScrewScene extends Phaser.Scene {
 
   afterMove(r: TapResult) {
     if (r.left.length) {
-      sfx.rankUp?.(4);
-      for (const l of r.left) this.boxDone(l.slot, l.color);
+      for (const l of r.left) this.moment.play(l.slot, l.color);
     }
     this.drawUi();
     if (r.to === 'tray') this.queueTip('yard_dock', [{ x: W / 2, y: this.trayY, r: 90 }]);
     if (this.st.won) this.finish(true);
     else if (this.st.lost) this.finish(false);
     else this.tipActed();
-  }
-
-  boxDone(slot: number, color: number) {
-    const x = this.boxX(slot);
-    // the full toolbox (with its three screws) lifts away; the next one slides in from NEXT
-    const g = this.add.container(0, 0).setDepth(40);
-    this.drawBox(g, x, this.boxY, 1, color, 3);
-    this.tweens.add({ targets: g, y: -260, alpha: 0, duration: 460, ease: 'Back.In', onComplete: () => g.destroy() });
-    this.flashAt(x, this.boxY, '✓', '#8ef08a');
-  }
-
-  flashAt(x: number, y: number, t: string, color: string) {
-    const tx = this.add.text(x, y, t, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color, stroke: '#2b1d2e', strokeThickness: 10 }).setOrigin(0.5).setDepth(60);
-    this.tweens.add({ targets: tx, y: y - 60, alpha: 0, duration: 700, onComplete: () => tx.destroy() });
   }
 
   flash(text: string, color: string, ms: number) {

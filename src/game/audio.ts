@@ -387,6 +387,22 @@ export const sfx = {
     tone(90, 0.3, 'sawtooth', 0.05, 0.05, 140);
   },
   click: () => bandNoise(0.02, 0.15, 0, 3000),
+  /** Screw yard box full (t-9170d73d), from the existing voices: the last screw's small thud, ... */
+  boxThud: () => {
+    tone(150, 0.07, 'triangle', 0.12, 0, 90);
+    bandNoise(0.03, 0.1, 0, 700);
+  },
+  /** ... the brass latch's clack (the snap voice, pitched down, plus a metal knock), ... */
+  boxClack: () => {
+    tone(820, 0.04, 'square', 0.05, 0, 500);
+    bandNoise(0.03, 0.22, 0, 2600, 2.5);
+    tone(340, 0.08, 'triangle', 0.1, 0.02);
+  },
+  /** ... and a short two-note chime that climbs one scale step per consecutive box without a mistake (step 0 = lowest). */
+  boxChime: (step: number) => {
+    tone(note(523, step), 0.12, 'triangle', 0.1, 0.02);
+    tone(note(523, step + 1), 0.16, 'sine', 0.08, 0.09);
+  },
   /** battery: quick charging zip-up */
   battery: (delay = 0) => {
     tone(220, 0.16, 'square', 0.04, delay, 880);

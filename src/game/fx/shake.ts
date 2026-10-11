@@ -8,7 +8,7 @@ export const SHAKE_KEY = 'omm_shake';
 export const SOFT_AMP = 0.35;
 export const SOFT_TIME = 0.7;
 
-export type ShakeKind = 'chainBig' | 'chainMid' | 'maxKick' | 'bossFinal' | 'bossRansom' | 'bomb' | 'yardHit' | 'yardFail' | 'preview';
+export type ShakeKind = 'chainBig' | 'chainMid' | 'maxKick' | 'bossFinal' | 'bossRansom' | 'bomb' | 'yardHit' | 'yardFail' | 'boxLatch' | 'preview';
 
 /** FULL values: what the game did before the setting existed. chainMid (a 4-7 chain) never shook, so it only exists in SOFT. */
 export const FULL_SHAKE: Record<ShakeKind, { ms: number; amp: number } | null> = {
@@ -20,6 +20,7 @@ export const FULL_SHAKE: Record<ShakeKind, { ms: number; amp: number } | null> =
   bomb: { ms: 140, amp: 0.005 },
   yardHit: { ms: 140, amp: 0.006 },
   yardFail: { ms: 260, amp: 0.008 },
+  boxLatch: { ms: 90, amp: 0.0025 },
   preview: { ms: 90, amp: 0.003 },
 };
 /** SOFT values, set apart from the 35% rule: a 4-7 chain gets its own gentle nudge, the small max kick gets none. */
@@ -43,7 +44,7 @@ export function shakeSpec(kind: ShakeKind, level: ShakeLevel): { ms: number; amp
   return f && { ms: Math.round(f.ms * SOFT_TIME), amp: f.amp * SOFT_AMP };
 }
 
-const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function getShakeLevel(legacyOff = false): ShakeLevel {
   let stored: string | null = null;

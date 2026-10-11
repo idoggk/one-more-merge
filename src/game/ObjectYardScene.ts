@@ -13,6 +13,8 @@ import { SCREW_COLORS } from './ScrewScene';
 import { sfx } from './audio';
 import { UNIT_NAMES, YARD_UNITS, yardReward, yardStars, type YardUnit } from '../content/yardObjects';
 import { shakeCamera } from './fx/shake';
+import { BoxMomentFx } from './fx/boxMomentFx';
+import { LAYERS } from './fx/boxMoment';
 
 const INK = 0x2b1d2e;
 const WOOD = [0xc98d4e, 0xb47838];
@@ -85,6 +87,8 @@ export class ObjectYardScene extends Phaser.Scene {
   /** Still pictures (see bake): the object (obj stays live only while turning), the header + boxes + row band, and
    *  the turn arrows + helper bar band. Phaser re-triangulates every Graphics each frame, which cost ~60 ms a frame on
    *  a throttled phone even when nothing moved; a baked band is one quad. */
+  /** The box-complete moment (shared with the old yard, fx/boxMomentFx.ts); sits above the baked bands. */
+  moment!: BoxMomentFx;
   snap!: Phaser.GameObjects.RenderTexture;
   snapY = 0;
   topSnap!: Phaser.GameObjects.RenderTexture;
@@ -157,10 +161,20 @@ export class ObjectYardScene extends Phaser.Scene {
     const ty = H - 205;
     this.topSnap = this.band(0, this.rowY + 130);
     this.botSnap = this.band(ty - 60, H);
-    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setDepth(200).setInteractive({ useHandCursor: true });
+    const back = this.add.text(56, 56, '✕', { fontFamily: 'Arial', fontSize: '44px', color: '#fff0cf' }).setOrigin(0.5).setDepth(LAYERS.quit).setInteractive({ useHandCursor: true });
     back.on('pointerup', () => this.finish(false, true));
     this.ui = this.add.container(0, 0);
     this.bar = this.add.container(0, 0);
+    this.moment = new BoxMomentFx({
+      scene: this,
+      size: { w: BOX_W, h: BOX_H },
+      pos: (slot) => ({ x: this.boxX(slot), y: this.boxY }),
+      tint: (c) => SCREW_COLORS[c],
+      buildBox: (into, color, n) => this.drawBox(0, 0, 1, color, n, into),
+      boxAt: (slot) => this.st.boxes[slot] ?? null,
+      counterAt: () => ({ x: (this.boxX(0) + this.boxX(1)) / 2, y: this.boxY + 70 }),
+      redraw: () => !this.ended && this.drawUi(),
+    });
     // turn controls: ◀ VIEW ▶ (swipe left / right on the object does the same)
     this.viewLabel = this.add.text(W / 2, ty - 14, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', backgroundColor: '#2b1d2ecc', padding: { x: 14, y: 4 } }).setOrigin(0.5);
     this.hint = this.add.text(W / 2, ty + 30, 'Swipe or ◀ ▶ to turn it', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#fff0cf', backgroundColor: '#2b1d2eaa', padding: { x: 10, y: 3 } }).setOrigin(0.5);
@@ -229,7 +243,7 @@ export class ObjectYardScene extends Phaser.Scene {
   band(y0: number, y1: number) {
     y0 = Math.max(0, Math.floor(y0));
     y1 = Math.min(H, Math.ceil(y1));
-    const rt = this.add.renderTexture(0, y0, Math.ceil(W * RS), Math.ceil((y1 - y0) * RS)).setOrigin(0, 0).setScale(1 / RS);
+    const rt = this.add.renderTexture(0, y0, Math.ceil(W * RS), Math.ceil((y1 - y0) * RS)).setOrigin(0, 0).setScale(1 / RS).setDepth(LAYERS.bands);
     rt.camera.setOrigin(0, 0).setZoom(RS).setScroll(0, y0);
     return rt;
   }
@@ -415,10 +429,10 @@ export class ObjectYardScene extends Phaser.Scene {
   wellX = (x: number, k: number, s = 1) => x + (WELLS[k] - 0.5) * BOX_W * s;
   wellY = (y: number, s = 1) => y + 0.12 * BOX_H * s;
 
-  drawBox(x: number, y: number, s: number, color: number | null, n: number) {
-    this.boxArt(this.ui, x, y, s, color);
+  drawBox(x: number, y: number, s: number, color: number | null, n: number, into: Phaser.GameObjects.Container = this.ui) {
+    this.boxArt(into, x, y, s, color);
     if (color === null) return;
-    for (let k = 0; k < n; k++) this.ui.add(this.screwSprite(SCREW_COLORS[color], 0.8 * s).setPosition(this.wellX(x, k, s), this.wellY(y, s)));
+    for (let k = 0; k < n; k++) into.add(this.screwSprite(SCREW_COLORS[color], 0.8 * s).setPosition(this.wellX(x, k, s), this.wellY(y, s)));
   }
 
   drawUi() {
@@ -426,7 +440,7 @@ export class ObjectYardScene extends Phaser.Scene {
     this.live.clear();
     const st = this.st;
     const txt = (x: number, y: number, t: string, size: number, color = '#fff0cf') => this.ui.add(this.add.text(x, y, t, { fontFamily: 'Lilita One, Arial Black', fontSize: `${size}px`, color, backgroundColor: '#2b1d2e', padding: { x: 10, y: 2 } }).setOrigin(0.5));
-    st.boxes.forEach((b, slot) => this.drawBox(this.boxX(slot), this.boxY, 1, b ? b.color : null, b ? b.n : 0));
+    st.boxes.forEach((b, slot) => (this.moment.isActive(slot) ? this.moment.refresh(slot) : this.drawBox(this.boxX(slot), this.boxY, 1, b ? b.color : null, b ? b.n : 0)));
     const pv = previewColors(st);
     txt((this.prevX(0) + this.prevX(1)) / 2, this.boxY - 62, 'NEXT', 22, '#ffcf33');
     for (let k = 0; k < 2; k++) this.drawBox(this.prevX(k), this.boxY + 4, 0.42, k < pv.length ? pv[k] : null, 0);
@@ -566,7 +580,7 @@ export class ObjectYardScene extends Phaser.Scene {
     const sid = pk.sid;
     if (sid === null) {
       // never a silent no-op on the object
-      if (pk.reason) sfx.invalid();
+      if (pk.reason) { sfx.invalid(); this.moment.mistake(); }
       if (pk.reason === 'away') this.say(`TURN IT TO REACH THAT ONE`, '#ffcf33');
       else if (pk.reason === 'blocked') this.say(`A BLOCK IS IN FRONT OF IT`, '#ff8a6a');
       else if (pk.reason === 'bare') this.say(`TAP A BRIGHT SCREW`, '#ffcf33');
@@ -576,6 +590,7 @@ export class ObjectYardScene extends Phaser.Scene {
     const r = tapScrew(this.st, sid, this.view);
     if (!r.ok) {
       sfx.invalid();
+      this.moment.mistake();
       if (r.reason === 'away') this.say(`TURN IT TO REACH THAT ONE`, '#ffcf33');
       else if (r.reason === 'blocked') this.say(`A BLOCK IS IN FRONT OF IT`, '#ff8a6a');
       return;
@@ -591,6 +606,7 @@ export class ObjectYardScene extends Phaser.Scene {
     const r = tapRow(this.st, i);
     if (!r.ok) {
       sfx.invalid();
+      this.moment.mistake();
       if (this.st.rules.autoPull) this.say('IT JUMPS IN WHEN ITS BOX OPENS', '#ffcf33');
       else this.say('NO OPEN BOX FOR IT YET', '#ff8a6a');
       return;
@@ -634,41 +650,6 @@ export class ObjectYardScene extends Phaser.Scene {
         onComplete: () => g.destroy(),
       });
     }
-  }
-
-  /** A full box shuts its lid with a clack, latches, then lifts away (the next box is already in its place under it). */
-  latchBox(slot: number, color: number, delay = 0) {
-    const x = this.boxX(slot), y = this.boxY;
-    const col = SCREW_COLORS[color];
-    const c = this.add.container(x, y).setDepth(60);
-    const body = this.add.image(0, 0, 'sy_toolbox_open').setScale(BOX_W / 360).setTint(lighten(col, 0.5));
-    c.add([body, this.add.image(0, 0, 'sy_toolbox_open').setScale(BOX_W / 360).setTint(col).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.3)]);
-    if (this.textures.exists('sy_toolbox_open_brass')) c.add(this.add.image(0, 0, 'sy_toolbox_open_brass').setDisplaySize(body.displayWidth, body.displayHeight));
-    for (let k = 0; k < BOX_SIZE; k++) c.add(this.screwSprite(col, 0.8).setPosition(this.wellX(0, k), this.wellY(0)));
-    // the lid hangs from the hinge line and swings down over the wells (scaleY 0 -> 1)
-    const hy = -BOX_H * 0.2, lh = BOX_H * 0.62, lw = BOX_W * 0.9;
-    const lid = this.add.graphics().setPosition(0, hy).setScale(1, 0);
-    lid.fillStyle(INK, 1).fillRoundedRect(-lw / 2 - 4, -4, lw + 8, lh + 8, 14);
-    lid.fillStyle(darken(col, 0.1), 1).fillRoundedRect(-lw / 2, 0, lw, lh, 11);
-    lid.fillStyle(0xffffff, 0.3).fillRoundedRect(-lw / 2 + 8, 6, lw - 16, 10, 5);
-    for (const lx of [-lw * 0.28, lw * 0.28]) lid.fillStyle(INK, 1).fillRoundedRect(lx - 14, lh - 18, 28, 30, 6).fillStyle(0xd9a53a, 1).fillRoundedRect(lx - 10, lh - 14, 20, 22, 4);
-    lid.fillStyle(0xd9a53a, 1).fillCircle(-lw / 2 + 12, 12, 7).fillCircle(lw / 2 - 12, 12, 7);
-    c.add(lid);
-    c.setAlpha(0);
-    this.tweens.chain({
-      targets: lid,
-      tweens: [
-        { delay, duration: 1, onStart: () => c.setAlpha(1) },
-        { scaleY: 1, duration: 230, ease: 'Back.Out', onComplete: () => { sfx.snap(); this.pulse(c, 1.12); } },
-        { duration: 260 },
-      ],
-      onComplete: () => this.tweens.add({ targets: c, y: y - 110, alpha: 0, scale: 0.7, duration: 320, ease: 'Quad.In', onComplete: () => c.destroy() }),
-    });
-  }
-
-  /** A quick scale pop (a latch clack, a landing). */
-  pulse(o: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, to: number) {
-    this.tweens.add({ targets: o, scale: to, duration: 70, yoyo: true, ease: 'Quad.Out' });
   }
 
   /** A few sparks fly off at (x, y) when a screw pops. */
@@ -740,8 +721,7 @@ export class ObjectYardScene extends Phaser.Scene {
   }
 
   afterMove(r: ObjTap) {
-    if (r.left.length) sfx.rankUp(4);
-    r.left.forEach((l, i) => this.latchBox(l.slot, l.color, i * 160));
+    r.left.forEach((l) => this.moment.play(l.slot, l.color));
     this.drawUi();
     this.drawObject();
     if (this.st.won) this.finish(true);
