@@ -38,7 +38,8 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 | Pilot Piston, round 2 | **Reviewed: 7.0 / 10, REDO targeted** (`reviews/piston_v2.md`). Identity and ladder fixed; ranks 1-4 still share one outline |
 | Pilot Piston, round 3 (last) | **Reviewed: 7.2 / 10, not ship** (`reviews/piston_v3.md`). Wording rounds are exhausted (6.5, 7.0, 7.2) |
 | Polish-pass test | **Done: 7.5 overall, design NOT preserved** (`reviews/piston_polish_v1.md`). Polish language moved into the first-pass style block (v3); a per-rank polish pass is dropped |
-| Blowtorch, first pass with the v3 template | **Prompt ready** (`prompts/05_blowtorch_v1.md`), waiting for the sheet |
+| Blowtorch, first pass with the v3 template | **Reviewed: 7.7 / 10 on the first try** (`reviews/blowtorch_v1.md`), the best sheet so far. Template adopted (now v4) |
+| Blowtorch, round 2 | **Prompt ready** (`prompts/06_blowtorch_v2.md`), 3 targeted changes |
 | Slicer and review tool | Built and tested on the shipped Coil ladder (cuts cleanly, fringe 0.1-0.4%, finds that Coil rank 5 breaks the ladder) |
 | Benchmark of top games | **Partial**: text sources only. Needs store screenshots (network allowlist or your upload) |
 | Browser-driven generation | Needs a session on your computer (Desktop app or `claude remote-control`); this cloud session cannot reach it |
