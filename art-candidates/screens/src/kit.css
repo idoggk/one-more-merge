@@ -1,0 +1,469 @@
+/* ==========================================================================
+   One More Merge: UI kit, style A (toy enamel). Standalone candidate, nothing here is wired into the game.
+   Source of truth: docs/art/ART_BIBLE.md  (palette 2.x, UI kit 4.x, light from the TOP-LEFT everywhere)
+   Scale: Bible px are on a 720-wide canvas; this page is 390 CSS px wide, so 1 CSS px ~ 1.85 design px.
+   ========================================================================== */
+:root {
+  /* neutrals (Bible 2.1) */
+  --ink: #2b1d2e;
+  --ink-hi: #4a3552;
+  --ink-lo: #1b1220;
+  --cream: #fbe7c6;
+  --cream-hi: #fff6e0;
+  --cream-2: #e0c0a0;
+  --cream-3: #c79f74;
+  --brass-1: #fff0b0;
+  --brass-2: #e0a040;
+  --brass-3: #c08020;
+  --brass-4: #a06020;
+  --brass-ink: #5e3512;
+  --txt: #5a3a2a;
+  --txt-2: #8a6a52;
+  --wood: #c08040;
+  --wood-2: #a06020;
+  --wood-3: #804020;
+  /* corner radius family (Bible 1.5: 18% of the short side, 3 steps) */
+  --r-s: 9px;
+  --r-m: 13px;
+  --r-l: 19px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* marks (Bible 2.4) */
+  --m-new: #3fd9a0;
+  --m-boost: #d2b4ff;
+  --m-charged: #9be05a;
+  --m-power: #ff4fd8;
+  --m-max: #ffcf33;
+  --m-boss: #ff684a;
+  --m-locked: #4f6d8f;
+  --m-od: #ff7200;
+  /* rarity (Bible 2.3) */
+  --q-common: #8a9aa8;
+  --q-rare: #3a8adf;
+  --q-epic: #9a63ff;
+  --q-legend: #f0b020;
+}
+
+/* ---------- colour roles (Bible 2.2). A colour never changes meaning. ---------- */
+.r-prime { --f1: #ffe36a; --f2: #ffc61f; --lip: #e0a020; --o: #7a4a10; --glow: 255, 207, 51; }
+.r-go    { --f1: #62e083; --f2: #36b95f; --lip: #20a060; --o: #14553a; --glow: 64, 192, 96; }
+.r-blue  { --f1: #70c3ff; --f2: #3a94f0; --lip: #2080e0; --o: #144a8a; --glow: 64, 160, 255; }
+.r-red   { --f1: #ff7e58; --f2: #f23a1c; --lip: #c0301a; --o: #6a1810; --glow: 255, 64, 32; }
+.r-grey  { --f1: #c3cbd2; --f2: #98a3ad; --lip: #7a848e; --o: #4a525a; --glow: 154, 164, 174; }
+.r-cream { --f1: #fff6da; --f2: #f1d398; --lip: #d3aa66; --o: #8a5a22; --glow: 255, 230, 160; }
+.r-purple{ --f1: #b890ff; --f2: #8a54f2; --lip: #7a43e0; --o: #3e2380; --glow: 154, 99, 255; }
+.q-common { --q1: #cfd9e2; --q2: #8a9aa8; --q3: #566472; --qg: 138, 154, 168; }
+.q-rare   { --q1: #8ec6ff; --q2: #3a8adf; --q3: #1c4f95; --qg: 58, 138, 223; }
+.q-epic   { --q1: #cdb0ff; --q2: #9a63ff; --q3: #52309f; --qg: 154, 99, 255; }
+.q-legend { --q1: #fff0a0; --q2: #f0b020; --q3: #a8660e; --qg: 240, 176, 32; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; background: none; border: 0; }
+
+/* ---------- text: white fill + outline in the darker tint of the context + hard shadow (Bible 3) ---------- */
+.tx {
+  color: #fff;
+  -webkit-text-stroke: var(--sw, 4px) var(--o, var(--ink));
+  paint-order: stroke fill;
+  text-shadow: 0 var(--sh, 2px) 0 var(--o, var(--ink));
+  letter-spacing: 0.015em;
+  line-height: 1;
+}
+.tx-gold { color: #ffe27a; }
+.dk { color: var(--txt); -webkit-text-stroke: 0; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); }
+.dk2 { color: var(--txt-2); -webkit-text-stroke: 0; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+
+/* ---------- pictures (real art, embedded once as .a-<key>) ---------- */
+.art { display: inline-block; flex: none; background-repeat: no-repeat; background-position: center; background-size: contain; }
+.shad { filter: drop-shadow(1.5px 3px 2px rgba(43, 29, 46, 0.42)); }
+.shad-l { filter: drop-shadow(3px 7px 5px rgba(43, 29, 46, 0.45)); }
+
+/* ---------- rivet (brass, highlight dot top-left) ---------- */
+.rv {
+  position: absolute;
+  width: var(--rv, 8px);
+  height: var(--rv, 8px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fffbe0 0 14%, #f5c25a 30%, #c8862a 68%, #8a5416 100%);
+  box-shadow: 0 0 0 1px var(--brass-ink), 0.5px 1px 1px rgba(43, 29, 46, 0.5);
+}
+
+/* ==========================================================================
+   BUTTONS (Bible 4.1): plum base, cream/brass bezel, 2-tone enamel face, 5px lip, top gloss, brass rivets at both ends.
+   ========================================================================== */
+.btn {
+  --h: 46px;
+  --fs: 19px;
+  --rv: 8px;
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  height: var(--h);
+  min-width: 108px;
+  padding: 3px calc(var(--rv) * 1.8) 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(165deg, #fff6da 0%, #f3d79c 42%, #c9995a 100%);
+  box-shadow: 0 0 0 2.5px var(--ink), 0 5px 0 2.5px var(--ink), 0 11px 14px 1px rgba(43, 29, 46, 0.38);
+  transition: transform 0.07s, box-shadow 0.07s;
+}
+.btn::before,
+.btn::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - var(--rv) / 2 - 1.5px);
+  width: var(--rv);
+  height: var(--rv);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #fffbe0 0 14%, #f5c25a 30%, #c8862a 68%, #8a5416 100%);
+  box-shadow: 0 0 0 1px var(--brass-ink), 0.5px 1px 1px rgba(43, 29, 46, 0.45);
+}
+.btn::before { left: calc(var(--rv) * 0.55); }
+.btn::after { right: calc(var(--rv) * 0.55); }
+.btn > b {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  font-weight: 400;
+  font-size: var(--fs);
+  line-height: 1;
+  white-space: nowrap;
+  padding: 0 6px 4px;
+  background: linear-gradient(158deg, var(--f1) 0%, var(--f2) 100%);
+  box-shadow: inset 0 0 0 2px var(--o), inset 0 -5px 0 0 var(--lip), inset 0 3px 0 0 rgba(255, 255, 255, 0.42);
+  -webkit-text-stroke: 4.5px var(--o);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 var(--o);
+  letter-spacing: 0.02em;
+}
+.btn > b > span { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 6px; }
+.btn > b::before { /* gloss strip: top 40%, white 40% -> 6% */
+  content: "";
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  top: 3px;
+  height: 42%;
+  border-radius: 999px 999px 55% 55% / 100% 100% 60% 60%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.08));
+  pointer-events: none;
+  z-index: 1;
+}
+.btn.sweep > b::after { /* diagonal shine sweep every ~3.6 s */
+  content: "";
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  width: 26%;
+  left: -40%;
+  transform: skewX(-22deg);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  animation: sweep 3.6s ease-in-out infinite;
+  z-index: 3;
+}
+.btn.xl { --h: 80px; --fs: 38px; --rv: 11px; min-width: 250px; padding-top: 4px; padding-bottom: 9px; }
+.btn.xl > b { -webkit-text-stroke: 7px var(--o); text-shadow: 0 3px 0 var(--o); box-shadow: inset 0 0 0 3px var(--o), inset 0 -8px 0 0 var(--lip), inset 0 4px 0 0 rgba(255, 255, 255, 0.45); }
+.btn.lg { --h: 58px; --fs: 25px; --rv: 10px; min-width: 190px; }
+.btn.sm { --h: 38px; --fs: 15px; --rv: 6px; min-width: 84px; padding-bottom: 6px; }
+.btn.sm > b { -webkit-text-stroke: 3.5px var(--o); box-shadow: inset 0 0 0 1.5px var(--o), inset 0 -4px 0 0 var(--lip), inset 0 2px 0 0 rgba(255, 255, 255, 0.42); }
+.btn.block { display: flex; width: 100%; }
+.btn:active,
+.btn.pressed { transform: translateY(4px) scale(0.965); box-shadow: 0 0 0 2.5px var(--ink), 0 1px 0 2.5px var(--ink), 0 3px 5px 0 rgba(43, 29, 46, 0.35); }
+.btn:active > b,
+.btn.pressed > b { box-shadow: inset 0 0 0 2px var(--o), inset 0 -1px 0 0 var(--lip), inset 0 3px 0 0 rgba(255, 255, 255, 0.2); }
+.btn.off { filter: saturate(0.55) brightness(0.98); }
+.btn.off > b { color: #eef1f4; }
+.btn .lv { /* level chip inside the Play button */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* round icon button (close, pause, settings) */
+.rbtn {
+  --s: 42px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: linear-gradient(160deg, #fff6da, #e8c27c 58%, #b9863f);
+  box-shadow: 0 0 0 2.5px var(--ink), 0 4px 0 2.5px var(--ink), 0 8px 10px rgba(43, 29, 46, 0.35);
+}
+.rbtn::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: linear-gradient(158deg, var(--f1), var(--f2));
+  box-shadow: inset 0 0 0 2px var(--o), inset 0 -4px 0 0 var(--lip), inset 0 2px 0 0 rgba(255, 255, 255, 0.4);
+}
+.rbtn::after { /* gloss */
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 11%;
+  height: 28%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.05));
+}
+.rbtn svg,
+.rbtn > .art { position: relative; z-index: 2; }
+.rbtn:active { transform: translateY(3px) scale(0.95); }
+
+/* ==========================================================================
+   PANELS (Bible 4.2): plum edge -> brass trim -> cream bezel -> inset well -> cream face, corner rivets.
+   ========================================================================== */
+.panel {
+  position: relative;
+  border-radius: var(--r-l);
+  border: 3px solid transparent;
+  background: linear-gradient(180deg, #fff7e2 0%, #fbe7c6 50%, #f3d7a8 100%) padding-box,
+    linear-gradient(135deg, #fff0ad 0%, #e8aa48 38%, #b8761f 72%, #8a5216 100%) border-box;
+  box-shadow: 0 0 0 2.5px var(--ink), 0 6px 0 2.5px var(--ink), 0 16px 26px 2px rgba(27, 18, 32, 0.5);
+}
+.panel::before { /* cream bezel + dark hairline + top-left sheen */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--r-l) - 3px);
+  box-shadow: inset 0 0 0 4px #fff3d4, inset 0 0 0 5.5px #dcb887, inset 0 8px 12px rgba(255, 255, 255, 0.45), inset -6px -10px 14px rgba(160, 100, 40, 0.14);
+  pointer-events: none;
+}
+.panel > .rv.tl { top: 8px; left: 8px; }
+.panel > .rv.tr { top: 8px; right: 8px; }
+.panel > .rv.bl { bottom: 8px; left: 8px; }
+.panel > .rv.br { bottom: 8px; right: 8px; }
+.panel.dark {
+  background: linear-gradient(180deg, #4d3856 0%, #33243a 55%, #241829 100%) padding-box,
+    linear-gradient(135deg, #fff0ad 0%, #e8aa48 38%, #b8761f 72%, #8a5216 100%) border-box;
+  color: #fff;
+}
+.panel.dark::before { box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.07), inset 0 8px 12px rgba(255, 255, 255, 0.07), inset 0 -10px 14px rgba(0, 0, 0, 0.25); }
+.well {
+  position: relative;
+  border-radius: var(--r-m);
+  background: linear-gradient(180deg, #e6c594 0%, #f0d6a8 100%);
+  box-shadow: inset 0 3px 6px rgba(120, 70, 30, 0.38), inset 0 -1px 0 rgba(255, 255, 255, 0.7), 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+.well.dark { background: linear-gradient(180deg, #1c1221, #34253b); box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.12); }
+
+/* ribbon (header banner over the brass trim, swallow tails). The whole shape gets one outline via stacked drop-shadows. */
+.rib {
+  --h: 40px;
+  --fs: 24px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--h);
+  padding: 0 30px 3px;
+  isolation: isolate;
+  font-size: var(--fs);
+  line-height: 1;
+  filter: drop-shadow(2px 0 0 var(--o)) drop-shadow(-2px 0 0 var(--o)) drop-shadow(0 2px 0 var(--o)) drop-shadow(0 -2px 0 var(--o)) drop-shadow(0 6px 5px rgba(43, 29, 46, 0.4));
+}
+.rib > i { /* the bar */
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--f1) 0%, var(--f2) 100%);
+  box-shadow: inset 0 -5px 0 0 var(--lip), inset 0 3px 0 0 rgba(255, 255, 255, 0.5);
+}
+.rib > i::before { /* gloss */
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 3px;
+  height: 38%;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+}
+.rib::before,
+.rib::after { /* swallow tails */
+  content: "";
+  position: absolute;
+  top: 9px;
+  width: 36px;
+  height: 100%;
+  z-index: -2;
+  background: linear-gradient(180deg, var(--lip), color-mix(in srgb, var(--lip) 70%, #000));
+}
+.rib::before { left: -24px; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%); }
+.rib::after { right: -24px; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 50%, 100% 100%, 0 100%); }
+.rib > span { position: relative; z-index: 2; -webkit-text-stroke: 4px var(--o); paint-order: stroke fill; text-shadow: 0 2px 0 var(--o); color: #fff; letter-spacing: 0.03em; }
+.rib.sm { --h: 30px; --fs: 17px; padding: 0 22px 3px; }
+.rib.sm::before { left: -16px; width: 26px; top: 7px; }
+.rib.sm::after { right: -16px; width: 26px; top: 7px; }
+
+/* ==========================================================================
+   CURRENCY PILLS (Bible 4.6): dark inset, icon overlaps the left edge, optional + button
+   ========================================================================== */
+.pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 9px 0 31px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #1c1221 0%, #3b2b42 100%);
+  box-shadow: 0 0 0 2px var(--brass-2), 0 0 0 4px var(--ink), 0 5px 8px rgba(27, 18, 32, 0.4), inset 0 3px 5px rgba(0, 0, 0, 0.6), inset 0 -1.5px 0 rgba(255, 255, 255, 0.1);
+  margin-left: 4px;
+}
+.pill > .art.ic { position: absolute; left: -9px; top: 50%; width: 38px; height: 38px; margin-top: -20px; filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, 0.5)); }
+.pill > b { font-weight: 400; font-size: 16px; color: #fff; text-shadow: 0 1.5px 0 var(--ink-lo); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.pill > .plus {
+  width: 21px;
+  height: 21px;
+  margin: 0 -4px 0 7px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  line-height: 1;
+  padding-bottom: 2px;
+  color: #fff;
+  background: linear-gradient(160deg, #6fe38a, #2fb15a);
+  box-shadow: 0 0 0 1.5px #14553a, inset 0 -2.5px 0 #1f8a4a, inset 0 1.5px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* ==========================================================================
+   BARS (Bible 4.3): rounded caps, plum inset track, cream/brass bezel, gloss, shine sweep, lag trail
+   ========================================================================== */
+.bar {
+  --h: 22px;
+  --p: 70%;
+  --lp: 78%;
+  position: relative;
+  height: var(--h);
+  padding: 3px;
+  border-radius: 999px;
+  background: linear-gradient(165deg, #fff3d0, #e6bf80 55%, #b98a48);
+  box-shadow: 0 0 0 2px var(--ink), 0 3px 0 2px var(--ink), 0 8px 10px rgba(43, 29, 46, 0.3);
+}
+.bar > .trk {
+  position: relative;
+  height: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #170e1c, #35253d);
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.65);
+}
+.bar .lag { position: absolute; left: 0; top: 0; bottom: 0; width: var(--lp); border-radius: 999px; background: rgba(255, 255, 255, 0.6); }
+.bar .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--p);
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--b1), var(--b2));
+  box-shadow: inset 0 0 0 1.5px var(--b3), inset 0 -3px 0 0 var(--b3);
+}
+.bar .fill::before { content: ""; position: absolute; left: 6px; right: 6px; top: 2px; height: 36%; border-radius: 999px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.08)); }
+.bar .fill::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 24%; left: -30%; transform: skewX(-22deg); background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0)); animation: sweepbar 2.8s ease-in-out infinite; }
+.bar .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.35); }
+.hp-g { --b1: #86ec96; --b2: #3cc65f; --b3: #1f8a4a; }
+.hp-y { --b1: #ffe36a; --b2: #ffbf1f; --b3: #cf8510; }
+.hp-r { --b1: #ff8260; --b2: #f23a1c; --b3: #a82414; }
+.hp-b { --b1: #86ccff; --b2: #3a94f0; --b3: #1d5fb0; }
+.hp-p { --b1: #c9a4ff; --b2: #8a54f2; --b3: #52309f; }
+
+/* ==========================================================================
+   STARS (Bible 4.5): gold enamel with brass edge, or an empty dark slot. Symbols live in the shared <defs>.
+   ========================================================================== */
+.star { display: inline-block; width: var(--s, 34px); height: calc(var(--s, 34px) * 0.96); flex: none; overflow: visible; }
+.star.pop { animation: starpop 0.42s var(--back) both; animation-delay: var(--d, 0s); }
+
+/* ==========================================================================
+   MISC KIT: toggle, slider, segmented, badges, dots, pips
+   ========================================================================== */
+.tog { position: relative; width: 58px; height: 32px; border-radius: 999px; background: linear-gradient(180deg, #8a939c, #b3bbc2); box-shadow: 0 0 0 2px var(--ink), inset 0 3px 5px rgba(0, 0, 0, 0.35); flex: none; }
+.tog::after { content: ""; position: absolute; left: 3px; top: 3px; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #fff, #f1ead9 45%, #cdbd9c 100%); box-shadow: 0 0 0 2px var(--ink), 0 3px 0 1px rgba(43, 29, 46, 0.7), inset 0 -3px 0 rgba(160, 110, 50, 0.35); transition: left 0.12s var(--back); }
+.tog.on { background: linear-gradient(180deg, #2fae58, #62e083); }
+.tog.on::after { left: 29px; }
+.tog.on::before { content: ""; position: absolute; left: 11px; top: 7px; width: 7px; height: 12px; border: solid #fff; border-width: 0 3.5px 3.5px 0; transform: rotate(40deg); filter: drop-shadow(0 1px 0 #14553a); }
+.sld { position: relative; height: 12px; border-radius: 999px; background: linear-gradient(180deg, #1c1221, #3b2b42); box-shadow: 0 0 0 2px var(--brass-2), 0 0 0 4px var(--ink), inset 0 2px 4px rgba(0, 0, 0, 0.6); }
+.sld > i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--p, 60%); border-radius: 999px; background: linear-gradient(180deg, #ffe36a, #ffbd1a); box-shadow: inset 0 -2px 0 #d9921a; }
+.sld > u { position: absolute; left: var(--p, 60%); top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #fff, #f6e6bf 48%, #d8b575 100%); box-shadow: 0 0 0 2.5px var(--ink), 0 4px 0 1.5px var(--ink), inset 0 -3px 0 rgba(160, 100, 40, 0.35); }
+.seg { display: flex; position: relative; height: 38px; padding: 3px; border-radius: 999px; background: linear-gradient(180deg, #d9b988, #ecd2a2); box-shadow: 0 0 0 2px var(--ink), inset 0 3px 5px rgba(120, 70, 30, 0.4); }
+.seg > span { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 14px; letter-spacing: 0.04em; color: var(--txt-2); z-index: 2; padding-bottom: 2px; }
+.seg > span.on { color: #fff; -webkit-text-stroke: 3px var(--o); paint-order: stroke fill; text-shadow: 0 1.5px 0 var(--o); }
+.seg > i { position: absolute; top: 3px; bottom: 3px; border-radius: 999px; background: linear-gradient(158deg, var(--f1), var(--f2)); box-shadow: inset 0 0 0 1.5px var(--o), inset 0 -4px 0 var(--lip), inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 3px 4px rgba(43, 29, 46, 0.3); z-index: 1; }
+.dot { /* notification dot, red with cream outline */
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ff9a7a, #f23a1c 55%, #b82a14);
+  box-shadow: 0 0 0 2px #fff0cf, 0 2px 3px rgba(0, 0, 0, 0.4);
+  animation: dotpulse 1.4s ease-in-out infinite;
+}
+.cnt { position: absolute; min-width: 20px; height: 20px; padding: 0 5px 2px; border-radius: 999px; background: radial-gradient(circle at 30% 25%, #ff9a7a, #f23a1c 55%, #b82a14); box-shadow: 0 0 0 2px #fff0cf, 0 2px 3px rgba(0, 0, 0, 0.4); font-size: 12px; line-height: 20px; text-align: center; color: #fff; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px 2px; border-radius: 999px; font-size: 11px; line-height: 1; letter-spacing: 0.04em; color: #fff; background: linear-gradient(180deg, var(--f1), var(--f2)); box-shadow: 0 0 0 1.5px var(--o), inset 0 -2px 0 var(--lip), inset 0 1.5px 0 rgba(255, 255, 255, 0.4); -webkit-text-stroke: 2.5px var(--o); paint-order: stroke fill; }
+.new { /* NEW ribbon */ position: absolute; display: inline-flex; align-items: center; height: 17px; padding: 0 7px 2px; font-size: 10px; line-height: 1; letter-spacing: 0.06em; color: #fff; border-radius: 4px; background: linear-gradient(180deg, #ff7e58, #d92c14); box-shadow: 0 0 0 1.5px #6a1810, inset 0 -2px 0 #a82414, 0 3px 4px rgba(0, 0, 0, 0.35); -webkit-text-stroke: 2.5px #6a1810; paint-order: stroke fill; animation: dotpulse 1.4s ease-in-out infinite; }
+.pips { display: inline-flex; gap: 3px; }
+.pips > i { width: 7px; height: 7px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, #fffbe0 0 12%, #f5c25a 32%, #c8862a 75%); box-shadow: 0 0 0 1px var(--brass-ink); }
+.pips > i.e { background: radial-gradient(circle at 50% 30%, #5b4560, #2b1d2e); box-shadow: 0 0 0 1px #1b1220, inset 0 1px 2px rgba(0, 0, 0, 0.6); }
+.pips.max > i { background: radial-gradient(circle at 34% 30%, #fff 0 12%, #ffe27a 32%, #ffbd1a 75%); animation: twinkle 1.6s ease-in-out infinite; }
+
+/* sparkles / glints / motes / light */
+.spk { position: absolute; width: var(--s, 14px); height: var(--s, 14px); filter: drop-shadow(0 0 4px #fff3b0); animation: twinkle var(--t, 1.8s) ease-in-out infinite var(--d, 0s); pointer-events: none; }
+.motes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.motes > i { position: absolute; width: var(--s, 5px); height: var(--s, 5px); border-radius: 50%; background: radial-gradient(circle, #fff7cf 0%, rgba(255, 230, 150, 0.55) 45%, rgba(255, 230, 150, 0) 72%); opacity: 0; animation: mote var(--t, 9s) linear infinite var(--d, 0s); }
+.shaft { position: absolute; pointer-events: none; mix-blend-mode: screen; background: linear-gradient(104deg, rgba(255, 238, 178, 0.6) 0%, rgba(255, 238, 178, 0.22) 38%, rgba(255, 238, 178, 0) 74%); filter: blur(7px); transform-origin: 0 0; animation: shaft 7s ease-in-out infinite alternate; }
+.vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 40% 38%, rgba(43, 29, 46, 0) 52%, rgba(43, 29, 46, 0.55) 100%); }
+.grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.1; mix-blend-mode: multiply; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .22  0 0 0 0 .1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+.rays { position: absolute; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255, 238, 168, 0.55) 0deg 9deg, rgba(255, 238, 168, 0) 9deg 24deg); -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 68%); mask-image: radial-gradient(circle, #000 18%, transparent 68%); animation: spin 14s linear infinite; mix-blend-mode: screen; pointer-events: none; }
+.halo { position: absolute; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(var(--hc, 255, 214, 90), 0.75) 0%, rgba(var(--hc, 255, 214, 90), 0.28) 38%, rgba(var(--hc, 255, 214, 90), 0) 70%); animation: halo 2.4s ease-in-out infinite alternate; }
+.gshadow { position: absolute; border-radius: 50%; background: radial-gradient(ellipse at 50% 50%, rgba(43, 29, 46, 0.5), rgba(43, 29, 46, 0) 70%); pointer-events: none; }
+
+/* ---------- keyframes ---------- */
+@keyframes sweep { 0%, 55% { left: -40%; } 100% { left: 130%; } }
+@keyframes sweepbar { 0%, 45% { left: -30%; } 100% { left: 130%; } }
+@keyframes breathe { from { transform: scale(1); } to { transform: scale(1.045); } }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+@keyframes idle { from { transform: scale(1, 1); } to { transform: scale(1.018, 0.982); } }
+@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.5) rotate(0deg); } 50% { opacity: 1; transform: scale(1) rotate(25deg); } }
+@keyframes mote { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 12% { opacity: 0.95; } 100% { transform: translate(var(--dx, 18px), -140px) scale(1.1); opacity: 0; } }
+@keyframes shaft { from { opacity: 0.55; transform: skewX(-18deg) translateX(-6px); } to { opacity: 1; transform: skewX(-18deg) translateX(10px); } }
+@keyframes halo { from { transform: scale(0.94); opacity: 0.75; } to { transform: scale(1.06); opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spinrev { to { transform: rotate(-360deg); } }
+@keyframes dotpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+@keyframes starpop { 0% { transform: scale(0) rotate(-25deg); } 62% { transform: scale(1.32) rotate(6deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes popin { 0% { transform: scale(0); opacity: 0; } 55% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes pop13 { 0% { transform: scale(0); } 62% { transform: scale(1.3); } 100% { transform: scale(1); } }
+@keyframes panelin { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeup { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes ribdrop { 0% { opacity: 0; transform: translateY(-26px) scale(0.9); } 60% { opacity: 1; transform: translateY(4px) scale(1.04); } 100% { opacity: 1; transform: none; } }
+@keyframes shake { 0%, 100% { transform: rotate(0) translateX(0); } 20% { transform: rotate(-4deg) translateX(-2px); } 40% { transform: rotate(4deg) translateX(2px); } 60% { transform: rotate(-3deg) translateX(-1px); } 80% { transform: rotate(3deg) translateX(1px); } }
+@keyframes ringout { 0% { transform: scale(0.4); opacity: 0.95; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes glint { 0%, 70% { transform: translateX(-120%) skewX(-22deg); } 100% { transform: translateX(260%) skewX(-22deg); } }
+@keyframes lagbar { 0%, 30% { width: var(--lp); } 100% { width: var(--p); } }
+@keyframes wob { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+
+@property --n { syntax: "<integer>"; inherits: false; initial-value: 0; }
+@keyframes count { from { --n: 0; } to { --n: var(--to, 100); } }
+.count { animation: count var(--cd, 0.9s) var(--ease-out) both; animation-delay: var(--d, 0s); counter-reset: n var(--n); }
+.count::after { content: counter(n); }
+.count.sep::after { content: counter(n); }
+@keyframes count2 { from { --n: var(--from, 0); } to { --n: var(--to, 100); } }
+.count2 { animation: count2 var(--cd, 0.9s) var(--ease-out) both; animation-delay: var(--d, 0s); counter-reset: n var(--n); }
+.count2::after { content: counter(n); }
+
+@media (prefers-reduced-motion: reduce) { .btn.sweep > b::after, .bar .fill::after { animation: none; } }

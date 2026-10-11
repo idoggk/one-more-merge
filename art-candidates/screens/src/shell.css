@@ -1,0 +1,49 @@
+/* Review shell: index, phone frames, solo mode (?screen=<id>). Not part of the game look. */
+html { background: #1b1220; }
+body { font-family: "Lilita One", system-ui, sans-serif; color: #fff; min-height: 100vh; background: radial-gradient(120% 60% at 50% 0%, #3a2a42 0%, #1b1220 60%); -webkit-font-smoothing: antialiased; }
+.rv-head { position: sticky; top: 0; z-index: 200; background: rgba(27, 18, 32, 0.96); backdrop-filter: blur(8px); border-bottom: 2px solid #4a3552; padding: 10px 16px 8px; }
+.rv-title b { font-size: 21px; color: #ffd24a; font-weight: 400; letter-spacing: 0.02em; }
+.rv-title span { display: block; font: 13px/1.4 system-ui, sans-serif; color: #c9b8d0; margin-top: 3px; max-width: 980px; }
+.rv-title code { background: #3a2a42; padding: 1px 5px; border-radius: 4px; color: #ffe8a8; }
+.rv-nav { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; }
+.rv-navg em { font-style: normal; font-size: 11px; color: #9a87a6; margin-right: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+.rv-navg a { display: inline-block; font-size: 13px; color: #fff6e0; text-decoration: none; background: #3a2a42; border-radius: 999px; padding: 3px 10px 4px; margin: 2px 3px 2px 0; }
+.rv-navg a:hover { background: #5a4066; }
+.rv-main { padding: 6px 16px 70px; }
+.rv-h2 { font-weight: 400; font-size: 24px; color: #fff6e0; margin: 34px 0 4px; letter-spacing: 0.02em; }
+.rv-h2 small { display: block; font: 13px/1.4 system-ui, sans-serif; color: #b6a3bf; margin-top: 3px; max-width: 900px; }
+.rv-grid { display: flex; flex-wrap: wrap; gap: 34px 30px; margin-top: 16px; }
+.rv-cell { width: 410px; scroll-margin-top: 150px; }
+.rv-cell figcaption { padding: 0 6px 10px; }
+.rv-cell figcaption b { display: block; font-weight: 400; font-size: 19px; color: #ffe8a8; }
+.rv-cell figcaption span { display: block; font: 12.5px/1.4 system-ui, sans-serif; color: #b6a3bf; margin-top: 2px; min-height: 34px; }
+.phone { width: 410px; padding: 10px; background: #0d080f; border-radius: 56px; box-shadow: 0 0 0 2px #4a3552, 0 24px 44px rgba(0, 0, 0, 0.55); }
+.rv-tools { display: flex; gap: 10px; padding: 10px 6px 0; }
+.rv-tools a, .rv-tools button { font: 13px system-ui, sans-serif; color: #fff6e0; background: #3a2a42; border-radius: 999px; padding: 4px 12px; text-decoration: none; cursor: pointer; }
+.rv-tools a:hover, .rv-tools button:hover { background: #5a4066; }
+.off, .off * { animation-play-state: paused !important; }
+
+@media (max-width: 440px) {
+  .rv-cell, .phone { width: 100%; }
+  .phone { padding: 0; border-radius: 0; box-shadow: none; background: none; overflow-x: auto; }
+  .rv-main { padding: 6px 0 70px; }
+  .rv-head, .rv-h2, .rv-cell figcaption, .rv-tools { padding-left: 12px; padding-right: 12px; }
+  .rv-head { position: static; }
+  .screen { border-radius: 0; }
+}
+
+/* ---- solo: exactly one screen at 390x844 ---- */
+html.solo, html.solo body { background: #000; margin: 0; overflow: hidden; }
+html.solo .rv-head, html.solo .rv-h2, html.solo .rv-cell figcaption, html.solo .rv-tools { display: none; }
+html.solo .rv-main { padding: 0; }
+html.solo .rv-grid { display: block; margin: 0; }
+html.solo .rv-group { display: block; }
+html.solo .rv-cell { display: none; width: 390px; }
+html.solo .rv-cell.on { display: block; }
+html.solo .phone { width: 390px; padding: 0; border-radius: 0; box-shadow: none; background: none; }
+html.solo .screen { border-radius: 0; }
+
+/* ---- every screen ---- */
+.screen { position: relative; width: 390px; height: 844px; overflow: hidden; border-radius: 46px; background: #241a2a; font-family: "Lilita One", system-ui, sans-serif; color: #fff; isolation: isolate; user-select: none; }
+.screen .layer { position: absolute; inset: 0; }
+.screen a { color: inherit; text-decoration: none; }
