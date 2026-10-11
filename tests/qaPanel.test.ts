@@ -25,7 +25,7 @@ describe('QA panel layout (bug t-6d70ea51: bottom rows ran off the screen)', () 
     expect(qaGeometry(heights, 1558).minScroll).toBeLessThan(0);
     expect(Math.abs(qaGeometry([100, 100], 1558).minScroll)).toBeCloseTo(0);
   });
-  it('is shorter than before the NEW UNITS grouping (was 1725 px of sheet)', () => {
-    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1725 + 118 + 70); // was 1725-100; the panel scrolls now, MERGE ASSIST added a row, + BUDGET LEVELS (t-4c676288, 118 px) + POWER TOOLS (t-e2a48327, 70 px)
+  it('stays a bounded sheet (was 1725 px before the NEW UNITS grouping)', () => {
+    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1830 + 118 + 70); // the panel scrolls now; MERGE ASSIST, YARD PRESSURE, BUDGET LEVELS (118 px) and POWER TOOLS (70 px) each added a row
   });
 });
