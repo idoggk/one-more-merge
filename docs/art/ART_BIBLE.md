@@ -22,7 +22,7 @@ The look, in seven rules:
 2. **Outline**: thick dark outline on every object (about 4-5% of the object's width). The outline is a *dark tint of the object's own hue* (dark brown on wood/brass/cream, dark navy on blue, dark maroon on red). **Never pure black.** The UI ink colour is `#2b1d2e` (a plum-black) and is the only near-black allowed.
 3. **Material**: glossy enamel paint, brass trim, rivets and bolts, cream base plate. One soft white highlight blob + one thin specular streak per object, a darker bottom edge (the "lip").
 4. **Light**: one direction for everything, **from the top-left**. Highlights top-left, core shadow bottom-right, a soft rim light on the bottom-right edge, cast shadow falls down-right. This applies to units, UI buttons, panels, crates, icons and effects.
-5. **Corners**: ONE corner-radius family. UI rects use a radius of 24 px (small elements: 16 px; big panels: 36 px, as `panel()` has today). Never mix a sharp and a rounded corner on the same screen. Circles are allowed for coins, gems, dials.
+5. **Corners**: ONE corner-radius family = one proportional rule, **radius = 18% of the shorter side, clamped to 16-36 px** (small elements land on 16, cards on 24, big panels on 36 as `panel()` has today; pills use half their height). These three values are steps of the one rule, not three styles. Never mix a sharp and a rounded corner on the same screen. Circles are allowed for coins, gems, dials.
 6. **Colour**: saturated mid-values, warm bench background, cool accents. Colour carries meaning (section 2 roles). Gradients are two-tone (light top-left to darker bottom-right), never rainbow.
 7. **Tiers change the silhouette, not only the number**: rank 1 is plain; every two ranks add a visible part (more barrels, bigger bell, brass trim at rank 3, gold trim and glow at rank 5, crowned/MAX streak at rank 6). Rarity shows as frame colour + trim metal (section 2).
 
@@ -101,7 +101,7 @@ x1-x4 white `#ffffff` → x5-x7 yellow `#ffe14a` → x8-x11 orange `#ff9a1a` →
 
 - **Display font: Lilita One** (already bundled via @fontsource, ~210 uses). It stays: chunky, rounded, matches the toy look. Used for titles, buttons, numbers, banners, damage numbers.
 - **Body font: one rounded sans, bundled**, to replace the Arial / Arial Black / Georgia mix (68 + 8 + 1 uses). Candidate: Nunito ExtraBold/Bold (via @fontsource) [open question 14.2]. Used for card text, descriptions, captions.
-- **Numerals**: tabular figures for every number that changes (timers, currency, damage). Lilita One's digits are close to tabular; if not, set a fixed-width text container so numbers do not jitter when counting.
+- **Numerals**: tabular figures for every number that changes (timers, currency, damage). Whether Lilita One's digits are tabular is unverified: S1 must test it (render "1111" and "0000" and compare widths); if not tabular, set a fixed-width text container so numbers do not jitter when counting.
 
 Text style presets (build once, in one module `src/game/ui/textStyles.ts`, slice S1):
 
@@ -126,7 +126,7 @@ All sizes are design px on the 720-wide canvas. Every component lives in its own
 
 ### 4.1 Buttons
 - **Pill**, height **56-64**, min width 160, radius = half height. Primary: height 72-80.
-- Anatomy: 2-tone gradient face (light top-left) + **4-6 px darker lip** along the bottom + top gloss strip (white 25%, upper 40% of the face) + outline (role colour from 2.2, 4 px).
+- Anatomy (matches the shipped `btn_green.webp` / `btn_blue.webp`, which are the style target): a **dark plum base** (`#2b1d2e`-tinted, the outer edge) → a **cream/brass bezel ring** (cream `#fbe7c6` with a brass `#e0a040`→`#a06020` edge, 5-8 px wide) → the **2-tone enamel face** (light top-left) with a **4-6 px darker lip** along the bottom and a top gloss strip (white 25%, upper 40% of the face). **Brass rivets**: one small round rivet (8-10 px, brass with a highlight dot) at each end of the pill, centred vertically (the art puts them in the bezel). The role colour (2.2) fills the face; the outline of the face is its darker tint, 4 px. A button without bezel and rivets is not a kit button. Before S1 bakes anything, the worker must open `btn_green.webp` at full size and copy bezel width and rivet size from it, then write the measured values back here.
 - Press: scale **0.95 in 70 ms**, face drops by the lip height (lip disappears). Release: overshoot **1.04 then 1.0 in 140 ms**. Haptic tick + `sfx.click`.
 - **Primary** buttons breathe 1.0 to 1.05 over 1.2 s (sine, yoyo) and run a **shine sweep** (diagonal white 30% band) every 3-4 s.
 - Disabled: grey (2.2), no breathing, **a reason is shown** (small caption under it or a toast on tap: "Needs 3 bolts").
@@ -134,12 +134,12 @@ All sizes are design px on the 720-wide canvas. Every component lives in its own
 - Art: 9-slice pill per colour (S5 art; until then baked in code by the S1 helper). Existing `btn_green/blue/red` (+ `_pressed`) stay valid and are the style target.
 
 ### 4.2 Panels
-- Anatomy: outer border (ink, 8-12 px) + **darker inset** (cream shade `#e0c0a0` well) + face (cream `#fbe7c6`), radius 36, soft shadow (0,8 ink 35%).
+- Anatomy (same family as the buttons, matches `ui_card.webp` / `tray_plate.webp`): dark plum outer edge (ink `#2b1d2e`, 8-12 px) → **brass trim line** (3-4 px, `#e0a040`→`#a06020`) → **cream bezel** → **darker inset** (cream shade `#e0c0a0` well) → face (cream `#fbe7c6`), radius 36, soft shadow (0,8 ink 35%). **Brass rivets** in the four corners of popup/card panels (10 px), omitted on small tooltips and list rows. Header ribbon sits over the brass trim.
 - **Header ribbon**: a coloured banner overlapping the top edge, 72 px high, title in `title` preset. Role colour by panel type (blue info, green shop, red warning).
 - 9-slice, one atlas frame per panel type: standard, popup, card, inset well, tooltip bubble.
 
 ### 4.3 Bars (HP, XP, energy, timer, overdrive)
-- Height 36-50, **rounded caps**, dark inset track, fill with 2-tone gradient + **gloss strip** across the top third.
+- Height 36-50, **rounded caps**, dark plum inset track inside a thin **cream/brass bezel** (3-4 px, same family as buttons; small brass rivet at each end on bars >= 40 high), fill with 2-tone gradient + **gloss strip** across the top third.
 - **Shine sweep** every 2-3 s across the fill.
 - **Lag bar**: the fill moves to the new value in **150 ms**; a pale trail (white 50%) lags and catches up after **+400 ms**.
 - Colour: green `#40c060` → yellow `#ffcf33` → red `#ff4020`; goes red below **30%**, **pulses (scale 1.0-1.04, 0.5 s) below 20%**.
@@ -148,7 +148,7 @@ All sizes are design px on the 720-wide canvas. Every component lives in its own
 
 ### 4.4 Popups / modals
 - Dim backdrop **60%** ink. Not full-screen: panel max 88% of width. Tap outside closes (unless it is a reward or a confirm).
-- Enter: scale **0.8 to 1.0 back-out in 220-280 ms** + fade; Exit: **150 ms** scale 1.0 to 0.9 + fade. (Today: slide 40 px + fade 220 ms.)
+- Enter: scale **0.8 to 1.0 back-out in 220-280 ms** + fade; Exit: **150 ms** scale 1.0 to 0.9 + fade. (Today's behaviour is a slide + fade, about 220 ms: unverified, check `ui/` popup code in S1 before replacing.)
 - Reward popups: a **rotating shine** (soft radial rays, 8 s per turn) behind the item; the item pops 0-1.3-1.0.
 - Max one popup level deep.
 
@@ -171,11 +171,25 @@ All sizes are design px on the 720-wide canvas. Every component lives in its own
 
 ### 4.9 Tabs and nav
 - Bottom nav bar, **4-5 tabs**, in the lower thumb zone. Active tab: raised pill highlight, icon scales 1.15 and bounces on switch (160 ms), label shown only on active.
-- Icon set: one painted style, one outline weight (G9 in the taxonomy). No icon mixes painted and glyph styles.
+- Icon set: one painted style, one outline weight (the icon category of the asset taxonomy in `TEARDOWN.md`). No icon mixes painted and glyph styles. Inventory in 4.11.
 
 ### 4.10 Toasts and banners
 - Toast: pill under the header, slides down 24 px + fade in 180 ms, holds 1.6 s, fades 200 ms. Max 2 stacked.
-- Banners (CHAIN x5, OVERDRIVE, BOSS): see section 7.
+- Banners (CHAIN x5, OVERDRIVE, BOSS): see section 6.6 and 6.8.
+
+### 4.11 Icon inventory (one painted style, 64x64 authored, readable at 32)
+- **Currencies**: bolt, scrap, gem/premium, coin/parts, key, ticket (crate), star (filled/empty/gold).
+- **Nav tabs** (each with active and idle variant): road, machine, units, crates/shop, events.
+- **Role icons** (the `job_*` glyph family, white with outline): shooter, relay, support, card, plus one per family glyph already in `job_*`.
+- **Settings and system**: sound, music, vibration, screen shake, language, reduce effects, pause, resume, restart, home, back, close, info, help, lock, padlock, check, cross, plus, minus, arrow, share.
+- **Status and marks**: notification dot, NEW ribbon, cap/merge-budget, clock/timer, bolt (energy), skull-gear (boss), crown (MAX), shield, fire (streak).
+- **Rarity gems**: common, rare, epic, legendary.
+- The inventory is the checklist for S5 batch 4; each entry becomes an `icon_<name>` key (section 10).
+
+### 4.12 List rows and settings rows
+- **List row** (units roster, events, bounties): 96 high, cream face with the panel edge treatment of 4.2 minus rivets, left icon/portrait tile 72, title (body-bold 26) + caption (22) stacked, right side = status chip or chevron. Pressed: 0.98 scale, 70 ms. Rows separated by 8 px, never by hairlines.
+- **Settings row**: 88 high; label left, control right (toggle 4.7, slider, segmented off/soft/full, or a button); section header ribbon above each group; the whole row is the touch target.
+- **Segmented control**: pill track, sliding raised thumb in the role colour, 56 high.
 
 ---
 
@@ -185,13 +199,13 @@ All sizes are design px on the 720-wide canvas. Every component lives in its own
 - Painted sprite, 256x256 source, ~118 px in cell, 3/4 view, dark tinted outline, light top-left, cream base plate visible under the body.
 - A soft **shadow ellipse** under every unit (ink 30%, 70% of cell width).
 - **Idle breath** 1-2% scale, 2.4 s sine, phase offset per cell so the board does not pulse in unison. Paused during animations of that unit.
-- **Rank**: ranks 1-6 (8 for the original 3 and some roster B: art exists to 8). Silhouette grows (section 1 rule 7). Rank number sits in the existing `dice_N` badge. MAX = crown + family streak.
+- **Rank**: the **playable cap is rank 6** (README). Some existing files go to `_8` (legacy/unused ranks); do not author or require ranks 7-8 for new units, and do not treat them as shipped behaviour. Silhouette grows (section 1 rule 7). Rank number sits in the existing `dice_N` badge. MAX = crown + family streak.
 - **Rarity** = frame on cards/portraits and trim metal on the unit.
 - Poses: **idle** (default), **attack** (shooters: 2-frame recoil/kick for 120 ms, may be done by code squash for v1), **hit** is not needed (units are not hit).
 - Units without art use a **glyph tile** that must look intentional: rarity-framed rounded tile, family-colour gradient, the white `job_*` glyph with outline, rim light. Never a bare rectangle.
 
 ### 5.2 The 22 code-drawn units (placeholder until S5)
-Wrench, Piston, Spring, Belt Drive, Blowtorch, Pipe, Blast Plate, Tesla Tower, Capacitor, Blueprint, Ladder, Rewind Crank, Crane, Dynamo, Wrecking Ball, Robot Arm, Tilt Lever, Rivet Gun, Vice, Router, Hydraulic Press, Lathe. Each needs ranks 1-6 in the painted style (132 images). Priority: Common and Rare first (Piston, Spring, Rivet Gun, Vice, Blowtorch, Pipe, Router), then Epic, then Legendary (Tesla Tower, Crane, Dynamo, Robot Arm, Tilt Lever).
+Wrench, Piston, Spring, Belt Drive, Blowtorch, Pipe, Blast Plate, Tesla Tower, Capacitor, Blueprint, Ladder, Rewind Crank, Crane, Dynamo, Wrecking Ball, Robot Arm, Tilt Lever, Rivet Gun, Vice, Router, Hydraulic Press, Lathe. Each needs ranks 1-6 in the painted style (132 images). Priority: Common and Rare first (Wrench, Piston, Spring, Rivet Gun, Vice, Blowtorch, Pipe, Router, Blast Plate), then Epic, then Legendary (Tesla Tower, Crane, Dynamo, Robot Arm, Tilt Lever). Rarity assignments follow `docs/ROSTER.md`; where this list disagrees, ROSTER.md wins.
 
 ---
 
@@ -213,7 +227,7 @@ Timings are starting values.
 - **Knockback** 3-6 px away from the source, return 140 ms.
 - **Damage number** rises **40-60 px over 650 ms**, with ±8 px horizontal jitter and a small random rotation (±6°), scales 1.2 → 1.0 in the first 80 ms; colours per 2.6; crits bigger and orange.
 - **4-8 sparks** in the family colour at the impact point (per-family shape, section 7).
-- Hit-reaction strength scales with chain length (the current 1.5-2.5% squash is too weak to see at 280 px).
+- Hit-reaction strength scales with chain length (the audit reports a very small squash today, about 1.5-2.5%, not re-measured; S2 must confirm the current value before changing it).
 
 ### 6.3 Kill
 - Target scales 1.2 then collapses to 0 with a flash, **ring** expanding 1.5x in **200 ms**, debris + sparks (existing 70 debris / 50 sparks, keep, but vary tint per monster).
@@ -237,6 +251,7 @@ Shared recipe, then per-family overrides (section 7):
 - Job tag text ("DEPTH x1.48") stays but uses the `number-pop` preset and rises 30 px.
 
 ### 6.6 Chain
+- (Today's counter colour behaviour, e.g. white to gold at 8+, is unverified: S2 reads `chainCounter` first and keeps whatever already works.)
 - **Chain counter** (`xN`): grows with N (scale step each link), colour ladder 2.7, punch 1.0 → 1.25 → 1.0 per step (120 ms), pitch ladder per link.
 - **Banner at x5, x10, x20**: full-width ribbon slides in 200 ms, text with outline + hard shadow, holds 600 ms, exits 200 ms; at x10+ a 6 px shake and a vignette flash; x20 slow-mo 0.6x for 300 ms (visual only).
 - Chain end: total damage count-up in the corner (400 ms).
@@ -281,7 +296,7 @@ Every unit gets its own **projectile/pulse shape, impact, and trigger look**, di
 
 ### 7.4 One line per unit (39 units): shoot · impact · trigger
 
-Legend: **S** shoot / pulse, **I** impact, **T** trigger. All "none" shots mean the unit has no projectile; its pulse is described instead.
+Legend: **S** shoot / pulse, **I** impact, **T** trigger. All "none" shots mean the unit has no projectile; its pulse is described instead. Relays DO hit the monster for a small base amount (`docs/ROSTER.md`, e.g. Ladder 8, Capacitor 6, Dynamo 3), so every relay has a family-coloured pulse and impact brief (small, 120-180 ms, 40% of a shooter's impact size, so shooters still read as the damage dealers). Rows that stay "none / —" are supports and off-board cards, which do not hit the monster.
 
 #### Original 13
 | Unit | Shoot (S) | Impact (I) | Trigger (T) |
@@ -305,7 +320,7 @@ Legend: **S** shoot / pulse, **I** impact, **T** trigger. All "none" shots mean 
 |---|---|---|---|
 | **Nail Gun** (steel) | S: rapid **tracer of 3 thin nails** in a straight line, 120 ms, muzzle pops, recoil 3 px, fast stutter shake | I: three small "tick" puncture marks + steel glints | T: row sweep: nails fly along the row; the number of nails equals units in the row |
 | **Jackhammer** (yellow) | S: no projectile: the unit **jackhammers down** (3 rapid 5 px bounces) then a **shockwave pulse** rushes along the ground | I: ground-crack lines radiate from the monster base, rubble chips, ignores-shield "zap" flash on the shield | T: rumble: 3 quick vertical jolts on the unit |
-| **Gear** (bronze) | S: none | I: — | T: both gears spin up (rotating, teeth glints) and a **chain of tiny gears** draws between them; the far Gear locks in with a click |
+| **Gear** (bronze) | S: pulse = a small spinning bronze cog rolls from the gear to the monster (no arc), 16 px | I: cog-tooth ring stamp + 4 bronze tooth chips | T: both gears spin up (rotating, teeth glints) and a **chain of tiny gears** draws between them; the far Gear locks in with a click |
 | **Saw Blade** (silver) | S: **spinning circular disc**, 26 px, rotating, shaving sparks trail, flies in a flat line | I: disc bites in, a **line slash** mark + spark fan, disc returns 150 ms | T: the blade spins up (3 rotations) before waking; edge units glint |
 
 #### Roster B batch 2
@@ -313,31 +328,31 @@ Legend: **S** shoot / pulse, **I** impact, **T** trigger. All "none" shots mean 
 |---|---|---|---|
 | **Wrench** (tan, card) | S: none (off-board) | I: — | T: card glows; a wrench icon "tightens" (rotates 45° with a click) and a +1 RANK chevron lands on the next merge |
 | **Piston** (rust-red) | S: **piston punch**: a pressure puff leaves the cylinder then a compressed-air ring travels straight | I: dent-shaped flat ring + dust puff, bigger with more empty neighbour cells | T: unit pumps (stretches 1.1 vertical, snaps back), steam puffs from the open sides into empty cells |
-| **Spring** (green) | S: none | I: — | T: unit **coils and boings**: a green dotted arc **hops over** the next part to land on the one after; landing squash |
-| **Belt Drive** (slate) | S: none | I: — | T: a **moving belt line** (dashes marching) runs from the unit along the row to the far end, rollers spin |
+| **Spring** (green) | S: pulse = a green coil-shaped ripple that boings to the monster in one short hop | I: squashed green zig-zag ring + 3 bounce dots | T: unit **coils and boings**: a green dotted arc **hops over** the next part to land on the one after; landing squash |
+| **Belt Drive** (slate) | S: pulse = a short slate dash-band (3 marching dashes) sliding along the line to the monster | I: flat slate streak + 3 rubber-black scuff chips | T: a **moving belt line** (dashes marching) runs from the unit along the row to the far end, rollers spin |
 
 #### Roster B batch 3
 | Unit | Shoot (S) | Impact (I) | Trigger (T) |
 |---|---|---|---|
 | **Blowtorch** (orange) | S: **flame cone** (not a ball): a short jet 90 px that flickers, blue core + orange tip | I: scorch mark + flame lick on the monster; burned hazards in the column char and crumble to ash | T: pilot light flares blue, a flame tongue runs up the column |
-| **Pipe** (grey-green) | S: none | I: — | T: a **pipe tube** (rounded, with water-gurgle ripples) connects to touching parts, then to same-kind parts; pressure puff at each joint |
+| **Pipe** (grey-green) | S: pulse = a grey-green water-droplet jet that spurts out of the open pipe end | I: splash crown + 4 droplets, brief wet-dark patch | T: a **pipe tube** (rounded, with water-gurgle ripples) connects to touching parts, then to same-kind parts; pressure puff at each joint |
 | **Blast Plate** (steel-lilac, card) | S: none | I: — | T: card shows a hex shield; tapped cell gets a **blue-grey dome** shield pulse; on block, a "clang" flash and spark ring |
 | **Tesla Tower** (ice cyan) | S: **big forked lightning** from a coil-top orb, 3 branches, thick white core + cyan halo; extra bolts per charge | I: ground-hit crackle web + cyan flash + screen-edge flicker 60 ms | T: the tower's orb **charges** (growing glow, small orbiting sparks) as each relay fires, +1 spark per charge |
 
 #### Roster B batch 4
 | Unit | Shoot (S) | Impact (I) | Trigger (T) |
 |---|---|---|---|
-| **Capacitor** (teal-blue) | S: none | I: — | T: absorbs: a bright orb slowly **fills** the unit (glow meter), holds with a faint hum, releases next merge as a burst to one neighbour |
+| **Capacitor** (teal-blue) | S: pulse = a teal-blue energy orb thrown in a soft arc (bigger the longer it held a charge) | I: teal flash disc + 2 expanding rings, tiny static crackles | T: absorbs: a bright orb slowly **fills** the unit (glow meter), holds with a faint hum, releases next merge as a burst to one neighbour |
 | **Blueprint** (blue, card) | S: none | I: — | T: card unrolls a **white-line grid** of the next 3 deliveries; chosen cell gets a blueprint-blue ghost outline and "COPY" stamp |
-| **Ladder** (brown-gold) | S: none | I: — | T: **rungs light up in sequence** (1, 2, 3 …) climbing from unit to unit; each step brightens and pitches up |
+| **Ladder** (brown-gold) | S: pulse = three small gold rung-bars that fly up in a staircase to the monster, each one higher | I: stacked rung marks climbing the monster (1, 2, 3 chips) + gold glints | T: **rungs light up in sequence** (1, 2, 3 …) climbing from unit to unit; each step brightens and pitches up |
 | **Rewind Crank** (lilac, card) | S: none | I: — | T: card **crank spins backward**; the board plays a quick reverse ghost trail (violet afterimages) as it rewinds |
 
 #### Roster B batch 5
 | Unit | Shoot (S) | Impact (I) | Trigger (T) |
 |---|---|---|---|
 | **Wrecking Ball** (dark steel) | S: a **swinging iron ball** on a chain: arc swing from the unit, chain drawn as a line, **heavy** (no trail, motion smear) | I: big **shockwave** + dent decal + debris, screen shake 4 px scaled by distance | T: chain tightens and the ball swings back and forth once |
-| **Crane** (yellow) | S: none | I: — | T: a **hook drops from above**, grabs the part, lifts it over (shadow below), sets it on its twin with a thunk, merge flash |
-| **Dynamo** (magenta) | S: none | I: — | T: a **spinning ring** of energy around the 2x2 block, magenta sparks orbit, then bursts outward to the ring cells |
+| **Crane** (yellow) | S: pulse = a yellow hook-and-line drops from above onto the monster and lifts away | I: yellow "thunk" ring + hazard-stripe chips, small dust puff | T: a **hook drops from above**, grabs the part, lifts it over (shadow below), sets it on its twin with a thunk, merge flash |
+| **Dynamo** (magenta) | S: pulse = a spinning magenta ring (halo) that spirals to the monster | I: orbiting-spark ring that spins once + magenta flash | T: a **spinning ring** of energy around the 2x2 block, magenta sparks orbit, then bursts outward to the ring cells |
 
 #### Roster B batch 6
 | Unit | Shoot (S) | Impact (I) | Trigger (T) |
@@ -349,15 +364,17 @@ Legend: **S** shoot / pulse, **I** impact, **T** trigger. All "none" shots mean 
 | Unit | Shoot (S) | Impact (I) | Trigger (T) |
 |---|---|---|---|
 | **Rivet Gun** (amber) | S: single **chunky rivet**, 18 px, hot-orange tip, pop + smoke ring at muzzle, sharper than nail | I: rivet **embeds** (stays stuck 400 ms) with a glowing ring; a "x2" gold flash if it was 3rd | T: 3-count pip row above the unit lights as the chain count passes (1, 2, 3 = x2) |
-| **Vice** (grey) | S: none | I: — | T: two **jaw plates** slam inward from the sides (grip squeeze), spark at contact; shooters woken gain a steel outline glow |
-| **Router** (green-teal) | S: none | I: — | T: an **L-shaped path** (rounded corner) draws with arrow-chevrons, light dot runs along it, junction flashes at the turn |
+| **Vice** (grey) | S: pulse = a grey clamp-shaped pulse (two short bars closing) snapping at the monster | I: pinch-mark "><" decal + steel glints | T: Vice only works on a **board edge**: it wakes the next **3 cells inward in a straight line** (nothing off the edge). A grey clamp-pulse travels inward along that line, each of the 3 cells squeezes 0.95 as it passes with a spark at contact; woken shooters gain a steel outline glow. An off-edge Vice shows a "needs an edge" shake, no effect |
+| **Router** (green-teal) | S: pulse = a green-teal dot that follows a right-angle (L) path to the monster | I: L-shaped corner flash + 2 chevron glints | T: an **L-shaped path** (rounded corner) draws with arrow-chevrons, light dot runs along it, junction flashes at the turn |
 | **Hydraulic Press** (blue) | S: a **flat plate stamping down**: the press head slams (squash unit 0.8), a flat shockwave **disc** expands | I: stamped square footprint decal, ring flattened, metal clang flash; strongest when all 4 neighbours are full | T: pressure gauge needle swings up on the unit; steam vents at the sides |
 | **Lathe** (olive-gold) | S: a **spinning thread of wood-chip shavings** in a straight ribbon from edge to edge, curly shavings trail | I: spiral cut mark + shaving curls pop, ring spins once | T: chuck spins fast (rotation blur) before waking, shavings fly |
 
 ### 7.5 Link motifs per edge kind (fixes "roster B links draw WHITE")
-Every edge kind must have a colour (family colour of the source) AND a motif:
-- coil: jagged bolt · bell: ring wave · horn: cone/column blast · fuse: dotted diagonal sparks · magnet: curved field lines · fan: wind streaks · battery: energy stream · arc: arc lightning · amp: broadcast arcs.
-- gear: tiny gear chain · hop (spring): dotted parabola · belt: marching dashes · pipe: tube with ripples · cap: filling orb then burst · stair: lit rungs · vice: jaws inward · router: L path with chevrons · lift (crane): hook line from above · swing (wrecking ball): chain line + arc.
+Every edge kind must have a colour (family colour of the source) AND a motif. The list below is the full `edges[].kind` union in `src/core/types.ts` (27 kinds); the S3 test must check it against the type so a new kind cannot ship without a motif.
+- Original: **coil**: jagged bolt · **bell**: ring wave · **horn**: cone/column blast · **fuse_box**: dotted diagonal sparks · **magnet**: curved field lines · **fan**: wind streaks · **battery**: energy stream · **arc**: arc lightning · **amp**: broadcast arcs.
+- Core-generated kinds: **spark**: short bright zig-zag in the source family colour (the default chain link; also Signal Beacon pings) · **backfire**: a red-orange recoil jolt that snaps back toward the source with a puff (a failed or reversed link) · **bridge** (Belt Drive; the code kind is `bridge`, not "belt"): marching dashes jumping over the skipped cells · **chime**: a small bell-note ripple with 2 musical glints · **item** (power-up item wake): an item-coloured streak with a bolt/corner glyph at the target · **ring** (Dynamo block wake): a closed ring of sparks around the block · **copy** (Robot Arm / Blueprint): a ghost outline of the source slides to the target with a "COPY" tick.
+- Roster B: **gear**: tiny gear chain · **hop** (Spring): dotted parabola · **belt**: marching dashes (same motif as bridge but continuous along every cell, not skipping) · **pipe**: tube with ripples · **cap**: filling orb then burst · **stair**: lit rungs · **vice**: clamp pulse inward along the 3-cell line · **router**: L path with chevrons · **lift** (Crane): hook line from above · **swing** (Wrecking Ball): chain line + arc.
+- Rule: each kind has its own colour entry (source family colour) in `linkMotifs.ts`; a fallback to white is a bug.
 
 ---
 
@@ -422,7 +439,7 @@ A task is not done until every box for its asset type is true, with a screenshot
 - [ ] Light top-left; lip + gloss present; outline = darker tint of face, never black.
 - [ ] States complete (idle, press, disabled).
 - [ ] Text is live, not baked; contrast against face >= 4.5:1.
-- [ ] Touch target >= 56 px.
+- [ ] Touch target >= 56 px for anything tappable. Visual size may be smaller if the hit area is padded to 56 (the 96x48 toggle gets a 96x56 hit area; the 22 px notification dot is not tappable, it decorates a 56+ px icon button).
 
 **Icon**
 - [ ] Same outline weight and painted style as the set; 64x64 minimum authoring size, readable at 32 px.
@@ -464,7 +481,7 @@ A task is not done until every box for its asset type is true, with a screenshot
 
 ## 13. Execution plan (ordered slices)
 
-Order = value per effort. S1-S4 need no new art. Each slice is a task for one worker, in one branch, with its own acceptance and verify steps. **Always:** `npm run typecheck`, `npm test` and `npm run build` pass; minimal `GameScene.ts` edits (one-line delegations); each new component in its own new file; before/after screenshots via `tools/shots.mjs`.
+Order = value per effort. S1-S4 and S7-S10 need no new art (they use procedural stand-ins; S5 later swaps in painted art). Each slice is a task for one worker, in one branch, with its own acceptance and verify steps. **Always:** `npm run typecheck`, `npm test` and `npm run build` pass; minimal `GameScene.ts` edits (one-line delegations); each new component in its own new file; before/after screenshots via `tools/shots.mjs`.
 
 ### S1 - UI kit v0 in code (size M-L, 2-3 days)
 Goal: the game *feels* tactile, with no new art.
@@ -498,8 +515,28 @@ Goal: the game *feels* tactile, with no new art.
 ### S6 - Asset Hub v0 (size M, 1-2 days)
 As specified in `ASSET_HUB_DESIGN.md` "First slice": `src/content/assetRegistry.ts`, `tests/assetRegistry.test.ts`, `tools/build-asset-hub.mjs`, `tools/capture-code-assets.mjs`, phone page with categories, previews, status badges, search, needs-art list and the "x of y final" meter. Acceptance and verify commands are in that doc. Can run in parallel with S1-S4 (no overlap in files).
 
+### S7 - Crate opening choreography (size M, 2 days; code, uses glyph tiles until S5 art)
+- **Files (new)**: `src/game/ui/crates/openSequence.ts` (anticipation shake 600-900 ms, lid flash, rarity-coloured reveals 250-400 ms apart, legendary slow-mo, duplicate fly-to-pill, skip-on-tap, buttons last), `src/game/ui/crates/rarityGlow.ts`, `src/game/ui/crates/glyphTile.ts` (intentional-looking tile for units without art). Edit: crate screen module delegates (one line).
+- **Acceptance**: section 6.7 holds; big crate (no tiny bag in an empty panel); odds row never overlaps; any tap during reveals jumps to the end state with all items shown; no endless tweens after skip/close (existing `crateLeak` test still passes); sim unaffected.
+- **Verify**: typecheck, test, build; shots of the open sequence at 3 moments (shake, reveal, end) at 390x844.
+
+### S8 - Boss, win and lose moments (size M, 2 days; code)
+- **Files (new)**: `src/game/fx/bossIntro.ts` (0.5x visual slow-mo 500 ms, vignette, 8-12 px shake, BOSS banner), `src/game/fx/bossDefeat.ts` (hit-stop 100 ms, 0.3x slow-mo 700 ms, 3-5 staggered explosions, skip on tap), `src/game/ui/resultsFlow.ts` (6.9 win order: stars, count-up, rewards fly, buttons last; 6.10 lose: desaturate 40%, calm, no shake), plus the Screw Yard completion moment `src/game/ui/screwYardDone.ts` (latch, shake, pop, fly to reward; the "finished box just disappears" bug).
+- **Acceptance**: sections 6.8, 6.9, 6.10 and the Screw Yard line in 9 hold; slow-mo and hit-stop are visual only (model tick unchanged: core and determinism tests unchanged and passing); every sequence over 1 s is skippable; shake respects the setting and is max, not sum.
+- **Verify**: typecheck, test, build; `npx vite-node tools/sim.ts` unchanged; shots/strips of boss in, boss out, win, lose, Screw Yard box done.
+
+### S9 - Tool choreography: Row Surge and Gear Bomb (size M, 2 days; code, art optional)
+- **Files (new)**: `src/game/fx/tools/rowSurge.ts`, `src/game/fx/tools/gearBomb.ts`, `src/game/fx/tools/combo.ts`, `src/game/fx/tools/toolToken.ts` (idle bob, armed pulse, aim preview), registered through the existing tool events; scorch decal in `fx/ambience.ts`. This is the code slice that consumes the S5 batch-5 tool art; procedural shapes first.
+- **Acceptance**: section 6.11 holds for each tool (idle, armed, anticipation 250 ms, full effect, aftermath, combo); max 2 tools on board; tools stay off in puzzles/daily/bounties as today (QA flag unchanged); effects stay inside the budget in section 6; sim unaffected.
+- **Verify**: typecheck, test, build; tests that tool effects only read events; strips in `art-candidates/tool-fx/`.
+
+### S10 - Screens, menus and sound (size L, 3-4 days; split into 2 PRs)
+- **Files (new)**: `src/game/ui/kit/listRow.ts`, `kit/settingsRow.ts`, `kit/segmented.ts` (4.12), `kit/tabs.ts` and `kit/toast.ts` (4.9, 4.10), icon wiring `src/game/ui/icons.ts` (4.11, procedural stand-ins until S5), reskin of the section 9 screens (road, units, machine, events, settings, pause, results, Screw Yard) in the existing `src/game/ui/*` modules via the kit; `src/game/audio/voices.ts` extension: per-family voices, chain pitch ladder, star/coin ticks, crate/boss stingers (synth, no files).
+- **Acceptance**: every screen in section 9 uses kit components only (no raw rounded rects with ink outline); nothing under 22 px; per-family sounds are distinct with ±5-8% pitch; pitch ladder rises on chains; sound respects the mute settings.
+- **Verify**: typecheck, test, build; shots of each screen at 390x844 and 430x932; a list of any screen still on the old look.
+
 ### Slice dependencies
-S1 → S2 (shared motion presets) → S3. S4 needs S1. S5 independent but blocked. S6 independent.
+S1 → S2 (shared motion presets) → S3. S4, S7, S8, S9 and S10 need S1; S8 and S9 also need S2 (hit-stop/slow-mo helpers). S5 independent but blocked (its art is consumed by S4, S7, S9, S10). S6 independent.
 
 ---
 
@@ -512,4 +549,7 @@ S1 → S2 (shared motion presets) → S3. S4 needs S1. S5 independent but blocke
 5. Screw Yard: keep the old look as default until the painted set lands (agreed, behind the QA switch).
 6. Palette hexes marked [art] are quantised samples: S5 should re-sample from the final ChatGPT batches and update section 2.
 7. Per-unit briefs in 7.4 are written from `FAMILY_INFO` and the audit's tags, not from playing each unit: a designer pass on jobs that changed recently is welcome.
-8. The brief used the phrase "39 new units"; the roster is **39 units in total** (13 original + 26 roster B). Section 7.4 covers all 39.
+8. **Owner to know**: the brief said "39 new units"; the code has **39 units in total** (13 original + 26 roster B). Section 7.4 covers all 39. If the owner means 39 on top of the 13 originals, the roster needs 13 more units: tell the owner and ask.
+9. Rank wording: playable cap is rank 6 (README); art files to rank 8 exist for some units and are ignored.
+10. Claims about today's behaviour marked "unverified" in 3, 4.4, 6.2 and 6.6 (popup slide, digit width, squash, chain colour) must be checked by the S1/S2 worker before they are replaced.
+11. Radius rule (section 1 rule 5) and touch-target padding (section 11) are proposals; confirm with the first baked kit.
