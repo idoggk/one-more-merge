@@ -27,6 +27,8 @@ const targetOf = (n) =>
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
   if (/app_?icon/.test(n)) return 'app_icon';
+  // crate screen art (CRATES = TOOLBOX): the four ChatGPT crates, one per tier
+  { const k = { crate_tool_bag: 'crate_bag', crate_toolbox: 'crate_toolbox', crate_tool_chest: 'crate_chest', crate_golden_workbench: 'crate_workbench' }[n]; if (k) return k; }
   // round 9: MAX signature effects (+ _v9 gadget redraws handled by the family/rank rule; later folders win)
   if (/backfire/.test(n)) return 'max_backfire';
   if (/bridge/.test(n)) return 'max_bridge';
@@ -143,6 +145,7 @@ const SIZE = (key) => {
   if (key.startsWith('store_')) return null;
   if (['bg', 'bg_practice', 'bg_corner', 'title', 'logo', 'vfx_flame', 'hud_header', 'hp_frame', 'hp_fill'].includes(key) || key.startsWith('stage_') || key.startsWith('banner_')) return null;
   if (key === 'app_icon') return 1024;
+  if (/^crate_(bag|toolbox|chest|workbench)$/.test(key)) return 640; // shown ~350 px wide on a 2x phone
   if (key.startsWith('ui_')) return 720;
   if (key.startsWith('dice_')) return 160;
   if (key.startsWith('target') || key === 'demo_can' || key === 'card' || key === 'victory' || key === 'defeat' || key.startsWith('btn_')) return 512;

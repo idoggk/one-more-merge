@@ -27,5 +27,5 @@ export default defineConfig({
   build: { rollupOptions: { output: { manualChunks: (id) => (id.includes('node_modules/phaser') ? 'phaser' : undefined) } } },
   // Tests are seeded and deterministic, but a few heavy ones (solver brute force,
   // boss/resume replays) run 3-4x slower on a busy machine. 5 s default was flaky.
-  test: { testTimeout: 20_000 },
+  test: { testTimeout: 60_000, setupFiles: ['tests/setup.ts'] },
 });

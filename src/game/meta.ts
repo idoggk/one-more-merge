@@ -83,6 +83,8 @@ export interface Meta {
   rush?: { week: number; course: string[]; granted: number; best?: { fights: number; time: number }; stamps?: Record<string, boolean>; medal?: boolean; weeks?: number[]; run?: { i: number; times: number[] } };
   /** Dropping on a non-matching piece swaps them (off by default: mismatches bounce back). */
   swapMismatch?: boolean;
+  /** Lifetime merges the player has made (MERGE ASSIST's AUTO mode stops helping at AUTO_MERGES). */
+  merges?: number;
   /** Camera shake on big hits (pause-menu toggle; default on). */
   shake?: boolean;
   /** Set by the level-5 clear / a classic win. Since t-2fd7bb86 it no longer opens features (see unlocks.ts). */
