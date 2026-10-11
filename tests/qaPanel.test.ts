@@ -26,6 +26,6 @@ describe('QA panel layout (bug t-6d70ea51: bottom rows ran off the screen)', () 
     expect(Math.abs(qaGeometry([100, 100], 1558).minScroll)).toBeCloseTo(0);
   });
   it('is shorter than before the NEW UNITS grouping (was 1725 px of sheet)', () => {
-    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1725 - 100 + 118); // + the BUDGET LEVELS row (t-4c676288, 118 px)
+    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1725 + 118); // was 1725-100; the panel scrolls now, MERGE ASSIST added a row, + the BUDGET LEVELS row (t-4c676288, 118 px)
   });
 });

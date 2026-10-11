@@ -156,6 +156,10 @@ export const TUNING = {
     need: { fan: 12, magnet: 10, battery: 14, amplifier: 12, signal_beacon: 16, blast_plate: 10, blueprint: 10, rewind_crank: 10 } as Record<string, number>,
     prime: 2, primeL3: 2.5, mark: 1.6, markL3: 2, goKick: 1.3,
   },
+  /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
+   *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation
+   *  only: rules, supply and clock are untouched (src/game/mergeAssist.ts). Settings > MERGE ASSIST and a QA row set it. */
+  mergeAssist: 'off' as 'off' | 'on' | 'auto',
   mergeRule: 'today' as 'today' | 'sandwich2' | 'sandwichBonus',
   sandwichOdShare: 1 / 3,
   /** PROTOTYPE (t-4208f149, rival study #2 "Think Bank"), default OFF (QA switch): once the player has not touched the
