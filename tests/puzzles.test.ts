@@ -33,18 +33,20 @@ describe('r42 workshop puzzles', () => {
     expect(q.phase).toBe('lost');
   });
   // owner: "in the drills i finished a drill without using the unit i took the drill for"
-  it('every drill needs its unit: no merge line breaks the machine unless the drilled unit acted', () => {
-    for (const [u, list] of Object.entries(data.drills))
-      for (const p of list) {
-        expect(p.unit, p.id).toBe(u);
-        const lines = allLines(p);
-        expect(unitFreeBreaks(lines, p.hp).map((l) => l.path), p.id).toEqual([]);
-        expect(lines.some((l) => lineWins(l, p.hp)), p.id).toBe(true);
-        const s = newPuzzle(p);
-        for (const [f, t] of p.solution) drop(s, f, t, s.grid[f]!.id);
-        expect(s.puzzle!.unitUsed, p.id).toBe(true);
-      }
-  }, 120000);
+  // One test per unit, not one giant loop: the whole loop is ~30 s of synchronous CPU, and a single test that
+  // never yields starves vitest's worker RPC (onTaskUpdate times out after 60 s on a busy machine and vitest
+  // reports "Errors 1 error" even though every test passed). Separate tests give the worker a turn in between.
+  it.each(Object.entries(data.drills))('every %s drill needs its unit: no merge line breaks the machine unless the drilled unit acted', (u, list) => {
+    for (const p of list) {
+      expect(p.unit, p.id).toBe(u);
+      const lines = allLines(p);
+      expect(unitFreeBreaks(lines, p.hp).map((l) => l.path), p.id).toEqual([]);
+      expect(lines.some((l) => lineWins(l, p.hp)), p.id).toBe(true);
+      const s = newPuzzle(p);
+      for (const [f, t] of p.solution) drop(s, f, t, s.grid[f]!.id);
+      expect(s.puzzle!.unitUsed, p.id).toBe(true);
+    }
+  });
   it('breaking a drill machine without the unit is not a solve, and says why', () => {
     const def: PuzzleDef = { id: 'x', moves: 1, hp: 1, board: [['cannon', 2, 0, 0], ['cannon', 2, 0, 1], ['magnet', 1, 5, 4], ['magnet', 1, 5, 3]], solution: [], unit: 'magnet' };
     const s = newPuzzle(def);
