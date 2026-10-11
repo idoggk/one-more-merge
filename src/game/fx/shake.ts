@@ -8,7 +8,7 @@ export const SHAKE_KEY = 'omm_shake';
 export const SOFT_AMP = 0.35;
 export const SOFT_TIME = 0.7;
 
-export type ShakeKind = 'chainBig' | 'chainMid' | 'maxKick' | 'bossFinal' | 'bossRansom' | 'bomb' | 'yardHit' | 'yardFail' | 'preview';
+export type ShakeKind = 'chainBig' | 'chainMid' | 'maxKick' | 'bossFinal' | 'bossRansom' | 'bomb' | 'yardHit' | 'yardFail' | 'preview' | 'sandwich';
 
 /** FULL values: what the game did before the setting existed. chainMid (a 4-7 chain) never shook, so it only exists in SOFT. */
 export const FULL_SHAKE: Record<ShakeKind, { ms: number; amp: number } | null> = {
@@ -21,6 +21,7 @@ export const FULL_SHAKE: Record<ShakeKind, { ms: number; amp: number } | null> =
   yardHit: { ms: 140, amp: 0.006 },
   yardFail: { ms: 260, amp: 0.008 },
   preview: { ms: 90, amp: 0.003 },
+  sandwich: { ms: 110, amp: 0.004 },
 };
 /** SOFT values, set apart from the 35% rule: a 4-7 chain gets its own gentle nudge, the small max kick gets none. */
 const SOFT_ONLY: Partial<Record<ShakeKind, { ms: number; amp: number } | null>> = {

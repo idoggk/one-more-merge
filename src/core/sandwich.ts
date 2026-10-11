@@ -83,3 +83,6 @@ export function planSandwich(grid: Grid, from: number, to: number, cap: number, 
 
 /** sandwichBonus: Overdrive charge paid by one sandwich (a third of the meter, at least 1). */
 export const sandwichOd = (needed: number) => Math.max(1, Math.ceil(needed * TUNING.sandwichOdShare));
+
+/** Preview badge text for a planned sandwich: 'SANDWICH +2', 'SANDWICH +1' (clipped by the cap) or 'SANDWICH +1 BONUS'. */
+export const sandwichBadge = (p: SandwichPlan) => `SANDWICH +${p.plus}${p.bonus ? ' BONUS' : ''}`;

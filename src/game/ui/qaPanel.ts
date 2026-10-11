@@ -3,6 +3,7 @@ import { allNewState, applyPace, applyRosterUnlocks, applySpamVariant, applyThin
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
+import { ASSIST_MODES, MERGE_ASSIST_KEY, storedAssistMode, type AssistMode } from '../mergeAssist';
 import { LEVELS } from '../../content/levels';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
@@ -28,6 +29,12 @@ applySpamVariant(spamVariant());
 // t-1bef1042 QA-only: PACE prototype (TODAY / CALM / MANIA), this device only; applied when a level starts
 export const qaPace = () => storedPace(() => localStorage.getItem(PACE_KEY));
 applyPace(qaPace());
+// t-8426336a MERGE ASSIST (OFF / ON / AUTO), a phone setting also shown in Settings; applied at boot, default OFF
+export const applyAssistMode = (m: AssistMode) => {
+  TUNING.mergeAssist = m;
+};
+export const qaAssistMode = () => storedAssistMode(() => localStorage.getItem(MERGE_ASSIST_KEY));
+applyAssistMode(qaAssistMode());
 // t-9adea8b8 QA-only: SCREW YARD OLD (today's plates) / OBJECT (the turnable object), this device only
 const YARD_MODE_KEY = 'omm_qa_screw_yard';
 export const qaYardObject = () => {
@@ -301,6 +308,22 @@ export const QA_ROWS: QaRow[] = [
       });
     },
   },
+  // 6b) t-8426336a MERGE ASSIST: OFF (today) / ON / AUTO (levels 1-10 and under 30 lifetime merges), same setting as Settings
+  qaSwitch<AssistMode>({
+    title: 'MERGE ASSIST',
+    options: ASSIST_MODES.map((id) => ({ id, label: id.toUpperCase() })),
+    current: () => TUNING.mergeAssist,
+    pick: (id) => {
+      store(MERGE_ASSIST_KEY, id === 'off' ? null : id);
+      applyAssistMode(id);
+      tlog.log('qa_merge_assist', { mode: id });
+    },
+    toast: (id) => (id === 'off' ? 'MERGE ASSIST OFF (live game)' : id === 'on' ? 'MERGE ASSIST ON' : 'MERGE ASSIST AUTO  ·  LEVELS 1-10, FIRST 30 MERGES'),
+    w: 200,
+    dx: 220,
+    gap: 48,
+    h: 91,
+  }),
   // 7) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
   qaSwitch({
     title: 'SCREW YARD',

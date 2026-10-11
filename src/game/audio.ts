@@ -118,11 +118,19 @@ export const sfx = {
     if (k >= 2) tone(1320, 0.18, 'sine', 0.035, 0.14);
   },
   /** Chest: two woody knocks + rattle, then the open creak and a rounded thunk. */
-  chestShake: () => {
+  chestShake: (pitch = 1) => {
     for (const d of [0, 0.09]) {
-      tone(200, 0.045, 'triangle', 0.08, d, 150);
-      bandNoise(0.04, 0.04, d, 3200, 3);
+      tone(200 * pitch, 0.045, 'triangle', 0.08, d, 150 * pitch);
+      bandNoise(0.04, 0.04, d, 3200 * pitch, 3);
     }
+  },
+  /** Crate screen (CRATES = TOOLBOX): the card landing for rarity tier 0..3 (common, rare, epic, legendary), pitched from the star / chest voices. */
+  rarityHit: (tier: number) => {
+    const t = Math.max(0, Math.min(3, tier));
+    const steps = [[0], [0, 4], [0, 4, 7], [0, 4, 7, 12, 16]][t];
+    steps.forEach((s, i) => tone(523 * Math.pow(2, s / 12), 0.2 + t * 0.05, t > 1 ? 'triangle' : 'sine', 0.06 + t * 0.012, i * (0.07 - t * 0.008), undefined, true));
+    if (t >= 2) bandNoise(0.2, 0.05, 0, 5200, 1);
+    if (t >= 3) tone(110, 0.35, 'triangle', 0.16, 0, 60, true);
   },
   chestOpen: () => {
     bandNoise(0.22, 0.05, 0, 900, 1.2);
@@ -176,6 +184,19 @@ export const sfx = {
     tone(vary(300), 0.14, 'triangle', 0.3, 0.01, 650);
     if (rank >= 3) tone(vary(150), 0.16, 'sine', 0.18, 0.01, 325);
     if (rank >= 5) tone(vary(600), 0.12, 'sine', 0.08, 0.02, 1300);
+  },
+  /** Sandwich preview: a soft rising two-step when a drag lands on a sandwich (once per target). */
+  sandwichPromise: () => {
+    tone(520, 0.14, 'sine', 0.05, 0, 700);
+    tone(780, 0.1, 'triangle', 0.035, 0.07, 1040);
+  },
+  /** Sandwich impact: the merge thud pitched down, a crunch of noise and a bright rising stab on top. */
+  sandwich: (rank: number) => {
+    bandNoise(0.05, 0.3, 0, 1800, 1);
+    tone(150, 0.2, 'sine', 0.3, 0, 90);
+    tone(vary(420), 0.1, 'square', 0.1, 0.02, 840);
+    tone(note(523, Math.min(rank, 6)), 0.2, 'triangle', 0.16, 0.1);
+    tone(note(523, Math.min(rank, 6) + 2), 0.24, 'sine', 0.1, 0.17);
   },
   rankUp: (rank: number) => tone(note(523, Math.min(rank, 6)), 0.1, 'triangle', 0.14, 0.06),
   /** cascade_phrase: one soft pluck per presentation beat (depth), max 4 rising steps. */
