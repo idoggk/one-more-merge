@@ -170,6 +170,19 @@ export function applyTools(on: boolean) {
   TUNING.tools = on;
 }
 
+/** QA panel VARIED OPENINGS switch (TUNING.variedOpenings; this device only, not in the save): 'on' = 4 seeded start layouts on ordinary levels, anything else = OFF. */
+export const VARIED_OPENINGS_KEY = 'omm_qa_varied_openings';
+export function storedVariedOpenings(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyVariedOpenings(on: boolean) {
+  TUNING.variedOpenings = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

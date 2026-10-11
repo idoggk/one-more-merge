@@ -3,6 +3,7 @@ import { rawDamage, resolveCascade, type CascadeOpts } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
+import { LAYOUTS, layoutFor } from '../content/openings';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 /** r33: each later machine of a stage has +30% of the first one's share of the HP. */
 const STAGE_RAMP = 0.3;
@@ -294,6 +295,7 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   s.rankCap = def.level >= 21 ? 8 : MAX_RANK;
   s.grid.fill(null);
   s.nextId = 1;
+  const layout = TUNING.variedOpenings ? LAYOUTS[layoutFor(def)] : STARTING_CELLS; // layout A (index 0) is STARTING_CELLS
   if (def.teach) {
     for (const [fam, rank, r, c] of def.teach.start) s.grid[idxOf(r, c)] = makeGadget(s, fam === 'cannon' ? shooterOf(s) : (fam as Family), rank);
     if (def.teach.bag) s.bagOverride = def.teach.bag;
@@ -301,12 +303,12 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     s.noOverdrive = !!def.teach.no_overdrive;
     s.bag = [];
   } else
-    for (const [fam, cells] of Object.entries(STARTING_CELLS) as [string, [number, number][]][])
+    for (const [fam, cells] of Object.entries(layout) as [string, [number, number][]][])
       for (const [r, c] of cells) s.grid[idxOf(r, c)] = makeGadget(s, squadFam(s, fam), def.starting_rank);
   // (r17: the L21/L41 high-rank showcase moved to an optional practice intro; ordinary levels use chapter starters)
-  // Jumpstart Kit: the designated starter shooter pair (4,1),(4,2) arrives one rank higher. No shot, no merge.
+  // Jumpstart Kit: the designated starter shooter pair (layout A: (4,1),(4,2); varied openings: the layout's first two shooters) arrives one rank higher. No shot, no merge.
   if (opts.jumpstart) {
-    for (const [r, c] of [[4, 1], [4, 2]]) {
+    for (const [r, c] of layout.shooter.slice(0, 2)) {
       const g = s.grid[idxOf(r, c)];
       if (g) g.rank = Math.min(capOf(s, g.family), g.rank + 1);
     }
