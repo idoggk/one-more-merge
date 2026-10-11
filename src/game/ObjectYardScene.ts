@@ -11,8 +11,15 @@ import { blockFaces, blockPos, faceUnder, floorOffset, HELPERS, newObject, previ
 import { H, RS, W } from './GameScene';
 import { SCREW_COLORS } from './ScrewScene';
 import { sfx } from './audio';
-import { UNIT_NAMES, YARD_UNITS, yardReward, yardStars, type YardUnit } from '../content/yardObjects';
-import { shakeCamera } from './fx/shake';
+import { pressureCfg, UNIT_NAMES, YARD_UNITS, yardReward, yardStars, type YardUnit } from '../content/yardObjects';
+import { getShakeLevel, shakeCamera } from './fx/shake';
+import { TUNING } from '../content/tuning';
+import { clock, countTap, dangerOf, newPressure, pressureStars, secondsLeft, tapsFrac, tapsLeft, tickClock, timeFrac, type Danger, type PressureState } from '../core/yardPressure';
+import { REDUCED_MOTION } from './sceneKit';
+
+const DANGER_COLOR: Record<Danger, number> = { calm: 0x8ef08a, amber: 0xf0a020, red: 0xe8452c };
+const DANGER_CSS: Record<Danger, string> = { calm: '#fff0cf', amber: '#ffc04a', red: '#ff6a4a' };
+const DEFAULT_HINT = 'Swipe or ◀ ▶ to turn it';
 
 const INK = 0x2b1d2e;
 const WOOD = [0xc98d4e, 0xb47838];
@@ -111,6 +118,16 @@ export class ObjectYardScene extends Phaser.Scene {
   cx = W / 2;
   cy = 800;
   down = { x: 0, y: 0, t: 0, on: false };
+  /** TUNING.yardPressure: the countdown + tap budget (null = today's yard, nothing below is created). */
+  P: PressureState | null = null;
+  pressureGfx?: Phaser.GameObjects.Graphics;
+  pressureGlow?: Phaser.GameObjects.Graphics;
+  timeTxt?: Phaser.GameObjects.Text;
+  tapTxt?: Phaser.GameObjects.Text;
+  pauseLayer?: Phaser.GameObjects.Container;
+  /** Screws still flying to their box / the row (a spent budget is judged once they land). */
+  flights = 0;
+  lastSec = -1;
 
   constructor() {
     super('objectYard');
@@ -123,6 +140,11 @@ export class ObjectYardScene extends Phaser.Scene {
     this.turning = false;
     this.ended = false;
     this.hammerArmed = false;
+    const cfg = TUNING.yardPressure ? pressureCfg(d.lvl) : null;
+    this.P = cfg && newPressure(cfg);
+    this.flights = 0;
+    this.lastSec = -1;
+    this.pauseLayer = undefined;
   }
 
   create() {
@@ -139,7 +161,7 @@ export class ObjectYardScene extends Phaser.Scene {
     this.live.clear();
     this.topStatic = [
       this.add.graphics().fillStyle(INK, 0.9).fillRoundedRect(16, 18, W - 32, 76, 24),
-      this.add.text(W / 2, 56, `SCREW YARD  ·  ${this.st.lvl.name}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '36px', color: '#ffcf33' }).setOrigin(0.5),
+      this.add.text(W / 2, 56, `SCREW YARD  ·  ${this.st.lvl.name}`, { fontFamily: 'Lilita One, Arial Black', fontSize: this.P ? '26px' : '36px', color: '#ffcf33' }).setOrigin(0.5),
     ];
     this.botStatic = [];
     // the object fills the space between the row and the turn controls
@@ -163,12 +185,13 @@ export class ObjectYardScene extends Phaser.Scene {
     this.bar = this.add.container(0, 0);
     // turn controls: ◀ VIEW ▶ (swipe left / right on the object does the same)
     this.viewLabel = this.add.text(W / 2, ty - 14, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf', backgroundColor: '#2b1d2ecc', padding: { x: 14, y: 4 } }).setOrigin(0.5);
-    this.hint = this.add.text(W / 2, ty + 30, 'Swipe or ◀ ▶ to turn it', { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#fff0cf', backgroundColor: '#2b1d2eaa', padding: { x: 10, y: 3 } }).setOrigin(0.5);
+    this.hint = this.add.text(W / 2, ty + 30, this.defaultHint(), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '20px', color: '#fff0cf', backgroundColor: '#2b1d2eaa', padding: { x: 10, y: 3 } }).setOrigin(0.5);
     this.arrow(84, ty, '◀', -1);
     this.arrow(W - 84, ty, '▶', 1);
     this.drawObject();
     this.drawUi();
     this.drawBar();
+    this.buildPressure();
     // a lost WebGL context (iOS backgrounding) wipes the bands: bake them again once it is back
     const rebake = () => { this.drawObject(); this.drawUi(); this.drawBar(); };
     this.game.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, rebake);
@@ -183,6 +206,135 @@ export class ObjectYardScene extends Phaser.Scene {
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) return this.rotate(dx < 0 ? 1 : -1);
       if (Math.hypot(dx, dy) < 30) this.onTap(p.worldX, p.worldY);
     });
+  }
+
+  defaultHint() {
+    return this.P && !this.P.started ? 'THE CLOCK STARTS AT YOUR FIRST TAP' : DEFAULT_HINT;
+  }
+
+  // ---- pressure (TUNING.yardPressure): timer ring + number at the top right, TAPS counter, pause ----
+  /** Live pieces above the baked bands (never baked: they change every second). The header's right end is free: the
+   *  title is centred, the ✕ is on the left. */
+  buildPressure() {
+    const P = this.P;
+    if (!P) return;
+    const rx = W - 62, ry = 56;
+    this.pressureGlow = this.add.graphics().setDepth(40);
+    this.pressureGfx = this.add.graphics().setDepth(41);
+    this.timeTxt = this.add.text(rx, ry, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf' }).setOrigin(0.5).setDepth(42);
+    this.tapTxt = this.add.text(W / 2, 114, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#fff0cf', backgroundColor: '#2b1d2e', padding: { x: 12, y: 2 } }).setOrigin(0.5).setDepth(42);
+    // pause: stops the clock (taps and turning wait too)
+    const px = W - 146;
+    const pg = this.add.graphics().setDepth(41);
+    pg.fillStyle(0x8a6a4a, 1).fillCircle(px, ry, 27).lineStyle(4, 0xfff0cf, 0.9).strokeCircle(px, ry, 27).fillStyle(0xfff0cf, 1).fillRect(px - 10, ry - 11, 7, 22).fillRect(px + 3, ry - 11, 7, 22);
+    this.add.zone(px, ry, 76, 76).setDepth(43).setInteractive({ useHandCursor: true }).on('pointerup', () => this.setPaused(true));
+    this.drawPressure();
+  }
+
+  /** Redraw the ring, numbers and danger colours (once a second, on a tap, on pause). */
+  drawPressure() {
+    const P = this.P, g = this.pressureGfx;
+    if (!P || !g || !this.timeTxt || !this.tapTxt) return;
+    const rx = W - 62, ry = 56, R = 36;
+    const frac = timeFrac(P);
+    const d = dangerOf(frac);
+    g.clear();
+    g.lineStyle(9, INK, 1).strokeCircle(rx, ry, R);
+    g.lineStyle(9, 0x4a3a4a, 1).strokeCircle(rx, ry, R);
+    if (frac > 0) {
+      g.lineStyle(9, DANGER_COLOR[d], 1).beginPath().arc(rx, ry, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac, false).strokePath();
+    }
+    this.timeTxt.setText(clock(secondsLeft(P))).setColor(DANGER_CSS[d]).setFontSize(secondsLeft(P) >= 600 ? '20px' : '26px');
+    const td = dangerOf(tapsFrac(P));
+    this.tapTxt.setText(`TAPS ${P.taps}/${P.cfg.budget}`).setColor(DANGER_CSS[td]);
+    this.setGlow(d);
+  }
+
+  /** A red pulse behind the ring at 10% left (a steady glow under reduced motion / SCREEN SHAKE off); amber is a steady tint. */
+  setGlow(d: Danger) {
+    const gl = this.pressureGlow;
+    if (!gl) return;
+    const was = (gl.getData('d') as Danger | undefined) ?? 'calm';
+    if (was === d) return;
+    gl.setData('d', d);
+    this.tweens.killTweensOf(gl);
+    gl.clear().setAlpha(1);
+    if (d === 'calm') return;
+    gl.fillStyle(DANGER_COLOR[d], d === 'red' ? 0.45 : 0.25).fillCircle(W - 62, 56, 52);
+    if (d === 'red' && !REDUCED_MOTION && getShakeLevel() !== 'off') this.tweens.add({ targets: gl, alpha: 0.25, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  }
+
+  setPaused(on: boolean) {
+    const P = this.P;
+    if (!P || this.ended || P.paused === on) return;
+    P.paused = on;
+    if (!on) {
+      this.pauseLayer?.destroy();
+      this.pauseLayer = undefined;
+      return;
+    }
+    const cx = W / 2, cy = H / 2;
+    const c = this.add.container(0, 0).setDepth(160);
+    c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f1c, 0.88).setInteractive());
+    c.add(this.add.text(cx, cy - 170, 'PAUSED', { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#ffcf33', stroke: '#2b1d2e', strokeThickness: 12 }).setOrigin(0.5));
+    c.add(this.add.text(cx, cy - 100, `${clock(secondsLeft(P))} LEFT  ·  ${tapsLeft(P)} TAPS LEFT`, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#fff0cf' }).setOrigin(0.5));
+    const btn = (y: number, label: string, col: number, fn: () => void) => {
+      c.add(this.add.graphics().fillStyle(INK, 1).fillRoundedRect(cx - 215, y - 40, 430, 80, 26).fillStyle(col, 1).fillRoundedRect(cx - 210, y - 35, 420, 70, 22));
+      c.add(this.add.text(cx, y, label, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#ffffff' }).setOrigin(0.5));
+      c.add(this.add.zone(cx, y, 430, 80).setInteractive({ useHandCursor: true }).on('pointerup', fn));
+    };
+    btn(cy, 'RESUME', 0x5fbf4a, () => this.setPaused(false));
+    btn(cy + 110, 'RETRY', 0x8a6a4a, () => this.scene.restart(this.data0));
+    btn(cy + 220, 'QUIT', 0x8a4a4a, () => this.finish(false, true));
+    this.pauseLayer = c;
+  }
+
+  /** Phaser frame: the clock runs from the first tap, stops while paused, and loses the object at zero. */
+  update(_t: number, dt: number) {
+    const P = this.P;
+    if (!P || this.ended) return;
+    const heard = secondsLeft(P);
+    if (tickClock(P, Math.min(dt, 250))) {
+      P.out = 'time';
+      this.drawPressure();
+      this.finish(false);
+      return;
+    }
+    if (heard === this.lastSec) return;
+    this.lastSec = heard;
+    this.drawPressure();
+    if (!P.started || P.paused) return;
+    // low heartbeat: amber a single beat every 2 s, red a double beat every second (the game's own drop tick, so no new sound)
+    const d = dangerOf(timeFrac(P));
+    if (d === 'red') {
+      sfx.drop();
+      this.time.delayedCall(150, () => !this.ended && sfx.drop());
+    } else if (d === 'amber' && heard % 2 === 0) sfx.drop();
+  }
+
+  /** One screw tap counted (a wasted tap on a blocked / turned-away screw too); the first starts the clock. */
+  pressureTap() {
+    const P = this.P;
+    if (!P) return;
+    const first = !P.started;
+    countTap(P);
+    if (first) {
+      this.hint.setText(DEFAULT_HINT);
+      this.lastSec = secondsLeft(P);
+    }
+    this.drawPressure();
+    this.pressureCheck();
+  }
+
+  /** The tap budget is spent and the object is not cleared (judged once the last screw has landed): lost. */
+  pressureCheck() {
+    const P = this.P;
+    if (!P || this.ended || this.flights > 0 || this.st.won || this.st.lost) return;
+    if (P.taps >= P.cfg.budget) {
+      P.out = 'taps';
+      this.drawPressure();
+      this.finish(false);
+    }
   }
 
   /** Glossy screw heads (one per colour, family stamp engraved), a spark and a dust puff: baked once, shared by every redraw. */
@@ -351,7 +503,7 @@ export class ObjectYardScene extends Phaser.Scene {
   }
 
   rotate(dir: 1 | -1) {
-    if (this.turning || this.ended) return;
+    if (this.turning || this.ended || this.P?.paused) return;
     this.turning = true;
     sfx.pickup();
     const from = this.turn, to = this.turn + dir;
@@ -554,7 +706,7 @@ export class ObjectYardScene extends Phaser.Scene {
   }
 
   onTap(x: number, y: number) {
-    if (this.ended || this.turning) return;
+    if (this.ended || this.turning || this.P?.paused) return;
     const ri = this.rowAt(x, y);
     if (ri >= 0) return this.onRow(ri);
     if (this.hammerArmed) {
@@ -570,6 +722,8 @@ export class ObjectYardScene extends Phaser.Scene {
       if (pk.reason === 'away') this.say(`TURN IT TO REACH THAT ONE`, '#ffcf33');
       else if (pk.reason === 'blocked') this.say(`A BLOCK IS IN FRONT OF IT`, '#ff8a6a');
       else if (pk.reason === 'bare') this.say(`TAP A BRIGHT SCREW`, '#ffcf33');
+      // pressure: a tap on a screw that cannot come out is wasted, but it still spends the budget
+      if (pk.reason === 'away' || pk.reason === 'blocked') this.pressureTap();
       return;
     }
     const before = this.screwAt(sid);
@@ -578,12 +732,15 @@ export class ObjectYardScene extends Phaser.Scene {
       sfx.invalid();
       if (r.reason === 'away') this.say(`TURN IT TO REACH THAT ONE`, '#ffcf33');
       else if (r.reason === 'blocked') this.say(`A BLOCK IS IN FRONT OF IT`, '#ff8a6a');
+      this.pressureTap();
       return;
     }
     sfx.click();
     this.drawObject();
     this.spark(before.x, before.y, lighten(SCREW_COLORS[this.st.lvl.screws[sid].color], 0.5));
     this.flyFrom(before.x, before.y, this.st.lvl.screws[sid].color, r, r.to === 'box' ? r.box! : -1);
+    // counted once the screw is in the air, so a spent budget is judged when it lands (a winning last tap still wins)
+    this.pressureTap();
   }
 
   onRow(i: number) {
@@ -601,6 +758,7 @@ export class ObjectYardScene extends Phaser.Scene {
 
   /** A screw spins out at (x, y) and flies to its box (slot) or the row (slot -1); the UI redraws when it lands. */
   flyFrom(x: number, y: number, color: number, r: ObjTap, slot: number, delay = 0) {
+    this.flights++;
     const sv = this.screwSprite(SCREW_COLORS[color]).setPosition(x, y).setDepth(50).setScale(0.8);
     const to = slot >= 0 ? { x: this.boxX(slot), y: this.boxY } : { x: this.rowX(Math.max(0, this.st.tray.length - 1)), y: this.rowY };
     this.tweens.chain({
@@ -612,6 +770,7 @@ export class ObjectYardScene extends Phaser.Scene {
       ],
       onComplete: () => {
         sv.destroy();
+        this.flights--;
         this.afterMove(r);
       },
     });
@@ -694,7 +853,7 @@ export class ObjectYardScene extends Phaser.Scene {
   }
 
   onHelper(k: Helper) {
-    if (this.ended || this.turning) return;
+    if (this.ended || this.turning || this.P?.paused) return;
     if (!this.st.helpers[k]) {
       sfx.invalid();
       this.say('NONE LEFT IN THIS YARD', '#ff8a6a');
@@ -741,18 +900,21 @@ export class ObjectYardScene extends Phaser.Scene {
 
   afterMove(r: ObjTap) {
     if (r.left.length) sfx.rankUp(4);
+    // HOOK (branch orch/t-9170d73d, not on master yet): the fuller box-complete moment (lid, latch, +1, slide off) plugs in
+    // here, per box that filled. latchBox is the lid-and-latch part that exists today.
     r.left.forEach((l, i) => this.latchBox(l.slot, l.color, i * 160));
     this.drawUi();
     this.drawObject();
     if (this.st.won) this.finish(true);
     else if (this.st.lost) this.finish(false);
+    else this.pressureCheck();
   }
 
   say(text: string, color: string) {
     this.hint.setText(text).setColor(color);
     this.tweens.killTweensOf(this.hint);
     this.hint.setAlpha(1);
-    this.time.delayedCall(1500, () => !this.ended && this.hint.setText('Swipe or ◀ ▶ to turn it').setColor('#fff0cf'));
+    this.time.delayedCall(1500, () => !this.ended && this.hint.setText(this.defaultHint()).setColor('#fff0cf'));
   }
 
   finish(won: boolean, quit = false) {
@@ -763,7 +925,9 @@ export class ObjectYardScene extends Phaser.Scene {
       this.data0.onEnd({ won, quit, moves: this.st.moves });
       return;
     }
-    const tx = this.add.text(W / 2, this.cy, won ? 'TAKEN APART!' : 'ROW FULL!', { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: won ? '#ffcf33' : '#ff684a', stroke: '#2b1d2e', strokeThickness: 12 }).setOrigin(0.5).setDepth(70);
+    this.pauseLayer?.destroy();
+    this.pauseLayer = undefined;
+    const tx = this.add.text(W / 2, this.cy, this.title(won), { fontFamily: 'Lilita One, Arial Black', fontSize: '56px', color: won ? '#ffcf33' : '#ff684a', stroke: '#2b1d2e', strokeThickness: 12 }).setOrigin(0.5).setDepth(70);
     this.tweens.add({ targets: tx, scale: { from: 0.6, to: 1 }, duration: 300, ease: 'Back.Out' });
     if (won) sfx.star(3);
     else {
@@ -774,11 +938,17 @@ export class ObjectYardScene extends Phaser.Scene {
     this.time.delayedCall(1100, () => this.resultPanel(won, tx));
   }
 
-  /** The unit this object is (null: the plain crate) and what a clear pays. */
+  /** Banner / panel title: TIME UP and OUT OF TAPS under pressure, else today's words. */
+  title(won: boolean) {
+    if (won) return 'TAKEN APART!';
+    return this.P?.out === 'time' ? 'TIME UP!' : this.P?.out === 'taps' ? 'OUT OF TAPS!' : 'ROW FULL!';
+  }
+
+  /** The unit this object is (null: the plain crate) and what a clear pays. Under pressure the stars come from time + taps left. */
   prize(won: boolean): { stars?: number; reward?: { unit: YardUnit; count: number } } {
     const unit = YARD_UNITS.find((u) => u === this.st.lvl.id);
     if (!won || !unit) return {};
-    const stars = yardStars(this.st.peak);
+    const stars = this.P ? pressureStars(this.P) : yardStars(this.st.peak);
     return { stars, reward: { unit, count: yardReward(unit, stars) } };
   }
 
@@ -786,7 +956,8 @@ export class ObjectYardScene extends Phaser.Scene {
   rewardRow(c: Phaser.GameObjects.Container, cx: number, top: number, stars: number, rw: { unit: YardUnit; count: number }, moves: number) {
     const LILITA = 'Lilita One, Arial Black';
     const name = UNIT_NAMES[rw.unit];
-    c.add(this.add.text(cx, top + 108, `${name}  ·  ${moves} moves`, { fontFamily: LILITA, fontSize: '28px', color: '#5a3a3a' }).setOrigin(0.5));
+    const P = this.P;
+    c.add(this.add.text(cx, top + 108, P ? `${clock(secondsLeft(P))} LEFT  ·  ${tapsLeft(P)} TAPS LEFT` : `${name}  ·  ${moves} moves`, { fontFamily: LILITA, fontSize: P ? '26px' : '28px', color: '#5a3a3a' }).setOrigin(0.5));
     c.add(this.add.text(cx, top + 160, '★'.repeat(stars) + '☆'.repeat(3 - stars), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '52px', color: '#e0a000' }).setOrigin(0.5));
     const g = this.add.graphics().fillStyle(0xf3d9a4, 1).fillRoundedRect(cx - 220, top + 205, 440, 100, 24).lineStyle(4, INK, 0.5).strokeRoundedRect(cx - 220, top + 205, 440, 100, 24);
     c.add(g);
@@ -813,9 +984,11 @@ export class ObjectYardScene extends Phaser.Scene {
     c.add(g);
     const prize = this.prize(won);
     const LILITA = 'Lilita One, Arial Black';
-    c.add(this.add.text(cx, top + (prize.reward ? 56 : 70), won ? 'TAKEN APART!' : 'ROW FULL!', { fontFamily: LILITA, fontSize: '46px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    const P = this.P;
+    c.add(this.add.text(cx, top + (prize.reward ? 56 : 70), this.title(won), { fontFamily: LILITA, fontSize: '46px', color: won ? '#e8452c' : '#3b2533' }).setOrigin(0.5));
+    const lostWords = P?.out === 'time' ? `The clock ran out with\n${tapsLeft(P)} taps still unused.` : P?.out === 'taps' ? `All ${P.cfg.budget} taps used with\n${clock(secondsLeft(P))} on the clock.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.';
     if (prize.reward) this.rewardRow(c, cx, top, prize.stars ?? 1, prize.reward, moves);
-    else c.add(this.add.text(cx, top + 170, won ? `Every screw out in ${moves} moves.` : 'Turn it and look first: take screws\nwhose box is open or comes NEXT.', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
+    else c.add(this.add.text(cx, top + 170, won ? `Every screw out in ${moves} moves.` : lostWords, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5));
     const by = prize.reward ? 30 : 0;
     const btn = (y: number, w: number, label: string, col: number, fn: () => void) => {
       const bg = this.add.graphics().fillStyle(INK, 1).fillRoundedRect(cx - w / 2 - 5, y - 40, w + 10, 80, 26).fillStyle(col, 1).fillRoundedRect(cx - w / 2, y - 35, w, 70, 22);
@@ -824,7 +997,7 @@ export class ObjectYardScene extends Phaser.Scene {
       hit.once('pointerup', fn);
       c.add([bg, t, hit]);
     };
-    btn(top + 330 + by, 420, won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.scene.restart(this.data0));
+    btn(top + 330 + by, 420, P ? 'RETRY' : won ? 'PLAY AGAIN' : 'TRY AGAIN', 0x5fbf4a, () => this.scene.restart(this.data0));
     btn(top + 430 + by, 260, 'EVENT', 0x8a6a4a, () => {
       this.scene.stop();
       this.data0.onEnd({ won, quit: false, moves, event: true });

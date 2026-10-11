@@ -81,6 +81,19 @@ export function applyThinkBank(on: boolean) {
   TUNING.thinkBank = on;
 }
 
+/** QA panel YARD PRESSURE row (TUNING.yardPressure; this device only, not in the save); missing = OFF. */
+export const YARD_PRESSURE_KEY = 'omm_qa_yard_pressure';
+export function storedYardPressure(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyYardPressure(on: boolean) {
+  TUNING.yardPressure = on;
+}
+
 /** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF);
  *  t-e91097cd adds ROSTER B ('rb': TUNING.rosterB, the B jobs + Support card). */
 export type UnitsVariant = 'off' | 'b0' | 'b1' | 'rb';

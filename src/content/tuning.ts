@@ -167,6 +167,9 @@ export const TUNING = {
    *  supply, auto-shots, Overdrive, boss / remix timers) until `bank` s of level time have been saved this level.
    *  Input is never blocked; the first touch resumes full speed. Sims: tools/think-bank.ts, DESIGN.md (Think Bank). */
   thinkBank: false,
+  /** PROTOTYPE, default OFF (QA row YARD PRESSURE): the turnable-object Screw Yard gets a countdown from the first tap
+   *  and a tap budget with stars (src/core/yardPressure.ts, numbers in src/content/yardObjects.ts). OFF = today's yard. */
+  yardPressure: false,
   // probe L11-80: grace 1 / 1.5 also froze the 2.5 s tapper between taps (3★ gap 0-8 pts); 2 keeps a thinker's pause
   // free but not a quick tapper's (3★ gap ~27 pts); rate 0.4-0.5 sat in between; the bank rarely binds (19-42 s used)
   tb: { grace: 2, rate: 0, bank: 60 },

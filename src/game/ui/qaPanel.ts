@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { allNewState, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, allNewState, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -44,6 +44,9 @@ export const qaYardObject = () => {
     return false;
   }
 };
+// QA-only: YARD PRESSURE (a countdown + tap budget in the turnable-object yard), default OFF, this device only
+export const qaYardPressure = () => storedYardPressure(() => localStorage.getItem(YARD_PRESSURE_KEY));
+applyYardPressure(qaYardPressure());
 // t-a8c886ad / t-4a966cee QA-only: units option B, OFF / B0 (helpers copy, Mortar chain order, welders skip welders) /
 // B1 (B0 + one direct job per helper, shared BOOSTED mark, Fuse Box reach)
 export const qaUnits = () => storedUnits(() => localStorage.getItem(UNITS_B0_KEY));
@@ -334,6 +337,22 @@ export const QA_ROWS: QaRow[] = [
       tlog.log('qa_screw_yard', { mode: id });
     },
     toast: (id) => (id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD'),
+    w: 340,
+    dx: 260,
+    gap: 48,
+    h: 91,
+  }),
+  // 7a) YARD PRESSURE: OFF (today's yard) / ON (countdown from the first tap + tap budget + stars), OBJECT yard only
+  qaSwitch({
+    title: 'YARD PRESSURE',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaYardPressure() ? 'on' : 'off'),
+    pick: (id) => {
+      store(YARD_PRESSURE_KEY, id === 'off' ? null : id);
+      applyYardPressure(id === 'on');
+      tlog.log('qa_yard_pressure', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'off' ? 'YARD PRESSURE OFF (live game)' : 'YARD PRESSURE ON  ·  SCREW YARD: OBJECT  ·  TIMER + TAP BUDGET'),
     w: 340,
     dx: 260,
     gap: 48,

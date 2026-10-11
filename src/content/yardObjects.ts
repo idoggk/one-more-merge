@@ -4,6 +4,7 @@
 // object is a whole number of boxes. Clearing one pays cards of THAT unit. All of it sits behind the QA switch SCREW
 // YARD = OBJECT; nothing here is saved (no new save field).
 import type { Face, ObjectDef, OBlock, OScrew } from '../core/screwObject';
+import type { PressureCfg } from '../core/yardPressure';
 
 /** Unit cards a clear pays (one tuning constant); 3 stars pay double. */
 export const TAKEN_APART_CARDS: Record<YardUnit, number> = { cannon: 3, coil: 4, bell: 5 };
@@ -17,6 +18,20 @@ export const UNIT_NAMES: Record<YardUnit, string> = { cannon: 'CANNON', coil: 'C
 
 export const yardStars = (peak: number): 1 | 2 | 3 => (peak <= STAR_PEAK.three ? 3 : peak <= STAR_PEAK.two ? 2 : 1);
 export const yardReward = (unit: YardUnit, stars: number) => TAKEN_APART_CARDS[unit] * (stars >= 3 ? THREE_STAR_MULT : 1);
+
+// ---- pressure prototype (TUNING.yardPressure): a countdown + a tap budget per object, as data ----
+/** Seconds on the clock (starts at the first tap). */
+export const YARD_TIME: Record<YardUnit, number> = { cannon: 75, coil: 100, bell: 130 };
+/** Budget / star lines as multiples of the fewest taps (tests: every one is the solver's path length). */
+export const TAP_MULT = { budget: 1.5, three: 1.25, two: 1.4 };
+/** Fewest taps to clear: one per screw (no helpers); tests check it equals the exact solver's path. */
+export const minTaps = (o: ObjectDef) => o.screws.length;
+export function pressureCfg(o: ObjectDef): PressureCfg | null {
+  const unit = YARD_UNITS.find((u) => u === o.id);
+  if (!unit) return null;
+  const min = minTaps(o);
+  return { time: YARD_TIME[unit], budget: Math.ceil(min * TAP_MULT.budget), threeTaps: Math.ceil(min * TAP_MULT.three), twoTaps: Math.ceil(min * TAP_MULT.two) };
+}
 
 const FACE: Record<string, Face> = { f: 'front', b: 'back', l: 'left', r: 'right', t: 'top' };
 const COLOR: Record<string, number> = { R: 0, U: 1, Y: 2, G: 3 };

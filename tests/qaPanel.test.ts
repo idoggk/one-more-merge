@@ -25,7 +25,7 @@ describe('QA panel layout (bug t-6d70ea51: bottom rows ran off the screen)', () 
     expect(qaGeometry(heights, 1558).minScroll).toBeLessThan(0);
     expect(Math.abs(qaGeometry([100, 100], 1558).minScroll)).toBeCloseTo(0);
   });
-  it('is shorter than before the NEW UNITS grouping (was 1725 px of sheet)', () => {
-    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1725); // was 1725-100; the panel scrolls now and MERGE ASSIST added a row
+  it('stays a bounded sheet (was 1725 px before the NEW UNITS grouping)', () => {
+    expect(qaGeometry(heights, 99999).contentBottom).toBeLessThan(1830); // the panel scrolls now; MERGE ASSIST and YARD PRESSURE each added a row
   });
 });
