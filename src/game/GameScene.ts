@@ -69,7 +69,7 @@ import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, typ
 import { grantToy, isNew, isUnlocked, markSeen, migrateUnlocks, refreshUnlocks, toyEarned, toysOpen, type Feature } from './unlocks';
 import { admitTip, newTipLedger } from './tips';
 import { MODE_INTRO, modeIntroFor } from './modeIntro';
-import { assistActive, ASSIST_OFFSET, partnersOf, snapTarget, soleMergePair, toastAllowed } from './mergeAssist';
+import { assistActive, ASSIST_OFFSET, partnersOf, snapTarget, soleMergePair, tapRoute, toastAllowed } from './mergeAssist';
 import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
 import { playJobTag, playSupportFx } from './rosterFx';
@@ -1311,18 +1311,24 @@ export class GameScene extends Phaser.Scene {
       this.dragIdx = -1;
       this.dragView = null;
       this.drawHeld();
+      // a tap on a tool belongs to the tool (release first): the assist hint must not swallow it
+      const tool = TUNING.tools ? this.tools.release(tapped) : 'none';
+      const route = tapRoute(tool, this.assistPair, tapped, this.s.phase === 'playing');
+      if (route === 'held') return; // the long-press preview was showing: release does nothing
+      if (route === 'tool') {
+        this.assistPair = null;
+        this.useTool(tapped);
+        return;
+      }
       // MERGE ASSIST tap shortcut: while the MERGE hint shows on the board's one pair, a tap on either part merges them
       const ap = this.assistPair;
-      if (ap && this.s.phase === 'playing' && ap.includes(tapped)) {
+      if (route === 'assist' && ap) {
         const to = ap[0] === tapped ? ap[1] : ap[0];
         this.assistPair = null;
         if (this.s.grid[tapped] && canMerge(this.s.grid[tapped], this.s.grid[to], this.s)) this.commitDrop(tapped, to, this.s.grid[tapped]!.id);
         return;
       }
-      const tool = TUNING.tools ? this.tools.release(tapped) : 'none';
-      if (tool === 'held') return; // the long-press preview was showing: release does nothing
-      if (tool === 'use') this.useTool(tapped);
-      else if (this.s.phase === 'playing') this.openInspect(tapped);
+      if (this.s.phase === 'playing') this.openInspect(tapped);
       else if (this.s.phase === 'tutorial') this.showEvent('DRAG it onto its match!', '#fff0cf', 1400); // a tap is not a merge
       return;
     }
