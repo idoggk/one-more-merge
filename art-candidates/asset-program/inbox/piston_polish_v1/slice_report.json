@@ -1,0 +1,37 @@
+{
+ "sheet": "art-candidates/asset-program/inbox/piston_polish_v1.png",
+ "cols": 2,
+ "rows": 1,
+ "objects": [
+  {
+   "file": "polish_1",
+   "srcBox": [
+    105,
+    74,
+    817,
+    843
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    713,
+    770
+   ]
+  },
+  {
+   "file": "polish_2",
+   "srcBox": [
+    950,
+    27,
+    1658,
+    850
+   ],
+   "mergedBits": 0,
+   "srcSize": [
+    709,
+    824
+   ]
+  }
+ ],
+ "speckComponentsDropped": 0,
+ "areaRatioSmallestToLargest": 0.81
+}

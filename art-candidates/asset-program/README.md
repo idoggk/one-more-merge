@@ -24,7 +24,7 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 | `RANK_GRAMMAR.md` | The 8-rank ladder, plans for Piston, Blowtorch, Tesla Tower, order of the other 190 pictures |
 | `prompts/` | Ready-to-paste GPT prompts (pilot: Piston), follow-up fixes, how to run |
 | `anchors/` | Cannon, Coil, Bell rank 1-8 on white: style and format reference to attach in ChatGPT |
-| `tools/` | `slice-sheet.mjs`, `review-sheet.mjs`, `make-anchors.mjs` (all use only `sharp`, already a dev dependency) |
+| `tools/` | `slice-sheet.mjs`, `review-sheet.mjs`, `compare-pair.mjs` (original vs new: silhouette overlap, board/tray view), `make-anchors.mjs` (all use only `sharp`, already a dev dependency) |
 | `inbox/` | Where GPT sheets go (`<unit>_sheet_vN.png`) |
 | `refs/` | Reference screenshots of other games, kept out of git, analysis only |
 | `scores/scores.csv` | Review log (one row per review) |
@@ -37,7 +37,8 @@ Ship bar: **8** for units, crates and primary buttons; **7** for everything else
 | Pilot Piston, round 1 | **Reviewed: 6.5 / 10, REDO** (`reviews/piston_v1.md`). Wrong machine (a hydraulic press) and a non-additive ladder; format, slicing and materials worked |
 | Pilot Piston, round 2 | **Reviewed: 7.0 / 10, REDO targeted** (`reviews/piston_v2.md`). Identity and ladder fixed; ranks 1-4 still share one outline |
 | Pilot Piston, round 3 (last) | **Reviewed: 7.2 / 10, not ship** (`reviews/piston_v3.md`). Wording rounds are exhausted (6.5, 7.0, 7.2) |
-| Polish-pass test | **Prompt ready** (`prompts/04_polish_test.md`): can a second pass lift 7 to 8 without changing the design? |
+| Polish-pass test | **Done: 7.5 overall, design NOT preserved** (`reviews/piston_polish_v1.md`). Polish language moved into the first-pass style block (v3); a per-rank polish pass is dropped |
+| Blowtorch, first pass with the v3 template | **Prompt ready** (`prompts/05_blowtorch_v1.md`), waiting for the sheet |
 | Slicer and review tool | Built and tested on the shipped Coil ladder (cuts cleanly, fringe 0.1-0.4%, finds that Coil rank 5 breaks the ladder) |
 | Benchmark of top games | **Partial**: text sources only. Needs store screenshots (network allowlist or your upload) |
 | Browser-driven generation | Needs a session on your computer (Desktop app or `claude remote-control`); this cloud session cannot reach it |

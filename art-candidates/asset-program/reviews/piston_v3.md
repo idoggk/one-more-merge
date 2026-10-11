@@ -30,7 +30,7 @@ Lesson: a changed plan buys half a point, a reworded prompt buys a fifth. Furthe
 | Silhouette and readability | 25% | 5.5 | 6.0 | **6.5** | Ranks 4-8 clearly different outlines; 1-3 still one blob; at tray size ranks 1-3 look like a small cannon. |
 | Material and light | 20% | 7.5 | 7.0 | **7.5** | Ranks 1-4 are clean and painterly now; 5-8 still scratchy. |
 | Style match | 15% | 6.5 | 6.5 | **7.0** | Rounder and chunkier; outline still lighter than the Cannon anchors. |
-| Colour | 10% | 6.5 | 7.5 | **7.5** | Red main in all cells; at ranks 7-8 gold and crystal take more of the eye (red 38-39% of saturated pixels). |
+| Colour | 10% | 6.5 | 7.5 | **7.5** | Red main in all cells; at ranks 7-8 gold and crystal take more of the eye (red-family pixels are 38-39% of the whole object at ranks 7 and 8, against 58% at rank 1; the tool ignores dark shaded red, so the real share is higher). |
 | Rank progression | 20% | 5.5 | 7.5 | **7.0** | Additive overall, but rank 5's taller body and rank 6's tiny pistons break "same machine, one new thing". |
 | Technical | 10% | 9.0 | 9.0 | **9.0** | Clean slices, no halo. |
 | **Weighted** | | 6.5 | 7.0 | **7.2** | |

@@ -20,7 +20,7 @@ Our shipped Cannon ladder scores 7.0 on the same scale, so this is below what we
 | Silhouette and readability | 25% | **5.5** | Ranks 1-3 are almost the same black shape (overlap with the previous rank 0.87 and 0.90; greyscale row cannot tell them apart at 64 px). Rank 1 reads as a hydraulic press, which is another unit (blue Hydraulic Press, also a shooter). Rank 8 has a distinct sunburst outline but is full of detail. |
 | Material and light | 20% | **7.5** | Convincing and glossy; a little too much hard specular on the steel. |
 | Style match | 15% | **6.5** | Same universe (3/4 view, top-left light, rivets, cream plate) but the outline is about half the weight of the Cannon/Coil anchors and the metal is rendered more realistically; the plate has brass bun feet where the anchors have red feet. Looks like a second artist. |
-| Colour | 10% | **6.5** | Tool: red is 41-57% of saturated pixels at every rank. To the eye, gold and steel take over from rank 5 and the machine stops reading as a red unit. |
+| Colour | 10% | **6.5** | Tool: red-family pixels are 41-57% of the whole object at every rank (dark shaded red is not counted, so the real share is higher). To the eye, gold and steel take over from rank 5 and the machine stops reading as a red unit. |
 | Rank progression | 20% | **5.5** | Not "previous plus one part": rank 5 drops the side pipes, rank 6 swaps the layout (tall rear cylinder and flywheel, the big side pistons are gone), rank 7 changes the top again. Rank 4 and 5 are both "cube with four big pistons". |
 | Technical | 10% | **9.0** | Clean slice, no specks, nothing clipped. Background is 254, not pure 255, harmless. |
 | **Weighted** | | **6.5** | No hard cap triggered (lowest overlap with previous rank is 0.70, none above 0.93). |

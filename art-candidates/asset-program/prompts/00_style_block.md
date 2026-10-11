@@ -1,13 +1,15 @@
-# Shared STYLE / COLOUR / PART BUDGET block (v2, after the Piston review)
+# Shared STYLE / SIZE / COLOUR / PART BUDGET block (v3, after the Piston polish test)
 
-Paste this into every unit prompt (between the layout and the ladder). It is what the round 1 review said was missing.
+Paste this into every unit prompt (between the layout and the ladder). v3 adds the polish language and the size rule that the polish test showed we need (`../reviews/piston_polish_v1.md`).
 
 ```
-STYLE: match my cannon, coil and bell anchors, NOT a realistic 3D render. Bold painted cartoon shapes, THICK dark outline (about 4 to 5 percent of the machine's width, a darker shade of each part's own colour, never pure black), smooth glossy enamel with one big soft highlight on the upper left and one thin specular streak, no fine metal texture, no tiny parts. Light from the top left. Same 3/4 camera in every cell: in front, slightly left of centre, slightly above. Cream base plate with rounded feet.
+STYLE: a premium polished mobile game icon, like the best art in top mobile games, matching my cannon, coil and bell anchors, NOT a realistic 3D render. Bold chunky toy-like shapes with slightly rounded corners. BOLD sticker-like dark outline, about 5 percent of the machine's width, a darker shade of each part's own colour (never pure black). Smooth simple glossy enamel: ONE big soft highlight per part on the upper left, one thin specular streak, soft core shadow on the lower right. NO scratches, tiny marks, engraved lines, panel screws, vents or grilles. Light from the top left. Same 3/4 camera in every cell: in front, slightly left of centre, slightly above. Cream base plate with rounded feet.
 
-COLOUR: the family colour ([HEX]) is the biggest colour at EVERY rank (at least 55 percent of the machine). Brass and gold are trim only (at most 25 percent).
+SIZE: the machine fills most of its cell. The base plate is only a little wider than the machine and must not dominate; small brass brackets on its corners at most.
 
-PART BUDGET: at most 12 distinct parts per machine. Each rank adds exactly ONE new thing to the previous rank and never removes or rearranges anything that was there. Every new thing must change the outline (the black silhouette) so neighbouring ranks are clearly different at 64 pixels.
+COLOUR: the family colour ([HEX]) is the biggest colour at EVERY rank (at least 55 percent of the machine). Gold is only thin rings, rivets and brackets (at most 20 percent). Caps and moving rods are grey steel, not gold.
+
+PART BUDGET: at most 12 distinct parts per machine. Each rank adds exactly ONE new thing to the previous rank and never removes or rearranges anything that was there. Every new thing must change the outline (the black silhouette) so neighbouring ranks are clearly different at 64 pixels. When a rank adds another copy of a part, splay the copies in different directions so the outline sprouts, not only grows inward.
 ```
 
 Layout and forbidden list stay as in `01_pilot_piston.md`: 4x2 grid, landscape 3:2, pure white background, wide gaps, no text, no glow or aura, no floor shadows, no particles.
