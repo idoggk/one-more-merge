@@ -7,7 +7,8 @@ import { TARGET_NAMES } from '../content/perks';
 import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { artPlan, RARE, type FirstScreen } from './artPlan';
 import { ensureUnitArt } from './unitArt';
-import { FAMILIES, ROSTER_1, ROSTER_2, ROSTER_3, ROSTER_4, ROSTER_5, ROSTER_6, ROSTER_7, type Family, type Roster1Family, type Roster2Family, type Roster3Family, type Roster4Family, type Roster5Family, type Roster6Family, type Roster7Family } from '../core/types';
+import { FAMILIES, ROSTER_1, ROSTER_2, ROSTER_3, ROSTER_4, ROSTER_5, ROSTER_6, ROSTER_7, type Family, type Roster1Family, type Roster2Family, type Roster3Family, type Roster4Family, type Roster5Family, type Roster6Family, type Roster7Family, type ToolFamily } from '../core/types';
+import { drawTool } from './toolArt';
 import { drawJobIcon, drawRoster1 } from './roster1Art';
 import { drawJobIcon2, drawRoster2 } from './roster2Art';
 import { drawJobIcon3, drawRoster3 } from './roster3Art';
@@ -128,7 +129,7 @@ function star(x: number, y: number, n: number, r1: number, r2: number) {
   }
   return pts;
 }
-const COLORS: Record<Exclude<Family, Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family | Roster7Family>, [number, number, number]> = {
+const COLORS: Record<Exclude<Family, Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family | Roster7Family | ToolFamily>, [number, number, number]> = {
   cannon: [0xe8452c, 0xff7a52, 0x9e2416],
   coil: [0x27c4e0, 0x8af0ff, 0x137a92],
   bell: [0xf2b521, 0xffe07a, 0xa8700e],
@@ -153,7 +154,7 @@ function drawGadget(g: Phaser.GameObjects.Graphics, fam: Family, rank: number) {
   if ((ROSTER_5 as Family[]).includes(fam)) return drawRoster5(g, fam as Roster5Family, rank);
   if ((ROSTER_6 as Family[]).includes(fam)) return drawRoster6(g, fam as Roster6Family, rank);
   if ((ROSTER_7 as Family[]).includes(fam)) return drawRoster7(g, fam as Roster7Family, rank);
-  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family | Roster7Family>];
+  const [main, light, dark] = COLORS[fam as Exclude<Family, Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family | Roster7Family | ToolFamily>];
   const s = 128;
   g.lineStyle(6, OUT, 1);
   if (fam === 'cannon') {
@@ -283,6 +284,7 @@ export function ensureTextures(scene: Phaser.Scene) {
     g.generateTexture(key, w, h);
   };
   for (const f of FAMILIES) for (let r = 1; r <= MAX_RANK + 2; r++) gen(`${f}_${r}`, 128, 128, () => drawGadget(g, f, r));
+  for (const f of ['row_surge', 'gear_bomb'] as const) gen(`${f}_1`, 128, 128, () => drawTool(g, f)); // TUNING.tools placeholders
   for (const f of ROSTER_1) gen(`job_${f}`, 64, 64, () => drawJobIcon(g, f));
   for (const f of ROSTER_2) gen(`job_${f}`, 64, 64, () => drawJobIcon2(g, f));
   for (const f of ROSTER_3) gen(`job_${f}`, 64, 64, () => drawJobIcon3(g, f));

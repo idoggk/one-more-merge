@@ -168,3 +168,97 @@ for (const [label, v] of variants) {
   simToys = label.includes('MAGNETS') ? ['magnet'] : label.includes('ALLTOYS') ? ['magnet', 'battery', 'fan'] : [];
   report(label);
 }
+
+// ---------- POWER TOOLS test (t-e2a48327): npx vite-node tools/sim.ts tools [runs] ----------
+// Saga level 25 with the +1 BONUS sandwich rule, tools OFF vs ON. Bots: a random bot (never uses tools), a planning bot (best merge preview)
+// and a TOOL-USING planner (taps a tool when the tool's preview beats its best merge). Plain-words report at the end.
+async function toolsReport(N: number) {
+  const { LEVELS } = await import('../src/content/levels');
+  const { newLevel } = await import('../src/core/game');
+  const { applyMergeRule } = await import('../src/core/sandwich');
+  const { planTool, previewTool, useTool } = await import('../src/core/tools');
+  type Bot = { name: string; planner: boolean; tools: boolean; only?: Family };
+  const bots: Bot[] = [
+    { name: 'random bot', planner: false, tools: false },
+    { name: 'planning bot (no tools)', planner: true, tools: false },
+    { name: 'planner + TOOLS', planner: true, tools: true },
+    { name: 'planner, Cannons first', planner: true, tools: true, only: 'cannon' },
+    { name: 'planner, Coils first', planner: true, tools: true, only: 'coil' },
+  ];
+  const runOne = (seed: number, bot: Bot, flag: boolean, rule: 'today' | 'sandwichBonus') => {
+    TUNING.tools = flag;
+    applyMergeRule(rule);
+    const s = newLevel({ ...LEVELS[24], seed: LEVELS[24].seed + seed * 7919 }); // a different supply each run
+    const rng = new Rng(seed * 7 + 3);
+    let next = 2.5;
+    while (s.phase === 'playing' || s.phase === 'choice') {
+      if (s.phase === 'choice') {
+        choosePerk(s, s.offer[rng.int(s.offer.length)]);
+        continue;
+      }
+      if (s.elapsed >= next) {
+        next += 2.5;
+        const pairs = legalPairs(s);
+        let bestMerge: [number, number] | null = null;
+        let bestDmg = -1;
+        if (bot.planner) {
+          for (const [a, b] of pairs)
+            for (const [f, t] of [[a, b], [b, a]] as [number, number][]) {
+              if (bot.only && s.grid[f]!.family !== bot.only) continue;
+              const d = previewMerge(s, f, t)!.total;
+              if (d > bestDmg) [bestDmg, bestMerge] = [d, [f, t]];
+            }
+          if (!bestMerge && bot.only) {
+            for (const [a, b] of pairs) bestMerge = [a, b]; // nothing of the preferred family: any merge
+            bestDmg = 0;
+          }
+        } else if (pairs.length) {
+          const [a, b] = pairs[rng.int(pairs.length)];
+          bestMerge = rng.next() < 0.5 ? [a, b] : [b, a];
+        }
+        let tapped = false;
+        if (bot.tools && TUNING.tools) {
+          let bt = -1, bd = bestDmg;
+          s.grid.forEach((g, i) => {
+            if (!g?.tool) return;
+            const p = planTool(s, i);
+            const r = p && previewTool(s, p);
+            if (r && r.total > bd) [bt, bd] = [i, r.total];
+          });
+          if (bt >= 0) tapped = useTool(s, bt, s.grid[bt]!.id).ok;
+        }
+        if (!tapped && bestMerge) drop(s, bestMerge[0], bestMerge[1], s.grid[bestMerge[0]]!.id);
+      }
+      tick(s);
+    }
+    const t = s.stats.tools ?? { made: 0, used: 0, combos: 0 };
+    const actions = s.stats.merges + t.used;
+    return { won: s.phase === 'won', made: t.made, used: t.used, combos: t.combos, perAction: (s.stats.dmgBy.player ?? 0) / Math.max(1, actions), time: s.elapsed };
+  };
+  const agg = (bot: Bot, flag: boolean, rule: 'today' | 'sandwichBonus') => {
+    const rs = Array.from({ length: N }, (_, i) => runOne(i + 1, bot, flag, rule));
+    const m = (f: (r: (typeof rs)[number]) => number) => rs.reduce((a, r) => a + f(r), 0) / N;
+    return { win: m((r) => (r.won ? 1 : 0)), made: m((r) => r.made), used: m((r) => r.used), combos: m((r) => r.combos), per: m((r) => r.perAction), time: median(rs.filter((r) => r.won).map((r) => r.time)) };
+  };
+  console.log(`\n== POWER TOOLS test (saga level 25, ${N} runs per row)`);
+  const rows: Record<string, ReturnType<typeof agg>> = {};
+  for (const [label, flag, rule] of [['today (flag off, rule today)', false, 'today'], ['bonus rule, tools off', false, 'sandwichBonus'], ['bonus rule, tools ON', true, 'sandwichBonus']] as const)
+    for (const bot of bots) {
+      const r = agg(bot, flag, rule);
+      rows[`${label}|${bot.name}`] = r;
+      console.log(`${label.padEnd(30)} ${bot.name.padEnd(26)} win ${(r.win * 100).toFixed(0).padStart(3)}%  medWinTime ${r.time.toFixed(0).padStart(4)}s  dmg/action ${r.per.toFixed(0).padStart(6)}  tools made ${r.made.toFixed(2)}  used ${r.used.toFixed(2)}  combos ${r.combos.toFixed(2)}`);
+    }
+  const R = (l: string, b: string) => rows[`${l}|${b}`];
+  const on = 'bonus rule, tools ON', off = 'bonus rule, tools off', today = 'today (flag off, rule today)';
+  const ratio = (l: string) => R(l, 'planner + TOOLS').per / R(l, 'random bot').per;
+  console.log('\nIN PLAIN WORDS');
+  console.log(`- Tools made per run: random bot ${R(on, 'random bot').made.toFixed(2)}, planning bot ${R(on, 'planning bot (no tools)').made.toFixed(2)} (it used ${R(on, 'planner + TOOLS').used.toFixed(2)} and ${R(on, 'planner + TOOLS').combos.toFixed(2)} combos per run when it may tap them).`);
+  console.log(`- Thinking damage per action (tool-using planner vs random bot): today ${(R(today, 'planning bot (no tools)').per / R(today, 'random bot').per).toFixed(2)}x, with tools ${ratio(on).toFixed(2)}x (target 1.6x).`);
+  console.log(`- Random bot win-rate: today ${(R(today, 'random bot').win * 100).toFixed(0)}%, bonus rule ${(R(off, 'random bot').win * 100).toFixed(0)}%, tools on ${(R(on, 'random bot').win * 100).toFixed(0)}%.`);
+  const spread = (l: string) => R(l, 'planner, Cannons first').per / R(l, 'planner, Coils first').per;
+  console.log(`- Do Cannon / Coil choices still matter? Cannons-first vs Coils-first damage per action: tools off ${spread(off).toFixed(2)}x, tools on ${spread(on).toFixed(2)}x (1.00x would mean the choice stopped mattering).`);
+}
+if (only === 'tools') {
+  if (process.argv[4]) TUNING.tl.chain = Number(process.argv[4]); // optional: try another chain length for the Row Surge
+  await toolsReport(Number(process.argv[3] ?? 60));
+}

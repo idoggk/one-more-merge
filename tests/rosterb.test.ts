@@ -230,7 +230,7 @@ describe('roster B unit jobs', () => {
   it('job upgrade words follow the flag', () => {
     on();
     expect(UNIT_PERKS.cannon[0][0]).toBe('Quick Loader');
-    expect(Object.keys(ROSTER_PERKS).sort()).toEqual(Object.keys(FAMILY_INFO).filter((k) => !(ROSTER_1 as string[]).includes(k) && !(ROSTER_2 as string[]).includes(k) && !(ROSTER_3 as string[]).includes(k) && !(ROSTER_4 as string[]).includes(k) && !(ROSTER_5 as string[]).includes(k) && !(ROSTER_6 as string[]).includes(k) && !(ROSTER_7 as string[]).includes(k)).sort());
+    expect(Object.keys(ROSTER_PERKS).sort()).toEqual(Object.keys(FAMILY_INFO).filter((k) => !(ROSTER_1 as string[]).includes(k) && !(ROSTER_2 as string[]).includes(k) && !(ROSTER_3 as string[]).includes(k) && !(ROSTER_4 as string[]).includes(k) && !(ROSTER_5 as string[]).includes(k) && !(ROSTER_6 as string[]).includes(k) && !(ROSTER_7 as string[]).includes(k) && k !== 'row_surge' && k !== 'gear_bomb').sort()); // the power tools (TUNING.tools) are no unit
     expect(FAMILY_INFO.rocket.text).toMatch(/BURST/);
     expect(FAMILY_INFO.fan.text).toMatch(/SUPPORT CARD/);
   });

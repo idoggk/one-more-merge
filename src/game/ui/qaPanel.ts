@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -82,6 +82,10 @@ applyMergeRule(qaMergeRule());
 // t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
 export const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
 applyThinkBank(qaThinkBank());
+
+// t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +1 BONUS (the MERGE RULE row can still change it)
+export const qaTools = () => storedTools(() => localStorage.getItem(TOOLS_KEY));
+applyTools(qaTools());
 
 /** What a QA row draws into: the open sheet, plus the level picked in JUMP TO LEVEL (kept when the panel reopens). */
 interface QaCtx {
@@ -409,6 +413,26 @@ export const QA_ROWS: QaRow[] = [
       });
     },
   },
+  // 7d) t-e2a48327 POWER TOOLS: OFF / ON (ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +1 BONUS)
+  qaSwitch({
+    title: 'POWER TOOLS',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaTools() ? 'on' : 'off'),
+    pick: (id) => {
+      store(TOOLS_KEY, id === 'on' ? 'on' : null);
+      applyTools(id === 'on');
+      if (id === 'on') {
+        store(MERGE_RULE_KEY, 'sandwichBonus');
+        applyMergeRule('sandwichBonus');
+      }
+      tlog.log('qa_tools', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'on' ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
+    w: 240,
+    dx: 200,
+    gap: 38,
+    h: 70,
+  }),
   // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
   // (the 1280-tall small-phone screen has no room left below: BACK moved up beside the title for this row)
   qaSwitch({

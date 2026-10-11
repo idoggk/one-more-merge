@@ -144,6 +144,19 @@ export function applyMergeBudget(on: boolean) {
   TUNING.mergeBudget = on;
 }
 
+/** QA panel POWER TOOLS switch (t-e2a48327, TUNING.tools; this device only, not in the save): 'on' = Row Surge / Gear Bomb tools, anything else / missing / unreadable = OFF. */
+export const TOOLS_KEY = 'omm_qa_tools';
+export function storedTools(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyTools(on: boolean) {
+  TUNING.tools = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

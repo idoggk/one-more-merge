@@ -1,4 +1,9 @@
-export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family | Roster7Family;
+export type Family = 'cannon' | 'coil' | 'bell' | 'magnet' | 'battery' | 'fan' | 'rocket' | 'mortar' | 'arc_welder' | 'horn' | 'fuse_box' | 'amplifier' | 'signal_beacon' | Roster1Family | Roster2Family | Roster3Family | Roster4Family | Roster5Family | Roster6Family | Roster7Family | ToolFamily;
+/** TUNING.tools power-up TOOLS (src/core/tools.ts): board parts created by a big merge, tapped once. Never in FAMILIES, never a machine. */
+export type ToolFamily = 'row_surge' | 'gear_bomb';
+export type ToolKind = 'surge' | 'bomb';
+export const TOOL_FAMILY: Record<ToolKind, ToolFamily> = { surge: 'row_surge', bomb: 'gear_bomb' };
+export const isToolFamily = (f: Family): f is ToolFamily => f === 'row_surge' || f === 'gear_bomb';
 /** Roster B batch 1 (t-9b28a794, TUNING.roster1): only reachable while the flag is on. */
 export type Roster1Family = 'nail_gun' | 'jackhammer' | 'gear' | 'saw_blade';
 export const ROSTER_1: Roster1Family[] = ['nail_gun', 'jackhammer', 'gear', 'saw_blade'];
@@ -49,6 +54,10 @@ export interface Gadget {
   item?: { kind: ItemKind; charges: number };
   /** TUNING.roster6 Robot Arm COPY: the relays that woke it last (newest last; 1 remembered job, 2 from L6). Carried through merges. */
   copy?: Family[];
+  /** TUNING.tools: this part is a power-up TOOL (family row_surge / gear_bomb), not a machine. */
+  tool?: ToolKind;
+  /** TUNING.tools: the family of the merge that made this tool (colours the Row Surge cell). */
+  hue?: Family;
 }
 
 /** r25 power-up items: OVERCHARGE (shooter, next 2 chain shots x1.5), SPARK (shooter wakes U/R/D/L once), CORNER (Bell wakes diagonals once). */

@@ -74,6 +74,8 @@ import { DROP_HINT, HintGate, planDrop, type DropReject } from './dropFeedback';
 import { FormulaStrip } from './formulaStrip';
 import { playJobTag, playSupportFx } from './rosterFx';
 import { SupportCard } from './supportCard';
+import { ToolUi } from './toolFx';
+import { COMBO_TEXT, isToolKey } from '../content/tools';
 import { WrenchBadge } from './ui/wrenchBadge';
 import { CapBadge } from './ui/capBadge';
 import { CopyBadges } from './ui/copyBadge';
@@ -99,7 +101,7 @@ export { computeLayout, H, layoutHeight, RS, setRenderScale, W } from './sceneKi
 
 /** Parameters of a scene-module function after its leading `scene` argument (thin delegating methods below). */
 type Tail<F> = F extends (scene: GameScene, ...a: infer A) => unknown ? A : never;
-type GadgetView = Phaser.GameObjects.Container & { gid: number };
+export type GadgetView = Phaser.GameObjects.Container & { gid: number };
 
 export class GameScene extends Phaser.Scene {
   s!: GameState;
@@ -354,6 +356,7 @@ export class GameScene extends Phaser.Scene {
       return r.ok;
     }, (msg, color) => this.showEvent(msg, color ?? '#fff0cf', 2200));
 
+    this.tools = new ToolUi(this as never);
     this.wrench = new WrenchBadge(this, 82, () => STAGE_TOP + STAGE_H - 84); // roster 2: the passive Wrench's charge badge
     this.copyBadges = new CopyBadges(this);
     this.capBadge = new CapBadge(this, 82, () => STAGE_TOP + STAGE_H - 214); // roster 4: what the Capacitor holds
@@ -821,6 +824,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- gadget views ----------
 
   makeView(g: Gadget): GadgetView {
+    if (g.tool) return this.tools.makeView(g);
     const c = this.add.container(0, 0) as GadgetView;
     c.gid = g.id;
     const img = this.add.image(0, 0, unitTex(this, `${g.family}_${g.rank}`));
@@ -1109,6 +1113,7 @@ export class GameScene extends Phaser.Scene {
     this.moved = false;
     this.scrapHold = 0;
     this.idleTime = 0;
+    if (TUNING.tools) this.tools.press(idx, this.s); // hold 250 ms on a tool = preview
   }
 
   onMove(p: Phaser.Input.Pointer) {
@@ -1122,6 +1127,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.moved && Phaser.Math.Distance.Between(p.worldX, p.worldY, this.downAt.x, this.downAt.y) < 12) return;
     if (!this.moved) {
       this.moved = true;
+      this.tools.cancel();
       this.lift = p.wasTouch ? DRAG_LIFT_TOUCH : DRAG_LIFT;
       this.liftX = 0;
       if (this.assistOn()) {
@@ -1313,7 +1319,10 @@ export class GameScene extends Phaser.Scene {
         if (this.s.grid[tapped] && canMerge(this.s.grid[tapped], this.s.grid[to], this.s)) this.commitDrop(tapped, to, this.s.grid[tapped]!.id);
         return;
       }
-      if (this.s.phase === 'playing') this.openInspect(tapped);
+      const tool = TUNING.tools ? this.tools.release(tapped) : 'none';
+      if (tool === 'held') return; // the long-press preview was showing: release does nothing
+      if (tool === 'use') this.useTool(tapped);
+      else if (this.s.phase === 'playing') this.openInspect(tapped);
       else if (this.s.phase === 'tutorial') this.showEvent('DRAG it onto its match!', '#fff0cf', 1400); // a tap is not a merge
       return;
     }
@@ -1462,7 +1471,7 @@ export class GameScene extends Phaser.Scene {
     if (this.s.phase === 'tutorial' && this.onTutorialMismatch(from, to)) return false;
     const merging = canMerge(a, b, this.s);
     // ChatGPT r13: an occupied mismatch BOUNCES (silent swaps punished the exact mistake Ido reported). Swapping is opt-in.
-    if (a && b && !merging && !this.meta.swapMismatch) {
+    if (a && b && !merging && !this.meta.swapMismatch && !(TUNING.tools && a.tool && b.tool)) {
       tlog.log('mismatch_bounce', { a: `${a.family}${a.rank}`, b: `${b.family}${b.rank}` });
       const msg = a.family === b.family ? `Rank ${a.rank} ≠ Rank ${b.rank}: merge the SAME number` : 'Merge the SAME gadget with the SAME number';
       this.showEvent(msg, '#ffd2c8', 1600);
@@ -1564,18 +1573,38 @@ Now beat the real level.`, this.coachY());
       }
     } else {
       sfx.drop();
-      if (a && b && a.family === b.family && a.rank !== b.rank) {
+      if (a?.tool || b?.tool) {
+        // POWER TOOLS: a combo or a swap with a tool says nothing about ranks
+      } else if (a && b && a.family === b.family && a.rank !== b.rank) {
         this.showEvent(`Swapped. Merging needs the SAME number (${a.rank} ≠ ${b.rank})`, '#ffd2c8', 2600);
         tlog.log('rank_mismatch', { fam: a.family, a: a.rank, b: b.rank });
         for (const id of [a.id, b.id]) this.pulseRank(id, 1.6, 160, 2);
       } else if (a && b && a.family !== b.family) this.showEvent('Swapped. Merge two of the SAME gadget', '#fff0cf', 1600);
       tlog.log('move', { swap: !!b });
-      this.reconcile();
+      if (res.events.some((e) => e.type === 'toolUse')) this.time.delayedCall(330, () => this.reconcile()); // a tool combo: the tools stay through their wind-up
+      else this.reconcile();
     }
     this.handleEvents(res.events);
     this.pendingFormula = null;
     this.save();
     return true;
+  }
+
+  /** TUNING.tools: tap on a tool (two touching tools combine). */
+  useTool(idx: number) {
+    const g = this.s.grid[idx];
+    if (!g?.tool) return;
+    const res = recordCommand(this.runLog, this.s, { k: 'tool', idx, id: g.id });
+    if (!res.ok) {
+      sfx.nope();
+      this.showEvent('NOTHING TO WAKE: line up machines first', '#ffd2c8', 1600);
+      return;
+    }
+    this.idleTime = 0;
+    this.handleEvents(res.events);
+    // the used tool stays on screen through its wind-up; the board catches up when the wave starts (visual only: the model already moved on)
+    this.time.delayedCall(this.tools.lastWait, () => this.reconcile());
+    this.save();
   }
 
   doScrap(idx: number, id: number) {
@@ -1830,6 +1859,7 @@ Now beat the real level.`, this.coachY());
     this.drawRemix();
     this.drawItems();
     this.support?.sync(this.s);
+    this.tools.sync(this.s);
     this.wrench?.sync(this.s);
     this.capBadge?.sync(this.s);
     this.copyBadges?.sync(this.s.grid);
@@ -2190,9 +2220,21 @@ Now beat the real level.`, this.coachY());
     let needReconcile = false;
     for (const e of events) {
       switch (e.type) {
-        case 'cascade':
-          this.playCascade(e.result, e.overdriveStart, e.kickback);
-          this.checkChallenges(e.result, e.kickback);
+        case 'cascade': {
+          const wait = this.tools.takeDelay(); // POWER TOOLS: the tool's wind-up plays first (visual only; the model already ran)
+          const play = () => {
+            this.playCascade(e.result, e.overdriveStart, e.kickback);
+            this.checkChallenges(e.result, e.kickback);
+          };
+          if (wait) this.time.delayedCall(wait, play);
+          else play();
+          break;
+        }
+        case 'toolMade':
+          this.tools.playMade(e);
+          break;
+        case 'toolUse':
+          this.tools.playUse(e);
           break;
         case 'shot':
           this.playPassiveShot(e.idx, e.damage);
@@ -2880,6 +2922,7 @@ Now beat the real level.`, this.coachY());
 
   formula!: FormulaStrip;
   support?: SupportCard;
+  tools!: ToolUi; // TUNING.tools (src/game/toolFx.ts)
   wrench?: WrenchBadge;
   capBadge?: CapBadge;
   copyBadges?: CopyBadges; // roster 6: the relay a Robot Arm remembers, drawn on the arm
@@ -5128,7 +5171,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
   /** t-2fd7bb86: the guide lists only what the player has reached; every other machine sits on one LOCKED page. */
   guidePages() {
     const isUnit = (k: string) => !!unitDef(k);
-    const open = GameScene.GUIDE.filter((p) => (isUnit(p.key) ? this.guideMachineOpen(p.key) : this.guideUnlocked(p.unlock)));
+    const open = GameScene.GUIDE.filter((p) => (isToolKey(p.key) ? TUNING.tools : isUnit(p.key) ? this.guideMachineOpen(p.key) : this.guideUnlocked(p.unlock)));
     const anyLocked = GameScene.GUIDE.some((p) => isUnit(p.key) && !this.guideMachineOpen(p.key));
     return anyLocked ? [...open, { key: 'locked', title: 'LOCKED MACHINES', role: 'SPECIAL', text: '', tryThis: '', unlock: 0 }] : open;
   }
@@ -5175,6 +5218,16 @@ Merge them into a RANK ${rank}!`, this.coachY());
     } else if (open && (pg.key === 'marks' || pg.key === 'marks2')) {
       const end = this.marksLegend(c, top, pg.key === 'marks2');
       c.add(this.add.text(W / 2, Math.max(top + 762, end + 8), `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+    } else if (open && isToolKey(pg.key)) {
+      // POWER TOOLS card: the tool's own picture (bobbing), then what earns it and what it does
+      const im = this.add.image(W / 2, top + 330, `${pg.key}_1`);
+      im.setScale(150 / Math.max(im.width, im.height));
+      if (pg.key === 'row_surge') im.setTint(FAMILY_INFO.coil.color);
+      c.add(im);
+      this.tweens.add({ targets: im, y: top + 316, duration: 650, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      c.add(this.add.text(W / 2, top + 430, pg.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '25px', color: '#3b2533', align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 4 }).setOrigin(0.5, 0));
+      c.add(this.add.text(W / 2, top + 640, Object.values(COMBO_TEXT).join('\n'), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
+      c.add(this.add.text(W / 2, top + 788, `Try: ${pg.tryThis}`, { fontFamily: 'Arial', fontStyle: 'italic bold', fontSize: '23px', color: '#7a5a4a', align: 'center', wordWrap: { width: W - 160 } }).setOrigin(0.5, 0));
     } else if (open && pg.key === 'items') {
       (['overcharge', 'spark', 'corner'] as const).forEach((k, i) => {
         const im = this.add.image(W / 2 + (i - 1) * 150, top + 330, `item_${k}`);
