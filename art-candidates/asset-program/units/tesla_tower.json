@@ -1,0 +1,16 @@
+{
+  "id": "tesla_tower", "name": "Tesla Tower", "noun": "a TESLA TOWER", "role": "shooter", "rarity": "Legendary",
+  "color": "#6ad0ff", "colorName": "ice cyan",
+  "axis": "Axis: number of lightning bolts (1, 2, 3), then side towers, a second tier, a crystal orb, a crown cage with five bolts. Bolts are part of the machine, attached to the orb.",
+  "colourLine": "the ice cyan enamel (#6ad0ff) coil body is the biggest colour at EVERY rank (at least 55 percent of the machine). Brass and gold are only thin rings, rivets and brackets (at most 20 percent). Lightning bolts are bright white-blue with a cyan outline and are PART of the machine, attached to the orb.",
+  "ranks": [
+    "A short cyan enamel coil tower (three stacked rings) on a cream plate with a small brass orb on top and ONE short lightning bolt arcing out of the orb.",
+    "Rank 1 plus a second lightning bolt on the other side of the orb (two bolts, splayed).",
+    "Rank 2 plus a third bolt (three bolts fanning left, up and right), thin brass rings on the coil, brass feet on the plate.",
+    "Rank 3 plus a small cyan coil tower standing on the right, joined to the orb by a short arc.",
+    "Rank 4 plus a second small cyan coil tower standing on the left (symmetrical) and a glowing white core in the main orb.",
+    "Rank 5 plus a second, taller cyan coil section stacked on top of the main tower with a bigger orb and one big central bolt rising from it.",
+    "Rank 6 where the top orb is a blue-white crystal sphere clearly WIDER than the tower top, with a gold ring.",
+    "Rank 7 plus a gold crown-shaped cage around the crystal with five bolts fanning out, and a small ornate gold and white plate. The most impressive machine on the sheet, still clean."
+  ]
+}
