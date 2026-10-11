@@ -1,0 +1,335 @@
+[
+ {
+  "name": "painted-vs-code-1",
+  "title": "Painted picture vs code drawing: the 22 roster B units (1/3)",
+  "file": "sheets/painted-vs-code-1.png",
+  "preview": "sheets/painted-vs-code-1.png",
+  "width": 1160,
+  "height": 3324,
+  "tiles": 32
+ },
+ {
+  "name": "painted-vs-code-2",
+  "title": "Painted picture vs code drawing: the 22 roster B units (2/3)",
+  "file": "sheets/painted-vs-code-2.png",
+  "preview": "sheets/painted-vs-code-2.png",
+  "width": 1160,
+  "height": 3324,
+  "tiles": 32
+ },
+ {
+  "name": "painted-vs-code-3",
+  "title": "Painted picture vs code drawing: the 22 roster B units (3/3)",
+  "file": "sheets/painted-vs-code-3.png",
+  "preview": "sheets/painted-vs-code-3.png",
+  "width": 1160,
+  "height": 2528,
+  "tiles": 24
+ },
+ {
+  "name": "painted-vs-code-older-1",
+  "title": "Painted vs code: the 17 older units (1/3)",
+  "file": "sheets/painted-vs-code-older-1.png",
+  "preview": "sheets/painted-vs-code-older-1.png",
+  "width": 1160,
+  "height": 3324,
+  "tiles": 32
+ },
+ {
+  "name": "painted-vs-code-older-2",
+  "title": "Painted vs code: the 17 older units (2/3)",
+  "file": "sheets/painted-vs-code-older-2.png",
+  "preview": "sheets/painted-vs-code-older-2.png",
+  "width": 1160,
+  "height": 3324,
+  "tiles": 32
+ },
+ {
+  "name": "painted-vs-code-older-3",
+  "title": "Painted vs code: the 17 older units (3/3)",
+  "file": "sheets/painted-vs-code-older-3.png",
+  "preview": "sheets/painted-vs-code-older-3.png",
+  "width": 1160,
+  "height": 538,
+  "tiles": 4
+ },
+ {
+  "name": "units-roster2",
+  "title": "Code-drawn units: roster 2",
+  "file": "sheets/units-roster2.png",
+  "preview": "sheets/units-roster2.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "units-roster3",
+  "title": "Code-drawn units: roster 3",
+  "file": "sheets/units-roster3.png",
+  "preview": "sheets/units-roster3.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "units-roster4",
+  "title": "Code-drawn units: roster 4",
+  "file": "sheets/units-roster4.png",
+  "preview": "sheets/units-roster4.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "units-roster5",
+  "title": "Code-drawn units: roster 5",
+  "file": "sheets/units-roster5.png",
+  "preview": "sheets/units-roster5.png",
+  "width": 1160,
+  "height": 2300,
+  "tiles": 24
+ },
+ {
+  "name": "units-roster6",
+  "title": "Code-drawn units: roster 6",
+  "file": "sheets/units-roster6.png",
+  "preview": "sheets/units-roster6.png",
+  "width": 1160,
+  "height": 1580,
+  "tiles": 16
+ },
+ {
+  "name": "units-roster7-1",
+  "title": "Code-drawn units: roster 7 (1/2)",
+  "file": "sheets/units-roster7-1.png",
+  "preview": "sheets/units-roster7-1.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "units-roster7-2",
+  "title": "Code-drawn units: roster 7 (2/2)",
+  "file": "sheets/units-roster7-2.png",
+  "preview": "sheets/units-roster7-2.png",
+  "width": 1160,
+  "height": 860,
+  "tiles": 8
+ },
+ {
+  "name": "fallback-painted-units-1",
+  "title": "Fallback stand-ins for the 17 painted units (1/5)",
+  "file": "sheets/fallback-painted-units-1.png",
+  "preview": "sheets/fallback-painted-units-1.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "fallback-painted-units-2",
+  "title": "Fallback stand-ins for the 17 painted units (2/5)",
+  "file": "sheets/fallback-painted-units-2.png",
+  "preview": "sheets/fallback-painted-units-2.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "fallback-painted-units-3",
+  "title": "Fallback stand-ins for the 17 painted units (3/5)",
+  "file": "sheets/fallback-painted-units-3.png",
+  "preview": "sheets/fallback-painted-units-3.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "fallback-painted-units-4",
+  "title": "Fallback stand-ins for the 17 painted units (4/5)",
+  "file": "sheets/fallback-painted-units-4.png",
+  "preview": "sheets/fallback-painted-units-4.png",
+  "width": 1160,
+  "height": 3020,
+  "tiles": 32
+ },
+ {
+  "name": "fallback-painted-units-5",
+  "title": "Fallback stand-ins for the 17 painted units (5/5)",
+  "file": "sheets/fallback-painted-units-5.png",
+  "preview": "sheets/fallback-painted-units-5.png",
+  "width": 1160,
+  "height": 860,
+  "tiles": 8
+ },
+ {
+  "name": "jobs-glyphs",
+  "title": "job_<unit> glyphs (64 px), 26 roster B units",
+  "file": "sheets/jobs-glyphs.png",
+  "preview": "sheets/jobs-glyphs.png",
+  "width": 1160,
+  "height": 2408,
+  "tiles": 26
+ },
+ {
+  "name": "crates",
+  "title": "Procedural toolbox crates (QA switch)",
+  "file": "sheets/crates.png",
+  "preview": "sheets/crates.png",
+  "width": 1160,
+  "height": 1814,
+  "tiles": 12
+ },
+ {
+  "name": "cell-marks",
+  "title": "Cell marks and boss telegraphs",
+  "file": "sheets/cell-marks.png",
+  "preview": "sheets/cell-marks.png",
+  "width": 1160,
+  "height": 2086,
+  "tiles": 22
+ },
+ {
+  "name": "support-cards-1",
+  "title": "Support cards and badges (roster B, QA) (1/2)",
+  "file": "sheets/support-cards-1.png",
+  "preview": "sheets/support-cards-1.png",
+  "width": 1160,
+  "height": 3474,
+  "tiles": 24
+ },
+ {
+  "name": "support-cards-2",
+  "title": "Support cards and badges (roster B, QA) (2/2)",
+  "file": "sheets/support-cards-2.png",
+  "preview": "sheets/support-cards-2.png",
+  "width": 1160,
+  "height": 631,
+  "tiles": 2
+ },
+ {
+  "name": "portraits-cards",
+  "title": "Crate-reveal cards with glyph tiles (no painted art)",
+  "file": "sheets/portraits-cards.png",
+  "preview": "sheets/portraits-cards.png",
+  "width": 1160,
+  "height": 2086,
+  "tiles": 22
+ },
+ {
+  "name": "rank-decor",
+  "title": "Rank decor on a code part (wrench 1-8)",
+  "file": "sheets/rank-decor.png",
+  "preview": "sheets/rank-decor.png",
+  "width": 1160,
+  "height": 798,
+  "tiles": 8
+ },
+ {
+  "name": "fx-textures",
+  "title": "FX textures",
+  "file": "sheets/fx-textures.png",
+  "preview": "sheets/fx-textures.png",
+  "width": 1160,
+  "height": 1764,
+  "tiles": 19
+ },
+ {
+  "name": "backgrounds-ui",
+  "title": "Backgrounds and UI fallbacks",
+  "file": "sheets/backgrounds-ui.png",
+  "preview": "sheets/backgrounds-ui.png",
+  "width": 1160,
+  "height": 1418,
+  "tiles": 3
+ },
+ {
+  "name": "units-overview",
+  "title": "All 39 code stand-ins at rank 3",
+  "file": "sheets/units-overview.png",
+  "preview": "sheets/units-overview.png",
+  "width": 1160,
+  "height": 2686,
+  "tiles": 39
+ },
+ {
+  "name": "targets",
+  "title": "Classic machine stand-ins (target_N)",
+  "file": "sheets/targets.png",
+  "preview": "sheets/targets.png",
+  "width": 1160,
+  "height": 1399,
+  "tiles": 7
+ },
+ {
+  "name": "screens-code-only-1",
+  "title": "Real game screens with NO painted art (1/4)",
+  "file": "sheets/screens-code-only-1.png",
+  "preview": "sheets/screens-code-only-1.png",
+  "width": 1160,
+  "height": 2624,
+  "tiles": 4
+ },
+ {
+  "name": "screens-code-only-2",
+  "title": "Real game screens with NO painted art (2/4)",
+  "file": "sheets/screens-code-only-2.png",
+  "preview": "sheets/screens-code-only-2.png",
+  "width": 1160,
+  "height": 2686,
+  "tiles": 4
+ },
+ {
+  "name": "screens-code-only-3",
+  "title": "Real game screens with NO painted art (3/4)",
+  "file": "sheets/screens-code-only-3.png",
+  "preview": "sheets/screens-code-only-3.png",
+  "width": 1160,
+  "height": 2686,
+  "tiles": 4
+ },
+ {
+  "name": "screens-code-only-4",
+  "title": "Real game screens with NO painted art (4/4)",
+  "file": "sheets/screens-code-only-4.png",
+  "preview": "sheets/screens-code-only-4.png",
+  "width": 1160,
+  "height": 1451,
+  "tiles": 2
+ },
+ {
+  "name": "misc",
+  "title": "Misc: power tools, tutorial hand",
+  "file": "sheets/misc.png",
+  "preview": "sheets/misc.png",
+  "width": 1160,
+  "height": 569,
+  "tiles": 3
+ },
+ {
+  "name": "screw-yard-baked",
+  "title": "Screw Yard baked textures",
+  "file": "sheets/screw-yard-baked.png",
+  "preview": "sheets/screw-yard-baked.png",
+  "width": 1160,
+  "height": 798,
+  "tiles": 8
+ },
+ {
+  "name": "screw-yard-screens-1",
+  "title": "Screw Yard scenes, code only (no painted art) (1/2)",
+  "file": "sheets/screw-yard-screens-1.png",
+  "preview": "sheets/screw-yard-screens-1.png",
+  "width": 1160,
+  "height": 2624,
+  "tiles": 4
+ },
+ {
+  "name": "screw-yard-screens-2",
+  "title": "Screw Yard scenes, code only (no painted art) (2/2)",
+  "file": "sheets/screw-yard-screens-2.png",
+  "preview": "sheets/screw-yard-screens-2.png",
+  "width": 1160,
+  "height": 1451,
+  "tiles": 2
+ }
+]
