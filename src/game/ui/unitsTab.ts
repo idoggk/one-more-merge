@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { unitTex } from '../unitArt';
 import { FAMILY_INFO } from '../../content/perks';
 import type { Family } from '../../core/types';
 import { sfx } from '../audio';
@@ -34,6 +35,9 @@ export function openUnitsTab(scene: GameScene) {
   if (scene.homeC?.active) scene.homeC.destroy();
   scene.homeC = c;
   scene.modal = c;
+  scene.loadUnitPictures(() => {
+    if (c.active && scene.modal === c) scene.openUnitsTab(); // pictures landed while the tab is open: redraw with them
+  });
   const bg = scene.add.image(W / 2, 0, scene.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
   bg.setScale(Math.max(W / bg.width, H / bg.height));
   c.add([bg, scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()]);
@@ -114,7 +118,7 @@ export function collectionStrip(scene: GameScene, c: Phaser.GameObjects.Containe
  *  that matches its level (unowned = rank 3 silhouette). */
 export function unitPortrait(scene: GameScene, id: string) {
   const st = scene.meta.units?.[id];
-  return `${id}_${st && st.level >= 1 ? Math.min(6, 1 + Math.floor((st.level - 1) / 2)) : 3}`;
+  return unitTex(scene, `${id}_${st && st.level >= 1 ? Math.min(6, 1 + Math.floor((st.level - 1) / 2)) : 3}`);
 }
 
 export function unitCard(scene: GameScene, u: UnitDef, x: number, y: number) {
@@ -533,7 +537,7 @@ export function openTeamSheet(scene: GameScene) {
     card.add(scene.add.text(0, -78, sl.label, { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#7a5a4a' }).setOrigin(0.5));
     const long = sl.note.length > 20;
     if (sl.fam && scene.textures.exists(`${sl.fam}_1`)) {
-      const im = scene.add.image(0, long ? -16 : -8, `${sl.fam}_1`);
+      const im = scene.add.image(0, long ? -16 : -8, unitTex(scene, `${sl.fam}_1`));
       im.setScale((long ? 80 : 96) / Math.max(im.width, im.height));
       card.add(im);
     } else card.add(scene.add.text(0, -8, 'none', { fontFamily: 'Lilita One, Arial Black', fontSize: '28px', color: '#9a8a7a' }).setOrigin(0.5));

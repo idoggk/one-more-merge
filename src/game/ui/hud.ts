@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { unitTex } from '../unitArt';
 import { FAMILY_INFO, TARGET_NAMES } from '../../content/perks';
 import { COLS, ROWS, TUNING } from '../../content/tuning';
 import { odNeeded, peekNext, fatigueCfg, supplyGated, mergeEarns, supplyPeriod, thinking } from '../../core/game';
@@ -204,7 +205,7 @@ export function drawHud(scene: GameScene, dms: number) {
 
   // tray
   const nxt = peekNext(s);
-  scene.trayIcon.setTexture(`${nxt.family}_${nxt.rank}`);
+  scene.trayIcon.setTexture(unitTex(scene, `${nxt.family}_${nxt.rank}`));
   const f = scene.trayIcon.frame;
   scene.trayIcon.setScale(Math.min(54 / f.width, 54 / f.height));
   scene.trayBadge.setText(nxt.rank > 1 ? String(nxt.rank) : '');

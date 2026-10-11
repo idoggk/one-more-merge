@@ -3,6 +3,7 @@
 // and handles its taps: tap the full card, then tap the board where it should act (Battery fires at once; Beacon: tap
 // the card again to switch ROW -> COLUMN -> cancel). The rules live in core/support.ts; GameScene owns one instance.
 import Phaser from 'phaser';
+import { unitTex } from './unitArt';
 import type { GameState } from '../core/game';
 import { peekDeliveries } from '../core/game';
 import { bpShow } from '../core/roster4';
@@ -60,7 +61,7 @@ export class SupportCard {
     if (this.family !== sp.family) {
       this.family = sp.family;
       this.icon?.destroy();
-      const key = `${sp.family}_1`;
+      const key = unitTex(this.scene, `${sp.family}_1`);
       this.icon = this.scene.textures.exists(key) ? this.scene.add.image(0, -8, key) : null;
       if (this.icon) {
         this.icon.setScale(64 / Math.max(this.icon.width, this.icon.height));
@@ -98,9 +99,9 @@ export class SupportCard {
     for (const i of this.plan) i.destroy();
     this.plan = [];
     next.forEach((u, k) => {
-      const tex = `${u.family}_${u.rank}`;
+      const tex = unitTex(this.scene, `${u.family}_${u.rank}`);
       if (!this.scene.textures.exists(tex)) return;
-      const im = this.scene.add.image(-CW / 2 + 22 + k * 30, -CH / 2 - 24, tex).setScale(26 / 128);
+      const im = this.scene.add.image(-CW / 2 + 22 + k * 30, -CH / 2 - 24, tex).setScale(26 / Math.max(this.scene.textures.get(tex).getSourceImage().width, 1));
       this.c.add(im);
       this.plan.push(im);
     });

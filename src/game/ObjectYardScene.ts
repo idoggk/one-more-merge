@@ -6,6 +6,7 @@
 // top and a sliver of the next side show. The projection, the painted faces and the tap test live in the model
 // (screwObject.ts "the screen"), so a screw is bright exactly when a tap on it takes it, and the solver agrees.
 import Phaser from 'phaser';
+import { unitTex } from './unitArt';
 import { BOX_SIZE } from '../core/screw';
 import { blockFaces, blockPos, faceUnder, floorOffset, HELPERS, newObject, previewColors, projectPt, reachable, SCREW_OUT, SCREW_R, screenPick, screwSpot3, shownFaces, tapRow, tapScrew, turnDir, useBroom, useDrill, useHammer, VIEW_NAMES, type Helper, type ObjectDef, type ObjectState, type ObjTap, type ShownFace, type V3, type View } from '../core/screwObject';
 import { H, RS, W } from './GameScene';
@@ -770,7 +771,7 @@ export class ObjectYardScene extends Phaser.Scene {
     c.add(this.add.text(cx, top + 160, '★'.repeat(stars) + '☆'.repeat(3 - stars), { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '52px', color: '#e0a000' }).setOrigin(0.5));
     const g = this.add.graphics().fillStyle(0xf3d9a4, 1).fillRoundedRect(cx - 220, top + 205, 440, 100, 24).lineStyle(4, INK, 0.5).strokeRoundedRect(cx - 220, top + 205, 440, 100, 24);
     c.add(g);
-    const key = `${rw.unit}_1`;
+    const key = unitTex(this, `${rw.unit}_1`);
     if (this.textures.exists(key)) {
       const im = this.add.image(cx - 150, top + 255, key);
       im.setScale(84 / Math.max(im.width, im.height));
