@@ -16,7 +16,51 @@ const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirect
 // de-duplicate by file name (packs overlap); later paths win
 const byName = new Map();
 for (const f of walk(src).filter((f) => extname(f).toLowerCase() === '.png').sort()) byName.set(basename(f).toLowerCase(), f);
-const files = [...byName.values()];
+// optional 3rd arg: only import files whose name matches this regex (e.g. '^unit_' for the roster B unit pictures)
+const only = process.argv[3] ? new RegExp(process.argv[3], 'i') : null;
+const files = [...byName.values()].filter((f) => !only || only.test(basename(f)));
+
+/** Unit pictures (unit_<id>): drop stray specks left by background keying, then bake a thin dark outline so small details read at board size. */
+async function cleanUnit(buf) {
+  const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width: w, height: h } = info;
+  const lab = new Int32Array(w * h);
+  const sizes = [0];
+  const stack = [];
+  for (let s = 0; s < w * h; s++) {
+    if (lab[s] || data[s * 4 + 3] < 24) continue;
+    const id = sizes.length;
+    let n = 0;
+    lab[s] = id;
+    stack.push(s);
+    while (stack.length) {
+      const p = stack.pop();
+      n++;
+      const x = p % w, y = (p / w) | 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const q = ny * w + nx;
+          if (!lab[q] && data[q * 4 + 3] >= 24) {
+            lab[q] = id;
+            stack.push(q);
+          }
+        }
+    }
+    sizes.push(n);
+  }
+  const big = Math.max(...sizes);
+  for (let p = 0; p < w * h; p++) if (lab[p] && sizes[lab[p]] < big * 0.004) data[p * 4 + 3] = 0;
+  const clean = await sharp(data, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer();
+  // outline: dilate the alpha (blur + hard gain), paint it ink, put the picture on top
+  const R = 4;
+  const padded = await sharp(clean).extend({ top: R, bottom: R, left: R, right: R, background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  const alpha = await sharp(padded).extractChannel('alpha').blur(R * 0.7).linear(8, 0).toBuffer();
+  const pm = await sharp(padded).metadata();
+  const ink = await sharp({ create: { width: pm.width, height: pm.height, channels: 3, background: { r: 0x2b, g: 0x1d, b: 0x2e } } }).joinChannel(alpha).png().toBuffer();
+  return sharp(ink).composite([{ input: padded }]).png().toBuffer();
+}
 
 const debrisNames = files.filter((f) => /debris/i.test(basename(f))).sort();
 const kickNames = files.filter((f) => /^kickback_/i.test(basename(f))).sort();
@@ -26,6 +70,7 @@ const targetOf = (n) =>
 /** Map a source filename to a game key. Ordered: specific asset kinds first, so e.g. "tin_can_alley" is a stage, not a target. */
 function keyFor(file) {
   const n = basename(file, '.png').toLowerCase();
+  if (/^unit_[a-z_]+$/.test(n)) return n; // roster B unit pictures: one picture per unit (rank is drawn in code)
   if (/app_?icon/.test(n)) return 'app_icon';
   // round 9: MAX signature effects (+ _v9 gadget redraws handled by the family/rank rule; later folders win)
   if (/backfire/.test(n)) return 'max_backfire';
@@ -172,7 +217,8 @@ for (const f of files) {
     await sharp(f).resize(s, s, { fit: 'cover' }).png({ compressionLevel: 9 }).toFile(dest);
   } else {
     const trimmed = NO_TRIM.has(key) ? sharp(f) : sharp(f).trim({ threshold: 10 });
-    const buf = await trimmed.png().toBuffer();
+    let buf = await trimmed.png().toBuffer();
+    if (key.startsWith('unit_')) buf = await sharp(await cleanUnit(buf)).trim({ threshold: 10 }).png().toBuffer();
     await sharp(buf)
       .resize(s - 8, s - 8, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .extend({ top: 4, bottom: 4, left: 4, right: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } })

@@ -2,6 +2,7 @@
 // (a second, smaller one for the other memory slot at level 6). It only draws; the rules live in core/roster6.ts and the memory is the
 // part's `copy` list. GameScene owns one instance and calls sync() each frame.
 import Phaser from 'phaser';
+import { unitTex } from '../unitArt';
 import type { Gadget } from '../../core/types';
 import { cellXY, SLOT } from '../sceneKit';
 
@@ -24,7 +25,7 @@ export class CopyBadges {
       // newest memory on top-left (the one the Arm will use unless the other is better), the older one beside it
       [...p.copy].reverse().forEach((fam, k) => {
         const key = `${p.id}:${k}`;
-        const tex = `${fam}_1`;
+        const tex = unitTex(this.scene, `${fam}_1`);
         if (!this.scene.textures.exists(tex)) return;
         let im = this.icons.get(key);
         if (!im?.active) {
@@ -35,7 +36,7 @@ export class CopyBadges {
         const r = k === 0 ? 17 : 12;
         const bx = x + SLOT.helper.x + (k === 0 ? 0 : 30), by = y + SLOT.helper.y + (k === 0 ? 0 : 4);
         g.fillStyle(0x2b1d2e, 1).fillCircle(bx, by, r + 3).fillStyle(0xdfeaf5, 1).fillCircle(bx, by, r + 0.5);
-        im.setPosition(bx, by).setScale((2 * r) / 128 * 1.15).setVisible(true);
+        im.setPosition(bx, by).setScale(((2 * r) / Math.max(im.width, im.height, 1)) * 1.15).setVisible(true);
         live.add(key);
       });
     });

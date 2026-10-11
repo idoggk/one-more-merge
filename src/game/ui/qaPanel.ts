@@ -391,6 +391,7 @@ const DRAG_SLOP = 12;
 let lastScroll = 0;
 export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepScroll = false) {
   if (!keepScroll) lastScroll = 0;
+  scene.loadUnitPictures(); // a batch switch may just have put units in play: fetch their pictures now
   scene.closeModal();
   const geo = qaGeometry(QA_ROWS.map((r) => r.h), H);
   const PH = geo.panelH;

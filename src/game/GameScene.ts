@@ -25,7 +25,8 @@ import { DAILY_VERSION } from '../content/dailySeeds';
 import { faceIndexFor } from './machineFace';
 import { BEHAVIOUR_TEXT, BOOSTER_UNLOCK, CAST, goalText, LEVELS, MODIFIER_TEXT, MONSTER_INDEX, newConcepts, PRICES, starGoals } from '../content/levels';
 import { audioSettings, duckMusic, haptic, sfx, startMusic, stopMusic, unlockAudio } from './audio';
-import { ensureTextures, loadLazyArt, preloadArt } from './textures';
+import { ensureTextures, loadLazyArt, loadUnitArt, preloadArt } from './textures';
+import { rankDecor, swapUnitPictures, unitTex } from './unitArt';
 import * as tlog from '../platform/telemetry';
 import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { Coach } from './coach';
@@ -204,7 +205,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(50, () =>
       loadLazyArt(this, Math.ceil(this.currentLevel() / 10), () => {
         if (this.s?.level !== undefined && this.s.phase === 'playing') this.setTargetTexture();
-      }),
+      }, () => this.loadUnitPictures()),
     );
     const qp0 = new URLSearchParams(location.search); // read before ?reset strips the URL
     if (qp0.has('reset')) {
@@ -506,7 +507,7 @@ export class GameScene extends Phaser.Scene {
     }
     const role = info.role.toLowerCase();
     // UI audit: the SHOOTER role icon is a rocket, so Cannon's card showed a Rocket; the header shows the part itself
-    if (this.textures.exists(`${g.family}_${g.rank}`)) c.add(this.fitVisible(this.add.image(L + 30, -ch / 2 + 50, `${g.family}_${g.rank}`), 60));
+    if (this.textures.exists(`${g.family}_${g.rank}`)) c.add(this.fitVisible(this.add.image(L + 30, -ch / 2 + 50, unitTex(this, `${g.family}_${g.rank}`)), 60));
     else if (this.hasArt(`role_${role}`)) {
       const ic = this.add.image(L + 30, -ch / 2 + 50, `role_${role}`);
       ic.setScale(56 / Math.max(ic.width, ic.height));
@@ -799,6 +800,14 @@ export class GameScene extends Phaser.Scene {
     return g;
   }
 
+  /** Roster B unit pictures: lazy, only for units in play (flag on or owned); stand-ins on the board swap when they land. */
+  loadUnitPictures(then?: () => void) {
+    loadUnitArt(this, Object.keys(this.meta?.units ?? {}), () => {
+      swapUnitPictures(this, this.views.values(), (img) => this.fitSprite(img));
+      then?.();
+    });
+  }
+
   hasArt(key: string) {
     return this.textures.exists(key) && this.textures.get(key).source[0]?.width > 1;
   }
@@ -808,8 +817,9 @@ export class GameScene extends Phaser.Scene {
   makeView(g: Gadget): GadgetView {
     const c = this.add.container(0, 0) as GadgetView;
     c.gid = g.id;
-    const img = this.add.image(0, 0, `${g.family}_${g.rank}`);
+    const img = this.add.image(0, 0, unitTex(this, `${g.family}_${g.rank}`));
     this.fitSprite(img);
+    const decor = rankDecor(this, g.family, g.rank, FAMILY_INFO[g.family].color, CELL * 0.38);
     const dice = this.hasArt(`dice_${g.rank}`);
     const badge = dice ? null : this.add.graphics();
     const col = FAMILY_INFO[g.family].color;
@@ -842,7 +852,7 @@ export class GameScene extends Phaser.Scene {
       cr.setScale(Math.min(48 / cr.width, 48 / cr.height)).setAngle(15);
       parts.push(cr);
     }
-    c.add(parts);
+    c.add([...decor.under, parts[0], ...decor.mid, ...parts.slice(1), ...decor.over]);
     c.setSize(CELL, CELL).setDepth(10);
     return c;
   }
@@ -1561,7 +1571,7 @@ Now beat the real level.`, this.coachY());
     const nk = `${a.family}_${Math.min(p.activations.find((x) => x.idx === hov)?.rank ?? a.rank + 1, capOf(this.s, a.family))}`; // root rank: a sandwich shows +2
     if (this.textures.exists(nk)) {
       const c = cellXY(hov);
-      this.ghost.setTexture(nk).setVisible(true);
+      this.ghost.setTexture(unitTex(this, nk)).setVisible(true);
       this.fitSprite(this.ghost);
       this.ghost.setPosition(c.x, c.y + CELL * 0.38);
     }
@@ -2087,7 +2097,7 @@ Now beat the real level.`, this.coachY());
           });
           const g = e.into >= 0 ? this.s.grid[e.into] : null;
           const themed = `kick_${Math.max(0, this.s.target)}_${Phaser.Math.Between(0, 1)}`;
-          const key = this.hasArt(themed) ? themed : g ? `${g.family}_${g.rank}` : 'chunk';
+          const key = this.hasArt(themed) ? themed : g ? unitTex(this, `${g.family}_${g.rank}`) : 'chunk';
           const part = this.add.image(this.target.x, this.target.y - 30, key).setDepth(56);
           part.setScale(Math.min(76 / part.width, 76 / part.height));
           const curve = new Phaser.Curves.QuadraticBezier(
@@ -4941,7 +4951,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
       // boss tints sit under the machine (as on the board); helper marks sit over it
       const extra = boss ? r.draw(under, x, y) : undefined;
       c.add(under);
-      if (r.fam) c.add(this.fitVisible(this.add.image(x, y, this.textures.exists(r.fam) ? r.fam : 'cannon_1'), cs - 14));
+      if (r.fam) c.add(this.fitVisible(this.add.image(x, y, this.textures.exists(r.fam) ? unitTex(this, r.fam) : 'cannon_1'), cs - 14));
       const more = boss ? extra : r.draw(g, x, y);
       c.add(g);
       if (more) c.add(more);
@@ -5093,7 +5103,7 @@ Merge them into a RANK ${rank}!`, this.coachY());
     // UI audit: the little can floated unexplained above every grid; it is the monster the shots fly to
     c.add(this.add.text(cx + 48, mon.y, '← MONSTER', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#8a6a4a' }).setOrigin(0, 0.5));
     const imgs = d.pieces.map(([f, r, k]) => {
-      const im = this.fitVisible(this.add.image(at(r, k).x, at(r, k).y, `${f}_1`), cs - 14);
+      const im = this.fitVisible(this.add.image(at(r, k).x, at(r, k).y, unitTex(this, `${f}_1`)), cs - 14);
       c.add(im);
       return im;
     });

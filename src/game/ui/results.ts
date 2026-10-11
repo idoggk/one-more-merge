@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { unitTex } from '../unitArt';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../../content/perks';
 import { COLS, ROWS, TUNING } from '../../content/tuning';
 import type { UnitGift } from '../../content/unlockPlan';
@@ -151,7 +152,7 @@ export function playBestChain(scene: GameScene, done: () => void) {
   c.add(bg);
   const piece = (fam: Family, rank: number, i: number) => {
     const p = at(i);
-    const key = `${fam}_${rank}`;
+    const key = unitTex(scene, `${fam}_${rank}`);
     const img = scene.add.image(p.x, p.y, scene.textures.exists(key) ? key : 'slot');
     img.setScale((MC - 14) / Math.max(img.width, img.height, 1));
     c.add(img);
@@ -204,7 +205,7 @@ export function playBestChain(scene: GameScene, done: () => void) {
   scene.tweens.add({ targets: mover, x: p.x, y: p.y, duration: MERGE, ease: 'Quad.InOut' });
   later(MERGE, () => {
     mover.destroy();
-    const key = `${ga.family}_${Math.min(ga.rank + 1, capOf(before!, ga.family))}`;
+    const key = unitTex(scene, `${ga.family}_${Math.min(ga.rank + 1, capOf(before!, ga.family))}`);
     if (scene.textures.exists(key)) target.setTexture(key).setScale((MC - 14) / Math.max(target.width, target.height, 1));
     views.set(a.to, target);
   });

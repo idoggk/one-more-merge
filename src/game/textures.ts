@@ -6,6 +6,7 @@ import { BOSSES, chapterBossIdx } from '../core/boss';
 import { TARGET_NAMES } from '../content/perks';
 import { META_KEY, SAVE_KEY } from '../platform/backup';
 import { artPlan, RARE, type FirstScreen } from './artPlan';
+import { ensureUnitArt } from './unitArt';
 import { FAMILIES, ROSTER_1, ROSTER_2, ROSTER_3, ROSTER_4, ROSTER_5, ROSTER_6, ROSTER_7, type Family, type Roster1Family, type Roster2Family, type Roster3Family, type Roster4Family, type Roster5Family, type Roster6Family, type Roster7Family } from '../core/types';
 import { drawJobIcon, drawRoster1 } from './roster1Art';
 import { drawJobIcon2, drawRoster2 } from './roster2Art';
@@ -85,8 +86,9 @@ export function preloadArt(scene: Phaser.Scene) {
  * then the rare art and the other chapters' (so the service worker still caches it all for offline play). `done`
  * runs after each batch, so on-screen fallbacks can swap to the real art.
  */
-export function loadLazyArt(scene: Phaser.Scene, chapter: number, done: () => void) {
-  const pending = artEntries().filter(([key]) => !scene.textures.exists(key));
+export function loadLazyArt(scene: Phaser.Scene, chapter: number, done: () => void, last?: () => void) {
+  // unit_<id> pictures (roster B) are in no batch: loadUnitArt() fetches only the units whose flag is on or that the save owns
+  const pending = artEntries().filter(([key]) => !scene.textures.exists(key) && !key.startsWith('unit_'));
   const ch = chapterArt(chapter);
   const tier = (key: string) => (heldBack.has(key) ? 0 : ch.has(key) || !RARE.test(key) ? 1 : 2);
   const batch = (t: number) => {
@@ -94,6 +96,7 @@ export function loadLazyArt(scene: Phaser.Scene, chapter: number, done: () => vo
     const then = () => {
       if (list.length) done();
       if (t < 2) batch(t + 1);
+      else last?.();
     };
     if (!list.length) return then();
     for (const [key, url] of list) scene.load.image(key, url);
@@ -101,6 +104,13 @@ export function loadLazyArt(scene: Phaser.Scene, chapter: number, done: () => vo
     scene.load.start();
   };
   batch(0);
+}
+
+/** Fetch the roster B unit pictures that are in play (flag on or owned); `done` runs once new ones landed. */
+export function loadUnitArt(scene: Phaser.Scene, owned: string[], done?: () => void) {
+  const urls: Record<string, string> = {};
+  for (const [key, url] of artEntries()) if (key.startsWith('unit_')) urls[key] = url;
+  ensureUnitArt(scene, urls, owned, done);
 }
 
 const OUT = 0x2b1d2e;
