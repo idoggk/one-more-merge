@@ -127,10 +127,7 @@ function report(): string {
     if (ok) pass++;
     rows.push(`| ${l.level} | ${l.kind} | ${l.last_share_target} | ${tb.toFixed(3)} | ${m.toFixed(3)} | ${(m - h).toFixed(3)} | ${(m + h).toFixed(3)} | ${nb.toFixed(3)} | ${no.toFixed(3)} | ${(no - nb >= 0 ? '+' : '') + (no - nb).toFixed(3)} | ${(share * 100).toFixed(1)}% | ${e?.bossCap ?? '-'} | ${Math.round((100 * on.runs.smart3.filter((r) => r.w).length) / on.runs.smart3.length)}% ${ok ? 'PASS' : 'fail'} |`);
   }
-  return `${rows.join('
-')}
-
-pass ${pass} of ${rows.length - 2} (CI lower >= 0.50, mean within 0.03 of target, need within 0.05 of base, HP share <= 75% unless cap lever), overlay pass ${o.pass}`;
+  return `${rows.join('\n')}\n\npass ${pass} of ${rows.length - 2} (CI lower >= 0.50, mean within 0.03 of target, need within 0.05 of base, HP share <= 75% unless cap lever), overlay pass ${o.pass}`;
 }
 
 if (!process.env.VITEST) {
