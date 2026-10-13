@@ -13,12 +13,27 @@ describe('crateOpenV2 timing table', () => {
     const s = beatStarts(7);
     expect(s.anticipation).toBe(0);
     expect(s.shake).toBe(400);
-    expect(s.flash).toBe(1200);
-    expect(s.hero).toBe(1350);
-    expect(s.heroHold).toBe(1950);
-    expect(s.gather).toBe(2650);
+    expect(s.pop).toBe(1200);
+    expect(s.flash).toBe(1460);
+    expect(s.hero).toBe(1610);
+    expect(s.heroHold).toBe(2210);
+    expect(s.gather).toBe(2210 + OPEN_V2.heroHoldByRarity.rare);
     expect(totalMs(7)).toBe(s.settle + OPEN_V2.settle);
     expect(beatDuration('gather', 7)).toBe(6 * OPEN_V2.gatherStagger + OPEN_V2.gatherFly);
+  });
+  it('the hero hold scales with rarity (400 / 600 / 900 / 1300 ms) and a tap still shortens it', () => {
+    expect(OPEN_V2.heroHoldByRarity).toEqual({ common: 400, rare: 600, epic: 900, legendary: 1300 });
+    const holds = (['common', 'rare', 'epic', 'legendary'] as const).map((r) => beatDuration('heroHold', 7, false, r));
+    expect(holds).toEqual([400, 600, 900, 1300]);
+    expect(totalMs(7, {}, 'legendary') - totalMs(7, {}, 'common')).toBe(900);
+    expect(beatDuration('heroHold', 7, true, 'legendary')).toBeCloseTo(1300 / OPEN_V2.tapSpeed, 5);
+  });
+  it('the crate visibly opens: a pop beat sits between the shake and the flash and a tap cannot skip it', () => {
+    expect(BEATS.indexOf('pop')).toBe(BEATS.indexOf('shake') + 1);
+    expect(BEATS.indexOf('flash')).toBe(BEATS.indexOf('pop') + 1);
+    expect(OPEN_V2.pop).toBeGreaterThanOrEqual(200);
+    expect(OPEN_V2.speedable.pop).toBe(false);
+    expect(OPEN_V2.shakeDeg[1]).toBeGreaterThanOrEqual(12);
   });
   it('a tap speeds anticipation / shake / hold / gather but NEVER the hero pop (or the flash)', () => {
     for (const id of BEATS) {

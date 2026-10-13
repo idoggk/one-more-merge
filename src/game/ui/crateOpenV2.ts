@@ -47,14 +47,14 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
   const units = cards.map((cd) => UNITS.find((u) => u.id === cd.unit)!);
   const hero = pickHero(cards.map((cd, i) => ({ rarity: units[i].rarity, isNew: cd.isNew, count: cd.count })));
   const order = summaryOrder(units.map((u) => ({ rarity: u.rarity })), hero); // slot k holds card order[k]
-  const grid = gridLayout3(n, W, 250, H - 270);
+  const grid = gridLayout3(n, W, 235, H - 255);
   const heroRc = RARITY_COLOR[units[hero].rarity], heroTier = TIER[units[hero].rarity];
   let shown: CrateKind = from ?? kind;
 
   // ---- the full-screen stage ----
   const c = scene.add.container(0, 0).setDepth(100);
   scene.modal = c;
-  const dim = scene.add.rectangle(W / 2, H / 2, W, H, 0x120a16, 0.985).setInteractive();
+  const dim = scene.add.rectangle(W / 2, H / 2, W, H, 0x120a16, 1).setInteractive(); // opaque: the game screen underneath must not ghost through
   c.add(dim);
   c.setAlpha(0);
   scene.tweens.add({ targets: c, alpha: 1, duration: 200, ease: 'Quad.Out' });
@@ -80,11 +80,14 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
   const whole = scene.fitVisible(scene.add.image(0, 0, CRATE[shown].key), CRATE_SIZE);
   const geoOf = (k: CrateKind) => {
     const b = scene.visBounds(CRATE[k].key), s = CRATE_SIZE / Math.max(b.w, b.h);
-    return { lx: (CRATE[k].latch[0] - 0.5) * b.w * s, ly: (CRATE[k].latch[1] - 0.5) * b.h * s };
+    return { lx: (CRATE[k].latch[0] - 0.5) * b.w * s, ly: (CRATE[k].latch[1] - 0.5) * b.h * s, sy: (CRATE[k].seam - 0.5) * b.h * s, b, s };
   };
+  // the pop beat: the picture is cut at the seam; the lid lifts, light shoots out of the mouth (built once, on entering the beat)
+  let lid: Phaser.GameObjects.Container | null = null, mouth: Phaser.GameObjects.Image[] = [], cavity: Phaser.GameObjects.Ellipse | null = null, seamY = 0;
+  const shaft = scene.add.image(0, 0, 'omm_glow').setTint(0xfff2b0).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
   const latchGlow = scene.add.image(geoOf(shown).lx, geoOf(shown).ly, 'omm_glow').setTint(0xfff2b0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(140, 140).setAlpha(0);
   box.add([whole, latchGlow]);
-  stage.add([rays, glow, box]);
+  stage.add([rays, glow, box, shaft]);
   const tapTxt = scene.add.text(W / 2, H - 190, 'TAP TO OPEN', { fontFamily: FONT, fontSize: '54px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 9 }).setOrigin(0.5);
   const tapLoop = scene.tweens.add({ targets: tapTxt, scale: { from: 0.94, to: 1.06 }, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   const idle = calm ? null : scene.tweens.add({ targets: box, y: { from: 0, to: -12 }, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
@@ -138,6 +141,19 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
       scene.tweens.add({ targets: o, r, a: 0, duration: 520, ease: 'Quad.Out', onUpdate: () => g.clear().lineStyle(w * o.a + 1, col, o.a).strokeCircle(0, 0, o.r), onComplete: () => g.destroy() });
     }
   };
+  // rim sparks fly off the crate's top edge while it charges; the rate climbs with the charge (0..1)
+  let sparkDebt = 0, lastDt = 0;
+  const rimSparks = (dt: number, charge: number) => {
+    if (calm) return;
+    sparkDebt += (dt / 1000) * lerp(30, 150, charge);
+    while (sparkDebt >= 1) {
+      sparkDebt -= 1;
+      const sz = Phaser.Math.Between(16, 34), g = geoOf(shown);
+      const img = scene.add.image(W / 2 + Phaser.Math.FloatBetween(-0.42, 0.42) * CRATE_SIZE, HERO_Y + box.y + g.sy + Phaser.Math.Between(-30, 20), 'omm_glow').setBlendMode(Phaser.BlendModes.ADD).setTint(Phaser.Math.RND.pick([0xffffff, 0xfff2b0, CRATE[shown].glow])).setDisplaySize(sz, sz);
+      c.add(img);
+      sparks.push({ img, vx: Phaser.Math.FloatBetween(-120, 120), vy: -Phaser.Math.FloatBetween(240, 560), age: 0, life: Phaser.Math.Between(380, 700) });
+    }
+  };
   const stepSparks = (dt: number) => {
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i];
@@ -188,16 +204,20 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
       stopTw(tapLoop);
       scene.tweens.add({ targets: [hdr, tapTxt], alpha: 0, duration: 200 });
       box.setPosition(0, 0);
+      sfx.charge?.();
+    } else if (id === 'pop') {
+      once('pop', openLid);
     } else if (id === 'flash') {
       once('flash', () => {
-        box.setVisible(false);
-        stage.setAlpha(0);
         burst();
         sfx.chestOpen?.();
         scene.shake('bomb');
       });
     } else if (id === 'hero') {
-      once('hero', () => sfx.rarityHit(heroTier));
+      once('hero', () => {
+        sfx.rarityHit(heroTier);
+        if (heroTier >= 3) sfx.sting?.();
+      });
     } else if (id === 'gather') {
       scene.tweens.add({ targets: [ribbon, ...(heroNew ? [heroNew] : [])], alpha: 0, duration: 160 });
       hdr.each((o: Phaser.GameObjects.GameObject) => o !== titleTxt && o !== sub && (o as Phaser.GameObjects.Container).setVisible(false)); // the ODDS pill is a closed-crate thing
@@ -210,20 +230,42 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
     }
   }
 
+  function openLid() {
+    const g = geoOf(shown), key = CRATE[shown].key;
+    seamY = g.sy;
+    const cut = g.b.y + g.b.h * CRATE[shown].seam, srcH = scene.textures.get(key).getSourceImage().height;
+    const mk = (cropY: number, cropH: number) => scene.fitVisible(scene.add.image(0, 0, key), CRATE_SIZE).setCrop(0, cropY, scene.textures.get(key).getSourceImage().width, cropH);
+    whole.setVisible(false);
+    latchGlow.setVisible(false);
+    const lower = mk(cut, srcH - cut), upper = mk(0, cut).setPosition(0, -g.sy);
+    lid = scene.add.container(0, g.sy, [upper]);
+    cavity = scene.add.ellipse(0, g.sy, g.b.w * g.s * 0.84, 84, 0x2b1d2e);
+    const seamGlow = scene.add.image(0, g.sy, 'omm_glow').setTint(0xfff2b0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(CRATE_SIZE * 1.25, 150);
+    const beam = scene.add.image(0, g.sy - 90, 'omm_glow').setTint(0xffe9a0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(CRATE_SIZE * 0.7, 420);
+    mouth = [seamGlow, beam];
+    box.add([lower, cavity, beam, seamGlow, lid]);
+    shaft.setPosition(0, g.sy - 520);
+    sfx.chestOpen?.();
+  }
+
   const stopTw = (tw: Phaser.Tweens.Tween) => {
     tw.stop();
   };
 
   function applyBeat(id: BeatId, p: number, ms: number) {
     if (id === 'anticipation') {
-      const e = outQuad(p);
-      box.setScale(1 + 0.05 * e, 1 - 0.09 * e).setY(14 * e);
-      glow.setAlpha(lerp(0.35, 0.5, e));
-      latchGlow.setAlpha(0.5 * e);
+      // a hard dip (1 -> 0.85 tall, 1.1 wide) over the first 60 %, then a recoil up and slightly tall to wind the spring
+      const d = outQuad(clamp01(p / 0.6)), r = outBack(clamp01((p - 0.6) / 0.4));
+      const sx = p < 0.6 ? lerp(1, 1.1, d) : lerp(1.1, 0.97, r), sy = p < 0.6 ? lerp(1, 0.85, d) : lerp(0.85, 1.06, r), y = p < 0.6 ? 24 * d : lerp(24, -10, r);
+      box.setScale(sx, sy).setY(y);
+      glow.setAlpha(lerp(0.35, 0.55, outQuad(p)));
+      latchGlow.setAlpha(0.7 * outQuad(p)).setDisplaySize(lerp(100, 180, p), lerp(100, 180, p));
+      rimSparks(lastDt, p * 0.3);
     } else if (id === 'shake') {
       const amp = lerp(OPEN_V2.shakeDeg[0], OPEN_V2.shakeDeg[1], p * p);
       const ph = Math.PI * 2 * (2 * p + 5 * p * p);
-      box.setAngle(calm ? 0 : amp * Math.sin(ph)).setScale(lerp(1.05, 1.1, p), lerp(0.91, 1.08, p)).setPosition(calm ? 0 : amp * 1.4 * Math.sin(ph * 1.3), lerp(14, -6, p));
+      box.setAngle(calm ? 0 : amp * Math.sin(ph)).setScale(lerp(0.97, 1.08, p), lerp(1.06, 0.92, p)).setPosition(calm ? 0 : amp * 1.8 * Math.sin(ph * 1.3), lerp(-10, 6, p));
+      rimSparks(lastDt, 0.3 + 0.7 * p);
       glow.setAlpha(lerp(0.5, 1, p)).setDisplaySize(lerp(700, 900, p), lerp(700, 900, p));
       rays.setAlpha(lerp(0.18, 0.75, p));
       latchGlow.setAlpha(lerp(0.5, 1, p)).setDisplaySize(lerp(140, 300, p), lerp(140, 300, p));
@@ -236,8 +278,20 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
         }
       }
       if (from && shown !== kind && p >= 0.55) once('swap', swapToKind);
+    } else if (id === 'pop') {
+      // the lid flies up and tilts, a column of light stands out of the mouth, the body springs back from its squash
+      const e = outBack(p);
+      box.setAngle(0).setPosition(0, lerp(6, 0, p)).setScale(lerp(1.08, 1, e), lerp(0.92, 1.04, outQuad(p)));
+      lid?.setPosition(0, seamY - 170 * e).setAngle(-28 * outQuad(p)).setAlpha(1 - clamp01((p - 0.7) / 0.3));
+      cavity?.setAlpha(1 - p);
+      mouth.forEach((m, i) => m.setAlpha(1).setDisplaySize(CRATE_SIZE * (i ? 1.25 + p * 0.5 : 0.7 + p * 0.5), i ? 150 + p * 150 : 420 + p * 400));
+      shaft.setAlpha(clamp01(p * 3)).setDisplaySize(lerp(160, 360, p), lerp(500, 1500, outQuad(p)));
+      glow.setAlpha(lerp(1, 1.4, p));
+      rays.setAlpha(lerp(0.75, 1, p));
+      rimSparks(lastDt, 1);
     } else if (id === 'flash') {
       flashRect.setAlpha(p < 0.4 ? 1 : 1 - (p - 0.4) / 0.6);
+      if (p >= 0.3) once('hideCrate', () => (box.setVisible(false), stage.setAlpha(0)));
       heroGlow.setAlpha(0.6 * p);
     } else if (id === 'hero') {
       const card = built[hero].card, e = outBack(p);
@@ -276,11 +330,17 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
     b.card.setPosition(slot.x, slot.y).setScale(grid.scale).setAngle(0).setAlpha(1);
     const hot = cd.isNew || b.tier >= 1;
     if (hot) pingAt(slot.x, slot.y, b.rc, grid.cw * 1.9);
+    if (ci === hero) {
+      // the best card stays findable: a standing rarity glow behind its slot
+      const hg = scene.add.image(slot.x, slot.y, 'omm_glow').setTint(heroRc).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(grid.cw * 1.9, grid.ch * 1.7).setAlpha(0.75);
+      c.add(hg);
+      c.moveTo(hg, c.getIndex(b.card));
+    }
     if (b.tier >= 1) sfx.rarityHit(b.tier);
     else sfx.star?.(Math.min(2, k));
     if (!calm) scene.tweens.add({ targets: b.card, scale: { from: grid.scale * 1.1, to: grid.scale }, duration: 160, ease: 'Back.Out' });
     if (cd.isNew) {
-      const st = scene.add.text(slot.x + grid.cw * 0.33, slot.y - grid.ch * 0.47, 'NEW!', { fontFamily: FONT, fontSize: `${Math.round(30 * grid.scale)}px`, color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 9, y: 2 } }).setOrigin(0.5).setAngle(10);
+      const st = scene.add.text(slot.x + grid.cw / 2 - 4, slot.y - grid.ch / 2 + 4, 'NEW', { fontFamily: FONT, fontSize: `${Math.round(24 * grid.scale)}px`, color: '#2b1d2e', backgroundColor: '#ffcf33', padding: { x: 7, y: 1 } }).setOrigin(1, 0); // inside the card's top-right corner
       c.add(st);
       if (!calm) scene.tweens.add({ targets: st, scale: { from: 2.4, to: 1 }, duration: 170, ease: 'Quad.In' });
     }
@@ -314,9 +374,10 @@ export function presentCrateV2(scene: GameScene, kind: CrateKind, cards: CrateCa
     if (!calm) heroRays.angle += dt * 0.012;
     stepSparks(dt);
     if (state !== 'running') return;
+    lastDt = dt;
     const id = BEATS[bi];
     el += dt * (sped[id] && OPEN_V2.speedable[id] ? OPEN_V2.tapSpeed : 1);
-    const dur = beatDuration(id, n);
+    const dur = beatDuration(id, n, false, units[hero].rarity);
     applyBeat(id, clamp01(el / dur), el);
     if (el >= dur) {
       applyBeat(id, 1, dur);

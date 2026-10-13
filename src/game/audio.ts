@@ -132,6 +132,16 @@ export const sfx = {
     if (t >= 2) bandNoise(0.2, 0.05, 0, 5200, 1);
     if (t >= 3) tone(110, 0.35, 'triangle', 0.16, 0, 60, true);
   },
+  /** Crate opening V2 anticipation: a low thunk and a rising whine (the wind-up beat). */
+  charge: () => {
+    tone(90, 0.18, 'sine', 0.14, 0, 55, true);
+    tone(220, 0.5, 'sawtooth', 0.025, 0.05, 700, true);
+  },
+  /** Crate opening V2, Legendary hero only: a bright chord over a deep boom. */
+  sting: () => {
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.5, 'triangle', 0.06, 0.08 + i * 0.06, undefined, true));
+    tone(70, 0.5, 'sine', 0.2, 0, 40, true);
+  },
   chestOpen: () => {
     bandNoise(0.22, 0.05, 0, 900, 1.2);
     tone(260, 0.2, 'sawtooth', 0.02, 0, 160);

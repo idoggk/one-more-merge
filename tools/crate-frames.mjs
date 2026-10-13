@@ -16,7 +16,8 @@ const server = await createServer({ server: { port: 5199, strictPort: false, hos
 await server.listen();
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage();
-await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+await page.setViewport({ width: Number(process.env.VW ?? 390), height: Number(process.env.VH ?? 844), deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+if (process.env.REDUCED) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
 page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
 await page.evaluateOnNewDocument((mode) => {
   localStorage.setItem('omm_qa_crates', 'toolbox');
