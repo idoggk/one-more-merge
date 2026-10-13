@@ -12,6 +12,7 @@
     "artifact": "vite build && node tools/make-artifact.mjs",
     "test:touch": "node tools/touch-test.mjs",
     "shots": "node tools/shots.mjs",
+    "slice": "node tools/slice-sheet.mjs",
     "hub": "node tools/gen-asset-registry.mjs && node tools/build-asset-hub.mjs",
     "deploy": "node tools/deploy.mjs"
   },
