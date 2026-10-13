@@ -5,6 +5,7 @@
 //   npx vite-node tools/effort-audit.ts --part a --smart-only --out effort-audit-data-base --levels 8,10,...     baseline, flag OFF (once)
 //   npx vite-node tools/effort-audit.ts --part a --smart-only --effort --levels 8,10,... --n 30                 measure the overlay, flag ON
 //   npx vite-node tools/effort-fit.ts --iterate [--data effort-audit-data-effort] [--base effort-audit-data-base]   one correction pass (at most 3)
+//   npx vite-node tools/effort-fit.ts --finalize [--data <dir>]                       after pass 3: record its measurement and keep the best measured state per level
 //   npx vite-node tools/effort-fit.ts --rebuild                                       replay the recorded measurements from the spec (after a solver change)
 //   npx vite-node tools/effort-fit.ts --report [--data ...] [--base ...]              markdown table: tau, CI, need, HP share, cap, win rate
 // Iteration (a pass reads the smart@3 stage times of the current overlay): each stage's clear time is modelled as T = c x HP multiplier ^ e
@@ -31,10 +32,11 @@ const CAPS = TUNING.effortModelOpts.bossCap;
 export interface Entry { bossHpMult: number; minionHpMult: number; bossCap?: number }
 /** mean clear time (s) of the boss stage and of all minion stages, smart@3 winning runs */
 export interface Times { tb: number; tm: number }
-export interface Overlay { schema: string; spec: string; pass: number; baseline: Record<string, Times>; passes: Record<string, Times>[]; levels: Record<string, Entry> }
+/** `final` = the measurement of the last state (pass 3), `pick` = per level the state (0..pass) whose entry was kept, chosen from the recorded times only */
+export interface Overlay { schema: string; spec: string; pass: number; baseline: Record<string, Times>; passes: Record<string, Times>[]; final?: Record<string, Times>; pick?: Record<string, number>; levels: Record<string, Entry> }
 interface SpecLevel { level: number; kind: string; last_share_target: number; hp_first_order: { boss_mult: number; minion_mult: number; boss_mult_capped?: number; needs_cap_lever?: boolean; boss_stage_cascade_cap_guess?: number } }
 
-const r4 = (x: number) => Math.round(x * 1e4) / 1e4;
+const r4 = (x: number) => (x === null || !Number.isFinite(x) ? NaN : Math.round(x * 1e4) / 1e4); // NaN (no winning run) is stored as null
 const def = (n: number) => LEVELS.find((d) => d.level === n)!;
 const hpOf = (n: number) => ({ boss: def(n).hp, minion: def(n).minion_hp ?? def(n).hp });
 /** boss HP / (boss HP + minion pool) after the multipliers */
@@ -144,7 +146,8 @@ function replayHist(spec: { levels: SpecLevel[] }, o: Overlay): Record<string, P
 }
 
 /** pass 0 plus every recorded pass, from the spec alone */
-export function replay(spec: { levels: SpecLevel[] }, o: Overlay): Overlay {
+/** the overlay after 0, 1, ... o.passes.length passes, replayed from the spec and the recorded measurements */
+export function replayStates(spec: { levels: SpecLevel[] }, o: Overlay): Overlay[] {
   const targets = Object.fromEntries(specLevels(spec).map((l) => [String(l.level), l.last_share_target]));
   let cur: Overlay = { ...firstOrder(spec), baseline: o.baseline };
   let hist: Record<string, Pt[]> = {};
@@ -153,13 +156,41 @@ export function replay(spec: { levels: SpecLevel[] }, o: Overlay): Overlay {
     hist[k] = b && e.bossCap === undefined ? [{ mb: 1, mm: 1, tb: b.tb, tm: b.tm }] : [];
   }
   const passes: Record<string, Times>[] = [];
+  const out: Overlay[] = [{ ...cur, passes: [] }];
   for (const m of o.passes) {
     const r = applyPass(cur, targets, hist, m);
     cur = { ...r.next, pass: cur.pass + 1, passes: [...passes, m] };
     passes.push(m);
     hist = r.hist;
+    out.push({ ...cur, passes: [...passes] });
   }
-  return { ...cur, passes };
+  return out;
+}
+
+export const replay = (spec: { levels: SpecLevel[] }, o: Overlay): Overlay => replayStates(spec, o).slice(-1)[0];
+
+/** closeness of a measured state to its goal: time share off target plus a penalty for total effort off the baseline by more than 8% */
+function score(m: Times | undefined, b: Times, target: number): number {
+  if (!m || !(m.tb > 0 && m.tm > 0)) return Infinity;
+  const tau = m.tb / (m.tb + m.tm), er = (m.tb + m.tm) / (b.tb + b.tm);
+  return Math.abs(tau - target) + 0.5 * Math.max(0, Math.abs(er - 1) - 0.08);
+}
+
+/** keep, per level, the state (pass 0 to the last) whose measurement scores best (earliest wins a tie); needs o.final */
+export function finalize(spec: { levels: SpecLevel[] }, o: Overlay): Overlay {
+  const st = replayStates(spec, o);
+  const meas = [...o.passes, o.final!];
+  const pick: Record<string, number> = {};
+  const levels: Record<string, Entry> = {};
+  for (const l of specLevels(spec)) {
+    const k = String(l.level);
+    let best = 0, bs = Infinity;
+    meas.forEach((m, i) => { const sc = score(m[k], o.baseline[k], l.last_share_target); if (sc < bs - 1e-9) [best, bs] = [i, sc]; });
+    pick[k] = best;
+    levels[k] = st[best].levels[k];
+  }
+  const last = st[st.length - 1];
+  return { schema: last.schema, spec: last.spec, pass: last.pass, baseline: last.baseline, passes: last.passes, final: roundTimes(o.final!), pick, levels };
 }
 
 export const serialize = (o: Overlay) => JSON.stringify(o, null, 1) + '\n';
@@ -179,7 +210,8 @@ function check(): string[] {
     if (e.bossCap === undefined && hpShare(Number(k), e) > SHARE_CEIL + 1e-9) errs.push(`L${k}: boss HP share ${hpShare(Number(k), e).toFixed(3)} > ${SHARE_CEIL} without the cap lever`);
   }
   if (o.pass !== o.passes.length) errs.push(`pass ${o.pass} but ${o.passes.length} recorded passes`);
-  if (serialize(replay(spec, o)) !== serialize(o)) errs.push('overlay does not replay from the spec (hand-edited or stale)');
+  const replayed = o.final ? finalize(spec, o) : replay(spec, o);
+  if (serialize(replayed) !== serialize(o)) errs.push('overlay does not replay from the spec (hand-edited or stale)');
   return errs;
 }
 
@@ -222,9 +254,20 @@ if (!process.env.VITEST) {
   if (args.includes('--write')) {
     writeFileSync(OVERLAY, serialize(firstOrder(readJson(SPEC))));
     console.log(`wrote ${OVERLAY} (pass 0, first order)`);
+  } else if (args.includes('--finalize')) {
+    // record the measurement of the last pass-3 state, then keep per level the best measured state (the fourth measurement verifies the picks)
+    const spec = readJson<{ levels: SpecLevel[] }>(SPEC);
+    const o = readJson<Overlay>(OVERLAY);
+    if (o.pass !== MAX_PASSES || o.final) { console.error(`--finalize needs an overlay at pass ${MAX_PASSES} without a final measurement`); process.exit(1); }
+    const final: Record<string, Times> = {};
+    for (const l of specLevels(spec)) final[String(l.level)] = timesOf(readJson<AData>(file(DATA, l.level)).runs.smart3);
+    const next = finalize(spec, { ...o, final: roundTimes(final) });
+    writeFileSync(OVERLAY, serialize(next));
+    console.log(`picked states: ${JSON.stringify(next.pick)}`);
   } else if (args.includes('--rebuild')) {
     const o = readJson<Overlay>(OVERLAY);
-    writeFileSync(OVERLAY, serialize(replay(readJson(SPEC), o)));
+    const spec = readJson<{ levels: SpecLevel[] }>(SPEC);
+    writeFileSync(OVERLAY, serialize(o.final ? finalize(spec, o) : replay(spec, o)));
     console.log(`rebuilt ${OVERLAY} from its recorded measurements (pass ${o.pass})`);
   } else if (args.includes('--check')) {
     const errs = check();

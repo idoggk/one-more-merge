@@ -268,14 +268,98 @@
    }
   }
  ],
- "levels": {
+ "final": {
   "8": {
-   "bossHpMult": 1.3821,
-   "minionHpMult": 0.6339
+   "tb": 21.5417,
+   "tm": 23.9567
   },
   "10": {
-   "bossHpMult": 1.5134,
-   "minionHpMult": 0.5467,
+   "tb": 27.2717,
+   "tm": 26.955
+  },
+  "18": {
+   "tb": 30.14,
+   "tm": 27.18
+  },
+  "20": {
+   "tb": 39.0067,
+   "tm": 36.6683
+  },
+  "28": {
+   "tb": 38.055,
+   "tm": 38.1517
+  },
+  "30": {
+   "tb": 43.165,
+   "tm": 57.5483
+  },
+  "38": {
+   "tb": 40.5267,
+   "tm": 34.6183
+  },
+  "40": {
+   "tb": 43.1786,
+   "tm": 111.0714
+  },
+  "48": {
+   "tb": 45.5,
+   "tm": 48.725
+  },
+  "50": {
+   "tb": 72.9368,
+   "tm": 76.6026
+  },
+  "58": {
+   "tb": 50.4083,
+   "tm": 50.9683
+  },
+  "60": {
+   "tb": 48.2967,
+   "tm": 46.2183
+  },
+  "68": {
+   "tb": 50.2733,
+   "tm": 79.0733
+  },
+  "70": {
+   "tb": 55.455,
+   "tm": 42.815
+  },
+  "78": {
+   "tb": 51.15,
+   "tm": 107.05
+  },
+  "80": {
+   "tb": null,
+   "tm": null
+  }
+ },
+ "pick": {
+  "8": 2,
+  "10": 2,
+  "18": 3,
+  "20": 3,
+  "28": 3,
+  "30": 2,
+  "38": 2,
+  "40": 0,
+  "48": 3,
+  "50": 1,
+  "58": 1,
+  "60": 1,
+  "68": 0,
+  "70": 3,
+  "78": 0,
+  "80": 0
+ },
+ "levels": {
+  "8": {
+   "bossHpMult": 1.2235,
+   "minionHpMult": 0.611
+  },
+  "10": {
+   "bossHpMult": 1.5465,
+   "minionHpMult": 0.5434,
    "bossCap": 0.15
   },
   "18": {
@@ -294,18 +378,18 @@
    "bossCap": 0.15
   },
   "30": {
-   "bossHpMult": 3.1598,
-   "minionHpMult": 1.1102,
+   "bossHpMult": 2.649,
+   "minionHpMult": 0.9307,
    "bossCap": 0.15
   },
   "38": {
-   "bossHpMult": 1.4881,
-   "minionHpMult": 0.6509
+   "bossHpMult": 1.4677,
+   "minionHpMult": 0.6823
   },
   "40": {
-   "bossHpMult": 4.7549,
-   "minionHpMult": 1.6706,
-   "bossCap": 0.15
+   "bossHpMult": 1.65,
+   "minionHpMult": 0.55,
+   "bossCap": 0.2
   },
   "48": {
    "bossHpMult": 1.9807,
@@ -313,36 +397,36 @@
    "bossCap": 0.15
   },
   "50": {
-   "bossHpMult": 1.9611,
-   "minionHpMult": 0.6891,
-   "bossCap": 0.15
+   "bossHpMult": 1.8547,
+   "minionHpMult": 0.6517,
+   "bossCap": 0.2
   },
   "58": {
-   "bossHpMult": 1.1238,
-   "minionHpMult": 0.5299
+   "bossHpMult": 1.3189,
+   "minionHpMult": 0.4849
   },
   "60": {
-   "bossHpMult": 1.1014,
-   "minionHpMult": 0.4853
+   "bossHpMult": 1.523,
+   "minionHpMult": 0.5611
   },
   "68": {
-   "bossHpMult": 2.8553,
-   "minionHpMult": 1.0032,
-   "bossCap": 0.15
+   "bossHpMult": 1.89,
+   "minionHpMult": 0.63,
+   "bossCap": 0.2
   },
   "70": {
    "bossHpMult": 1.2252,
    "minionHpMult": 0.615
   },
   "78": {
-   "bossHpMult": 5.0543,
-   "minionHpMult": 1.7758,
-   "bossCap": 0.15
+   "bossHpMult": 1.82,
+   "minionHpMult": 0.61,
+   "bossCap": 0.2
   },
   "80": {
-   "bossHpMult": 6.2355,
-   "minionHpMult": 2.1909,
-   "bossCap": 0.15
+   "bossHpMult": 1.62,
+   "minionHpMult": 0.54,
+   "bossCap": 0.2
   }
  }
 }
