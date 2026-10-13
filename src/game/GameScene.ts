@@ -63,6 +63,7 @@ import { BONUS_XP, rollSeason, seasonCount, seasonTier, seasonUnit, type SeasonE
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { yardObjectOf } from '../content/yardObjects';
+import { bookObject, bookResult } from './yardBook';
 import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
 import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, mergesText, OD_LABEL, stageHudText, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
@@ -3941,7 +3942,7 @@ Now beat the real level.`, this.coachY());
 
   /** QA SCREW YARD: OBJECT - the unit object picked in EVENTS (Cannon / Coil / Bell; nothing booked to the week). A clear pays that unit's cards. */
   startObjectYard() {
-    const lvl = yardObjectOf();
+    const lvl = TUNING.yardBook ? bookObject(this.meta) : yardObjectOf();
     tlog.log('yard_object_start', { obj: lvl.id });
     this.closeModal();
     const data: ObjectYardData = { lvl, onEnd: (r) => this.endObjectYard(r), onResult: (r) => this.objectYardResult(r) };
@@ -3952,6 +3953,7 @@ Now beat the real level.`, this.coachY());
   /** A cleared unit object pays cards of that unit through the normal collection path. */
   objectYardResult(r: ObjectYardResult) {
     tlog.log('yard_object_end', { won: r.won, moves: r.moves, stars: r.stars });
+    if (TUNING.yardBook) bookResult(this.meta, r);
     if (r.reward) this.applyCards([{ unit: r.reward.unit, count: r.reward.count, isNew: !this.ownsUnit(r.reward.unit) }]);
   }
 

@@ -65,6 +65,8 @@ export interface Meta {
   screwdrivers?: number;
   /** Screw Yard 2.0 earned boosters (never sold). */
   yardBoosters?: BoosterCounts;
+  /** Screw Yard Book (TUNING.yardBook): best stars per object (cannon / coil / bell). Missing = empty (readBook in core/yardBook.ts). */
+  yardBook?: Record<string, number>;
   /** r38 Featured Unit Trial (ChatGPT review): today's unit, battles left, switched on, end CTA shown. */
   trial?: { date: string; unit: string; left: number; on: boolean; endShown?: boolean };
   /** r42 Workshop Puzzles: daily streak + solved drills. */

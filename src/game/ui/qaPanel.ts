@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY,applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -48,6 +48,9 @@ export const qaYardObject = () => {
 // QA-only: YARD PRESSURE (a countdown + tap budget in the turnable-object yard), default OFF, this device only
 export const qaYardPressure = () => storedYardPressure(() => localStorage.getItem(YARD_PRESSURE_KEY));
 applyYardPressure(qaYardPressure());
+// QA-only: YARD BOOK (tap-budget stars, unit crate, Collection Book), default OFF, this device only
+export const qaYardBook = () => storedYardBook(() => localStorage.getItem(YARD_BOOK_KEY));
+applyYardBook(qaYardBook());
 // t-a8c886ad / t-4a966cee QA-only: units option B, OFF / B0 (helpers copy, Mortar chain order, welders skip welders) /
 // B1 (B0 + one direct job per helper, shared BOOSTED mark, Fuse Box reach)
 export const qaUnits = () => storedUnits(() => localStorage.getItem(UNITS_B0_KEY));
@@ -361,6 +364,22 @@ export const QA_ROWS: QaRow[] = [
       tlog.log('qa_yard_pressure', { on: id === 'on' });
     },
     toast: (id) => (id === 'off' ? 'YARD PRESSURE OFF (live game)' : 'YARD PRESSURE ON  ·  SCREW YARD: OBJECT  ·  TIMER + TAP BUDGET'),
+    w: 340,
+    dx: 260,
+    gap: 48,
+    h: 91,
+  }),
+  // 7a2) YARD BOOK: OFF (today's yard) / ON (tap-budget stars, unit crate + cards counter, Collection Book), OBJECT yard only
+  qaSwitch({
+    title: 'YARD BOOK',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaYardBook() ? 'on' : 'off'),
+    pick: (id) => {
+      store(YARD_BOOK_KEY, id === 'off' ? null : id);
+      applyYardBook(id === 'on');
+      tlog.log('qa_yard_book', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'off' ? 'YARD BOOK OFF (live game)' : 'YARD BOOK ON  ·  SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD > BOOK'),
     w: 340,
     dx: 260,
     gap: 48,
