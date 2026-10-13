@@ -922,5 +922,154 @@
         "promptFix": "Ask for a thick groove: a rounded dark-navy tube with a brass rim, 12:1, object 1500 px wide by 125 px high, centred with 10% empty margin above and below, then downscale in the pipeline."
       }
     ]
+  },
+  "pass3": {
+    "generated": "2026-10-13",
+    "task": "t-ad53ce5c",
+    "scale": "1-20 (PASS 18-20, REDO 14-17, REJECT 1-13)",
+    "doc": "docs/art/CRITIQUE_3.md",
+    "totalAssets": 12,
+    "pass_": 3,
+    "redo": 8,
+    "reject": 1,
+    "passRate": "25% overall (bars only 33%, pass 2 same bars 0%; pass 2 overall 30%; pass 1 59%)",
+    "redoRunFound": false,
+    "passed": [
+      "bar_fill_green_v02",
+      "bar_fill_yellow_v02",
+      "ui_panel_card_v01"
+    ],
+    "setVerdict": "REDO: slicer fix works, no new art; frames still duplicate, charcoal window off-kit, outlines thin, red fill collides with red frames.",
+    "items": [
+      {
+        "id": "bar_fill_green_v02",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/bar_fill_green_v02/bar_fill_green_v02.png",
+        "version": "v02",
+        "verdict": "PASS",
+        "score": 18,
+        "scale": "1-20",
+        "reason": "Round left cap, cuttable right end, gloss, dark outline; works in a frame window."
+      },
+      {
+        "id": "bar_fill_yellow_v02",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/bar_fill_yellow_v02/bar_fill_yellow_v02.png",
+        "version": "v02",
+        "verdict": "PASS",
+        "score": 18,
+        "scale": "1-20",
+        "reason": "Same construction, best contrast in a dark window; slightly thin outline."
+      },
+      {
+        "id": "bar_hp_frame_v02",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/bar_hp_frame_v02/bar_hp_frame_v02.png",
+        "version": "v02",
+        "verdict": "REDO",
+        "score": 17,
+        "scale": "1-20",
+        "reason": "Best frame but flat charcoal window, thin outline, aspect 9.45 vs 11.",
+        "promptFix": "Ivory or navy window instead of charcoal, outline 4-5% of height, ask the tube at 11:1 touching both edges."
+      },
+      {
+        "id": "bar_loading_frame_v02",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/bar_loading_frame_v02/bar_loading_frame_v02.png",
+        "version": "v02",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Same red tube as hp, only 7% taller; no loading identity.",
+        "promptFix": "Cream-and-brass long box with side rivets, must not resemble bar_hp_frame; same frame family as ui_panel_card."
+      },
+      {
+        "id": "bar_fill_red_v02",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/bar_fill_red_v02/bar_fill_red_v02.png",
+        "version": "v02",
+        "verdict": "REDO",
+        "score": 15,
+        "scale": "1-20",
+        "reason": "Merges with the red tube rim in every existing frame.",
+        "promptFix": "Brighter red-orange fill with a dark red outline and a pale rim, made for an ivory or navy window."
+      },
+      {
+        "id": "bar_xp_frame_v02",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/bar_xp_frame_v02/bar_xp_frame_v02.png",
+        "version": "v02",
+        "verdict": "REJECT",
+        "score": 13,
+        "scale": "1-20",
+        "reason": "Third copy of the red tube, only a gold inner line differs (X3 duplicate).",
+        "promptFix": "Blue enamel tube with round brass caps, thinner than hp, must not resemble bar_hp_frame or bar_loading_frame."
+      },
+      {
+        "id": "ui_panel_card_v01",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/regate/ui_panel_card_v01/ui_panel_card_v01.png",
+        "version": "v01",
+        "verdict": "PASS",
+        "score": 18,
+        "scale": "1-20",
+        "reason": "Benchmark panel; outline slightly thin."
+      },
+      {
+        "id": "ui_panel_popup_v01",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/regate/ui_panel_popup_v01/ui_panel_popup_v01.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 17,
+        "scale": "1-20",
+        "reason": "Near-duplicate of std, no header notch, soft brass edge.",
+        "promptFix": "Dark outline 4-5%, flat top zone for a ribbon, larger rivets; must not resemble ui_panel_std."
+      },
+      {
+        "id": "ui_panel_std_v01",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/regate/ui_panel_std_v01/ui_panel_std_v01.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 15,
+        "scale": "1-20",
+        "reason": "Thin brass line, no dark outline, flat empty face.",
+        "promptFix": "Thin bezel plus dark outline, subtle paper texture, two-tone inset; same outline as ui_panel_card."
+      },
+      {
+        "id": "ui_panel_well_v01",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/regate/ui_panel_well_v01/ui_panel_well_v01.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Pale-gold bezel on navy, no dark outline, aspect gate fail; superseded by the v02 well.",
+        "promptFix": "Drop this file; use or regenerate the v02 well with a dark chocolate outline."
+      },
+      {
+        "id": "ui_toast_v01",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/regate/ui_toast_v01/ui_toast_v01.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 15,
+        "scale": "1-20",
+        "reason": "Well-made strip but blank, low-contrast cream face.",
+        "promptFix": "Add a subtle two-tone face or a coloured inner rim for contrast on a cream screen."
+      },
+      {
+        "id": "ui_tooltip_v01",
+        "sourceBranch": "orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object",
+        "path": "art-candidates/pack-v2/regate/ui_tooltip_v01/ui_tooltip_v01.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Pointer is a loose wedge, aspect gate fail.",
+        "promptFix": "The pointer is part of the frame outline, one continuous contour."
+      }
+    ]
   }
 }
