@@ -11,7 +11,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import puzzleRaw from '../src/content/puzzles.json';
 import { LEVELS } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
+import { BUDGET_LEVELS, newBudgetState } from '../src/core/budget';
 import { choosePerk, drop, legalPairs, newLevel, newPuzzle, tick, type GameState, type PuzzleDef } from '../src/core/game';
+import { useTool } from '../src/core/tools';
 import { stateHash } from '../src/core/roster4';
 
 type Off = boolean | string;
@@ -38,11 +40,14 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   quietPassive: [false, 'pace block param: quiet auto-shot effect (copied from the CALM pace)'],
   'optA3.fatigue': [false, 'option A3: merge-gap fatigue multiplier'],
   'r5.dynMates': [false, 'Dynamo wakes the block\'s own parts too'],
+  tools: [false, 'power tools: Row Surge (chain 5+) and Gear Bomb (sandwich) made on the board'],
+  yardPressure: [false, 'Screw Yard countdown + tap budget with stars'],
+  mergeBudget: [false, 'Budget Levels (LAST MERGES): levels with merge_budget play as capped-merge levels'],
 };
 // Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden
 // (see the 'TUNING defaults digest' test) fails on ANY change to a default, so such a flag forces a conscious golden update.
-// Merge-train flags (sandwich preview, budget levels, tools, yardPressure) are not on this branch yet: add one line each above
-// when they land, e.g.  tools: [false, 'power-up tools on the board'],
+// Merge-train flags (budget levels, tools, yardPressure) are registered above. The sandwich preview has no TUNING flag of its own
+// (it is part of mergeRule / mergeAssist).
 
 /** Keys may be dotted (`optA3.fatigue`) for a flag one level inside a TUNING block. */
 const getAt = (path: string): unknown => path.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], TUNING);
@@ -104,12 +109,15 @@ const TICKS_PER_STEP = 45; // 2.25 s: long enough that Think Bank's 2 s grace sh
 const fullHash = (s: GameState): string => `${stateHash(s)}/${JSON.stringify(s.support ?? null)}`;
 
 /** Deterministic bot: let time pass, take the first perk offered, merge the first legal pair; plays on until the end of the level (won / lost). */
+let toolsUsed = 0; // counted by play() for the flags-ON checks below
 function play(s: GameState, maxSteps: number, ticks: number): string {
   const trail: string[] = [];
   let endedAt = -1;
   for (let i = 0; i < maxSteps; i++) {
     for (let k = 0; k < ticks; k++) tick(s, new Set());
     if (s.phase === 'choice') choosePerk(s, s.offer[0]);
+    const t = s.grid.findIndex((g) => !!g?.tool); // a power tool exists only with TUNING.tools ON: tap the first one that would wake something
+    if (t >= 0 && useTool(s, t, s.grid[t]!.id).ok) toolsUsed++;
     const p = legalPairs(s)[0];
     if (p) drop(s, p[0], p[1], s.grid[p[0]]!.id);
     if (i % CHECK_EVERY === CHECK_EVERY - 1) trail.push(fullHash(s));
@@ -168,6 +176,43 @@ describe('flags-off golden guard', () => {
     // most levels must reach won / lost; the number of checkpoints is large enough to cover late play
     expect(ends.filter(([, m]) => m[2] !== '-1').length).toBeGreaterThanOrEqual(10);
     for (const [l, t] of Object.entries(run)) expect(new Set(t.split(',')).size, `${l} hashes should keep changing`).toBeGreaterThan(3);
+  });
+
+  it('Budget Levels ON: the LAST 6 / 8 / 10 levels are played and hashed, deterministically; OFF they do not exist', () => {
+    const last = BUDGET_LEVELS.filter((b) => ['last6', 'last8', 'last10'].includes(b.id));
+    expect(last.map((b) => b.merge_budget)).toEqual([6, 8, 10]);
+    for (const b of last) expect(newBudgetState(b), `${b.id} must be absent while mergeBudget is OFF`).toBeNull();
+    setAt('mergeBudget', true);
+    const run = () => Object.fromEntries(last.map((b) => [b.id, play(newBudgetState(b)!, 40, 1)]));
+    const a = run();
+    // the first-legal-pair bot may run out of pairs before the budget (the level then stays 'playing'): it must still play and hash every level
+    for (const [id, t] of Object.entries(a)) expect(/end:\w+@-?\d+/.test(t) && new Set(t.split(',')).size > 1, `${id} should be played and hashed`).toBe(true);
+    expect(Object.values(a).filter((t) => /end:(won|lost)@\d+/.test(t)).length, 'most bench levels end for the bot').toBeGreaterThanOrEqual(2);
+    expect(run()).toEqual(a);
+  });
+
+  it('Power tools ON (+1 BONUS sandwich rule): tools get made and used in the bot script, deterministically, and a level cap of 1 limits making', () => {
+    const levels = [10, 15, 20, 25, 30, 40, 50];
+    const run = (cap?: number) => {
+      setAt('tools', true);
+      setAt('mergeRule', 'sandwichBonus');
+      const made: number[] = [];
+      toolsUsed = 0;
+      const out = levels.map((n) => {
+        const s = newLevel(lvl(n));
+        if (cap !== undefined) s.toolCap = cap;
+        const t = play(s, MAX_STEPS, TICKS_PER_STEP);
+        made.push(s.stats.tools?.made ?? 0);
+        return t;
+      });
+      resetFlags();
+      return { out, made, used: toolsUsed };
+    };
+    const a = run();
+    expect(a.made.reduce((x, y) => x + y, 0), 'the bot should make at least one tool').toBeGreaterThan(0);
+    expect(a.used, 'and use at least one').toBeGreaterThan(0);
+    expect(run()).toEqual(a);
+    expect(Math.max(...run(1).made)).toBeLessThanOrEqual(1);
   });
 
   it('flipping a representative flag ON changes the hash (the guard can fail)', () => {
