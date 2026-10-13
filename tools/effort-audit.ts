@@ -8,6 +8,9 @@
 //   npx vite-node tools/effort-audit.ts --part dsearch                          D: pick the squads (starter / gift / ceiling) per roster segment
 //   npx vite-node tools/effort-audit.ts --part d --from 1 --to 20 --n 12        D: player power per level
 //   npx vite-node tools/effort-audit.ts --part report [--write docs/EFFORT_AUDIT.md]
+//   --effort            run with TUNING.effortModel ON (src/content/effortOverlay.json: boss / mini-boss HP); use a separate --out
+//   --smart-only        part a: only the smart@3 runs (what tools/effort-fit.ts reads); the report then lacks random / planner columns
+//   --levels 8,10,...   limit parts a / b / d to these levels (applied on top of --from / --to)
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { applyPace, DEFAULT_PACE } from '../src/content/experiments';
@@ -27,7 +30,11 @@ const FROM = Number(arg('--from')) || 1;
 const TO = Number(arg('--to')) || LEVELS.length;
 const N = Number(arg('--n')) || 30;
 const NPLAN = Number(arg('--nplan')) || 6;
-const OUT = arg('--out') ?? 'effort-audit-data';
+const SMART_ONLY = args.includes('--smart-only');
+const EFFORT = args.includes('--effort');
+if (EFFORT) TUNING.effortModel = true;
+const ONLY = arg('--levels') ? new Set(arg('--levels')!.split(',').map(Number)) : null;
+const OUT = arg('--out') ?? (EFFORT ? 'effort-audit-data-effort' : 'effort-audit-data');
 const PACE = (arg('--pace') ?? DEFAULT_PACE) as Pace;
 applyPace(PACE);
 if (PART !== 'report' && PART !== 'help') mkdirSync(OUT, { recursive: true });
@@ -201,7 +208,7 @@ function play(def: LevelDef, bk: BotKey, seed: number, cfg: Cfg = {}): RunRec {
 }
 const seedOf = (def: LevelDef, i: number) => def.level * 1009 + i * 7919;
 const many = (def: LevelDef, bk: BotKey, n: number, cfg: Cfg = {}) => Array.from({ length: n }, (_, i) => play(def, bk, seedOf(def, i + 1), cfg));
-const levelsIn = () => LEVELS.filter((d) => d.level >= FROM && d.level <= TO);
+const levelsIn = () => LEVELS.filter((d) => d.level >= FROM && d.level <= TO && (!ONLY || ONLY.has(d.level)));
 const hasPower = (d: LevelDef) => { const s = newLevel(d); return !!(s.boss || s.stage?.boss); };
 const effortHps = (d: LevelDef) => { const s = newLevel(d); return s.stage ? s.stage.hps : [d.hp]; };
 
@@ -209,8 +216,8 @@ const effortHps = (d: LevelDef) => { const s = newLevel(d); return s.stage ? s.s
 if (PART === 'a') {
   for (const d of levelsIn()) {
     const boss = isBossLevel(d) || !!d.mini_boss;
-    const runs: Record<string, RunRec[]> = { smart3: many(d, 'smart3', N), rand25: many(d, 'rand25', N) };
-    if (boss) runs.plan3 = many(d, 'plan3', NPLAN);
+    const runs: Record<string, RunRec[]> = { smart3: many(d, 'smart3', N), ...(SMART_ONLY ? {} : { rand25: many(d, 'rand25', N) }) };
+    if (boss && !SMART_ONLY) runs.plan3 = many(d, 'plan3', NPLAN);
     for (const k of Object.keys(runs)) runs[k].forEach((r) => (r.c = []));
     save(`a_${String(d.level).padStart(2, '0')}`, { level: d.level, hps: effortHps(d), goal: d.goal ? `${d.goal.kind}${d.goal.n}` : '', boss: isBossLevel(d), mini: !!d.mini_boss, runs });
     console.log(`A L${d.level} done`);

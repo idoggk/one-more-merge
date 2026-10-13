@@ -1,1 +1,76 @@
-{"schema":"effort-overlay/1","levels":{}}
+{
+ "schema": "effort-overlay/1",
+ "spec": "docs/effort-model-spec.json",
+ "pass": 0,
+ "passes": [],
+ "levels": {
+  "8": {
+   "bossHpMult": 1.53,
+   "minionHpMult": 0.73
+  },
+  "10": {
+   "bossHpMult": 1.37,
+   "minionHpMult": 0.75
+  },
+  "18": {
+   "bossHpMult": 1.44,
+   "minionHpMult": 0.75
+  },
+  "20": {
+   "bossHpMult": 1.81,
+   "minionHpMult": 0.64
+  },
+  "28": {
+   "bossHpMult": 1.93,
+   "minionHpMult": 0.66
+  },
+  "30": {
+   "bossHpMult": 1.75,
+   "minionHpMult": 0.65
+  },
+  "38": {
+   "bossHpMult": 1.58,
+   "minionHpMult": 0.72
+  },
+  "40": {
+   "bossHpMult": 1.65,
+   "minionHpMult": 0.55,
+   "bossCap": 0.2
+  },
+  "48": {
+   "bossHpMult": 1.58,
+   "minionHpMult": 0.72
+  },
+  "50": {
+   "bossHpMult": 1.51,
+   "minionHpMult": 0.7
+  },
+  "58": {
+   "bossHpMult": 1.73,
+   "minionHpMult": 0.69
+  },
+  "60": {
+   "bossHpMult": 1.6,
+   "minionHpMult": 0.68
+  },
+  "68": {
+   "bossHpMult": 1.89,
+   "minionHpMult": 0.63,
+   "bossCap": 0.2
+  },
+  "70": {
+   "bossHpMult": 1.56,
+   "minionHpMult": 0.69
+  },
+  "78": {
+   "bossHpMult": 1.82,
+   "minionHpMult": 0.61,
+   "bossCap": 0.2
+  },
+  "80": {
+   "bossHpMult": 1.62,
+   "minionHpMult": 0.54,
+   "bossCap": 0.2
+  }
+ }
+}
