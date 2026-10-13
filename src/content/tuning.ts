@@ -162,6 +162,10 @@ export const TUNING = {
    *  bounties / boss rush. Surge wakes a row; Bomb wakes the 4 touching parts and each machine it wakes hits as if +`effectRank` rank (hit calc only).
    *  Combos: Surge+Surge 3 rows, Bomb+Surge a row with +1 rank, Bomb+Bomb a 3x3 block with +1 rank. Turning the flag on in the QA panel also sets MERGE RULE to +1 BONUS. */
   tools: false,
+  /** VARIED OPENINGS (docs/OPENING_VARIETY.md, src/content/openings.ts), default OFF (QA row VARIED OPENINGS): ordinary saga levels start on one of 4 layouts of the
+   *  same 8 starter parts (same rank mass) from a seeded no-repeat deal. Teach, boss, mini-boss, puzzle, daily and bounty starts stay scripted. HP / star lines were
+   *  tuned on layout A and are NOT refitted. */
+  variedOpenings: false,
   tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
   /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
    *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation

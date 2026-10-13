@@ -4,6 +4,7 @@
 // merge (goal-aware, cascade cap counted) every 3 s / 1 s; plan3 = 2-ply planner (squad-swap.ts) every 3 s, smaller n.
 // Usage: npx vite-node tools/level-report.ts [--from 1] [--to 80] [--n 12] [--nplan 4] [--pace today|calm|mania]
 //          [--variant off|a2|a3|a3f] [--out level-report]     -> <out>/<pace>[+variant]_L<from>-<to>.csv / .md
+//          [--varied] = varied openings ON (tag gets +varied)
 //        npx vite-node tools/level-report.ts --summary [--pace calm] [--variant a3] [--out level-report]
 //          -> merges that tag's range files: per-chapter table + ranked problems (<out>/<tag>_summary.md)
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -23,9 +24,11 @@ const NPLAN = Number(arg('--nplan')) || 4;
 const PACE = (arg('--pace') ?? 'today') as Pace;
 const VARIANT = (arg('--variant') ?? 'off') as SpamVariant;
 const OUT = arg('--out') ?? 'level-report';
+const VARIED = args.includes('--varied'); // TUNING.variedOpenings: the 4 start layouts (HP / star lines are NOT refitted for them)
+TUNING.variedOpenings = VARIED;
 applySpamVariant(VARIANT);
 applyPace(PACE);
-const TAG = `${PACE}${VARIANT !== 'off' ? `+${VARIANT}` : ''}`;
+const TAG = `${PACE}${VARIANT !== 'off' ? `+${VARIANT}` : ''}${VARIED ? '+varied' : ''}`;
 
 type Opt = { f: number; t: number; score: number };
 const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));

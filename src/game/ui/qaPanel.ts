@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -89,6 +89,9 @@ applyThinkBank(qaThinkBank());
 // t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +1 BONUS (the MERGE RULE row can still change it)
 export const qaTools = () => storedTools(() => localStorage.getItem(TOOLS_KEY));
 applyTools(qaTools());
+// QA-only: VARIED OPENINGS (4 seeded start layouts on ordinary levels), default OFF, this device only; applied when a level starts
+export const qaVariedOpenings = () => storedVariedOpenings(() => localStorage.getItem(VARIED_OPENINGS_KEY));
+applyVariedOpenings(qaVariedOpenings());
 
 /** What a QA row draws into: the open sheet, plus the level picked in JUMP TO LEVEL (kept when the panel reopens). */
 interface QaCtx {
@@ -447,6 +450,22 @@ export const QA_ROWS: QaRow[] = [
       tlog.log('qa_tools', { on: id === 'on' });
     },
     toast: (id) => (id === 'on' ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
+    w: 240,
+    dx: 200,
+    gap: 38,
+    h: 70,
+  }),
+  // 7e) VARIED OPENINGS: OFF / ON (ON = ordinary levels start on one of 4 layouts; teach, boss, mini-boss, puzzles, daily, bounties unchanged; next level)
+  qaSwitch({
+    title: 'VARIED OPENINGS (next level)',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaVariedOpenings() ? 'on' : 'off'),
+    pick: (id) => {
+      store(VARIED_OPENINGS_KEY, id === 'on' ? 'on' : null);
+      applyVariedOpenings(id === 'on');
+      tlog.log('qa_varied_openings', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'on' ? 'VARIED OPENINGS ON  ·  START A LEVEL  ·  HP/STARS NOT REFITTED' : 'VARIED OPENINGS OFF (live game)'),
     w: 240,
     dx: 200,
     gap: 38,
