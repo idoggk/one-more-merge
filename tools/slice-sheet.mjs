@@ -1,5 +1,5 @@
 // Slice a ChatGPT art sheet into clean, trimmed, keyed sprites and run quality gates.
-// Usage: node tools/slice-sheet.mjs <sheet.png> --grid 3x2 --key magenta|white|none --out <dir> --names a,b,c,d,e,f
+// Usage: node tools/slice-sheet.mjs <sheet.png> --grid 3x2 --key magenta|green|white|none --out <dir> --names a,b,c,d,e,f
 //          [--kind panel|strip|icon|unit|sheet] [--pad 8] [--aspect 4:1 | --aspect 1:1,4:1,...] [--size 128] [--tol 40]
 //          [--feather 50] [--coverage 0.02,0.85] [--despeckle 16]
 // Per cell: key out the flat colour (tolerance + feather), despeckle (drop tiny opaque components), run the
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const INSET = 2; // px cropped inside every cell
 const BORDER = 3; // gate: nothing opaque within this many px of the original cell border
-const KEYS = { magenta: [255, 0, 255], white: [255, 255, 255] };
+const KEYS = { magenta: [255, 0, 255], green: [0, 255, 0], white: [255, 255, 255] };
 const ASPECT_WARN = 0.1; // aspect deviation up to this passes
 const ASPECT_FAIL = 0.25; // above this fails; in between warns
 // Per-kind gate profiles. `ends`: the two short ends of the object may touch the cell border (ribbons, bars).
@@ -22,9 +22,12 @@ const KINDS = {
   sheet: { coverage: [0.02, 0.85], ends: false },
   icon: { coverage: [0.02, 0.85], ends: false },
   unit: { coverage: [0.02, 0.85], ends: false },
-  panel: { coverage: [0.03, 0.95], ends: false },
-  strip: { coverage: [0.01, 0.9], ends: true },
+  panel: { coverage: [0.03, 0.95], ends: false, tight: true, minFill: 0.7, size: 512 },
+  strip: { coverage: [0.01, 0.9], ends: true, tight: true, minFill: 0.9, size: 512 },
 };
+// kinds without their own minFill (sheet, icon, unit) still must fill the canvas to this fraction (width or height)
+const MIN_FILL = 0.7;
+const STRIP_MIN_HEIGHT_1X = 24; // a strip whose object is shorter than this at 1x is a hairline on a phone
 
 const dist = (r, g, b, k) => Math.hypot(r - k[0], g - k[1], b - k[2]);
 const lum = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
@@ -149,6 +152,16 @@ function bbox(out, w, h, thr = 8) {
   return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 
+/** Fill gate for an object box `ob` in a w x h canvas: strips judge width (>= 90%), other kinds the larger side (>= 70%). */
+export function fillGate(ob, w, h, kind) {
+  const strip = kind === 'strip';
+  const fw = ob.w / w, fh = ob.h / h;
+  const need = KINDS[kind]?.minFill ?? MIN_FILL;
+  const got = strip ? fw : Math.max(fw, fh);
+  return gate(got >= need ? 'pass' : 'fail', +got.toFixed(3), `>= ${need}`,
+    `object ${ob.w}x${ob.h} px in a ${w}x${h} canvas: ${(fw * 100).toFixed(0)}% of the width, ${(fh * 100).toFixed(0)}% of the height (${strip ? 'width' : 'larger side'} must be at least ${need * 100}%)`);
+}
+
 /** Gates that look at the final (trimmed, padded) sprite. Returns {name: {pass, detail}}. */
 function spriteGates(px, w, h, o) {
   const g = {};
@@ -164,6 +177,18 @@ function spriteGates(px, w, h, o) {
     for (let y = cy; y < cy + c; y++) for (let x = cx; x < cx + c; x++) if (A(x, y) > 8) cornerOpaque++;
   g.corners = gate(cornerOpaque === 0 ? 'pass' : 'fail', cornerOpaque, 0, `${cornerOpaque} opaque corner px`);
 
+  // fill: the object must use the canvas. Strips judge WIDTH (>= 90%), every other kind its larger side (>= 70%).
+  // A tiny object in a big canvas (the old bar slices: 34% wide) fails here instead of shipping.
+  const ob = bbox(px, w, h);
+  if (ob) {
+    const strip = o.kind === 'strip';
+    g.fill = fillGate(ob, w, h, o.kind);
+    if (strip) {
+      const h1 = Math.round(ob.h / 2); // output PNG is 2x
+      g.minHeight = gate(h1 >= STRIP_MIN_HEIGHT_1X ? 'pass' : 'fail', h1, `>= ${STRIP_MIN_HEIGHT_1X} px at 1x`, `object ${h1} px tall at 1x`);
+    }
+  }
+
   // alpha present: some opaque and some transparent pixels
   let opaque = 0, partial = 0;
   for (let i = 0; i < w * h; i++) { if (a[i] > 128) opaque++; if (a[i] > 0 && a[i] < 255) partial++; }
@@ -178,6 +203,15 @@ function spriteGates(px, w, h, o) {
     }
     const t = Math.max(2, opaque * 0.001);
     g.keyLeft = gate(n <= t ? 'pass' : 'fail', n, t, `${n} magenta-ish px`);
+  } else if (o.key === 'green') {
+    // violet / purple / pink subjects are generated on green so the magenta key cannot eat them
+    let n = 0;
+    for (let i = 0; i < w * h; i++) {
+      const r = px[i * 4], gg = px[i * 4 + 1], b = px[i * 4 + 2];
+      if (a[i] >= 64 && gg - Math.max(r, b) > 60 && dist(r, gg, b, KEYS.green) < 110) n++;
+    }
+    const t = Math.max(2, opaque * 0.001);
+    g.keyLeft = gate(n <= t ? 'pass' : 'fail', n, t, `${n} green-ish px`);
   } else if (o.key === 'white') {
     let n = 0;
     for (let i = 0; i < w * h; i++) if (a[i] >= 64 && depth[i] <= 2 && px[i * 4] > 245 && px[i * 4 + 1] > 245 && px[i * 4 + 2] > 245) n++;
@@ -279,6 +313,7 @@ export async function sliceSheet(sheet, opts) {
   const profile = KINDS[o.kind];
   if (!profile) throw new Error(`unknown kind "${o.kind}" (${Object.keys(KINDS).join('|')})`);
   o.coverage ??= profile.coverage;
+  if (opts.size === undefined && profile.size) o.size = profile.size;
   const [cols, rows] = o.grid;
   const key = o.key === 'none' ? null : KEYS[o.key];
   if (o.key !== 'none' && !key) throw new Error(`unknown key "${o.key}"`);
@@ -329,10 +364,17 @@ export async function sliceSheet(sheet, opts) {
       cells.push({ name: names[n], gates });
       continue;
     }
-    const long = Math.max(bb.w, bb.h);
-    const pad = Math.round((long * o.pad) / 100);
+    // Padding is a margin around the object box, never a way to change the canvas shape. Roots of the "tiny art in a
+    // big canvas" bug: pad was a % of the LONG side applied to the short side too, and the canvas was then grown to the
+    // requested aspect, so a 9.4:1 bar asked for 11:1 ended at 34% of the canvas width. Strips now pad by the short side.
+    const strip = o.kind === 'strip';
+    let pad = Math.round(((strip ? Math.min(bb.w, bb.h) / 2 : Math.max(bb.w, bb.h)) * o.pad) / 100);
+    // strips keep a margin of at least ~8 px in the 2x output so a rectangular end never fills the corners
+    // (the corner gate looks at 2% of the short side, which is up to ~8 px on a thick strip)
+    if (strip) pad = Math.max(pad, Math.ceil((8 * Math.max(bb.w, bb.h)) / (o.size * 2 - 16)));
     const wanted = aspects[n];
-    const aspect = wanted ?? 1;
+    // strips and panels keep the object's own shape; icons, units and sheet cells default to a square canvas
+    const aspect = strip ? (bb.w + 2 * pad) / (bb.h + 2 * pad) : wanted ?? (profile.tight ? (bb.w + 2 * pad) / (bb.h + 2 * pad) : 1);
     let solid = 0;
     for (let i = 3; i < inner.length; i += 4) if (inner[i] > 128) solid++;
     const cov = solid / (w * h);
@@ -418,7 +460,7 @@ function parseArgs(argv) {
 async function main() {
   const a = parseArgs(process.argv.slice(2));
   if (!a._[0] || !a.grid || !a.out) {
-    console.error('usage: node tools/slice-sheet.mjs <sheet.png> --grid 3x2 --key magenta|white|none --out <dir> --names a,b,c [--pad 8] [--aspect 4:1] [--size 128]');
+    console.error('usage: node tools/slice-sheet.mjs <sheet.png> --grid 3x2 --key magenta|green|white|none --out <dir> --names a,b,c [--pad 8] [--aspect 4:1] [--size 128]');
     process.exit(2);
   }
   const [cols, rows] = a.grid.split('x').map(Number);

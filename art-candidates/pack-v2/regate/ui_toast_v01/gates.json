@@ -1,0 +1,90 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-2d95ddb9\\tmp-raw\\omm_ui_ui_toast_v01.png",
+  "grid": "1x1",
+  "key": "magenta",
+  "kind": "strip",
+  "pass": true,
+  "status": "pass",
+  "cells": [
+    {
+      "name": "ui_toast_v01",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of the top/bottom border (ends may touch); despeckle cleared 1 px in components under 315 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.5169,
+          "threshold": "0.01-0.9 (warn down to 0.005 and up to 1.00)",
+          "detail": "0.517 of the cell"
+        },
+        "aspect": {
+          "status": "pass",
+          "pass": true,
+          "value": 5.365,
+          "threshold": "5.000 +-10% pass, +-25% warn",
+          "detail": "object 5.365 vs requested 5.000 (7.3% off)"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.984,
+          "threshold": ">= 0.9",
+          "detail": "object 1008x189 px in a 1024x205 canvas: 98% of the width, 92% of the height (width must be at least 90%)"
+        },
+        "minHeight": {
+          "status": "pass",
+          "pass": true,
+          "value": 95,
+          "threshold": ">= 24 px at 1x",
+          "detail": "object 95 px tall at 1x"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 178080,
+          "threshold": "0 < opaque < 209920",
+          "detail": "178080 opaque, 7702 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 178.08,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 2858-19051 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}

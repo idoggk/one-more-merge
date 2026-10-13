@@ -3,8 +3,9 @@ import sharp from 'sharp';
 
 // plain-JS tool without type declarations: variable specifier keeps tsc from demanding them
 const toolPath = '../tools/slice-sheet.mjs';
-const { sliceSheet } = (await import(/* @vite-ignore */ toolPath)) as {
+const { sliceSheet, fillGate } = (await import(/* @vite-ignore */ toolPath)) as {
   sliceSheet: (sheet: Buffer, o: Record<string, unknown>) => Promise<{ pass: boolean; cells: { name: string; pass: boolean; failed: string[] }[] }>;
+  fillGate: (ob: { x: number; y: number; w: number; h: number }, w: number, h: number, kind: string) => { status: string };
 };
 
 const C = 160; // cell size
@@ -281,6 +282,74 @@ describe('slice-sheet gates', () => {
         expect(g).toHaveProperty('threshold');
       }
       await expect(one(s, { kind: 'banana' })).rejects.toThrow(/unknown kind/);
+    });
+  });
+
+  describe('trim to the object box and the fill gates', () => {
+    const BRASS: RGB = [150, 100, 30];
+    type Raw = { cellsRaw: { png: Buffer; width: number; height: number }[]; cells: { failed: string[]; gates: Record<string, { status: string }> }[] };
+    const slice = async (s: Sheet, extra: Record<string, unknown>) =>
+      (await sliceSheet(await s.png(), { grid: [1, 1], key: 'magenta', names: ['a'], ...extra })) as unknown as Raw;
+    /** alpha bbox of the written PNG */
+    const alphaBox = async (png: Buffer) => {
+      const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      let x0 = info.width, x1 = -1, y0 = info.height, y1 = -1;
+      for (let y = 0; y < info.height; y++)
+        for (let x = 0; x < info.width; x++)
+          if (data[(y * info.width + x) * 4 + 3] > 8) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      return { w: x1 - x0 + 1, h: y1 - y0 + 1, W: info.width, H: info.height };
+    };
+
+    it('regression: a 9.4:1 bar asked for 11:1 is trimmed to the object (was 34% of the canvas width)', async () => {
+      const s = new Sheet(1, 1);
+      s.rect(4, 70, 152, 16, BRASS); // 9.5:1
+      const r = await slice(s, { kind: 'strip', aspects: [11] });
+      const b = await alphaBox(r.cellsRaw[0].png);
+      expect(b.w / b.W).toBeGreaterThanOrEqual(0.9);
+      expect(r.cells[0].gates.fill.status).toBe('pass');
+      expect(r.cells[0].failed).toEqual([]);
+      expect(b.W).toBeGreaterThanOrEqual(1000); // strips are written at 1024 wide, not 256
+    });
+
+    it('a small object in a big cell is cropped to its box for every kind', async () => {
+      for (const kind of ['panel', 'strip', 'icon']) {
+        const s = new Sheet(1, 1);
+        s.rect(60, 70, 40, 18, BRASS);
+        const r = await slice(s, { kind });
+        const b = await alphaBox(r.cellsRaw[0].png);
+        expect(Math.max(b.w / b.W, b.h / b.H), kind).toBeGreaterThanOrEqual(kind === 'strip' ? 0.9 : 0.7);
+      }
+    });
+
+    it('fillGate fails a tiny object in a big canvas: strips under 90% of the width, other kinds under 70%', () => {
+      const small = { x: 0, y: 0, w: 88, h: 11 }; // the old shipped bars: 88 px in a 256 canvas
+      expect(fillGate(small, 256, 23, 'strip').status).toBe('fail');
+      expect(fillGate({ ...small, w: 231 }, 256, 23, 'strip').status).toBe('pass'); // 90.2%
+      expect(fillGate({ ...small, w: 230 }, 256, 23, 'strip').status).toBe('fail'); // 89.8%
+      expect(fillGate({ x: 0, y: 0, w: 70, h: 70 }, 256, 256, 'panel').status).toBe('fail');
+      expect(fillGate({ x: 0, y: 0, w: 190, h: 60 }, 256, 256, 'panel').status).toBe('pass');
+      expect(fillGate({ x: 0, y: 0, w: 60, h: 200 }, 256, 256, 'unit').status).toBe('pass'); // tall unit: larger side counts
+      expect(fillGate({ x: 0, y: 0, w: 60, h: 100 }, 256, 256, 'icon').status).toBe('fail');
+    });
+
+    it('a violet / pink subject on the green key slices clean; on the magenta key the key gate trips', async () => {
+      const PINKISH: RGB = [200, 60, 225]; // within the magenta key's tolerance + feather band
+      const mk = (bg: RGB) => {
+        const s = new Sheet(1, 1, bg);
+        s.disc(C / 2, C / 2, 45, PINKISH);
+        return s;
+      };
+      const green = await slice(mk([0, 255, 0]), { kind: 'icon', key: 'green' });
+      expect(green.cells[0].failed).toEqual([]);
+      const magenta = await slice(mk(MAGENTA), { kind: 'icon', key: 'magenta' });
+      expect(magenta.cells[0].failed.length).toBeGreaterThan(0);
+    });
+
+    it('a hairline strip fails minHeight (object under 24 px tall at 1x)', async () => {
+      const s = new Sheet(1, 1);
+      s.rect(4, 78, 152, 3, BRASS); // 50:1
+      const r = await slice(s, { kind: 'strip' });
+      expect(r.cells[0].failed).toContain('minHeight');
     });
   });
 

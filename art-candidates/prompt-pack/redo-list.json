@@ -1,0 +1,926 @@
+{
+  "generated": "2026-10-13",
+  "task": "t-3bc30ee0 (pass 1), t-51240626 (pass 2 block)",
+  "totalAssets": 192,
+  "pass_": 113,
+  "redo": 72,
+  "reject": 7,
+  "items": [
+    {
+      "id": "home_hero_bg",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B01-home-hero-bg/home_hero_bg.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Board plate is the same warm gold as the brass units, so units will not pop; edges are busy.",
+      "promptFix": "Make the central workbench plate dark slate-navy with a soft warm spot light so brass and red units contrast; keep the shelves and tools at the borders but 30% less detailed."
+    },
+    {
+      "id": "logo_main",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B02-logo/logo_main.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Words run together with no gaps and MORE is gold on a gold gear, so it blurs at small sizes.",
+      "promptFix": "Leave a clear letter-wide gap between ONE, MORE and MERGE, put MORE on a dark brown gear disc, and keep the thick navy outline so the whole logo reads at 200 px wide."
+    },
+    {
+      "id": "ui_daily_strip",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B03-home-furniture/ui_daily_strip.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Blank flat brass plaque with no depth or inset, far plainer than its siblings.",
+      "promptFix": "Give it a recessed cream inner panel, a darker lower lip, brass end caps and four rivets."
+    },
+    {
+      "id": "ui_nav_bar",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B03-home-furniture/ui_nav_bar.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "A short wooden plank, not a full-width bar; cannot hold five tabs.",
+      "promptFix": "Draw a long horizontal bar 7:1 with brass end caps, wood grain, and five evenly spaced empty sockets."
+    },
+    {
+      "id": "icon_bolt",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B04-currency-icons/icon_bolt.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Hardware bolt and nut, not the lightning bolt the game uses for this currency; outline is thinner pure black.",
+      "promptFix": "Draw a chunky cream-outlined lightning bolt in orange-yellow enamel on transparent, same outline weight as the coin."
+    },
+    {
+      "id": "icon_key",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B04-currency-icons/icon_key.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Stray brass speck floats to the right of the key.",
+      "promptFix": "Single object only, nothing else in the cell; remove any detached fragments."
+    },
+    {
+      "id": "icon_nav_machine",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B05-nav-icons/icon_nav_machine.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Navy cannon on a wooden carriage is off-palette against the game red-cream-brass cannons.",
+      "promptFix": "Redraw as the red enamel cannon on a cream base with brass trim, like the attached cannon_1."
+    },
+    {
+      "id": "icon_nav_road",
+      "sourceBranch": "orch/t-0f186a11-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B05-nav-icons/icon_nav_road.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Dull grey road, low saturation, thin flag; weak at 70 px.",
+      "promptFix": "Make the road warm cream with a bright red-orange stripe and a larger red flag; saturation like the toolbox icon."
+    },
+    {
+      "id": "crate_glow_common",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B07-crate-glows/crate_glow_common.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Murky grey-blue ring with a dirty halo; looks like smudge, not a glow.",
+      "promptFix": "Clean white-silver ring, higher brightness, no grey fog, transparent edges."
+    },
+    {
+      "id": "fx_confetti",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B07-crate-glows/fx_confetti.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Baked multi-colour confetti cannot be tinted and looks like stock vector.",
+      "promptFix": "White-only confetti shapes (ribbons, stars, squares) on black so the game can tint them."
+    },
+    {
+      "id": "fx_rays",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B07-crate-glows/fx_rays.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Sparse beige spikes, weak and dull.",
+      "promptFix": "Pure white, dense 24-ray sunburst with soft falloff, no beige tint."
+    },
+    {
+      "id": "ui_panel_card",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B08-ui-panels/ui_panel_card.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Glossy plastic bevel with a black shell; specular highlights in corners prevent 9-slice stretching.",
+      "promptFix": "Flat cream enamel panel with a uniform 24 px brass border and tiny rivets, no corner highlights, so it can be 9-sliced."
+    },
+    {
+      "id": "ui_panel_popup",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B08-ui-panels/ui_panel_popup.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Half the canvas is empty and the glossy rim cannot be stretched.",
+      "promptFix": "Panel touching all four cell edges, flat enamel, uniform border, with a 40 px safe inner area."
+    },
+    {
+      "id": "ui_panel_std",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B08-ui-panels/ui_panel_std.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Black bezel and no brass, so it does not match the popup beside it.",
+      "promptFix": "Same brass border and rivets as the popup, but a thinner border."
+    },
+    {
+      "id": "ui_panel_well",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B08-ui-panels/ui_panel_well.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Dark recess is fine but the brass rim is a different weight from the other panels.",
+      "promptFix": "Same border width and rivets as the popup panel, with a dark inset."
+    },
+    {
+      "id": "ui_toast",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B08-ui-panels/ui_toast.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Small pill with bulging end caps; text area is tiny.",
+      "promptFix": "Longer 5:1 plate with a flat cream centre, subtle brass end caps and a drop shadow."
+    },
+    {
+      "id": "ui_tooltip",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B08-ui-panels/ui_tooltip.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Speech bubble tail and bevel cannot be sliced; thin black shell.",
+      "promptFix": "Flat cream rounded plate with a small brass pointer tail separated from the body."
+    },
+    {
+      "id": "ui_ribbon_blue",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B09-ui-ribbons/ui_ribbon_blue.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Ribbon is only 44% of its canvas, arched so text will not fit, glossy stock-vector look.",
+      "promptFix": "Draw a flat horizontal ribbon 3:1 that fills the whole cell, with a straight centre for text, folded tails, thick navy outline and a brass edge, in toy enamel, not glossy vector gradient."
+    },
+    {
+      "id": "ui_ribbon_event",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B09-ui-ribbons/ui_ribbon_event.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "Tiny thin cream scroll, 30% of canvas, near-white on a light UI, no room for text.",
+      "promptFix": "Draw a flat horizontal ribbon 3:1 that fills the whole cell, with a straight centre for text, folded tails, thick navy outline and a brass edge, in toy enamel, not glossy vector gradient. Cream with a red edge and dark outline so it reads on light panels."
+    },
+    {
+      "id": "ui_ribbon_gold",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B09-ui-ribbons/ui_ribbon_gold.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Same defect as the blue one: small, arched, stock-vector gloss.",
+      "promptFix": "Draw a flat horizontal ribbon 3:1 that fills the whole cell, with a straight centre for text, folded tails, thick navy outline and a brass edge, in toy enamel, not glossy vector gradient."
+    },
+    {
+      "id": "ui_ribbon_green",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B09-ui-ribbons/ui_ribbon_green.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Same defect: small, arched.",
+      "promptFix": "Draw a flat horizontal ribbon 3:1 that fills the whole cell, with a straight centre for text, folded tails, thick navy outline and a brass edge, in toy enamel, not glossy vector gradient."
+    },
+    {
+      "id": "ui_ribbon_purple",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B09-ui-ribbons/ui_ribbon_purple.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Same defect: small, arched.",
+      "promptFix": "Draw a flat horizontal ribbon 3:1 that fills the whole cell, with a straight centre for text, folded tails, thick navy outline and a brass edge, in toy enamel, not glossy vector gradient."
+    },
+    {
+      "id": "ui_ribbon_red",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B09-ui-ribbons/ui_ribbon_red.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Same defect: small, arched.",
+      "promptFix": "Draw a flat horizontal ribbon 3:1 that fills the whole cell, with a straight centre for text, folded tails, thick navy outline and a brass edge, in toy enamel, not glossy vector gradient."
+    },
+    {
+      "id": "btn_grey",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B10-ui-buttons/btn_grey.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Dull flat grey, reads as disabled but is lifeless, and its rim is darker than the others.",
+      "promptFix": "Desaturated warm grey with the same gloss and brass rim as the coloured buttons, plus a darker bottom lip."
+    },
+    {
+      "id": "btn_yellow",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B10-ui-buttons/btn_yellow.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Yellow face on a gold rim: no separation, the button melts into its border.",
+      "promptFix": "Use an orange-yellow face and a darker brown-brass rim so the face separates from the rim."
+    },
+    {
+      "id": "bar_fill_green",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B11-ui-bars/bar_fill_green.png",
+      "verdict": "REDO",
+      "score": 4,
+      "reason": "Fill has brass end caps and is 30% of its canvas, so it cannot be cropped to a percentage.",
+      "promptFix": "Fills: a flat horizontal fill strip with rounded left cap only, gloss strip on top, NO brass end caps, so the game can crop it to any percentage. Frames: same brass tube material and rivets for hp, xp and loading, 12:1, filling the cell."
+    },
+    {
+      "id": "bar_fill_red",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B11-ui-bars/bar_fill_red.png",
+      "verdict": "REDO",
+      "score": 4,
+      "reason": "Same: end caps, tiny, heavy dark outline.",
+      "promptFix": "Fills: a flat horizontal fill strip with rounded left cap only, gloss strip on top, NO brass end caps, so the game can crop it to any percentage. Frames: same brass tube material and rivets for hp, xp and loading, 12:1, filling the cell."
+    },
+    {
+      "id": "bar_fill_yellow",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B11-ui-bars/bar_fill_yellow.png",
+      "verdict": "REDO",
+      "score": 4,
+      "reason": "Same: end caps, tiny.",
+      "promptFix": "Fills: a flat horizontal fill strip with rounded left cap only, gloss strip on top, NO brass end caps, so the game can crop it to any percentage. Frames: same brass tube material and rivets for hp, xp and loading, 12:1, filling the cell."
+    },
+    {
+      "id": "bar_hp_frame",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B11-ui-bars/bar_hp_frame.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Cream tube with brass caps, a different material from the other two frames.",
+      "promptFix": "Fills: a flat horizontal fill strip with rounded left cap only, gloss strip on top, NO brass end caps, so the game can crop it to any percentage. Frames: same brass tube material and rivets for hp, xp and loading, 12:1, filling the cell."
+    },
+    {
+      "id": "bar_loading_frame",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B11-ui-bars/bar_loading_frame.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Riveted brass box, a third frame material; inner window is blank white.",
+      "promptFix": "Fills: a flat horizontal fill strip with rounded left cap only, gloss strip on top, NO brass end caps, so the game can crop it to any percentage. Frames: same brass tube material and rivets for hp, xp and loading, 12:1, filling the cell."
+    },
+    {
+      "id": "bar_xp_frame",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B11-ui-bars/bar_xp_frame.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "Cold chrome tube, off palette, 5% saturation, completely unlike the brass set.",
+      "promptFix": "Fills: a flat horizontal fill strip with rounded left cap only, gloss strip on top, NO brass end caps, so the game can crop it to any percentage. Frames: same brass tube material and rivets for hp, xp and loading, 12:1, filling the cell. Do not use chrome."
+    },
+    {
+      "id": "ui_slider_knob",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B12-ui-toggles/ui_slider_knob.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Faint white fringe around the black outline on transparent edges.",
+      "promptFix": "Chroma-key on magenta (#FF00FF) instead of white and ask for a clean outline with no outer glow."
+    },
+    {
+      "id": "ui_slider_track",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B12-ui-toggles/ui_slider_track.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "An 80 px sliver, 22% of the canvas, too thin to see at 70 px.",
+      "promptFix": "Long horizontal brass groove 12:1 filling the whole cell, with a dark inset channel."
+    },
+    {
+      "id": "ui_tab_active",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B12-ui-toggles/ui_tab_active.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Yellow on gold again and a white edge fringe.",
+      "promptFix": "Orange-yellow face with a dark brown rim, keyed on magenta."
+    },
+    {
+      "id": "ui_tab_inactive",
+      "sourceBranch": "orch/t-c6ebcfd9-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B12-ui-toggles/ui_tab_inactive.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Flat dead brown with low contrast to any wood background; white edge fringe.",
+      "promptFix": "Muted cream-brown face with the same brass rim as the active tab, keyed on magenta."
+    },
+    {
+      "id": "icon_cap",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B13-status-icons/icon_cap.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Hourglass on a gear inside a porthole: three ideas in one icon, hourglass lost at 70 px.",
+      "promptFix": "One idea only: a brass cap or ceiling glyph; remove the hourglass, keep a bold single symbol."
+    },
+    {
+      "id": "icon_lock",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B13-status-icons/icon_lock.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Solid white left inside the shackle: leftover white background.",
+      "promptFix": "Any hole inside the object (shackle, gear centre) must stay transparent / background colour, never white."
+    },
+    {
+      "id": "role_mover",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B14-role-rarity-icons/role_mover.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Monochrome cream and brass; role is not colour coded, unlike the game role icons.",
+      "promptFix": "A role icon in a distinct colour: shooter warm orange-red, relay cyan, support green, mover violet, same brass porthole base, a bold glyph inside, 256 px, thick navy outline."
+    },
+    {
+      "id": "role_relay",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B14-role-rarity-icons/role_relay.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Two beads on a bar, monochrome, reads as a dumbbell.",
+      "promptFix": "A role icon in a distinct colour: shooter warm orange-red, relay cyan, support green, mover violet, same brass porthole base, a bold glyph inside, 256 px, thick navy outline."
+    },
+    {
+      "id": "role_shooter",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B14-role-rarity-icons/role_shooter.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "A crosshair, monochrome; says target not shooter.",
+      "promptFix": "A role icon in a distinct colour: shooter warm orange-red, relay cyan, support green, mover violet, same brass porthole base, a bold glyph inside, 256 px, thick navy outline."
+    },
+    {
+      "id": "role_support",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B14-role-rarity-icons/role_support.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "A plus sign, monochrome, reads as health.",
+      "promptFix": "A role icon in a distinct colour: shooter warm orange-red, relay cyan, support green, mover violet, same brass porthole base, a bold glyph inside, 256 px, thick navy outline."
+    },
+    {
+      "id": "icon_loading_gear",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B15-system-icons/icon_loading_gear.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Centre hole is solid white (leftover background).",
+      "promptFix": "Any hole inside the object (shackle, gear centre) must stay transparent / background colour, never white."
+    },
+    {
+      "id": "icon_restart",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B15-system-icons/icon_restart.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Arrow head is clumsy and the fat tail reads as a letter C.",
+      "promptFix": "A circular arrow with a clear triangular arrow head and a thinner tail, green enamel."
+    },
+    {
+      "id": "ui_event_card",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B16-events-set/ui_event_card.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "Came back as a tiny portrait frame in a 1280x400 canvas (21% fill); wrong aspect.",
+      "promptFix": "A wide landscape card 3.2:1 filling the cell, flat cream enamel centre, brass border, empty so text fits."
+    },
+    {
+      "id": "ui_pips",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B16-events-set/ui_pips.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Five identical empty rings with no filled state.",
+      "promptFix": "Two rows: five empty rings and five rings with a gold gem filled in, same size."
+    },
+    {
+      "id": "tool_combo_icon",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B17-tools-icons/tool_combo_icon.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Bomb, two arrows and a spark: too busy, unreadable at 70 px.",
+      "promptFix": "Two overlapping brass gears with one bold lightning bolt; max three shapes."
+    },
+    {
+      "id": "tool_row_surge_icon",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B17-tools-icons/tool_row_surge_icon.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Red and blue circular arrows read as refresh or sync, not a row blast.",
+      "promptFix": "A horizontal row of five cells with a bold arrow and orange glow sweeping through them."
+    },
+    {
+      "id": "vfx_fuse_spark",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B18-tools-fx/vfx_fuse_spark.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Sliver from the neighbouring cell at the left edge.",
+      "promptFix": "One effect only, centred, with 10% empty margin on every side."
+    },
+    {
+      "id": "vfx_row_surge",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B18-tools-fx/vfx_row_surge.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "A small bullet-shaped streak, nowhere near a row-wide beam.",
+      "promptFix": "A long horizontal energy beam 4:1 spanning the full cell width, white core, orange glow, soft ends."
+    },
+    {
+      "id": "vfx_shock_ring",
+      "sourceBranch": "orch/t-2764afa8-chatgpt-art-run-prompt-pack-batc",
+      "path": "art-candidates/pack-out/B18-tools-fx/vfx_shock_ring.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Ring is clipped by the cell edge on the right and has a perspective tilt.",
+      "promptFix": "A flat top-down shock ring fully inside the cell with 10% margin."
+    },
+    {
+      "id": "sy2_box_green",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B19-yard-boxes/sy2_box_green.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Murky dark interior and a dull body next to the others.",
+      "promptFix": "Brighter leaf-green with a visible inside, same light as the others."
+    },
+    {
+      "id": "sy2_box_latched_glow",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B20-yard-box-states/sy2_box_latched_glow.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "The glow on the latch is barely different from the closed box.",
+      "promptFix": "Latch glows bright orange with a halo that extends beyond the box silhouette."
+    },
+    {
+      "id": "sy2_box_slot",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B20-yard-box-states/sy2_box_slot.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Thin gold wireframe, invisible at 70 px.",
+      "promptFix": "A dark inset slot silhouette of the box, solid fill with a brass edge, not a wireframe."
+    },
+    {
+      "id": "sy2_drill",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B22-yard-tools/sy2_drill.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "A photoreal yellow-and-black cordless drill that copies a real brand look.",
+      "promptFix": "A toy-style brass and cream power drill with a dark navy outline; no yellow and black trade dress."
+    },
+    {
+      "id": "sy2_drill_bit",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B22-yard-tools/sy2_drill_bit.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Grey, thin and diagonal; low saturation.",
+      "promptFix": "Brass-handled drill bit shown fat and short, thick outline, readable at 110 px."
+    },
+    {
+      "id": "sy2_key",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B22-yard-tools/sy2_key.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Photoreal key, but B04 already has a toy key; the two do not match.",
+      "promptFix": "Use the same toy key as icon_key with an even outline."
+    },
+    {
+      "id": "sy2_plank_long",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B22-yard-tools/sy2_plank_long.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "Short, diagonal and tiny, not a long 4:1 plank.",
+      "promptFix": "Long horizontal plank 4:1 lying flat, filling the cell width."
+    },
+    {
+      "id": "sy2_plate_long",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B22-yard-tools/sy2_plate_long.png",
+      "verdict": "REJECT",
+      "score": 3,
+      "reason": "Short diagonal metal sliver, nowhere near 4:1.",
+      "promptFix": "Long horizontal steel plate 4:1 lying flat with four rivets, filling the cell width."
+    },
+    {
+      "id": "sy2_screwdriver",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B22-yard-tools/sy2_screwdriver.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Thin diagonal tool, unreadable at 70 px.",
+      "promptFix": "Chunky toy-scale screwdriver, shown at 45 degrees, filling 80% of the cell."
+    },
+    {
+      "id": "sy2_obj_base",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B23-yard-objects/sy2_obj_base.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Flat grey metal, 15% saturation, disappears on dark backgrounds.",
+      "promptFix": "Warm brass and cream base with the same palette as the units; no raw steel."
+    },
+    {
+      "id": "sy2_obj_bracket",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B23-yard-objects/sy2_obj_bracket.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Grey steel again, dull and dark.",
+      "promptFix": "Brass and red enamel bracket, not raw steel."
+    },
+    {
+      "id": "sy2_fx_confetti",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B24-yard-fx/sy2_fx_confetti.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Baked colours, cannot be tinted.",
+      "promptFix": "White-only confetti on black."
+    },
+    {
+      "id": "sy2_fx_dust",
+      "sourceBranch": "orch/t-abecb882-chatgpt-art-run-prompt-pack-brow",
+      "path": "art-candidates/pack-out/B24-yard-fx/sy2_fx_dust.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Cream and tan, not white, so it tints dirty.",
+      "promptFix": "Pure white-grey dust puff on black."
+    },
+    {
+      "id": "unit_blast_plate",
+      "sourceBranch": "orch/t-84a3cd5c-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part1/unit_blast_plate.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Grey plate, only 30% saturation, nothing to read at 70 px.",
+      "promptFix": "Brass-framed red-orange plate with a bold blast mark and glow; add one strong colour."
+    },
+    {
+      "id": "unit_ladder",
+      "sourceBranch": "orch/t-84a3cd5c-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part1/unit_ladder.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Baked numbers 1-4 on the steps; text artefacts and invisible at 70 px.",
+      "promptFix": "Draw the ladder with plain blank steps and no text or numbers."
+    },
+    {
+      "id": "unit_tesla_tower",
+      "sourceBranch": "orch/t-84a3cd5c-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part1/unit_tesla_tower.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Near-duplicate of the spring plus lightning wings; wings have a white edge fringe.",
+      "promptFix": "A tall red tower with a brass sphere top and three cyan arcs, clearly not a spring; clean outline."
+    },
+    {
+      "id": "unit_dynamo",
+      "sourceBranch": "orch/t-cbceb5c4-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part2/unit_dynamo.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Glowing copper wheel is busy and rendered, not cartoon; thin outlines.",
+      "promptFix": "Match the attached part-1 art: same chunky red-and-orange feet on a cream plinth, thick navy outline, cartoon enamel shading, no photoreal rendering. Reduce the wheel to a big bold orange disc."
+    },
+    {
+      "id": "unit_lathe",
+      "sourceBranch": "orch/t-cbceb5c4-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part2/unit_lathe.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Low and wide with tiny details; mush at 70 px and a thinner plinth.",
+      "promptFix": "Match the attached part-1 art: same chunky red-and-orange feet on a cream plinth, thick navy outline, cartoon enamel shading, no photoreal rendering. Make it tall with a big bold chuck and one handwheel."
+    },
+    {
+      "id": "unit_rivet_gun",
+      "sourceBranch": "orch/t-cbceb5c4-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part2/unit_rivet_gun.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Reads as a real cordless drill in yellow and black, plus near-duplicate of the nail gun and the yard drill.",
+      "promptFix": "Match the attached part-1 art: same chunky red-and-orange feet on a cream plinth, thick navy outline, cartoon enamel shading, no photoreal rendering. Make it a chunky toy gun in red and brass."
+    },
+    {
+      "id": "unit_vice",
+      "sourceBranch": "orch/t-cbceb5c4-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part2/unit_vice.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Grey-blue steel at 32% saturation and photoreal; the dullest unit in the set.",
+      "promptFix": "Match the attached part-1 art: same chunky red-and-orange feet on a cream plinth, thick navy outline, cartoon enamel shading, no photoreal rendering. Paint it in bold red and brass enamel."
+    },
+    {
+      "id": "unit_wrecking_ball",
+      "sourceBranch": "orch/t-cbceb5c4-chatgpt-art-real-pictures-for-th",
+      "path": "art-candidates/units-part2/unit_wrecking_ball.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Dull grey ball and a base that does not match the others.",
+      "promptFix": "Match the attached part-1 art: same chunky red-and-orange feet on a cream plinth, thick navy outline, cartoon enamel shading, no photoreal rendering. Make the ball glossy dark navy with a bold orange rust highlight."
+    },
+    {
+      "id": "sy2_block_metal",
+      "sourceBranch": "orch/t-53f6b655-yard-art-v2-chatgpt-batch-a-prem",
+      "path": "art-candidates/yard-art-v2/sy2_block_metal.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Flat grey steel, 7% saturation, boring next to the candy blocks.",
+      "promptFix": "Warm brass plate with four rivets and a bright enamel edge."
+    },
+    {
+      "id": "sy2_block_rusty",
+      "sourceBranch": "orch/t-53f6b655-yard-art-v2-chatgpt-batch-a-prem",
+      "path": "art-candidates/yard-art-v2/sy2_block_rusty.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Grey and rust noise, dirty, looks like a texture not a game piece.",
+      "promptFix": "A cleaner rusted brass plate with a chunky rust patch in the corner and a bold outline."
+    },
+    {
+      "id": "sy2_screw_34",
+      "sourceBranch": "orch/t-53f6b655-yard-art-v2-chatgpt-batch-a-prem",
+      "path": "art-candidates/yard-art-v2/sy2_screw_34.png",
+      "verdict": "REDO",
+      "score": 5,
+      "reason": "Colourless chrome, a near-duplicate of the coloured B21 screws.",
+      "promptFix": "Delete; use B21 coloured screws."
+    },
+    {
+      "id": "sy2_screw_head",
+      "sourceBranch": "orch/t-53f6b655-yard-art-v2-chatgpt-batch-a-prem",
+      "path": "art-candidates/yard-art-v2/sy2_screw_head.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Colourless chrome, no outline, needs a tint.",
+      "promptFix": "A coloured screw head seen from above, same enamel colours as the blocks."
+    },
+    {
+      "id": "sy2_screw_side",
+      "sourceBranch": "orch/t-53f6b655-yard-art-v2-chatgpt-batch-a-prem",
+      "path": "art-candidates/yard-art-v2/sy2_screw_side.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Thin 1:2 sliver, small at 70 px.",
+      "promptFix": "Same screw, fatter and shorter, at 3:4 aspect."
+    },
+    {
+      "id": "sy2_box_closed_blue",
+      "sourceBranch": "orch/t-fe36aea5-yard-art-v2-chatgpt-batch-b1-box",
+      "path": "art-candidates/yard-art-v2/sy2_box_closed_blue.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "A small red-brown mark at the left edge.",
+      "promptFix": "Single object only, no marks; keep a 10% empty margin."
+    },
+    {
+      "id": "crate_golden_workbench",
+      "sourceBranch": "orch/t-49ce458b-chatgpt-art-icons-for-batch-1-un",
+      "path": "art-candidates/roster-b1/crate_golden_workbench.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Sparkles touch and are clipped by the cell edge.",
+      "promptFix": "Keep sparkles inside the canvas with a 6% margin."
+    },
+    {
+      "id": "nail_gun",
+      "sourceBranch": "orch/t-49ce458b-chatgpt-art-icons-for-batch-1-un",
+      "path": "art-candidates/roster-b1/nail_gun.png",
+      "verdict": "REDO",
+      "score": 6,
+      "reason": "Near-duplicate of the in-game nail_gun art.",
+      "promptFix": "Delete or ask for a brand new weapon type; not the nail gun again."
+    }
+  ],
+  "pass2": {
+    "generated": "2026-10-13",
+    "task": "t-51240626",
+    "scale": "1-20 (PASS 18-20, REDO 14-17, REJECT 1-13)",
+    "doc": "docs/art/CRITIQUE_2.md",
+    "totalAssets": 23,
+    "pass_": 7,
+    "redo": 13,
+    "reject": 3,
+    "passRate": "30% (pass 1 same categories: 20%; pass 1 overall: 59%)",
+    "passed": [
+      "ui_panel_card",
+      "ui_ribbon_blue",
+      "ui_ribbon_green",
+      "ui_tab_active",
+      "ui_tab_inactive",
+      "ui_slider_knob",
+      "btn_grey"
+    ],
+    "pipelineFixes": [
+      "Slicer: trim every output to the object box with 2-4 px padding; fail strips under 90% of canvas width or under 24 px high at 1x; export at 2x of the final in-game size.",
+      "Re-gate ui_panel_*, ui_toast, ui_tooltip (v01) with the tuned slicer.",
+      "An asset is never \"accepted\" with a gate fail or a critic score under 18.",
+      "Violet, purple and pink subjects use the flat green key.",
+      "Missing from R05: btn_yellow and the rest of the batch."
+    ],
+    "items": [
+      {
+        "id": "ui_panel_popup",
+        "sourceBranch": "orch/t-6c0936d5-art-run-v2-batches-r01-r02-ui-ki",
+        "path": "art-candidates/pack-v2/ui_panel_popup/ui_panel_popup_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 17,
+        "scale": "1-20",
+        "reason": "Near-copy of ui_panel_std with a thicker bezel, no header notch, soft brass edge instead of the dark outline.",
+        "promptFix": "Add a dark chocolate outline 4-5% of the height around the outer brass edge, a flat top zone for a ribbon, four larger rivets; must not resemble ui_panel_std. Attach ui_panel_card as the outline reference."
+      },
+      {
+        "id": "ui_panel_std",
+        "sourceBranch": "orch/t-6c0936d5-art-run-v2-batches-r01-r02-ui-ki",
+        "path": "art-candidates/pack-v2/ui_panel_std/ui_panel_std_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 15,
+        "scale": "1-20",
+        "reason": "Thin brass edge, almost no dark outline, empty flat face, duplicate of popup.",
+        "promptFix": "Make the std panel clearly different from popup: thin bezel plus dark outline, subtle paper texture, two-tone inset. Same outline as ui_panel_card."
+      },
+      {
+        "id": "ui_panel_well",
+        "sourceBranch": "orch/t-e764e76a-art-run-v2-redo-the-r01-r02-fail",
+        "path": "art-candidates/pack-v2/ui_panel_well/ui_panel_well_v2.png",
+        "version": "v02",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Gold bezel straight onto navy with no dark outline, flat inner face, gate fail (aspect 2.59 vs 2.0, halo 10%).",
+        "promptFix": "Add a dark brown outline around the gold bezel, an inner top shadow and soft bottom highlight in the navy well, exactly 2:1 and the object touching all four edges of the canvas."
+      },
+      {
+        "id": "ui_toast",
+        "sourceBranch": "orch/t-6c0936d5-art-run-v2-batches-r01-r02-ui-ki",
+        "path": "art-candidates/pack-v2/ui_toast/ui_toast_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 15,
+        "scale": "1-20",
+        "reason": "Pale cream pill vanishes on light screens; blank face; end knobs fixed.",
+        "promptFix": "Dark-navy or red face with a cream text lane, gold end caps as in ui_ribbon_blue, 5:1, dark outline."
+      },
+      {
+        "id": "ui_tooltip",
+        "sourceBranch": "orch/t-6c0936d5-art-run-v2-batches-r01-r02-ui-ki",
+        "path": "art-candidates/pack-v2/ui_tooltip/ui_tooltip_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Pointer is a separate gold wedge floating under the frame; 40% of the canvas empty.",
+        "promptFix": "The pointer is part of the frame: one continuous outline, same bezel and outline, canvas filled 90% in both directions, pointer centred at the bottom."
+      },
+      {
+        "id": "ui_ribbon_red",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/ui_ribbon_red/ui_ribbon_red_v2.png",
+        "version": "v02",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Gate fail aspect 4.95 vs 3.0; frame thinner and rivets smaller than blue/green; red on gold contrast poor.",
+        "promptFix": "Exactly the same frame as ui_ribbon_blue (Image 1), only the face colour changes to vermilion #E9422B; exactly 3:1."
+      },
+      {
+        "id": "ui_ribbon_purple",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/ui_ribbon_purple/ui_ribbon_purple_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Pill with side knobs unlike the other plaques; 176 magenta pixels leaked because a violet subject was keyed on magenta; aspect fail 4.05.",
+        "promptFix": "Use the flat GREEN #00FF00 key; same frame as ui_ribbon_blue (Image 1) with a violet #9343CB face; exactly 3:1."
+      },
+      {
+        "id": "ui_ribbon_event",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/ui_ribbon_event/ui_ribbon_event_v2.png",
+        "version": "v02",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Lost the scroll tails that made it an event ribbon; small near-white plaque, 36% canvas fill.",
+        "promptFix": "Folded scroll banner with two swallow-tail ends, vermilion body with a cream centre lane, gold rivets, dark outline, 4:1, object 95% of the canvas width. Cream lane must contrast with the body."
+      },
+      {
+        "id": "ui_ribbon_gold",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/ui_ribbon_gold/ui_ribbon_gold_v2.png",
+        "version": "v02",
+        "verdict": "REJECT",
+        "score": 10,
+        "scale": "1-20",
+        "reason": "Plain gold bar with no trim, rivets or outline; looks like a button; aspect fail 4.7 vs 3.0; failed twice already.",
+        "promptFix": "Start over: same frame as ui_ribbon_blue (Image 1), face warm gold #F3B62F with a deep red-brown rim so the face separates from the bezel; exactly 3:1."
+      },
+      {
+        "id": "bar_hp_frame",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/bar_hp_frame/bar_hp_frame_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Raw is good; the shipped slice is a 92x15 px object in a 256x23 canvas (36% width). Near-identical to xp and loading frames.",
+        "promptFix": "Re-slice the existing raw sheet with a trim-to-box profile (object 100% of width, at least 24 px high at 1x). Keep the red tube as the hp bar only."
+      },
+      {
+        "id": "bar_loading_frame",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/bar_loading_frame/bar_loading_frame_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Same slice problem; almost identical to hp frame.",
+        "promptFix": "Re-slice with trim-to-box. Regenerate as a cream-and-brass long box with a dark window so it differs from hp and xp."
+      },
+      {
+        "id": "bar_xp_frame",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/bar_xp_frame/bar_xp_frame_v2.png",
+        "version": "v01",
+        "verdict": "REJECT",
+        "score": 12,
+        "scale": "1-20",
+        "reason": "Third copy of the red tube, so the xp bar has no identity; halo fail 8.2%; tiny slice.",
+        "promptFix": "Regenerate as a cobalt-blue tube with round brass caps and a dark window, same outline and rivets as the hp frame, 11:1, object 95% of width."
+      },
+      {
+        "id": "bar_fill_green",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/bar_fill_green/bar_fill_green_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 15,
+        "scale": "1-20",
+        "reason": "Raw fill correct (rounded left cap, square right edge); shipped 84x11 px inside a 256 canvas.",
+        "promptFix": "Re-slice with trim-to-box; keep the raw."
+      },
+      {
+        "id": "bar_fill_yellow",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/bar_fill_yellow/bar_fill_yellow_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Tiny slice; yellow will be low-contrast next to the gold bezel.",
+        "promptFix": "Re-slice, then regenerate with an orange-amber #F0A020 body and a thicker dark outline to separate from gold."
+      },
+      {
+        "id": "bar_fill_red",
+        "sourceBranch": "orch/t-fc1b0b06-art-run-v2-finish-the-ribbon-and",
+        "path": "art-candidates/pack-v2/bar_fill_red/bar_fill_red_v2.png",
+        "version": "v01",
+        "verdict": "REDO",
+        "score": 14,
+        "scale": "1-20",
+        "reason": "Tiny slice; red fill disappears in a red frame.",
+        "promptFix": "Re-slice; the frame window must be dark navy so the red fill reads (see bar frames)."
+      },
+      {
+        "id": "ui_slider_track",
+        "sourceBranch": "orch/t-21a496ce-art-run-v2-batches-r04-r05-ui-ki",
+        "path": "art-candidates/pack-v2/ui_slider_track/ui_slider_track_v2.png",
+        "version": "v01",
+        "verdict": "REJECT",
+        "score": 10,
+        "scale": "1-20",
+        "reason": "21 px tall sliver touching top and bottom edges; aspect 7.3 vs 12; rejected in pass 1 for the same reason.",
+        "promptFix": "Ask for a thick groove: a rounded dark-navy tube with a brass rim, 12:1, object 1500 px wide by 125 px high, centred with 10% empty margin above and below, then downscale in the pipeline."
+      }
+    ]
+  }
+}
