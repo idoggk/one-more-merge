@@ -31,6 +31,7 @@ import { loopTween } from '../loopTween';
 import { buildLayout, makeScroller, type Scroller } from './scrollMath';
 import { HEAD_H, makeHeader, mountScroll } from './unitsScroll';
 import { addPortrait, crateArtReady, presentCrateToolbox } from './crateScreen';
+import { presentCrateV2 } from './crateOpenV2';
 
 export function openUnitsTab(scene: GameScene) {
   scene.closeModal();
@@ -322,7 +323,7 @@ export function openPack(scene: GameScene, packId: string, role?: UnitDef['slot'
 /** `from` = the Tool Bag whose latch rolled up into `kind` (ROSTER B): it shows as the bag first, then pops into `kind`. */
 export function presentCrate(scene: GameScene, kind: CrateKind, cards: CrateCard[], title?: string, from?: CrateKind) {
   // CRATES = TOOLBOX: the ChatGPT crate pictures + the new layout and opening moment (the baked old toolbox stays as the fallback until the art has loaded)
-  if (toolboxOn() && crateArtReady(scene, from ?? kind, kind)) return presentCrateToolbox(scene, kind, cards, title, from);
+  if (toolboxOn() && crateArtReady(scene, from ?? kind, kind)) return (TUNING.crateOpenV2 ? presentCrateV2 : presentCrateToolbox)(scene, kind, cards, title, from);
   scene.closeModal();
   const c = scene.panel(1000);
   const top = H / 2 - 500;

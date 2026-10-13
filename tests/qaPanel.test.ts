@@ -15,6 +15,7 @@ const EXPECTED_ROWS = [
   'thinkBank', 'mergeRule', 'mergeAssist', 'pace', // merge feel
   'allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode', // units
   'cratesLook', // crates
+  'crateOpenV2',
   'spam', 'varied', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
   'yardMode', // screw yard
   'shake', // display
@@ -31,7 +32,7 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('quick')).toEqual(['jump', 'allUnits', 'unlockAll', 'bolts', 'crates3', 'startOver']);
     expect(ids('feel')).toEqual(['thinkBank', 'mergeRule', 'mergeAssist', 'pace']);
     expect(ids('units')).toEqual(['allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode']);
-    expect(ids('crates')).toEqual(['cratesLook']);
+    expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
     expect(ids('tests')).toEqual(['spam', 'varied', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode']);
     expect(ids('display')).toEqual(['shake']);

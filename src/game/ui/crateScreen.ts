@@ -22,7 +22,7 @@ const INK = 0x2b1d2e;
 const PANEL_H = 1000;
 /** Crate picture per tier, the rarity glow colour (common grey-white, rare blue, epic purple, legendary gold), and where the lid seam /
  *  latch sit as fractions of the picture's visible box (ChatGPT art, measured on the trimmed pictures). */
-const CRATE: Record<CrateKind, { key: string; glow: number; tier: number; seam: number; latch: [number, number] }> = {
+export const CRATE: Record<CrateKind, { key: string; glow: number; tier: number; seam: number; latch: [number, number] }> = {
   wood: { key: 'crate_bag', glow: 0xdfe6ec, tier: 0, seam: 0.3, latch: [0.876, 0.456] },
   iron: { key: 'crate_toolbox', glow: 0x4aa3ff, tier: 1, seam: 0.52, latch: [0.362, 0.54] },
   gold: { key: 'crate_chest', glow: 0xa66bff, tier: 2, seam: 0.3, latch: [0.343, 0.253] },
@@ -34,7 +34,7 @@ const RARITY_TIER: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legen
 export const crateArtReady = (scene: GameScene, ...kinds: CrateKind[]) => kinds.every((k) => scene.hasArt(CRATE[k].key));
 
 /** Soft radial glow + rays textures, baked once. */
-function bakeFx(scene: Phaser.Scene) {
+export function bakeFx(scene: Phaser.Scene) {
   if (!scene.textures.exists('omm_glow')) {
     const t = scene.textures.createCanvas('omm_glow', 256, 256)!;
     const x = t.getContext();
@@ -129,7 +129,7 @@ export function crateLayout(n: number, top: number): Layout {
 }
 
 /** The card face, 176 x 220 design px (the caller scales it): rarity frame, picture or glyph tile, name, job word under it. */
-function buildCard(scene: GameScene, cd: CrateCard) {
+export function buildCard(scene: GameScene, cd: CrateCard) {
   const u = UNITS.find((v) => v.id === cd.unit)!;
   const rc = RARITY_COLOR[u.rarity];
   const card = scene.add.container(0, 0);

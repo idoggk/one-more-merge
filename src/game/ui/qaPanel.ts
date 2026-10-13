@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -96,6 +96,7 @@ applyTools(qaTools());
 // QA-only: VARIED OPENINGS (4 seeded start layouts on ordinary levels), default OFF, this device only; applied when a level starts
 export const qaVariedOpenings = () => storedVariedOpenings(() => localStorage.getItem(VARIED_OPENINGS_KEY));
 applyVariedOpenings(qaVariedOpenings());
+applyCrateOpenV2(storedCrateOpenV2(() => localStorage.getItem(CRATE_OPEN_V2_KEY)));
 
 
 /** Roster B batches shown in the NEW UNITS group (each is its own this-device-only switch, same keys as before). */
@@ -457,6 +458,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_crates', { look: id });
         },
         toast: (id) => `CRATES: ${id === 'toolbox' ? 'TOOLBOX' : 'OLD (live game)'}`,
+      }),
+      // crate opening redo: needs CRATE LOOK = TOOLBOX; ON = anticipation, shake, flash, one hero reveal, 3-column summary, COLLECT
+      qaFlag({
+        id: 'crateOpenV2',
+        title: 'CRATE OPENING V2',
+        desc: 'New opening. Needs TOOLBOX look',
+        get: () => storedCrateOpenV2(() => localStorage.getItem(CRATE_OPEN_V2_KEY)),
+        set: (on) => {
+          store(CRATE_OPEN_V2_KEY, on ? 'on' : null);
+          applyCrateOpenV2(on);
+          tlog.log('qa_crate_open_v2', { on });
+        },
+        toast: (on) => (on ? 'CRATE OPENING V2 ON  ·  OPEN A CRATE (TOOLBOX LOOK)' : 'CRATE OPENING V2 OFF (live game)'),
       }),
     ],
   },
