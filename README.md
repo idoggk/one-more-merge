@@ -163,7 +163,7 @@ The **QA panel** flips these flags without a rebuild:
 
 - Open it with the red `QA` button on the road or `QA TOOLS` in Settings.
 - **ALL NEW UNITS** turns on crates B plus unit batches 1 to 7 in one tap (ON / OFF / MIXED); individual batch switches still work afterwards. The **UNLOCK PLAN** row adds the gifts and crate tiers.
-- Add a switch by adding one `qaSwitch({...})` entry to `QA_ROWS` in `src/game/ui/qaPanel.ts`.
+- The panel is collapsible sections (Quick tools, Merge feel, Units, Crates, Levels and tests, Screw Yard, Display). Add a flag by adding one `qaFlag({...})` (on/off switch) or `qaChoice({...})` (segmented control) entry to the right section of `QA_SECTIONS` in `src/game/ui/qaPanel.ts`.
 
 There is no separate QA guide document yet.
 

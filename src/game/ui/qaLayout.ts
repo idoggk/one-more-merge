@@ -1,48 +1,214 @@
-/** QA panel geometry (pure, so a test can check every row is reachable). All y values are px from the sheet top. */
-/** The pinned header (QA TOOLS title, subtitle, BACK) takes this much; the rows scroll under it. */
+/** QA panel geometry (pure, so a test can check no two things overlap and every row is reachable).
+ *  All values are design px (the stage is 720 wide: 1 phone pt = 1.85 px on a 390 phone, 2 px on a 360 phone).
+ *  x is absolute; y is measured from the sheet top. */
+import { W } from '../sceneKit';
+
+/** The pinned header (QA TOOLS title, subtitle, BACK) takes this much; the sections scroll under it. */
 export const QA_HEADER = 150;
-/** First row anchor, measured from the sheet top (rows start 35 px under the header). */
-export const QA_FIRST_Y = 185;
-/** Room under the last row anchor for its buttons and the sheet's bottom edge. */
-export const QA_END_PAD = 110;
-/** Rows may extend this far above their anchor (title text) and below it (buttons) beyond the anchor itself. */
-export const QA_ROW_UP = 30;
+/** Sections start this far under the header. */
+export const QA_BODY_PAD = 14;
 /** Gap between the sheet and the screen edge. */
 export const QA_SCREEN_MARGIN = 30;
+/** Content column: left edge and width (inside the sheet, which spans x 46..674). */
+export const QA_X0 = 70;
+export const QA_W = W - 2 * QA_X0;
+/** One-line row height (48 pt on a 390 phone), the gap between rows, a section header's height, the gap between sections. */
+export const QA_ROW_H = 90;
+export const QA_ROW_GAP = 8;
+export const QA_SEC_H = 88;
+export const QA_SEC_GAP = 14;
+/** Hit height of every control (44 pt on a 360 pt-wide phone); the drawn control is QA_CTRL_H tall inside it. */
+export const QA_TAP = 88;
+export const QA_CTRL_H = 66;
+/** Inner padding of a row card. */
+export const QA_PAD = 16;
+/** Grid cells (unit batches): two columns. */
+export const QA_CELL_H = 124;
+export const QA_CELL_GAP = 12;
+/** Room under the last section. */
+export const QA_END_PAD = 30;
 
-export interface QaGeometry {
-  /** Sheet height. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+/** What a part of a row is. 'hit' parts (a whole grid cell) contain the others; every other part must stay clear of every other part. */
+export type PartRole = 'title' | 'desc' | 'names' | 'pill' | 'control' | 'label' | 'hit';
+export interface Part {
+  role: PartRole;
+  rect: Rect;
+  /** Which control of the row it is (option index, cell index, ...). */
+  i?: number;
+}
+export type QaRowKind = 'action' | 'switch' | 'segment' | 'grid' | 'stepper' | 'chips';
+/** What the layout needs to know about a row (the draw code lives in qaPanel / qaKit). */
+export interface QaRowSpec {
+  id: string;
+  kind: QaRowKind;
+  hasDesc: boolean;
+  /** segment: number of options; grid: number of cells; chips: number of buttons. */
+  count?: number;
+  /** action: button width. */
+  ctrlW?: number;
+}
+export interface RowLayout {
+  id: string;
+  kind: QaRowKind;
+  rect: Rect;
+  parts: Part[];
+}
+export interface SectionLayout {
+  id: string;
+  header: Rect;
+  /** Chevron and title inside the header. */
+  parts: Part[];
+  /** Empty while collapsed. */
+  rows: RowLayout[];
+  rect: Rect;
+}
+
+/** Segmented controls with at most this many options sit beside the title; more go on their own line under it. */
+export const QA_INLINE_SEGMENTS = 2;
+export const QA_SWITCH_W = 150;
+export const QA_ACTION_W = 200;
+export const QA_SEGMENT_INLINE_W = 300;
+
+const R = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h });
+const innerX = QA_X0 + QA_PAD;
+const innerW = QA_W - 2 * QA_PAD;
+
+/** Title (and the optional description under it) in a column `w` wide, in a block `h` tall starting at `y`. */
+function textParts(y: number, h: number, w: number, hasDesc: boolean): Part[] {
+  const title = hasDesc ? R(innerX, y + 8, w, 34) : R(innerX, y + (h - 34) / 2, w, 34);
+  const parts: Part[] = [{ role: 'title', rect: title }];
+  if (hasDesc) parts.push({ role: 'desc', rect: R(innerX, y + 46, w, 28) });
+  return parts;
+}
+
+export function layoutRow(spec: QaRowSpec, y: number): RowLayout {
+  const parts: Part[] = [];
+  let h = QA_ROW_H;
+  const inline = (ctrlW: number) => {
+    const textW = QA_W - 3 * QA_PAD - ctrlW;
+    parts.push(...textParts(y, QA_ROW_H, textW, spec.hasDesc));
+    parts.push({ role: 'control', rect: R(QA_X0 + QA_W - QA_PAD - ctrlW, y + (QA_ROW_H - QA_TAP) / 2, ctrlW, QA_TAP) });
+  };
+  switch (spec.kind) {
+    case 'action':
+      inline(spec.ctrlW ?? QA_ACTION_W);
+      break;
+    case 'switch':
+      inline(QA_SWITCH_W);
+      break;
+    case 'segment': {
+      const n = spec.count ?? 2;
+      if (n <= QA_INLINE_SEGMENTS) {
+        parts.push(...textParts(y, QA_ROW_H, QA_W - 3 * QA_PAD - QA_SEGMENT_INLINE_W, spec.hasDesc));
+        const sw = QA_SEGMENT_INLINE_W / n;
+        for (let i = 0; i < n; i++) parts.push({ role: 'control', i, rect: R(QA_X0 + QA_W - QA_PAD - QA_SEGMENT_INLINE_W + i * sw, y + (QA_ROW_H - QA_TAP) / 2, sw, QA_TAP) });
+        break;
+      }
+      parts.push(...textParts(y, QA_ROW_H, innerW, spec.hasDesc));
+      const sw = innerW / n;
+      for (let i = 0; i < n; i++) parts.push({ role: 'control', i, rect: R(innerX + i * sw, y + QA_ROW_H, sw, QA_TAP) });
+      h = QA_ROW_H + QA_TAP + 4;
+      break;
+    }
+    case 'chips': {
+      const n = spec.count ?? 1;
+      const gap = 8;
+      const cw = (innerW - gap * (n - 1)) / n;
+      for (let i = 0; i < n; i++) parts.push({ role: 'control', i, rect: R(innerX + i * (cw + gap), y + (QA_ROW_H - QA_TAP) / 2, cw, QA_TAP) });
+      break;
+    }
+    case 'stepper': {
+      // title line, then -10 -1 [level] +1 +10, then GO
+      parts.push(...textParts(y, QA_ROW_H, innerW, spec.hasDesc));
+      const sy = y + QA_ROW_H;
+      const bw = 96, gap = 6, numW = innerW - 4 * bw - 4 * gap;
+      let x = innerX;
+      [-10, -1].forEach((_, i) => {
+        parts.push({ role: 'control', i, rect: R(x, sy, bw, QA_TAP) });
+        x += bw + gap;
+      });
+      parts.push({ role: 'label', rect: R(x, sy, numW, QA_TAP) });
+      x += numW + gap;
+      [1, 10].forEach((_, i) => {
+        parts.push({ role: 'control', i: i + 2, rect: R(x, sy, bw, QA_TAP) });
+        x += bw + gap;
+      });
+      parts.push({ role: 'control', i: 4, rect: R(innerX, sy + QA_TAP + QA_ROW_GAP, innerW, QA_TAP) });
+      h = QA_ROW_H + 2 * QA_TAP + QA_ROW_GAP + 4;
+      break;
+    }
+    case 'grid': {
+      const n = spec.count ?? 0;
+      const cw = (QA_W - QA_CELL_GAP) / 2;
+      for (let i = 0; i < n; i++) {
+        const cx = QA_X0 + (i % 2) * (cw + QA_CELL_GAP);
+        const cy = y + Math.floor(i / 2) * (QA_CELL_H + QA_CELL_GAP);
+        parts.push({ role: 'hit', i, rect: R(cx, cy, cw, QA_CELL_H) });
+        parts.push({ role: 'title', i, rect: R(cx + 14, cy + 10, cw - 28 - 96, 34) });
+        parts.push({ role: 'pill', i, rect: R(cx + cw - 14 - 84, cy + 10, 84, 40) });
+        parts.push({ role: 'names', i, rect: R(cx + 14, cy + 58, cw - 28, 52) });
+      }
+      h = Math.ceil(n / 2) * QA_CELL_H + Math.max(0, Math.ceil(n / 2) - 1) * QA_CELL_GAP;
+      break;
+    }
+  }
+  return { id: spec.id, kind: spec.kind, rect: R(QA_X0, y, QA_W, h), parts };
+}
+
+export interface PanelLayout {
+  sections: SectionLayout[];
+  /** Bottom of the last section, from the sheet top. */
+  contentBottom: number;
   panelH: number;
-  /** Visible rows window, from the sheet top. */
   bodyTop: number;
   bodyBottom: number;
-  /** Total rows height, from the sheet top. */
-  contentBottom: number;
   /** Most negative scroll offset (0 = top). */
   minScroll: number;
-  /** Anchor y of each row at scroll 0. */
-  anchors: number[];
 }
 
-export function qaGeometry(rowHeights: readonly number[], screenH: number): QaGeometry {
-  const anchors: number[] = [];
-  let y = QA_FIRST_Y;
-  for (const h of rowHeights) {
-    anchors.push(y);
-    y += h;
+/** Lay the whole panel out: collapsed sections keep only their header. The sheet always fills the screen (it must not jump when a section opens). */
+export function layoutPanel(sections: readonly { id: string; rows: readonly QaRowSpec[] }[], collapsed: ReadonlySet<string>, screenH: number): PanelLayout {
+  let y = QA_HEADER + QA_BODY_PAD;
+  const out: SectionLayout[] = [];
+  for (const s of sections) {
+    const top = y;
+    const header = R(QA_X0, y, QA_W, QA_SEC_H);
+    const parts: Part[] = [
+      { role: 'title', rect: R(QA_X0 + QA_PAD, y + (QA_SEC_H - 40) / 2, QA_W - 3 * QA_PAD - 40, 40) },
+      { role: 'control', rect: R(QA_X0 + QA_W - QA_PAD - 40, y + (QA_SEC_H - 40) / 2, 40, 40) },
+    ];
+    y += QA_SEC_H;
+    const rows: RowLayout[] = [];
+    if (!collapsed.has(s.id)) {
+      y += QA_ROW_GAP;
+      for (const spec of s.rows) {
+        const row = layoutRow(spec, y);
+        rows.push(row);
+        y += row.rect.h + QA_ROW_GAP;
+      }
+      y -= QA_ROW_GAP;
+    }
+    out.push({ id: s.id, header, parts, rows, rect: R(QA_X0, top, QA_W, y - top) });
+    y += QA_SEC_GAP;
   }
-  const contentBottom = y + QA_END_PAD;
-  const panelH = Math.min(screenH - 2 * QA_SCREEN_MARGIN, contentBottom);
-  const bodyTop = QA_HEADER;
+  const contentBottom = y - QA_SEC_GAP;
+  const panelH = screenH - 2 * QA_SCREEN_MARGIN;
   const bodyBottom = panelH - 14;
-  return { panelH, bodyTop, bodyBottom, contentBottom, minScroll: -Math.max(0, contentBottom - 14 - bodyBottom), anchors };
+  return { sections: out, contentBottom, panelH, bodyTop: QA_HEADER, bodyBottom, minScroll: Math.min(0, bodyBottom - contentBottom - QA_END_PAD) };
 }
 
-/** Is row `i` (anchor + its reach) fully inside the window at some scroll offset in [minScroll, 0]? */
-export function qaRowReachable(g: QaGeometry, i: number, rowH: number, reach = 55): boolean {
-  const top = g.anchors[i] - QA_ROW_UP;
-  const bottom = g.anchors[i] + Math.max(rowH, reach) + 43;
-  const lo = Math.max(g.minScroll, g.bodyTop - top);
-  const hi = Math.min(0, g.bodyBottom - bottom);
+/** Is `r` (sheet-top y) fully inside the window at some scroll offset in [minScroll, 0]? */
+export function qaReachable(l: PanelLayout, r: Rect): boolean {
+  const lo = Math.max(l.minScroll, l.bodyTop - r.y);
+  const hi = Math.min(0, l.bodyBottom - (r.y + r.h));
   return lo <= hi;
 }
+
+export const rectsOverlap = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+export const rectInside = (a: Rect, outer: Rect, eps = 0.001) => a.x >= outer.x - eps && a.y >= outer.y - eps && a.x + a.w <= outer.x + outer.w + eps && a.y + a.h <= outer.y + outer.h + eps;

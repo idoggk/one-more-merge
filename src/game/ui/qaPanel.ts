@@ -14,7 +14,9 @@ import { store } from '../meta';
 import { unlockAll } from '../unlocks';
 import type { GameScene } from '../GameScene';
 import { W, H } from '../sceneKit';
-import { qaGeometry } from './qaLayout';
+import { getShakeLevel, SHAKE_LEVELS, setShakeLevel, type ShakeLevel } from '../fx/shake';
+import { layoutPanel } from './qaLayout';
+import { qaAction, qaChips, qaChoice, qaFlag, qaGrid, qaSectionHeader, qaStepper, setFitText, type QaCtx, type QaRow, type QaSection } from './qaKit';
 
 // t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
 const SPAM_KEY = 'omm_qa_spam_variant';
@@ -93,63 +95,17 @@ applyTools(qaTools());
 export const qaVariedOpenings = () => storedVariedOpenings(() => localStorage.getItem(VARIED_OPENINGS_KEY));
 applyVariedOpenings(qaVariedOpenings());
 
-/** What a QA row draws into: the open sheet, plus the level picked in JUMP TO LEVEL (kept when the panel reopens). */
-interface QaCtx {
-  scene: GameScene;
-  c: Phaser.GameObjects.Container;
-  jump: number;
-  save: () => void;
-  /** Redraw the panel (after a switch changes), keeping the picked level. */
-  reopen: () => void;
-}
-/** One QA panel row, anchored at `y`; `h` is the gap down to the next row's anchor. */
-interface QaRow {
-  h: number;
-  draw: (q: QaCtx, y: number) => void;
-}
-/** A this-device-only experiment switch: a title over one button per option ([brackets] = the stored one).
- *  `dx` = button spacing, `w` = button width, `gap` = title to buttons, `h` = row height. */
-interface QaSwitch<T> {
-  title: string;
-  options: readonly { id: T; label: string }[];
-  current: () => T;
-  pick: (id: T) => void;
-  toast: (id: T, label: string) => string;
-  w: number;
-  dx: number;
-  gap?: number;
-  h?: number;
-  /** Title font size / button scale when the row is squeezed (MERGE RULE). */
-  font?: number;
-  scale?: number;
-}
-const qaSwitch = <T>(sw: QaSwitch<T>): QaRow => ({
-  h: sw.h ?? 120,
-  draw: ({ scene, c, reopen }, y) => {
-    c.add(scene.add.text(W / 2, y, sw.title, { fontFamily: 'Lilita One, Arial Black', fontSize: `${sw.font ?? 26}px`, color: '#3b2533' }).setOrigin(0.5));
-    const cur = sw.current();
-    sw.options.forEach(({ id, label }, i) => {
-      const on = id === cur;
-      scene.button(c, W / 2 + (i - (sw.options.length - 1) / 2) * sw.dx, y + (sw.gap ?? 55), sw.w, on ? `[${label}]` : label, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        sw.pick(id);
-        scene.showToast(sw.toast(id, label));
-        reopen();
-      }, sw.scale ?? 0.62);
-    });
-  },
-});
 
 /** Roster B batches shown in the NEW UNITS group (each is its own this-device-only switch, same keys as before). */
 const ROSTER_BATCHES = [
-  { n: 1, key: ROSTER1_KEY, on: qaRoster1, apply: applyRoster1, units: 'Nail Jackhammer Gear Saw', toastOn: 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS' },
-  { n: 2, key: ROSTER2_KEY, on: qaRoster2, apply: applyRoster2, units: 'Wrench Piston Spring Belt', toastOn: 'ROSTER 2 ON  ·  CRATES, TEAM, UNITS' },
-  { n: 3, key: ROSTER3_KEY, on: qaRoster3, apply: applyRoster3, units: 'Torch Pipe Plate Tesla', toastOn: 'ROSTER 3 ON  ·  TESLA NEEDS CRATES B' },
-  { n: 4, key: ROSTER4_KEY, on: qaRoster4, apply: applyRoster4, units: 'Cap Plan Ladder Rewind', toastOn: 'ROSTER 4 ON  ·  REWIND IS OFF IN PUZZLES, DAILY, BOUNTIES' },
-  { n: 5, key: ROSTER5_KEY, on: qaRoster5, apply: applyRoster5, units: 'Crane Dynamo Wrecking', toastOn: 'ROSTER 5 ON  ·  CRANE AND DYNAMO DROP ONLY WITH CRATES B' },
+  { n: 1, key: ROSTER1_KEY, on: qaRoster1, apply: applyRoster1, units: 'Nail Gun, Jackhammer, Gear, Saw Blade', toastOn: 'NEW 4 UNITS ON  ·  CRATES, TEAM, UNITS' },
+  { n: 2, key: ROSTER2_KEY, on: qaRoster2, apply: applyRoster2, units: 'Wrench, Piston, Spring, Belt Drive', toastOn: 'ROSTER 2 ON  ·  CRATES, TEAM, UNITS' },
+  { n: 3, key: ROSTER3_KEY, on: qaRoster3, apply: applyRoster3, units: 'Blowtorch, Pipe, Blast Plate, Tesla Tower', toastOn: 'ROSTER 3 ON  ·  TESLA NEEDS CRATES B' },
+  { n: 4, key: ROSTER4_KEY, on: qaRoster4, apply: applyRoster4, units: 'Capacitor, Blueprint, Ladder, Rewind Crank', toastOn: 'ROSTER 4 ON  ·  REWIND IS OFF IN PUZZLES, DAILY, BOUNTIES' },
+  { n: 5, key: ROSTER5_KEY, on: qaRoster5, apply: applyRoster5, units: 'Crane, Dynamo, Wrecking Ball', toastOn: 'ROSTER 5 ON  ·  CRANE AND DYNAMO DROP ONLY WITH CRATES B' },
   { n: 6, key: ROSTER6_KEY, on: qaRoster6, apply: applyRoster6, units: 'Robot Arm, Tilt Lever', toastOn: 'ROSTER 6 ON  ·  BOTH ARE LEGENDARY: THEY DROP ONLY WITH CRATES B' },
-  { n: 7, key: ROSTER7_KEY, on: qaRoster7, apply: applyRoster7, units: 'Rivet Vice Router Press Lathe', toastOn: 'ROSTER 7 ON  ·  CRATES, TEAM, UNITS' },
+  { n: 7, key: ROSTER7_KEY, on: qaRoster7, apply: applyRoster7, units: 'Rivet Gun, Vice, Router, Hydraulic Press, Lathe', toastOn: 'ROSTER 7 ON  ·  CRATES, TEAM, UNITS' },
 ] as const;
-const ROSTER_GROUP_H = 262;
 /** Every batch flag plus crates B ('rb' in the UNITS switch), read live. */
 const allNewNow = () => allNewState(qaUnits() === 'rb', ROSTER_BATCHES.map((r) => r.on()));
 /** ALL NEW UNITS: ON sets crates B + batches 1..7, OFF clears them (individual switches keep working afterwards). Persisted like the others. */
@@ -167,350 +123,441 @@ const setAllNew = (on: boolean) => {
   }
   tlog.log('qa_all_new_units', { on });
 };
+/** t-c78bf16f: the chapter unlock plan (gifts + crate tiers + rarity-gated crate pool). */
+const setPlan = (on: boolean) => {
+  store(ROSTER_UNLOCKS_KEY, on ? 'on' : null);
+  applyRosterUnlocks(on);
+  tlog.log('qa_roster_unlocks', { on });
+};
 
-/** QA panel rows, top to bottom. A new experiment adds one qaSwitch entry here (the sheet grows to fit). */
-export const QA_ROWS: QaRow[] = [
-  // 1) start over (second tap within 3 s confirms)
+/** The QA panel, section by section (collapsible), row by row. A new experiment is ONE qaFlag / qaChoice line in the right section;
+ *  the layout, the switch / segmented look, the scrolling and the layout tests all follow from the entry. */
+export const QA_SECTIONS: QaSection[] = [
   {
-    h: 95,
-    draw: ({ scene, c }, y) => {
-      let armed = 0;
-      const wipe = scene.button(c, W / 2, y, 520, 'START OVER (WIPE ALL)', 0xd8261a, () => {
-        if (scene.time.now - armed > 3000) {
-          armed = scene.time.now;
-          sfx.invalid();
-          (wipe.list[1] as Phaser.GameObjects.Text).setText('TAP AGAIN TO WIPE');
-          scene.time.delayedCall(3000, () => wipe.active && scene.time.now - armed >= 2900 && (wipe.list[1] as Phaser.GameObjects.Text).setText('START OVER (WIPE ALL)'));
-          return;
-        }
-        tlog.log('start_over');
-        store(SAVE_KEY, null);
-        store(META_KEY, null);
-        lockSaves(); // the reload's visibilitychange -> save() must not write the old game back
-        location.reload();
-      }, 0.85);
-    },
-  },
-  // 2) jump to level: every earlier level counts as cleared (2 stars), then the level card opens
-  {
-    h: 250,
-    draw: (q, y) => {
-      const { scene, c } = q;
-      const m = scene.meta;
-      c.add(scene.add.text(W / 2, y, 'JUMP TO LEVEL', { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0.5));
-      const lvT = scene.add.text(W / 2, y + 70, `${q.jump}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '64px', color: '#e8452c' }).setOrigin(0.5);
-      c.add(lvT);
-      const set = (d: number) => {
-        q.jump = Math.max(1, Math.min(LEVELS.length + 1, q.jump + d));
-        lvT.setText(`${q.jump}`);
-      };
-      ([[-10, 110], [-1, 240], [1, W - 240], [10, W - 110]] as const).forEach(([d, x]) => scene.button(c, x, y + 70, 110, d > 0 ? `+${d}` : `${d}`, 0x8a6a4a, () => set(d), 0.7));
-      scene.button(c, W / 2, y + 150, 420, 'GO', 0x5fbf4a, () => {
-        const jump = q.jump;
-        const st: Record<string, number> = {};
-        for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
-        m.levelStars = st;
-        m.tutorialDone = true;
-        m.onboarded = true;
-        q.save();
-        tlog.log('qa_jump', { level: jump });
-        scene.openTitle('road');
-        if (jump <= LEVELS.length) scene.openLevelSheet(jump);
-      }, 0.85);
-    },
-  },
-  // 3) give stuff
-  {
-    h: 90,
-    draw: ({ scene, c, save }, y) => {
-      const m = scene.meta;
-      scene.button(c, W / 2 - 150, y, 360, 'ALL UNITS (LV 5)', 0x8e58c9, () => {
-        m.units = m.units ?? {};
-        for (const u of UNITS) {
-          m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
-          if (u.slot === 'helper') m.toys[u.id] = m.toys[u.id] ?? false;
-        }
-        save();
-        scene.showToast('ALL 13 UNITS AT LEVEL 5');
-      }, 0.75);
+    id: 'quick',
+    title: 'QUICK TOOLS',
+    rows: [
+      // jump to level: every earlier level counts as cleared (2 stars), then the level card opens
+      qaStepper({
+        id: 'jump',
+        title: 'JUMP TO LEVEL',
+        desc: 'Earlier levels count as cleared',
+        min: 1,
+        max: LEVELS.length + 1,
+        go: ({ scene, save }, jump) => {
+          const m = scene.meta;
+          const st: Record<string, number> = {};
+          for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
+          m.levelStars = st;
+          m.tutorialDone = true;
+          m.onboarded = true;
+          save();
+          tlog.log('qa_jump', { level: jump });
+          scene.openTitle('road');
+          if (jump <= LEVELS.length) scene.openLevelSheet(jump);
+        },
+      }),
+      qaAction({
+        id: 'allUnits',
+        title: 'ALL UNITS (LV 5)',
+        desc: 'Every unit to level 5',
+        label: 'GIVE',
+        color: 0x8e58c9,
+        tap: ({ scene, save }) => {
+          const m = scene.meta;
+          m.units = m.units ?? {};
+          for (const u of UNITS) {
+            m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
+            if (u.slot === 'helper') m.toys[u.id] = m.toys[u.id] ?? false;
+          }
+          save();
+          scene.showToast('ALL 13 UNITS AT LEVEL 5');
+        },
+      }),
       // t-2fd7bb86: every staggered feature (Team, Challenge, Workshop, Puzzles, Remix, Gems) open at once
-      scene.button(c, W / 2 + 150, y, 360, 'UNLOCK ALL', 0x27a4c0, () => {
-        unlockAll(m);
-        m.hardUnlocked = true;
-        save();
-        tlog.log('qa_unlock_all');
-        scene.showToast('ALL FEATURES UNLOCKED');
-      }, 0.75);
-    },
+      qaAction({
+        id: 'unlockAll',
+        title: 'UNLOCK ALL',
+        desc: 'Opens every locked feature',
+        label: 'UNLOCK',
+        color: 0x27a4c0,
+        tap: ({ scene, save }) => {
+          unlockAll(scene.meta);
+          scene.meta.hardUnlocked = true;
+          save();
+          tlog.log('qa_unlock_all');
+          scene.showToast('ALL FEATURES UNLOCKED');
+        },
+      }),
+      qaAction({
+        id: 'bolts',
+        title: 'BOLTS AND GEMS',
+        desc: '+2000 bolts, +500 gems per tap',
+        label: 'GIVE',
+        color: 0xe0a020,
+        tap: ({ scene, save }) => {
+          const m = scene.meta;
+          m.bolts = (m.bolts ?? 0) + 2000;
+          m.gems = (m.gems ?? 0) + 500;
+          save();
+          scene.showToast('+2000 BOLTS  +500 GEMS');
+        },
+      }),
+      qaAction({
+        id: 'crates3',
+        title: '+3 CRATES',
+        desc: 'One of each crate tier',
+        label: 'GIVE',
+        color: 0xb06a1a,
+        tap: ({ scene, save }) => {
+          for (const k of (TUNING.rosterB ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) scene.giveCrate(k);
+          save();
+          scene.showToast('3 CRATES ADDED  ·  UNITS TAB');
+        },
+      }),
+      // start over (second tap within 3 s confirms)
+      (() => {
+        let armed = 0;
+        const W_CTRL = 260;
+        return qaAction({
+          id: 'startOver',
+          title: 'START OVER',
+          desc: 'Wipes the save. Tap twice.',
+          label: 'WIPE ALL',
+          color: 0xd8261a,
+          ctrlW: W_CTRL,
+          tap: ({ scene }, label) => {
+            if (scene.time.now - armed > 3000) {
+              armed = scene.time.now;
+              sfx.invalid();
+              setFitText(label, 'TAP AGAIN TO WIPE', W_CTRL - 36);
+              scene.time.delayedCall(3000, () => label.active && scene.time.now - armed >= 2900 && setFitText(label, 'WIPE ALL', W_CTRL - 36));
+              return;
+            }
+            tlog.log('start_over');
+            store(SAVE_KEY, null);
+            store(META_KEY, null);
+            lockSaves(); // the reload's visibilitychange -> save() must not write the old game back
+            location.reload();
+          },
+        });
+      })(),
+    ],
   },
   {
-    h: 90,
-    draw: ({ scene, c, save, reopen }, y) => {
-      scene.button(c, W / 2 - 150, y, 360, '+2000 BOLTS +500 GEMS', 0xe0a020, () => {
-        const m = scene.meta;
-        m.bolts = (m.bolts ?? 0) + 2000;
-        m.gems = (m.gems ?? 0) + 500;
-        save();
-        scene.showToast('+2000 BOLTS  +500 GEMS');
-      }, 0.68);
+    id: 'feel',
+    title: 'MERGE FEEL',
+    rows: [
       // t-4208f149 THINK BANK prototype OFF / ON (this device only; applies when the next level starts)
-      scene.button(c, W / 2 + 150, y, 360, qaThinkBank() ? 'THINK BANK: ON' : 'THINK BANK: OFF', qaThinkBank() ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(THINK_BANK_KEY, qaThinkBank() ? null : 'on');
-        tlog.log('qa_think_bank', { on: qaThinkBank() });
-        scene.showToast(qaThinkBank() ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL');
-        reopen();
-      }, 0.68);
-    },
+      qaFlag({
+        id: 'thinkBank',
+        title: 'THINK BANK',
+        desc: 'Still board stops the clock. Next level',
+        get: () => !!qaThinkBank(),
+        set: (on) => {
+          store(THINK_BANK_KEY, on ? 'on' : null);
+          tlog.log('qa_think_bank', { on });
+        },
+        toast: (on) => (on ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL'),
+      }),
+      // t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
+      qaChoice({
+        id: 'mergeRule',
+        title: 'MERGE RULE',
+        desc: 'Sandwich merge. Applies next level',
+        options: MERGE_RULES,
+        current: qaMergeRule,
+        pick: (id) => {
+          store(MERGE_RULE_KEY, id === 'today' ? null : id);
+          tlog.log('qa_merge_rule', { rule: id });
+        },
+        toast: (id, label) => (id === 'today' ? 'MERGE RULE TODAY (live game)  ·  NEXT LEVEL' : `MERGE RULE ${label}  ·  START A LEVEL`),
+      }),
+      // t-8426336a MERGE ASSIST: OFF (today) / ON / AUTO (levels 1-10 and under 30 lifetime merges), same setting as Settings
+      qaChoice<AssistMode>({
+        id: 'mergeAssist',
+        title: 'MERGE ASSIST',
+        desc: 'AUTO = levels 1-10, first 30 merges',
+        options: ASSIST_MODES.map((id) => ({ id, label: id.toUpperCase() })),
+        current: () => TUNING.mergeAssist,
+        pick: (id) => {
+          store(MERGE_ASSIST_KEY, id === 'off' ? null : id);
+          applyAssistMode(id);
+          tlog.log('qa_merge_assist', { mode: id });
+        },
+        toast: (id) => (id === 'off' ? 'MERGE ASSIST OFF (live game)' : id === 'on' ? 'MERGE ASSIST ON' : 'MERGE ASSIST AUTO  ·  LEVELS 1-10, FIRST 30 MERGES'),
+      }),
+      // t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
+      qaChoice({
+        id: 'pace',
+        title: 'PACE',
+        desc: 'Level speed. Applies next level',
+        options: PACES,
+        current: qaPace,
+        pick: (id) => {
+          store(PACE_KEY, id === DEFAULT_PACE ? null : id);
+          tlog.log('qa_pace', { pace: id });
+        },
+        toast: (id, label) => (id === DEFAULT_PACE ? `PACE ${label} (live game)  ·  NEXT LEVEL` : `PACE ${label}  ·  START A LEVEL`),
+      }),
+    ],
   },
   {
-    h: 65,
-    draw: ({ scene, c, save, reopen }, y) => {
-      scene.button(c, W / 2 - 150, y, 360, '+3 CRATES', 0xb06a1a, () => {
-        for (const k of (TUNING.rosterB ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) scene.giveCrate(k);
-        save();
-        scene.showToast('3 CRATES ADDED  ·  UNITS TAB');
-      }, 0.75);
+    id: 'units',
+    title: 'UNITS',
+    rows: [
+      // 7b) NEW UNITS: roster B batches 1..7 join the collection, crates and squads (this device only, live)
+      qaFlag({
+        id: 'allNew',
+        title: 'ALL NEW UNITS',
+        desc: () => `${UNITS.length} units in play`,
+        get: () => {
+          const s = allNewNow();
+          return s === 'mixed' ? 'mixed' : s === 'on';
+        },
+        set: setAllNew,
+        toast: (on) => (on ? 'ALL NEW UNITS ON  ·  CRATES B + BATCH 1..7' : 'ALL NEW UNITS OFF (live game)'),
+      }),
+      qaGrid({
+        id: 'batches',
+        title: 'UNIT BATCHES',
+        cells: ROSTER_BATCHES.map((r) => ({
+          title: `BATCH ${r.n}`,
+          names: r.units,
+          on: () => r.on(),
+          tap: ({ scene, reopen }) => {
+            const on = r.on();
+            store(r.key, on ? null : 'on');
+            r.apply(!on);
+            tlog.log(`qa_roster_${r.n}`, { on: !on });
+            scene.showToast(on ? `NEW UNITS BATCH ${r.n} OFF (live game)` : r.toastOn);
+            reopen();
+          },
+        })),
+      }),
+      // t-c78bf16f: the chapter unlock plan, and the old second ALL NEW UNITS button = batches 1..7 + the plan together (only ever turns on)
+      qaFlag({
+        id: 'unlockPlan',
+        title: 'UNLOCK PLAN',
+        desc: 'Gifts, crate tiers, rarity-gated pool',
+        get: () => !!qaRosterUnlocks(),
+        set: setPlan,
+        toast: (on) => (on ? 'UNLOCK PLAN ON  ·  GIFTS ON LEVEL 10, 13, 20, 25, 30, 35, 40, 50' : 'UNLOCK PLAN OFF (live game)'),
+      }),
+      qaAction({
+        id: 'batchesAndPlan',
+        title: 'BATCHES + PLAN',
+        desc: 'Turns batches 1-7 and the plan on',
+        label: 'ALL ON',
+        color: 0x8e58c9,
+        tap: ({ scene, reopen }) => {
+          for (const r of ROSTER_BATCHES) {
+            store(r.key, 'on');
+            r.apply(true);
+          }
+          setPlan(true);
+          scene.showToast('ALL NEW UNITS ON  ·  BATCHES 1..7 + UNLOCK PLAN');
+          reopen();
+        },
+      }),
+      // t-a8c886ad / t-4a966cee units OFF / B0 / B1 / ROSTER B (this device only; applies when the next level starts)
+      qaChoice({
+        id: 'rosterMode',
+        title: 'ROSTER MODE',
+        desc: 'Unit job experiments. Next level',
+        options: UNITS_VARIANTS,
+        current: qaUnits,
+        pick: (id) => {
+          store(UNITS_B0_KEY, unitsStoreValue(id));
+          tlog.log('qa_units', { units: id });
+        },
+        toast: (id, label) => (id === 'off' ? 'UNITS OFF (live game)  ·  NEXT LEVEL' : `UNITS ${label}  ·  START A LEVEL`),
+      }),
+    ],
+  },
+  {
+    id: 'crates',
+    title: 'CRATES',
+    rows: [
       // t-33f4fe2e crate look: OLD crates (live) / TOOLBOX (Tool Bag, Toolbox, Tool Chest), this device only
-      scene.button(c, W / 2 + 150, y, 360, toolboxOn() ? 'CRATES: TOOLBOX' : 'CRATES: OLD', toolboxOn() ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(TOOLBOX_KEY, toolboxOn() ? null : 'toolbox');
-        tlog.log('qa_crates', { look: toolboxOn() ? 'toolbox' : 'old' });
-        reopen();
-      }, 0.75);
-    },
+      qaChoice({
+        id: 'cratesLook',
+        title: 'CRATE LOOK',
+        desc: 'Old crates or Tool Bag set',
+        options: [{ id: 'old', label: 'OLD' }, { id: 'toolbox', label: 'TOOLBOX' }],
+        current: () => (toolboxOn() ? 'toolbox' : 'old'),
+        pick: (id) => {
+          store(TOOLBOX_KEY, id === 'toolbox' ? 'toolbox' : null);
+          tlog.log('qa_crates', { look: id });
+        },
+        toast: (id) => `CRATES: ${id === 'toolbox' ? 'TOOLBOX' : 'OLD (live game)'}`,
+      }),
+    ],
   },
-  // 4) t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
-  qaSwitch<SpamVariant>({
-    title: 'SPAM TEST (next level)',
-    options: SPAM_VARIANTS,
-    current: spamVariant,
-    pick: (id) => {
-      store(SPAM_KEY, id === 'off' ? null : id);
-      applySpamVariant(id);
-      tlog.log('qa_spam_variant', { variant: id });
-    },
-    toast: (id, label) => (id === 'off' ? 'SPAM TEST OFF (live game)' : `SPAM TEST ${label}  ·  START A LEVEL`),
-    w: 240,
-    dx: 162,
-  }),
-  // 5) t-1bef1042 PACE prototype (this device only; the stored pace applies when the next level starts)
-  qaSwitch({
-    title: 'PACE (next level)',
-    options: PACES,
-    current: qaPace,
-    pick: (id) => {
-      store(PACE_KEY, id === DEFAULT_PACE ? null : id);
-      tlog.log('qa_pace', { pace: id });
-    },
-    toast: (id, label) => (id === DEFAULT_PACE ? `PACE ${label} (live game)  ·  NEXT LEVEL` : `PACE ${label}  ·  START A LEVEL`),
-    w: 300,
-    dx: 210,
-  }),
-  // 6) t-a8c886ad / t-4a966cee units OFF / B0 / B1 (this device only; applies when the next level starts)
   {
-    h: 105,
-    draw: ({ scene, c, reopen }, y) => {
-      c.add(scene.add.text(W / 2, y, 'UNITS (next level)', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#3b2533' }).setOrigin(0.5));
-      const curUnits = qaUnits();
-      UNITS_VARIANTS.forEach((v, i) => {
-        const sel = v.id === curUnits;
-        scene.button(c, W / 2 + (i - (UNITS_VARIANTS.length - 1) / 2) * 162, y + 55, 240, sel ? `[${v.label}]` : v.label, sel ? 0x5fbf4a : 0x8a6a4a, () => {
-          store(UNITS_B0_KEY, unitsStoreValue(v.id));
-          tlog.log('qa_units', { units: v.id });
-          scene.showToast(v.id === 'off' ? 'UNITS OFF (live game)  ·  NEXT LEVEL' : `UNITS ${v.label}  ·  START A LEVEL`);
-          reopen();
-        }, 0.62);
-      });
-    },
+    id: 'tests',
+    title: 'LEVELS AND TESTS',
+    rows: [
+      // t-2c7cbae7 mid-level spam experiment (this device only; applies from the next level started)
+      qaChoice<SpamVariant>({
+        id: 'spam',
+        title: 'SPAM TEST',
+        desc: 'Fast tapping pays less. Next level',
+        options: SPAM_VARIANTS,
+        current: spamVariant,
+        pick: (id) => {
+          store(SPAM_KEY, id === 'off' ? null : id);
+          applySpamVariant(id);
+          tlog.log('qa_spam_variant', { variant: id });
+        },
+        toast: (id, label) => (id === 'off' ? 'SPAM TEST OFF (live game)' : `SPAM TEST ${label}  ·  START A LEVEL`),
+      }),
+      // VARIED OPENINGS: ON = ordinary levels start on one of 4 layouts; teach, boss, mini-boss, puzzles, daily, bounties unchanged
+      qaFlag({
+        id: 'varied',
+        title: 'VARIED OPENINGS',
+        desc: '4 start layouts. Next level',
+        get: () => !!qaVariedOpenings(),
+        set: (on) => {
+          store(VARIED_OPENINGS_KEY, on ? 'on' : null);
+          applyVariedOpenings(on);
+          tlog.log('qa_varied_openings', { on });
+        },
+        toast: (on) => (on ? 'VARIED OPENINGS ON  ·  START A LEVEL  ·  HP/STARS NOT REFITTED' : 'VARIED OPENINGS OFF (live game)'),
+      }),
+      // t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left)
+      qaFlag({
+        id: 'budget',
+        title: 'BUDGET LEVELS',
+        desc: 'Last-merges levels, no clock',
+        get: () => !!qaMergeBudget(),
+        set: (on) => {
+          store(MERGE_BUDGET_KEY, on ? 'on' : null);
+          applyMergeBudget(on);
+          tlog.log('qa_merge_budget', { on });
+        },
+        toast: (on) => (on ? 'BUDGET LEVELS ON  ·  PICK ONE BELOW' : 'BUDGET LEVELS OFF (live game)'),
+      }),
+      qaChips({
+        id: 'budgetPick',
+        title: 'BUDGET LEVEL PICK',
+        labels: () => BUDGET_LEVELS.map((b) => b.name),
+        color: () => (qaMergeBudget() ? 0x8e58c9 : 0x8a6a4a),
+        dim: () => !qaMergeBudget(),
+        tap: ({ scene }, i) => (qaMergeBudget() ? scene.startBudget(BUDGET_LEVELS[i]) : scene.showToast('TURN BUDGET LEVELS ON FIRST')),
+      }),
+      // t-e2a48327 POWER TOOLS: ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +1 BONUS
+      qaFlag({
+        id: 'tools',
+        title: 'POWER TOOLS',
+        desc: 'Row Surge + Gear Bomb. Rule +1 BONUS',
+        get: () => !!qaTools(),
+        set: (on) => {
+          store(TOOLS_KEY, on ? 'on' : null);
+          applyTools(on);
+          if (on) {
+            store(MERGE_RULE_KEY, 'sandwichBonus');
+            applyMergeRule('sandwichBonus');
+          }
+          tlog.log('qa_tools', { on });
+        },
+        toast: (on) => (on ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
+      }),
+      // YARD PRESSURE: ON = countdown from the first tap + tap budget + stars, OBJECT yard only
+      qaFlag({
+        id: 'yardPressure',
+        title: 'YARD PRESSURE',
+        desc: 'Timer + tap budget. OBJECT yard only',
+        get: () => !!qaYardPressure(),
+        set: (on) => {
+          store(YARD_PRESSURE_KEY, on ? 'on' : null);
+          applyYardPressure(on);
+          tlog.log('qa_yard_pressure', { on });
+        },
+        toast: (on) => (on ? 'YARD PRESSURE ON  ·  SCREW YARD: OBJECT  ·  TIMER + TAP BUDGET' : 'YARD PRESSURE OFF (live game)'),
+      }),
+    ],
   },
-  // 6b) t-8426336a MERGE ASSIST: OFF (today) / ON / AUTO (levels 1-10 and under 30 lifetime merges), same setting as Settings
-  qaSwitch<AssistMode>({
-    title: 'MERGE ASSIST',
-    options: ASSIST_MODES.map((id) => ({ id, label: id.toUpperCase() })),
-    current: () => TUNING.mergeAssist,
-    pick: (id) => {
-      store(MERGE_ASSIST_KEY, id === 'off' ? null : id);
-      applyAssistMode(id);
-      tlog.log('qa_merge_assist', { mode: id });
-    },
-    toast: (id) => (id === 'off' ? 'MERGE ASSIST OFF (live game)' : id === 'on' ? 'MERGE ASSIST ON' : 'MERGE ASSIST AUTO  ·  LEVELS 1-10, FIRST 30 MERGES'),
-    w: 200,
-    dx: 220,
-    gap: 48,
-    h: 91,
-  }),
-  // 7) t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
-  qaSwitch({
+  {
+    id: 'yard',
     title: 'SCREW YARD',
-    options: [{ id: 'old', label: 'OLD' }, { id: 'object', label: 'OBJECT' }],
-    current: () => (qaYardObject() ? 'object' : 'old'),
-    pick: (id) => {
-      store(YARD_MODE_KEY, id === 'old' ? null : id);
-      tlog.log('qa_screw_yard', { mode: id });
-    },
-    toast: (id) => (id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD'),
-    w: 340,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
-  // 7a) YARD PRESSURE: OFF (today's yard) / ON (countdown from the first tap + tap budget + stars), OBJECT yard only
-  qaSwitch({
-    title: 'YARD PRESSURE',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaYardPressure() ? 'on' : 'off'),
-    pick: (id) => {
-      store(YARD_PRESSURE_KEY, id === 'off' ? null : id);
-      applyYardPressure(id === 'on');
-      tlog.log('qa_yard_pressure', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'off' ? 'YARD PRESSURE OFF (live game)' : 'YARD PRESSURE ON  ·  SCREW YARD: OBJECT  ·  TIMER + TAP BUDGET'),
-    w: 340,
-    dx: 260,
-    gap: 48,
-    h: 91,
-  }),
-  // 7b) NEW UNITS: roster B batches 1..7 join the collection, crates and squads (this device only, live). One grouped section.
-  {
-    h: ROSTER_GROUP_H,
-    draw: ({ scene, c, reopen }, y) => {
-      const all = allNewNow();
-      scene.button(c, W / 2, y + 30, 560, `ALL NEW UNITS: ${all === 'on' ? '[ON]' : all === 'mixed' ? '[MIXED]' : '[OFF]'}`, all === 'on' ? 0x5fbf4a : all === 'mixed' ? 0xd9a441 : 0x8a6a4a, () => {
-        setAllNew(all !== 'on');
-        scene.showToast(all !== 'on' ? 'ALL NEW UNITS ON  ·  CRATES B + BATCH 1..7' : 'ALL NEW UNITS OFF (live game)');
-        reopen();
-      }, 0.9);
-      c.add(scene.add.text(W / 2, y + 72, `${UNITS.length} UNITS`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '18px', color: '#7a5a4a' }).setOrigin(0.5));
-      ROSTER_BATCHES.forEach((r, i) => {
-        const x = W / 2 + ((i % 4) - 1.5) * 170;
-        const by = y + 124 + Math.floor(i / 4) * 96;
-        const on = r.on();
-        scene.button(c, x, by, 230, on ? `[BATCH ${r.n}]` : `BATCH ${r.n}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
-          store(r.key, on ? null : 'on');
-          r.apply(!on);
-          tlog.log(`qa_roster_${r.n}`, { on: !on });
-          scene.showToast(on ? `NEW UNITS BATCH ${r.n} OFF (live game)` : r.toastOn);
-          reopen();
-        }, 0.62);
-        c.add(scene.add.text(x, by + 36, r.units, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '13px', color: '#7a5a4a', align: 'center', wordWrap: { width: 160 } }).setOrigin(0.5));
-      });
-      // t-c78bf16f: the chapter unlock plan (gifts + crate tiers + rarity-gated crate pool), and ALL NEW UNITS = batches 1..7 + the plan, together
-      const planOn = qaRosterUnlocks();
-      const plan = (on: boolean) => {
-        store(ROSTER_UNLOCKS_KEY, on ? 'on' : null);
-        applyRosterUnlocks(on);
-        tlog.log('qa_roster_unlocks', { on });
-      };
-      scene.button(c, W / 2 + 1.5 * 170, y + 162, 230, planOn ? '[UNLOCK PLAN]' : 'UNLOCK PLAN', planOn ? 0x5fbf4a : 0x8a6a4a, () => { // the free 8th slot of the grid
-        plan(!planOn);
-        scene.showToast(planOn ? 'UNLOCK PLAN OFF (live game)' : 'UNLOCK PLAN ON  ·  GIFTS ON LEVEL 10, 13, 20, 25, 30, 35, 40, 50');
-        reopen();
-      }, 0.62);
-      const allOn = ROSTER_BATCHES.every((r) => r.on()) && planOn;
-      scene.button(c, W - 110, y + 12, 330, allOn ? '[ALL NEW UNITS]' : 'ALL NEW UNITS', allOn ? 0x5fbf4a : 0x8e58c9, () => { // beside the heading
-        for (const r of ROSTER_BATCHES) {
-          store(r.key, 'on');
-          r.apply(true);
-        }
-        plan(true);
-        scene.showToast('ALL NEW UNITS ON  ·  BATCHES 1..7 + UNLOCK PLAN');
-        reopen();
-      }, 0.5);
-    },
+    rows: [
+      // t-9adea8b8 SCREW YARD: OLD (today's yard) / OBJECT (the turnable crate), this device only
+      qaChoice({
+        id: 'yardMode',
+        title: 'SCREW YARD',
+        desc: 'Old plates or turnable object',
+        options: [{ id: 'old', label: 'OLD' }, { id: 'object', label: 'OBJECT' }],
+        current: () => (qaYardObject() ? 'object' : 'old'),
+        pick: (id) => {
+          store(YARD_MODE_KEY, id === 'old' ? null : id);
+          tlog.log('qa_screw_yard', { mode: id });
+        },
+        toast: (id) => (id === 'old' ? 'SCREW YARD: OLD (live game)' : 'SCREW YARD: OBJECT  ·  EVENTS > SCREW YARD'),
+      }),
+    ],
   },
-  // 7c) t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left); the flag is this device only
   {
-    h: 118,
-    draw: ({ scene, c, reopen }, y) => {
-      const on = qaMergeBudget();
-      scene.button(c, W / 2, y + 30, 560, `BUDGET LEVELS: ${on ? '[ON]' : '[OFF]'}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
-        store(MERGE_BUDGET_KEY, on ? null : 'on');
-        applyMergeBudget(!on);
-        tlog.log('qa_merge_budget', { on: !on });
-        scene.showToast(on ? 'BUDGET LEVELS OFF (live game)' : 'BUDGET LEVELS ON  ·  PICK ONE BELOW');
-        reopen();
-      }, 0.9);
-      BUDGET_LEVELS.forEach((b, i) => {
-        const x = W / 2 + (i - (BUDGET_LEVELS.length - 1) / 2) * 190;
-        scene.button(c, x, y + 84, 180, `${b.name}`, on ? 0x8e58c9 : 0x8a6a4a, () => (on ? scene.startBudget(b) : scene.showToast('TURN BUDGET LEVELS ON FIRST')), 0.62).setAlpha(on ? 1 : 0.55);
-      });
-    },
+    id: 'display',
+    title: 'DISPLAY',
+    rows: [
+      // the same phone setting as Settings, SCREEN SHAKE (kept in its own key, not in the save code)
+      qaChoice<ShakeLevel>({
+        id: 'shake',
+        title: 'SCREEN SHAKE',
+        desc: 'Camera shake on merges and bosses',
+        options: SHAKE_LEVELS.map((id) => ({ id, label: id.toUpperCase() })),
+        current: ({ scene }) => getShakeLevel(scene.meta.shake === false),
+        pick: (id, { scene }) => {
+          setShakeLevel(id);
+          scene.shake('preview');
+        },
+        toast: (id) => `SCREEN SHAKE ${id.toUpperCase()}`,
+      }),
+    ],
   },
-  // 7d) t-e2a48327 POWER TOOLS: OFF / ON (ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +1 BONUS)
-  qaSwitch({
-    title: 'POWER TOOLS',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaTools() ? 'on' : 'off'),
-    pick: (id) => {
-      store(TOOLS_KEY, id === 'on' ? 'on' : null);
-      applyTools(id === 'on');
-      if (id === 'on') {
-        store(MERGE_RULE_KEY, 'sandwichBonus');
-        applyMergeRule('sandwichBonus');
-      }
-      tlog.log('qa_tools', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'on' ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
-    w: 240,
-    dx: 200,
-    gap: 38,
-    h: 70,
-  }),
-  // 7e) VARIED OPENINGS: OFF / ON (ON = ordinary levels start on one of 4 layouts; teach, boss, mini-boss, puzzles, daily, bounties unchanged; next level)
-  qaSwitch({
-    title: 'VARIED OPENINGS (next level)',
-    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
-    current: () => (qaVariedOpenings() ? 'on' : 'off'),
-    pick: (id) => {
-      store(VARIED_OPENINGS_KEY, id === 'on' ? 'on' : null);
-      applyVariedOpenings(id === 'on');
-      tlog.log('qa_varied_openings', { on: id === 'on' });
-    },
-    toast: (id) => (id === 'on' ? 'VARIED OPENINGS ON  ·  START A LEVEL  ·  HP/STARS NOT REFITTED' : 'VARIED OPENINGS OFF (live game)'),
-    w: 240,
-    dx: 200,
-    gap: 38,
-    h: 70,
-  }),
-  // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
-  // (the 1280-tall small-phone screen has no room left below: BACK moved up beside the title for this row)
-  qaSwitch({
-    title: 'MERGE RULE (next level)',
-    options: MERGE_RULES,
-    current: qaMergeRule,
-    pick: (id) => {
-      store(MERGE_RULE_KEY, id === 'today' ? null : id);
-      tlog.log('qa_merge_rule', { rule: id });
-    },
-    toast: (id, label) => (id === 'today' ? 'MERGE RULE TODAY (live game)  ·  NEXT LEVEL' : `MERGE RULE ${label}  ·  START A LEVEL`),
-    w: 320,
-    dx: 200,
-    gap: 33,
-    h: 21,
-    font: 24,
-    scale: 0.55,
-  }),
 ];
+/** Every row, flat (the tests walk this). */
+export const QA_ROWS: QaRow[] = QA_SECTIONS.flatMap((s) => s.rows);
+
+/** Which sections are folded away: remembered while the game runs (not saved). Quick tools starts open. */
+const collapsed = new Set<string>(QA_SECTIONS.slice(1).map((s) => s.id));
+export const qaCollapsed = collapsed;
+const panelSpec = () => QA_SECTIONS.map((s) => ({ id: s.id, rows: s.rows.map((r) => r.spec) }));
+
 /** Drag farther than this (design px) and the gesture is a scroll, not a tap. */
 const DRAG_SLOP = 12;
 
-/** r33 QA panel: start over, jump to any level, give units / currency, experiment switches.
- *  The header (title, BACK) is pinned; the rows scroll under it (touch drag, mouse wheel), clamped to the content. */
+/** r33 QA panel: collapsible sections of rows (see QA_SECTIONS). The header (title, BACK) is pinned; the sections scroll under it
+ *  (touch drag, mouse wheel), clamped to the content. */
 let lastScroll = 0;
 export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepScroll = false) {
   if (!keepScroll) lastScroll = 0;
   scene.loadUnitPictures(); // a batch switch may just have put units in play: fetch their pictures now
-  scene.closeModal();
-  const geo = qaGeometry(QA_ROWS.map((r) => r.h), H);
+  if (!keepScroll) scene.closeModal(); // a redraw of this sheet replaces it at once (no fade, no double dim)
+  const geo = layoutPanel(panelSpec(), collapsed, H);
   const PH = geo.panelH;
   const c = scene.sheet(PH);
+  if (keepScroll) {
+    scene.tweens.killTweensOf(c);
+    c.setAlpha(1).setY(0);
+  }
   const top = H / 2 - PH / 2;
   scene.sheetTitle(c, top, 'QA TOOLS', 'For testing. Not in the real game.');
   const m = scene.meta;
   // rows draw in absolute coordinates into `list`, which is moved to scroll
   const list = scene.add.container(0, 0);
   c.add(list);
-  const q: QaCtx = { scene, c: list, jump, save: () => store(META_KEY, JSON.stringify(m)), reopen: () => scene.openQaTools(q.jump, true) };
-  geo.anchors.forEach((ay, i) => QA_ROWS[i].draw(q, top + ay));
+  const q: QaCtx = { scene, c: list, oy: top, jump, save: () => store(META_KEY, JSON.stringify(m)), reopen: () => scene.openQaTools(q.jump, true) };
+  geo.sections.forEach((sl, si) => {
+    const def = QA_SECTIONS[si];
+    qaSectionHeader(q, sl, def.title, !collapsed.has(def.id), () => {
+      if (collapsed.has(def.id)) collapsed.delete(def.id);
+      else collapsed.add(def.id);
+      q.reopen();
+    });
+    sl.rows.forEach((rl, ri) => def.rows[ri].draw(q, rl));
+  });
   const winTop = top + geo.bodyTop, winBottom = top + geo.bodyBottom;
   const mask = scene.add.graphics().setVisible(false).fillRect(0, winTop, W, winBottom - winTop);
   list.setMask(mask.createGeometryMask());
@@ -571,5 +618,5 @@ export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepS
       mask.destroy();
     });
   } else c.once(Phaser.GameObjects.Events.DESTROY, () => mask.destroy());
-  scene.button(c, W - 150, top + 64, 220, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.6);
+  scene.button(c, W - 140, top + 64, 220, 'BACK', 0x8a6a4a, () => scene.openTitle(), 0.7);
 }
