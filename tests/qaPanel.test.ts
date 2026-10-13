@@ -10,6 +10,7 @@ const L = await import('../src/game/ui/qaLayout');
 
 /** Every row id the old panel had (one per setting or button), plus the ids that are new. Adding a flag adds one id here and one registry line. */
 const EXPECTED_ROWS = [
+  'guideTop', 'guide1', 'guide2', 'guide3', 'guide4', 'guide5', 'guide6', 'guide7', 'guide8', // start here (details in qaGuide.test.ts)
   'jump', 'allUnits', 'unlockAll', 'bolts', 'crates3', 'startOver', // quick tools
   'thinkBank', 'mergeRule', 'mergeAssist', 'pace', // merge feel
   'allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode', // units
@@ -23,7 +24,7 @@ describe('QA registry: every old row is still there', () => {
   it('has exactly the expected row ids, once each, in the seven sections in order', () => {
     expect(QA_ROWS.map((r) => r.spec.id).sort()).toEqual([...EXPECTED_ROWS].sort());
     expect(new Set(QA_ROWS.map((r) => r.spec.id)).size).toBe(QA_ROWS.length);
-    expect(QA_SECTIONS.map((s) => s.title)).toEqual(['QUICK TOOLS', 'MERGE FEEL', 'UNITS', 'CRATES', 'LEVELS AND TESTS', 'SCREW YARD', 'DISPLAY']);
+    expect(QA_SECTIONS.map((s) => s.title)).toEqual(['START HERE', 'QUICK TOOLS', 'MERGE FEEL', 'UNITS', 'CRATES', 'LEVELS AND TESTS', 'SCREW YARD', 'DISPLAY']);
   });
   it('puts the rows in the sections the brief names', () => {
     const ids = (s: string) => QA_SECTIONS.find((x) => x.id === s)!.rows.map((r) => r.spec.id);

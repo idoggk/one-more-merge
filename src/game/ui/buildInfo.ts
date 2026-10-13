@@ -10,6 +10,9 @@ export function formatBuildLabel(id: string): string {
   return `Build ${id}`;
 }
 
+/** The label of the running build ('Build dev' when run from the dev server). */
+export const currentBuildLabel = () => formatBuildLabel(typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev');
+
 /** Url with the cache-busting `v` query set (replaces an earlier one), hash kept. */
 export function bustUrl(href: string, now: number): string {
   const u = new URL(href);

@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { sfx, startMusic, unlockAudio } from '../audio';
 import type { GameScene } from '../GameScene';
+import type { GuideAnswer, GuideTest } from './qaGuide';
 import { QA_ACTION_W, QA_CTRL_H, QA_INLINE_SEGMENTS, type Part, type QaRowSpec, type Rect, type RowLayout, type SectionLayout } from './qaLayout';
 
 /** QA panel widgets and row builders (no game rules in here). The geometry is qaLayout.ts; the rows live in qaPanel.ts.
@@ -34,6 +35,10 @@ export interface QaRow {
   title: string;
   desc?: QaText;
   draw: (q: QaCtx, layout: RowLayout) => void;
+  /** Put the setting back to its default (flags: off; multi-choice: its `def`). Absent = the row is not a resettable setting. */
+  reset?: (q: QaCtx) => void;
+  /** Set the setting to `v` (true / false for a flag, an option id for a multi-choice), as a tap would, without the toast. */
+  apply?: (v: boolean | string, q: QaCtx) => void;
 }
 export interface QaSection {
   id: string;
@@ -157,6 +162,8 @@ export function qaFlag(o: Base & { get: () => boolean | 'mixed'; set: (on: boole
     spec: { id: o.id, kind: 'switch', hasDesc: !!o.desc },
     title: o.title,
     desc: o.desc,
+    reset: () => state() !== 'off' && o.set(false),
+    apply: (v) => o.set(!!v),
     draw: (q, l) => {
       card(q, l.rect);
       drawText(q, l, o.title, o.desc);
@@ -173,12 +180,18 @@ export function qaFlag(o: Base & { get: () => boolean | 'mixed'; set: (on: boole
 }
 
 /** A multi-choice setting: a segmented control, the chosen segment filled green with a check mark. */
-export function qaChoice<T>(o: Base & { options: readonly { id: T; label: string }[]; current: (q: QaCtx) => T; pick: (id: T, q: QaCtx) => void; toast: (id: T, label: string) => string }): QaRow {
+export function qaChoice<T>(o: Base & { options: readonly { id: T; label: string }[]; current: (q: QaCtx) => T; pick: (id: T, q: QaCtx) => void; toast: (id: T, label: string) => string; /** The default option: RESET ALL puts it back. Leave out for a plain setting that is not a test switch. */ def?: T }): QaRow {
   const n = o.options.length;
   return {
     spec: { id: o.id, kind: 'segment', hasDesc: !!o.desc, count: n },
     title: o.title,
     desc: o.desc,
+    reset: o.def === undefined ? undefined : (q) => o.current(q) !== o.def && o.pick(o.def as T, q),
+    apply: (v, q) => {
+      const opt = o.options.find((x) => String(x.id) === v);
+      if (!opt) throw new Error(`${o.id}: no option "${String(v)}"`);
+      o.pick(opt.id, q);
+    },
     draw: (q, l) => {
       card(q, l.rect);
       drawText(q, l, o.title, o.desc);
@@ -289,6 +302,60 @@ export function qaStepper(o: Base & { min: number; max: number; go: (q: QaCtx, l
       const goR = part(l, 'control', 4);
       const go = control(q, goR, () => o.go(q, q.jump));
       pill(q, go, goR.w, 'GO', GREEN, 32);
+    },
+  };
+}
+
+/** START HERE top row: "Tested 3 of 8", the RESET ALL SWITCHES button, and the "which build am I on" line. */
+export function qaGuideTop(o: { progress: () => string; build: () => string; reset: (q: QaCtx) => void }): QaRow {
+  return {
+    spec: { id: 'guideTop', kind: 'guideTop', hasDesc: true },
+    title: 'PROGRESS',
+    desc: o.build,
+    draw: (q, l) => {
+      card(q, l.rect);
+      textIn(q, part(l, 'title'), o.progress(), QA_FONT, 34, '#3b2533');
+      textIn(q, part(l, 'desc'), o.build(), 'Arial', 20, '#7a5a4a', { fontStyle: 'bold' });
+      const r = part(l, 'control');
+      const ctl = control(q, r, () => {
+        o.reset(q);
+        q.scene.showToast('ALL SWITCHES BACK TO NORMAL');
+        q.reopen();
+      });
+      pill(q, ctl, r.w, 'RESET ALL', BROWN, 24);
+    },
+  };
+}
+
+/** One guided test: number + title, WHAT TO DO, LOOK FOR, a big START, then the YES / NOT RIGHT pair (the stored answer is filled). */
+export function qaGuideCard(o: { test: GuideTest; answer: () => GuideAnswer | undefined; start: (q: QaCtx) => void; save: (n: number, v: GuideAnswer) => void }): QaRow {
+  const t = o.test;
+  return {
+    spec: { id: `guide${t.n}`, kind: 'guide', hasDesc: true },
+    title: t.title,
+    desc: t.what,
+    draw: (q, l) => {
+      const mine = o.answer();
+      card(q, l.rect, mine === 'yes' ? 0xeaf6dd : mine === 'no' ? 0xfbe4de : 0xfff6e6);
+      textIn(q, part(l, 'title'), `${t.n}  ${t.title.toUpperCase()}`, QA_FONT, 34, '#3b2533');
+      for (const [i, tag, text] of [[0, 'WHAT TO DO', t.what], [1, 'LOOK FOR', t.look]] as const) {
+        textIn(q, part(l, 'label', i), tag, QA_FONT, 20, i ? '#2b8a3e' : '#b06a1a');
+        const r = part(l, 'desc', i);
+        const tx = q.scene.add.text(r.x, r.y + q.oy, text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#3b2533', wordWrap: { width: r.w }, lineSpacing: 2 }).setOrigin(0, 0);
+        if (tx.height > r.h) tx.setScale(r.h / tx.height);
+        q.c.add(tx);
+      }
+      const sr = part(l, 'control', 0);
+      const go = control(q, sr, () => o.start(q));
+      pill(q, go, sr.w, 'START', GREEN, 40);
+      for (const [i, label, v, color] of [[1, 'YES', 'yes', GREEN], [2, 'NOT RIGHT', 'no', 0xd8261a]] as const) {
+        const r = part(l, 'control', i);
+        const ctl = control(q, r, () => {
+          o.save(t.n, v);
+          q.reopen();
+        });
+        pill(q, ctl, r.w, label, mine === v ? color : OFF_GREY, 28);
+      }
     },
   };
 }

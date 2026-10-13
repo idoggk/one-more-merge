@@ -16,7 +16,9 @@ import type { GameScene } from '../GameScene';
 import { W, H } from '../sceneKit';
 import { getShakeLevel, SHAKE_LEVELS, setShakeLevel, type ShakeLevel } from '../fx/shake';
 import { layoutPanel } from './qaLayout';
-import { qaAction, qaChips, qaChoice, qaFlag, qaGrid, qaSectionHeader, qaStepper, setFitText, type QaCtx, type QaRow, type QaSection } from './qaKit';
+import { qaAction, qaChips, qaChoice, qaFlag, qaGrid, qaGuideCard, qaGuideTop, qaSectionHeader, qaStepper, setFitText, type QaCtx, type QaRow, type QaSection } from './qaKit';
+import { GUIDE_KEY, GUIDE_TESTS, guideProgress, readGuide, resetAll, startTest, withAnswer, type GuideAnswer, type GuideNav } from './qaGuide';
+import { currentBuildLabel } from './buildInfo';
 
 // t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
 const SPAM_KEY = 'omm_qa_spam_variant';
@@ -130,9 +132,79 @@ const setPlan = (on: boolean) => {
   tlog.log('qa_roster_unlocks', { on });
 };
 
+/** JUMP TO LEVEL / START HERE: every earlier level counts as cleared (2 stars), then the level card opens. */
+function jumpToLevel(scene: GameScene, save: () => void, jump: number) {
+  const m = scene.meta;
+  const st: Record<string, number> = {};
+  for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
+  m.levelStars = st;
+  m.tutorialDone = true;
+  m.onboarded = true;
+  save();
+  tlog.log('qa_jump', { level: jump });
+  scene.openTitle('road');
+  if (jump <= LEVELS.length) scene.openLevelSheet(jump);
+}
+
+/** START HERE answers (this device only, key qaGuide). */
+const guideAnswers = () => readGuide(() => localStorage.getItem(GUIDE_KEY));
+const saveAnswer = (n: number, v: GuideAnswer) => store(GUIDE_KEY, JSON.stringify(withAnswer(guideAnswers(), n, v)));
+/** The existing QA actions a START uses: GIVE crates, ALL UNITS (LV 5), JUMP TO LEVEL, a budget level, the yard event. */
+const guideNav = (q: QaCtx): GuideNav => ({
+  units: ({ crates, allUnits }) => {
+    const { scene } = q;
+    if (crates) for (const k of (TUNING.rosterB ? ['wood', 'iron', 'gold', 'bench'] : ['wood', 'iron', 'gold']) as CrateKind[]) scene.giveCrate(k);
+    if (allUnits) {
+      const m = scene.meta;
+      m.units = m.units ?? {};
+      for (const u of UNITS) {
+        m.units[u.id] = { level: Math.max(5, m.units[u.id]?.level ?? 0), cards: m.units[u.id]?.cards ?? 0 };
+        if (u.slot === 'helper') m.toys[u.id] = m.toys[u.id] ?? false;
+      }
+    }
+    scene.meta.tutorialDone = true;
+    scene.meta.onboarded = true;
+    q.save();
+    tlog.log('qa_guide_units', { crates, allUnits });
+    scene.openTitle('units');
+  },
+  level: (n) => jumpToLevel(q.scene, q.save, n),
+  budget: (i) => q.scene.startBudget(BUDGET_LEVELS[i]),
+  yard: () => {
+    q.scene.meta.tutorialDone = true;
+    q.save();
+    q.scene.openYardEvent();
+  },
+});
+
 /** The QA panel, section by section (collapsible), row by row. A new experiment is ONE qaFlag / qaChoice line in the right section;
  *  the layout, the switch / segmented look, the scrolling and the layout tests all follow from the entry. */
 export const QA_SECTIONS: QaSection[] = [
+  {
+    id: 'guide',
+    title: 'START HERE',
+    rows: [
+      qaGuideTop({
+        progress: () => guideProgress(guideAnswers()),
+        build: () => `Which build am I on: ${currentBuildLabel()}`,
+        reset: (q) => {
+          resetAll(QA_ROWS, q);
+          tlog.log('qa_reset_all');
+        },
+      }),
+      ...GUIDE_TESTS.map((test) =>
+        qaGuideCard({
+          test,
+          answer: () => guideAnswers()[String(test.n)],
+          start: (q) => {
+            startTest(test, QA_ROWS, q, guideNav(q));
+            tlog.log('qa_guide_start', { n: test.n });
+          },
+          save: saveAnswer,
+        }),
+      ),
+    ],
+  },
   {
     id: 'quick',
     title: 'QUICK TOOLS',
@@ -144,18 +216,7 @@ export const QA_SECTIONS: QaSection[] = [
         desc: 'Earlier levels count as cleared',
         min: 1,
         max: LEVELS.length + 1,
-        go: ({ scene, save }, jump) => {
-          const m = scene.meta;
-          const st: Record<string, number> = {};
-          for (let n = 1; n < jump; n++) st[String(n)] = Math.max(2, m.levelStars?.[String(n)] ?? 0);
-          m.levelStars = st;
-          m.tutorialDone = true;
-          m.onboarded = true;
-          save();
-          tlog.log('qa_jump', { level: jump });
-          scene.openTitle('road');
-          if (jump <= LEVELS.length) scene.openLevelSheet(jump);
-        },
+        go: ({ scene, save }, jump) => jumpToLevel(scene, save, jump),
       }),
       qaAction({
         id: 'allUnits',
@@ -266,6 +327,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'MERGE RULE',
         desc: 'Sandwich merge. Applies next level',
         options: MERGE_RULES,
+        def: 'today',
         current: qaMergeRule,
         pick: (id) => {
           store(MERGE_RULE_KEY, id === 'today' ? null : id);
@@ -279,6 +341,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'MERGE ASSIST',
         desc: 'AUTO = levels 1-10, first 30 merges',
         options: ASSIST_MODES.map((id) => ({ id, label: id.toUpperCase() })),
+        def: 'off',
         current: () => TUNING.mergeAssist,
         pick: (id) => {
           store(MERGE_ASSIST_KEY, id === 'off' ? null : id);
@@ -293,6 +356,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'PACE',
         desc: 'Level speed. Applies next level',
         options: PACES,
+        def: DEFAULT_PACE,
         current: qaPace,
         pick: (id) => {
           store(PACE_KEY, id === DEFAULT_PACE ? null : id);
@@ -366,6 +430,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'ROSTER MODE',
         desc: 'Unit job experiments. Next level',
         options: UNITS_VARIANTS,
+        def: 'off' as const,
         current: qaUnits,
         pick: (id) => {
           store(UNITS_B0_KEY, unitsStoreValue(id));
@@ -385,6 +450,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'CRATE LOOK',
         desc: 'Old crates or Tool Bag set',
         options: [{ id: 'old', label: 'OLD' }, { id: 'toolbox', label: 'TOOLBOX' }],
+        def: 'old',
         current: () => (toolboxOn() ? 'toolbox' : 'old'),
         pick: (id) => {
           store(TOOLBOX_KEY, id === 'toolbox' ? 'toolbox' : null);
@@ -404,6 +470,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'SPAM TEST',
         desc: 'Fast tapping pays less. Next level',
         options: SPAM_VARIANTS,
+        def: 'off',
         current: spamVariant,
         pick: (id) => {
           store(SPAM_KEY, id === 'off' ? null : id);
@@ -488,6 +555,7 @@ export const QA_SECTIONS: QaSection[] = [
         title: 'SCREW YARD',
         desc: 'Old plates or turnable object',
         options: [{ id: 'old', label: 'OLD' }, { id: 'object', label: 'OBJECT' }],
+        def: 'old',
         current: () => (qaYardObject() ? 'object' : 'old'),
         pick: (id) => {
           store(YARD_MODE_KEY, id === 'old' ? null : id);
@@ -520,7 +588,7 @@ export const QA_SECTIONS: QaSection[] = [
 /** Every row, flat (the tests walk this). */
 export const QA_ROWS: QaRow[] = QA_SECTIONS.flatMap((s) => s.rows);
 
-/** Which sections are folded away: remembered while the game runs (not saved). Quick tools starts open. */
+/** Which sections are folded away: remembered while the game runs (not saved). START HERE starts open, the rest folded. */
 const collapsed = new Set<string>(QA_SECTIONS.slice(1).map((s) => s.id));
 export const qaCollapsed = collapsed;
 const panelSpec = () => QA_SECTIONS.map((s) => ({ id: s.id, rows: s.rows.map((r) => r.spec) }));

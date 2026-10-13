@@ -42,7 +42,7 @@ export interface Part {
   /** Which control of the row it is (option index, cell index, ...). */
   i?: number;
 }
-export type QaRowKind = 'action' | 'switch' | 'segment' | 'grid' | 'stepper' | 'chips';
+export type QaRowKind = 'action' | 'switch' | 'segment' | 'grid' | 'stepper' | 'chips' | 'guideTop' | 'guide';
 /** What the layout needs to know about a row (the draw code lives in qaPanel / qaKit). */
 export interface QaRowSpec {
   id: string;
@@ -74,6 +74,9 @@ export const QA_INLINE_SEGMENTS = 2;
 export const QA_SWITCH_W = 150;
 export const QA_ACTION_W = 200;
 export const QA_SEGMENT_INLINE_W = 300;
+/** START HERE cards: the RESET ALL button, and the width of the WHAT TO DO / LOOK FOR tags. */
+export const QA_GUIDE_RESET_W = 230;
+export const QA_GUIDE_TAG_W = 112;
 
 const R = (x: number, y: number, w: number, h: number): Rect => ({ x, y, w, h });
 const innerX = QA_X0 + QA_PAD;
@@ -141,6 +144,30 @@ export function layoutRow(spec: QaRowSpec, y: number): RowLayout {
       });
       parts.push({ role: 'control', i: 4, rect: R(innerX, sy + QA_TAP + QA_ROW_GAP, innerW, QA_TAP) });
       h = QA_ROW_H + 2 * QA_TAP + QA_ROW_GAP + 4;
+      break;
+    }
+    case 'guideTop': {
+      // "Tested 3 of 8" + the reset button on one line, the build line under it
+      const rw = QA_GUIDE_RESET_W;
+      parts.push({ role: 'title', rect: R(innerX, y + 28, innerW - rw - QA_PAD, 34) });
+      parts.push({ role: 'control', rect: R(innerX + innerW - rw, y + 1, rw, QA_TAP) });
+      parts.push({ role: 'desc', rect: R(innerX, y + QA_ROW_H + 4, innerW, 28) });
+      h = QA_ROW_H + 44;
+      break;
+    }
+    case 'guide': {
+      // number + title, WHAT TO DO, LOOK FOR (each: a tag, then up to two lines), the big START, then YES / NOT RIGHT
+      const tagW = QA_GUIDE_TAG_W, lineW = innerW - tagW - 8;
+      parts.push({ role: 'title', rect: R(innerX, y + 12, innerW, 40) });
+      parts.push({ role: 'label', i: 0, rect: R(innerX, y + 62, tagW, 28) });
+      parts.push({ role: 'desc', i: 0, rect: R(innerX + tagW + 8, y + 62, lineW, 56) });
+      parts.push({ role: 'label', i: 1, rect: R(innerX, y + 128, tagW, 28) });
+      parts.push({ role: 'desc', i: 1, rect: R(innerX + tagW + 8, y + 128, lineW, 56) });
+      parts.push({ role: 'control', i: 0, rect: R(innerX, y + 196, innerW, QA_TAP) });
+      const aw = (innerW - 12) / 2;
+      parts.push({ role: 'control', i: 1, rect: R(innerX, y + 196 + QA_TAP + 12, aw, QA_TAP) });
+      parts.push({ role: 'control', i: 2, rect: R(innerX + aw + 12, y + 196 + QA_TAP + 12, aw, QA_TAP) });
+      h = 196 + 2 * QA_TAP + 12 + QA_PAD;
       break;
     }
     case 'grid': {
