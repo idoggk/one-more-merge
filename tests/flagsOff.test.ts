@@ -43,6 +43,7 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   tools: [false, 'power tools: Row Surge (chain 5+) and Gear Bomb (sandwich) made on the board'],
   yardPressure: [false, 'Screw Yard countdown + tap budget with stars'],
   mergeBudget: [false, 'Budget Levels (LAST MERGES): levels with merge_budget play as capped-merge levels'],
+  variedOpenings: [false, 'varied openings: 4 seeded start layouts on ordinary levels'],
 };
 // Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden
 // (see the 'TUNING defaults digest' test) fails on ANY change to a default, so such a flag forces a conscious golden update.
@@ -217,7 +218,7 @@ describe('flags-off golden guard', () => {
 
   it('flipping a representative flag ON changes the hash (the guard can fail)', () => {
     const base = runScript();
-    const flips: [string, Off][] = [['optionA', true], ['thinkBank', true], ['mergeRule', 'sandwichBonus'], ['unitsB1', true]];
+    const flips: [string, Off][] = [['optionA', true], ['thinkBank', true], ['mergeRule', 'sandwichBonus'], ['unitsB1', true], ['variedOpenings', true]];
     let changed = 0;
     for (const [k, v] of flips) {
       setAt(k, v);
