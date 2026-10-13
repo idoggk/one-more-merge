@@ -1,76 +1,215 @@
 {
  "schema": "effort-overlay/1",
  "spec": "docs/effort-model-spec.json",
- "pass": 0,
- "passes": [],
- "levels": {
+ "pass": 1,
+ "baseline": {
   "8": {
-   "bossHpMult": 1.53,
-   "minionHpMult": 0.73
+   "tb": 15.5767,
+   "tm": 29.95
   },
   "10": {
-   "bossHpMult": 1.37,
-   "minionHpMult": 0.75
+   "tb": 23.505,
+   "tm": 33.3283
   },
   "18": {
-   "bossHpMult": 1.44,
-   "minionHpMult": 0.75
+   "tb": 19.68,
+   "tm": 35.2117
   },
   "20": {
-   "bossHpMult": 1.81,
-   "minionHpMult": 0.64
+   "tb": 22.3167,
+   "tm": 48.1683
   },
   "28": {
-   "bossHpMult": 1.93,
-   "minionHpMult": 0.66
+   "tb": 19.02,
+   "tm": 50.83
   },
   "30": {
-   "bossHpMult": 1.75,
-   "minionHpMult": 0.65
+   "tb": 28.315,
+   "tm": 59.7683
   },
   "38": {
-   "bossHpMult": 1.58,
-   "minionHpMult": 0.72
+   "tb": 25.4233,
+   "tm": 49.2067
   },
   "40": {
-   "bossHpMult": 1.65,
-   "minionHpMult": 0.55,
-   "bossCap": 0.2
+   "tb": 22.9017,
+   "tm": 86.3283
   },
   "48": {
-   "bossHpMult": 1.58,
-   "minionHpMult": 0.72
+   "tb": 29.4817,
+   "tm": 59.8583
   },
   "50": {
-   "bossHpMult": 1.51,
-   "minionHpMult": 0.7
+   "tb": 58.3058,
+   "tm": 99.2885
   },
   "58": {
-   "bossHpMult": 1.73,
-   "minionHpMult": 0.69
+   "tb": 31.04,
+   "tm": 71.8917
   },
   "60": {
-   "bossHpMult": 1.6,
-   "minionHpMult": 0.68
+   "tb": 36.73,
+   "tm": 69.81
   },
   "68": {
-   "bossHpMult": 1.89,
-   "minionHpMult": 0.63,
-   "bossCap": 0.2
+   "tb": 25.3617,
+   "tm": 79.705
   },
   "70": {
-   "bossHpMult": 1.56,
-   "minionHpMult": 0.69
+   "tb": 36.9867,
+   "tm": 62.845
   },
   "78": {
-   "bossHpMult": 1.82,
-   "minionHpMult": 0.61,
-   "bossCap": 0.2
+   "tb": 24.54,
+   "tm": 89.0467
   },
   "80": {
-   "bossHpMult": 1.62,
-   "minionHpMult": 0.54,
+   "tb": 32.9111,
+   "tm": 93.6426
+  }
+ },
+ "passes": [
+  {
+   "8": {
+    "tb": 23.2583,
+    "tm": 24.97
+   },
+   "10": {
+    "tb": 23.5817,
+    "tm": 30.3733
+   },
+   "18": {
+    "tb": 28.3767,
+    "tm": 30.1683
+   },
+   "20": {
+    "tb": 39.8233,
+    "tm": 39.425
+   },
+   "28": {
+    "tb": 44.3917,
+    "tm": 42.68
+   },
+   "30": {
+    "tb": 32.0533,
+    "tm": 48.3033
+   },
+   "38": {
+    "tb": 42.3533,
+    "tm": 37.3183
+   },
+   "40": {
+    "tb": 40.8067,
+    "tm": 68.4517
+   },
+   "48": {
+    "tb": 36.3117,
+    "tm": 49.39
+   },
+   "50": {
+    "tb": 75.6455,
+    "tm": 78.5409
+   },
+   "58": {
+    "tb": 70.2086,
+    "tm": 59.3155
+   },
+   "60": {
+    "tb": 62.68,
+    "tm": 53.5167
+   },
+   "68": {
+    "tb": 42.5917,
+    "tm": 63.7517
+   },
+   "70": {
+    "tb": 57.9933,
+    "tm": 46.945
+   },
+   "78": {
+    "tb": 38.0533,
+    "tm": 79.875
+   },
+   "80": {
+    "tb": 56.745,
+    "tm": 68.375
+   }
+  }
+ ],
+ "levels": {
+  "8": {
+   "bossHpMult": 1.559,
+   "minionHpMult": 0.5796
+  },
+  "10": {
+   "bossHpMult": 2.3315,
+   "minionHpMult": 0.8192,
    "bossCap": 0.2
+  },
+  "18": {
+   "bossHpMult": 1.4485,
+   "minionHpMult": 0.5829
+  },
+  "20": {
+   "bossHpMult": 1.6047,
+   "minionHpMult": 0.5638,
+   "bossCap": 0.2
+  },
+  "28": {
+   "bossHpMult": 1.4437,
+   "minionHpMult": 0.5073,
+   "bossCap": 0.2
+  },
+  "30": {
+   "bossHpMult": 2.8981,
+   "minionHpMult": 1.0183,
+   "bossCap": 0.2
+  },
+  "38": {
+   "bossHpMult": 1.4477,
+   "minionHpMult": 0.6858
+  },
+  "40": {
+   "bossHpMult": 2.701,
+   "minionHpMult": 0.949,
+   "bossCap": 0.15
+  },
+  "48": {
+   "bossHpMult": 2.4266,
+   "minionHpMult": 0.8526,
+   "bossCap": 0.2
+  },
+  "50": {
+   "bossHpMult": 1.8547,
+   "minionHpMult": 0.6517,
+   "bossCap": 0.2
+  },
+  "58": {
+   "bossHpMult": 1.3189,
+   "minionHpMult": 0.4849
+  },
+  "60": {
+   "bossHpMult": 1.523,
+   "minionHpMult": 0.5611
+  },
+  "68": {
+   "bossHpMult": 2.5931,
+   "minionHpMult": 0.9111,
+   "bossCap": 0.15
+  },
+  "70": {
+   "bossHpMult": 1.5038,
+   "minionHpMult": 0.6341
+  },
+  "78": {
+   "bossHpMult": 2.9526,
+   "minionHpMult": 1.0374,
+   "bossCap": 0.15
+  },
+  "80": {
+   "bossHpMult": 2.4056,
+   "minionHpMult": 0.8452,
+   "bossCap": 0.15
   }
  }
 }
