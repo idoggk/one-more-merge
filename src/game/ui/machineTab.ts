@@ -4,6 +4,7 @@ import type { Family } from '../../core/types';
 import { buildMachine } from '../machine';
 import { CATALOG } from '../../core/economy';
 import { sfx } from '../audio';
+import { loopTween } from '../loopTween';
 import * as tlog from '../../platform/telemetry';
 import { META_KEY } from '../../platform/backup';
 import { localDate, store } from '../meta';
@@ -76,7 +77,7 @@ export function openMachineTab(scene: GameScene) {
   hit.on('pointerup', () => (!m.playtestMode && scene.featureOpen('workshop') ? scene.openWorkshop() : scene.showToast(`THE WORKSHOP OPENS AFTER LEVEL ${UNLOCK_LEVEL.workshop}`)));
   c.add(hit);
   // idle: 1% breath over 2400ms; newly improved modules get one 180ms highlight
-  if (!REDUCED_MOTION) scene.tweens.add({ targets: mach, scaleY: mach.scaleY * 1.01, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  if (!REDUCED_MOTION) loopTween(scene, { targets: mach, scaleY: mach.scaleY * 1.01, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, mach);
   const seen = m.homeSeen ?? {};
   for (const f of ['cannon', 'coil', 'bell'] as Family[]) {
     if ((m.mastery?.[f] ?? 0) > (seen[f] ?? 0)) {
@@ -125,7 +126,7 @@ export function openMachineTab(scene: GameScene) {
 
   // PLAY = the current saga level
   const play = scene.button(c, W / 2, bottom - 410, 600, `PLAY  LEVEL ${scene.currentLevel()}`, 0x5fbf4a, () => scene.openLevelSheet(scene.currentLevel()), 1.1);
-  if (!REDUCED_MOTION) scene.tweens.add({ targets: play, scale: 1.13, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  if (!REDUCED_MOTION) loopTween(scene, { targets: play, scale: 1.13, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, play);
 
   const today = m.daily?.[localDate()];
   if (m.hardUnlocked) tlog.log('daily_offer_view', { date: localDate(), done: !!today });

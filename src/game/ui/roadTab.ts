@@ -5,6 +5,7 @@ import { BOSSES, chapterBossIdx } from '../../core/boss';
 import { SEASON_TIERS, seasonTier } from '../../core/season';
 import type { GameScene } from '../GameScene';
 import { W, REDUCED_MOTION, H } from '../sceneKit';
+import { loopTween } from '../loopTween';
 
 /** ROAD tab (ChatGPT r15): a scrolling path of numbered levels, HARD / MEGA HARD tags, little machines at work. */
 export function openRoadTab(scene: GameScene) {
@@ -70,7 +71,7 @@ export function openRoadTab(scene: GameScene) {
     if (n === cur) {
       const ring = scene.add.circle(x, y, size * 0.6, 0xffcf33, 0.2).setStrokeStyle(5, 0xffcf33, 0.9);
       road.add(ring);
-      if (!REDUCED_MOTION) scene.tweens.add({ targets: ring, scale: 1.12, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      if (!REDUCED_MOTION) loopTween(scene, { targets: ring, scale: 1.12, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, ring);
     }
     const hit = scene.add.zone(x, y, size + 20, size + 20).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
@@ -91,7 +92,7 @@ export function openRoadTab(scene: GameScene) {
     const w = scene.add.image(wx, nodeY(n) - 60, k);
     w.setScale(84 / Math.max(w.width, w.height));
     road.add(w);
-    if (!REDUCED_MOTION) scene.tweens.add({ targets: w, angle: { from: -4, to: 4 }, y: w.y - 6, duration: 420, yoyo: true, repeat: -1, repeatDelay: 2600 + i * 900, ease: 'Sine.InOut' });
+    if (!REDUCED_MOTION) loopTween(scene, { targets: w, angle: { from: -4, to: 4 }, y: w.y - 6, duration: 420, yoyo: true, repeat: -1, repeatDelay: 2600 + i * 900, ease: 'Sine.InOut' }, w);
   });
   // scrolling: road space -> screen; centre the current level
   const minScroll = bottom - 90, maxScroll = top + 90 + (LEVELS.length - 1) * SPACING;
@@ -182,7 +183,7 @@ export function openRoadTab(scene: GameScene) {
   qa.add(scene.add.text(0, 0, 'QA', { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#ffffff' }).setOrigin(0.5));
   qa.add(scene.add.zone(0, 0, 90, 90).setInteractive({ useHandCursor: true }).on('pointerup', () => scene.openQaTools()));
   c.add(qa);
-  if (!REDUCED_MOTION) scene.tweens.add({ targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+  if (!REDUCED_MOTION) loopTween(scene, { targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, play);
   scene.drawNav(c, 'road');
   // r17 lesson 1: first road visit
   if (!(m.lessons ?? {}).road && cur <= 3) {

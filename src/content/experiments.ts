@@ -81,6 +81,19 @@ export function applyThinkBank(on: boolean) {
   TUNING.thinkBank = on;
 }
 
+/** QA panel YARD PRESSURE row (TUNING.yardPressure; this device only, not in the save); missing = OFF. */
+export const YARD_PRESSURE_KEY = 'omm_qa_yard_pressure';
+export function storedYardPressure(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyYardPressure(on: boolean) {
+  TUNING.yardPressure = on;
+}
+
 /** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF);
  *  t-e91097cd adds ROSTER B ('rb': TUNING.rosterB, the B jobs + Support card). */
 export type UnitsVariant = 'off' | 'b0' | 'b1' | 'rb';
@@ -128,6 +141,33 @@ export function storedRosterUnlocks(read: () => string | null): boolean {
 }
 export function applyRosterUnlocks(on: boolean) {
   TUNING.rosterUnlocks = on;
+}
+
+/** QA panel BUDGET LEVELS switch (t-4c676288, TUNING.mergeBudget; this device only, not in the save): 'on' = the LAST MERGES bench levels can be
+ *  launched, anything else / missing / unreadable = OFF. */
+export const MERGE_BUDGET_KEY = 'omm_qa_merge_budget';
+export function storedMergeBudget(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyMergeBudget(on: boolean) {
+  TUNING.mergeBudget = on;
+}
+
+/** QA panel POWER TOOLS switch (t-e2a48327, TUNING.tools; this device only, not in the save): 'on' = Row Surge / Gear Bomb tools, anything else / missing / unreadable = OFF. */
+export const TOOLS_KEY = 'omm_qa_tools';
+export function storedTools(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyTools(on: boolean) {
+  TUNING.tools = on;
 }
 
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,

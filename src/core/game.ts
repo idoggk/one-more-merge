@@ -20,7 +20,8 @@ import { type TorchHazard, type WardState } from './roster3';
 import { craneAllowance } from './roster5';
 import { tiltNeed } from './roster6';
 import { type CapBank, rewindModeOk, rewindSnapshot, rwHold, rwNeed } from './roster4';
-import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId } from './types';
+import { isRelay, isShooter, isSupport, ITEM_INTRO, itemFits, type CascadeResult, type Family, type Gadget, type Grid, type ItemKind, type PerkId, type ToolKind } from './types';
+import { makeTools, planTool, toolNeighbours, useTool, type ToolCombo } from './tools';
 
 export const ALL_PERKS: PerkId[] = ['twin', 'leads', 'encore', 'juice', 'quality'];
 
@@ -45,6 +46,10 @@ export type GameEvent =
   | { type: 'itemApply'; kind: ItemKind; idx: number; id: number }
   /** TUNING.mergeRule prototype: the merge at `idx` absorbed `ids` from `cells` (+`plus` ranks, `od` Overdrive charge). */
   | { type: 'sandwich'; idx: number; cells: number[]; ids: number[]; rank: number; plus: number; od: number }
+  /** TUNING.tools (src/core/tools.ts): a merge earned a tool; it sits at `idx` (-1 = waiting in the tray), `from` = the merge cell. */
+  | { type: 'toolMade'; kind: ToolKind; idx: number; id: number; from: number; tray: boolean }
+  /** TUNING.tools: a tool (or a combo of two) was used at `idx`; `wake` = the machines it woke, `reach` = the cells it covers, `count` = machines that fire in all (the cascade event follows). */
+  | { type: 'toolUse'; combo: ToolCombo; idx: number; tools: number[]; wake: number[]; effect: number; reach: number[]; count: number }
   /** TUNING.rosterB: a Support card fired (src/core/support.ts) on these cells (a line for GO; [] for PRIME). */
   | { type: 'support'; family: Family; cells: number[]; mult?: number }
   /** TUNING.roster4 Rewind Crank: the last merge was undone (the whole state is back; `peek` = the delivery it rewound, from L9). */
@@ -67,6 +72,8 @@ export interface Stats {
   rescues?: number;
   /** TUNING.mergeRule prototype: player merges that sandwiched. */
   sandwiches?: number;
+  /** TUNING.tools: tools made / used / combos this level (only written once a tool exists). */
+  tools?: { made: number; used: number; combos: number };
 }
 
 export interface GameState {
@@ -149,7 +156,9 @@ export interface GameState {
   rush?: { id: string; slot: number; week: number };
   /** r42 WORKSHOP PUZZLE (Ido: "like a chess puzzle - win in X moves"): merges allowed, used so far. No clock, no
    *  supply, no passive fire, no kickback: the board is fully known and only merges act. */
-  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean };
+  puzzle?: { moves: number; used: number; id: string; only?: Family[]; unit?: Family; unitUsed?: boolean; missedUnit?: boolean;
+    /** TUNING.mergeBudget LAST MERGES level (src/core/budget.ts): same engine, saga look. `spare` = merges for 2 / 3 stars; `look` = the machine drawn. */
+    budget?: { spare: [number, number]; look: { level: number; visual?: string; monster: string } } };
   /** r40 Endless Road floor this state plays (presentation + rewards only). */
   endless?: number;
   /** r23 goal level: progress toward MAKE RANK N / CHAIN xN (replaces defeating the monster). */
@@ -190,6 +199,8 @@ export interface GameState {
   /** TUNING.thinkBank prototype: real seconds since the player last touched the board, and level seconds saved so far. */
   idleFor?: number;
   banked?: number;
+  /** TUNING.tools: capped-merge levels make at most this many tools in the whole level (undefined = only the board limit). */
+  toolCap?: number;
   stats: Stats;
 }
 
@@ -499,7 +510,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   if (!matchShare()) return null;
   const counts = new Map<string, { family: Family; rank: number; n: number }>();
   for (const g of s.grid) {
-    if (!g || g.rank >= capOf(s, g.family) || !(unitsB0On() || isShooter(g.family) || isRelay(g.family))) continue;
+    if (!g || g.tool || g.rank >= capOf(s, g.family) || !(unitsB0On() || isShooter(g.family) || isRelay(g.family))) continue;
     const k = g.family + g.rank;
     const e = counts.get(k) ?? { family: g.family, rank: g.rank, n: 0 };
     e.n++;
@@ -521,7 +532,7 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
 /** r38: parts the NEXT merge would earn under reactive supply (shown in the NEXT capsule). */
 export function mergeEarns(s: GameState): number {
   if (!s.reactive) return 0;
-  const occ = s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0);
+  const occ = s.grid.reduce((n, x) => n + (x && !x.tool ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0); // a tool is no part: it never crowds the supply rules
   if (TUNING.optionA) return reactEarnA(occ, 1); // the chain is unknown before the merge: show the guaranteed part
   return occ < TUNING.reactTwo ? 2 : occ < TUNING.reactCap ? 1 : 0;
 }
@@ -548,7 +559,7 @@ export function fatigueMult(s: GameState): number {
 
 /** Option A3: this board is full enough that a merge earns its part(s) only with a chain of optA3.gateChain+. */
 export const supplyGated = (s: GameState) =>
-  TUNING.optionA3 && !!s.reactive && s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0) > TUNING.optA3.gateAbove;
+  TUNING.optionA3 && !!s.reactive && s.grid.reduce((n, x) => n + (x && !x.tool ? 1 : 0), 0) - 1 + s.pending.length + (s.owed ?? 0) > TUNING.optA3.gateAbove;
 
 /** Option A2/A3: the two damage factors scaleA2 applies to a player cascade of `count` (1 = none). */
 export function a2Scale(s: GameState, count: number): { chain: number; fatigue: number } {
@@ -604,7 +615,7 @@ export function packetSize(s: GameState): number {
   if (s.level === 2 && s.stats.biggestChain < 2) return 1;
   if (s.level !== undefined && s.level > 2 && s.elapsed < 8) return 1;
   const cap = ROWS * COLS - (s.masked?.length ?? 0);
-  const occ = s.grid.reduce((n, g) => n + (g ? 1 : 0), 0) + s.pending.length;
+  const occ = s.grid.reduce((n, g) => n + (g && !g.tool ? 1 : 0), 0) + s.pending.length;
   if (occ < Math.round((14 * cap) / 30)) return 3;
   if (occ < Math.round((18 * cap) / 30)) return 2;
   return 1;
@@ -691,7 +702,7 @@ export function capOf(s: GameState | undefined, family: Family): number {
 
 /** Same family + same rank. In Saga levels two pieces AT the cap compact into one cap piece (frees a cell, fires once). */
 export function canMerge(a: Gadget | null, b: Gadget | null, s?: GameState): boolean {
-  if (!a || !b || a.family !== b.family || a.rank !== b.rank) return false;
+  if (!a || !b || a.family !== b.family || a.rank !== b.rank || a.tool || b.tool) return false;
   const cap = capOf(s, a.family);
   return a.rank < cap || (s?.level !== undefined && a.rank === cap);
 }
@@ -742,8 +753,10 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
     }
     return r;
   }
+  // POWER TOOLS: a tool dropped onto another tool combines with it (the second is used up inside the first)
+  if (TUNING.tools && a.tool && b?.tool && s.phase === 'playing') return useTool(s, to, b.id, from);
   if (canMerge(a, b, s)) {
-    const crank = s.support?.family === 'rewind_crank' && rewindModeOk(s) ? s.support : undefined;
+    const crank =s.support?.family === 'rewind_crank' && rewindModeOk(s) ? s.support : undefined;
     if (crank) [crank.snap, crank.snapAt, crank.snapCharge] = [rewindSnapshot(s), s.elapsed, crank.charge]; // roster 4 Rewind Crank: the undo point is the state right before this merge
     const r = merge(s, from, to, sandwichFor(s, from, to), true); // no cooldown: a legal second merge is never refused
     // roster B Support card: +1 charge per machine that fired in YOUR merge chain (Rewind Crank: +1 per merge, holds rwHold charges)
@@ -784,6 +797,11 @@ function dropNow(s: GameState, from: number, to: number, fromId: number): Comman
   ev.push({ type: 'move', from, to: land, swap: !!b });
   touched(s);
   ev.push(...bossAfterPlayer(s.boss, land, [])); // r27: parking a machine on the bomb defuses it
+  // POWER TOOLS: a tool dropped beside another tool combines with it once it lands (only when the combo would wake something)
+  if (TUNING.tools && a.tool && s.phase === 'playing' && !b) {
+    const mate = toolNeighbours(s, land)[0];
+    if (mate !== undefined && planTool(s, land, mate)?.wake.length) ev.push(...useTool(s, land, a.id, mate).events);
+  }
   return { ok: true, events: ev };
 }
 
@@ -839,7 +857,7 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   s.stats.merges++;
   touched(s);
   s.stats.bestRank = Math.max(s.stats.bestRank, g.rank);
-  const occNow = () => s.grid.reduce((n, x) => n + (x ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
+  const occNow = () => s.grid.reduce((n, x) => n + (x && !x.tool ? 1 : 0), 0) + s.pending.length + (s.owed ?? 0);
   // Option A3: on a full board the part(s) are paid after the cascade, only for a chain of gateChain+
   let gatedEarn = 0;
   if (s.reactive && s.phase === 'playing' && !TUNING.optionA) {
@@ -934,6 +952,7 @@ export function merge(s: GameState, from: number, to: number, sw: SandwichPlan |
   if (s.phase === 'playing') ev.push(...bossAfterPlayer(s.boss, -1, result.activations.map((x) => x.idx))); // r27 defuse / clear blocks
   if (s.phase === 'playing') ev.push(...bossRansomCheck(s.boss, result.activations.map((x) => x.id))); // r29 time ransom
   checkGoal(s, ev, Math.max(g.rank, result.crane?.rank ?? 0), result.count, to);
+  if (byPlayer && TUNING.tools) makeTools(s, to, result, !!sw, ev); // POWER TOOLS: made in addition to the merge result
   return { ok: true, events: ev };
 }
 
@@ -1341,7 +1360,7 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
 }
 
 function admitPending(s: GameState, reserved: ReadonlySet<number>, ev: GameEvent[]) {
-  const occ = s.grid.reduce((n, g) => n + (g ? 1 : 0), 0);
+  const occ = s.grid.reduce((n, g) => n + (g && !g.tool ? 1 : 0), 0);
   // r34: calm boards (chapters 1-2) hold the tray at the calm cap too
   const holdAt = Math.min(TUNING.holdAt, s.calmCap ?? 99);
   if (occ >= holdAt) s.trayHold = true;
@@ -1423,10 +1442,10 @@ export function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: bool
   const taken = new Set<number>([...reserved, ...locked(s), ...bossPendingCells(s.boss), ...bossBlocked(s.boss).noDrop]);
   for (const d of s.drops) if (d.plan) taken.add(d.plan.idx).add(d.plan.land);
   const counts = new Map<string, number>();
-  for (const g of s.grid) if (g) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
+  for (const g of s.grid) if (g && !g.tool) counts.set(g.family + g.rank, (counts.get(g.family + g.rank) ?? 0) + 1);
   const options: DropPlan[] = [];
   s.grid.forEach((g, idx) => {
-    if (!g || g.rank >= capOf(s, g.family) || taken.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
+    if (!g || g.tool || g.rank >= capOf(s, g.family) || taken.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
     if (fuse && g.rank > TUNING.kickbackMaxRank) return;
     const r = Math.floor(idx / COLS), c = idx % COLS;
     for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {

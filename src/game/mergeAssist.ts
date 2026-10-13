@@ -73,5 +73,13 @@ export function soleMergePair(s: GameState): [number, number] | null {
   return p.length === 1 ? p[0] : null;
 }
 
+/** What a tap (no drag) on `tapped` does. A tool's own release ('held' preview / quick 'use') always goes first: the
+ *  assist's MERGE hint must never swallow a tool tap. Then the hint's pair, then the normal inspect. */
+export function tapRoute(tool: 'held' | 'use' | 'none', pair: [number, number] | null, tapped: number, playing: boolean): 'held' | 'tool' | 'assist' | 'other' {
+  if (tool === 'held') return 'held';
+  if (tool === 'use') return 'tool';
+  return pair && playing && pair.includes(tapped) ? 'assist' : 'other';
+}
+
 /** Failed-drop toast budget: levels 1..TOAST_LEVELS, TOAST_MAX per level. `shown`: toasts already shown this level. */
 export const toastAllowed = (level: number | undefined, shown: number): boolean => level !== undefined && level <= TOAST_LEVELS && shown < TOAST_MAX;

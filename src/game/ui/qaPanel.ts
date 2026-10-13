@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { allNewState, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
+import { applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
 import { ASSIST_MODES, MERGE_ASSIST_KEY, storedAssistMode, type AssistMode } from '../mergeAssist';
 import { LEVELS } from '../../content/levels';
+import { BUDGET_LEVELS } from '../../core/budget';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { lockSaves, META_KEY, SAVE_KEY } from '../../platform/backup';
@@ -44,6 +45,9 @@ export const qaYardObject = () => {
     return false;
   }
 };
+// QA-only: YARD PRESSURE (a countdown + tap budget in the turnable-object yard), default OFF, this device only
+export const qaYardPressure = () => storedYardPressure(() => localStorage.getItem(YARD_PRESSURE_KEY));
+applyYardPressure(qaYardPressure());
 // t-a8c886ad / t-4a966cee QA-only: units option B, OFF / B0 (helpers copy, Mortar chain order, welders skip welders) /
 // B1 (B0 + one direct job per helper, shared BOOSTED mark, Fuse Box reach)
 export const qaUnits = () => storedUnits(() => localStorage.getItem(UNITS_B0_KEY));
@@ -72,12 +76,19 @@ applyRoster7(qaRoster7());
 // t-c78bf16f QA-only: the chapter unlock plan (gifts, crate tiers, rarity-gated crate pool), default OFF
 export const qaRosterUnlocks = () => storedRosterUnlocks(() => localStorage.getItem(ROSTER_UNLOCKS_KEY));
 applyRosterUnlocks(qaRosterUnlocks());
+// t-4c676288 QA-only: LAST MERGES merge-budget bench levels (TUNING.mergeBudget), default OFF, this device only
+export const qaMergeBudget = () => storedMergeBudget(() => localStorage.getItem(MERGE_BUDGET_KEY));
+applyMergeBudget(qaMergeBudget());
 // t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
 // t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
 export const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
 applyThinkBank(qaThinkBank());
+
+// t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +1 BONUS (the MERGE RULE row can still change it)
+export const qaTools = () => storedTools(() => localStorage.getItem(TOOLS_KEY));
+applyTools(qaTools());
 
 /** What a QA row draws into: the open sheet, plus the level picked in JUMP TO LEVEL (kept when the panel reopens). */
 interface QaCtx {
@@ -339,6 +350,22 @@ export const QA_ROWS: QaRow[] = [
     gap: 48,
     h: 91,
   }),
+  // 7a) YARD PRESSURE: OFF (today's yard) / ON (countdown from the first tap + tap budget + stars), OBJECT yard only
+  qaSwitch({
+    title: 'YARD PRESSURE',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaYardPressure() ? 'on' : 'off'),
+    pick: (id) => {
+      store(YARD_PRESSURE_KEY, id === 'off' ? null : id);
+      applyYardPressure(id === 'on');
+      tlog.log('qa_yard_pressure', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'off' ? 'YARD PRESSURE OFF (live game)' : 'YARD PRESSURE ON  ·  SCREW YARD: OBJECT  ·  TIMER + TAP BUDGET'),
+    w: 340,
+    dx: 260,
+    gap: 48,
+    h: 91,
+  }),
   // 7b) NEW UNITS: roster B batches 1..7 join the collection, crates and squads (this device only, live). One grouped section.
   {
     h: ROSTER_GROUP_H,
@@ -387,6 +414,44 @@ export const QA_ROWS: QaRow[] = [
       }, 0.5);
     },
   },
+  // 7c) t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left); the flag is this device only
+  {
+    h: 118,
+    draw: ({ scene, c, reopen }, y) => {
+      const on = qaMergeBudget();
+      scene.button(c, W / 2, y + 30, 560, `BUDGET LEVELS: ${on ? '[ON]' : '[OFF]'}`, on ? 0x5fbf4a : 0x8a6a4a, () => {
+        store(MERGE_BUDGET_KEY, on ? null : 'on');
+        applyMergeBudget(!on);
+        tlog.log('qa_merge_budget', { on: !on });
+        scene.showToast(on ? 'BUDGET LEVELS OFF (live game)' : 'BUDGET LEVELS ON  ·  PICK ONE BELOW');
+        reopen();
+      }, 0.9);
+      BUDGET_LEVELS.forEach((b, i) => {
+        const x = W / 2 + (i - (BUDGET_LEVELS.length - 1) / 2) * 190;
+        scene.button(c, x, y + 84, 180, `${b.name}`, on ? 0x8e58c9 : 0x8a6a4a, () => (on ? scene.startBudget(b) : scene.showToast('TURN BUDGET LEVELS ON FIRST')), 0.62).setAlpha(on ? 1 : 0.55);
+      });
+    },
+  },
+  // 7d) t-e2a48327 POWER TOOLS: OFF / ON (ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +1 BONUS)
+  qaSwitch({
+    title: 'POWER TOOLS',
+    options: [{ id: 'off', label: 'OFF' }, { id: 'on', label: 'ON' }],
+    current: () => (qaTools() ? 'on' : 'off'),
+    pick: (id) => {
+      store(TOOLS_KEY, id === 'on' ? 'on' : null);
+      applyTools(id === 'on');
+      if (id === 'on') {
+        store(MERGE_RULE_KEY, 'sandwichBonus');
+        applyMergeRule('sandwichBonus');
+      }
+      tlog.log('qa_tools', { on: id === 'on' });
+    },
+    toast: (id) => (id === 'on' ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
+    w: 240,
+    dx: 200,
+    gap: 38,
+    h: 70,
+  }),
   // 8) t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
   // (the 1280-tall small-phone screen has no room left below: BACK moved up beside the title for this row)
   qaSwitch({
@@ -414,6 +479,7 @@ const DRAG_SLOP = 12;
 let lastScroll = 0;
 export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepScroll = false) {
   if (!keepScroll) lastScroll = 0;
+  scene.loadUnitPictures(); // a batch switch may just have put units in play: fetch their pictures now
   scene.closeModal();
   const geo = qaGeometry(QA_ROWS.map((r) => r.h), H);
   const PH = geo.panelH;
