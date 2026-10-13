@@ -1,0 +1,1230 @@
+{
+ "version": 1,
+ "generated": "2026-10-14",
+ "task": "t-a5643e48",
+ "source": "docs/art/LEVEL_ROAD_V2.md",
+ "extends": "art-candidates/prompt-pack/asset-list-v2.json (branch orch/t-2d95ddb9-slicer-fix-3-trim-to-the-object): style, styleLock, negatives, anchors (A1-A10), rubric and the loop are inherited unchanged",
+ "primer": {
+  "file": "art-candidates/prompt-pack/primer.txt",
+  "rule": "Paste the file contents unchanged as the first message of every new chat; wait for the single word READY. (primer.txt lives on the slicer-fix-3 branch until merged.)"
+ },
+ "statusValues": [
+  "planned",
+  "prompted",
+  "generated",
+  "sliced",
+  "critic-pass",
+  "redo",
+  "rejected",
+  "approved",
+  "wired"
+ ],
+ "keyRule": "Primer rule: magenta #FF00FF for props, nodes and UI; flat green #00FF00 when any part is violet, purple or pink (arcade and observatory props, the HARD sheet with purple ribbons, the violet carpet swatch is on a magenta-free sheet: see lr_road_materials note); full-bleed scenery has no key; fog and ambient FX are white on black. Edit-chain prompts (mode edit-chain) attach the previous tile in the same chat.",
+ "order": "LR01 first and judged at phone size in the mock before LR02-LR11 are spent; chapters LR05-LR11 only after LR01 passes the critic.",
+ "notes": [
+  "Node frames keep an empty centre disc: numbers, stars and the \"YOU\" label are drawn in code; the padlock is part of the locked frame art.",
+  "Sheets with violet content (lr_nodes_normal_hard, lr_road_materials, arcade and observatory props) use the green key."
+ ],
+ "batches": [
+  {
+   "id": "LR01",
+   "title": "ANCHOR: chapter 3 GARAGE road world (judge at phone size first)",
+   "dir": "art-candidates/pack-v2/LR01",
+   "prompts": [
+    {
+     "id": "LR01.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_garage_entrance",
+     "name": "GARAGE scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_garage_entrance_v01.png",
+     "outputs": [
+      "road_garage_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale garage workshop: tool pegboard walls, tyre stacks, oil drums, warm concrete floor, a lamp with a cone of light, seen from a high 3/4 angle as a world to walk through. Palette warm sand, tool red, steel-blue shadows. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR01.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_garage_middle",
+     "name": "GARAGE scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_garage_middle_v01.png",
+     "outputs": [
+      "road_garage_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_garage_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_garage_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same garage world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: a stack of tyres, an oil drum, a red toolbox. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR01.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_garage_gate",
+     "name": "GARAGE scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_garage_gate_v01.png",
+     "outputs": [
+      "road_garage_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_garage_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_garage_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same garage world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a rolled-up garage shutter door arch with hazard stripes, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR01.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_garage",
+     "name": "GARAGE foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_garage_v01.png",
+     "outputs": [
+      "road_garage_prop1",
+      "road_garage_prop2",
+      "road_garage_prop3",
+      "road_garage_prop4",
+      "road_garage_prop5",
+      "road_garage_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the garage level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: a stack of tyres, an oil drum, a red toolbox, a hydraulic jack, paint cans, a work lamp. Palette warm sand, tool red, steel-blue shadows. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR02",
+   "title": "Level node frames by kind and state",
+   "dir": "art-candidates/pack-v2/LR02",
+   "prompts": [
+    {
+     "id": "LR02.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_nodes_normal_hard",
+     "name": "Node frames: normal and HARD, locked / open / done",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "green",
+     "slice": "sheet",
+     "rawFile": "omm_lr_nodes_normal_hard_v01.png",
+     "outputs": [
+      "node2_normal_locked",
+      "node2_normal_open",
+      "node2_normal_done",
+      "node2_hard_locked",
+      "node2_hard_open",
+      "node2_hard_done"
+     ],
+     "refs": [
+      "A1-style",
+      "A4-icon"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Round level-select medallion, front-facing with a slight 3/4 tilt, empty flat centre disc for a code-drawn number, thick dark chocolate outline, glossy enamel, brass rim. Row 1 normal: locked = cool blue-grey enamel with a small brass padlock on the rim; open = cream centre with a gold glowing rim; done = emerald green with a brass shelf below holding three empty star sockets. Row 2 HARD: the same three states but each wearing a purple ribbon plate wrapped across the lower rim. Flat green #00FF00 background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR02.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_nodes_mega_mini",
+     "name": "Node frames: MEGA HARD and mini-boss",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_nodes_mega_mini_v01.png",
+     "outputs": [
+      "node2_mega_locked",
+      "node2_mega_open",
+      "node2_mega_done",
+      "node2_mini_locked",
+      "node2_mini_open",
+      "node2_mini_done"
+     ],
+     "refs": [
+      "A1-style",
+      "A4-icon"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Round level-select medallion, front-facing with a slight 3/4 tilt, empty flat centre disc for a code-drawn number, thick dark chocolate outline, glossy enamel, brass rim. Row 1 MEGA HARD: red enamel medallion with two small curved brass horns on top; locked = dimmed blue-grey with padlock, open = glowing red, done = green with star sockets. Row 2 mini-boss: shield-shaped medallion with a brass crest, same three states. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR02.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_nodes_boss",
+     "name": "Boss node frames and arena platforms",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_nodes_boss_v01.png",
+     "outputs": [
+      "node2_boss_locked",
+      "node2_boss_open",
+      "node2_boss_done",
+      "arena_platform_1",
+      "arena_platform_2",
+      "arena_platform_3"
+     ],
+     "refs": [
+      "A1-style",
+      "A4-icon"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Row 1: large gear-crown boss medallion, locked = dim with chain and padlock, open = gold glowing with a red crown, done = emerald with star sockets and a cracked-boss emblem; empty centre disc. Row 2: three wide round arena platforms seen from 3/4 above, stone, wood and metal, each with a brass rim and a flat top where a monster can stand, no monster. Round level-select medallion, front-facing with a slight 3/4 tilt, empty flat centre disc for a code-drawn number, thick dark chocolate outline, glossy enamel, brass rim. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR02.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_avatar_platform",
+     "name": "Current-level diorama platform, pointer plate",
+     "mode": "sheet",
+     "layout": "2x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_avatar_platform_v01.png",
+     "outputs": [
+      "avatar_platform_normal",
+      "avatar_platform_mini",
+      "avatar_platform_boss",
+      "here_pointer_plate"
+     ],
+     "refs": [
+      "A1-style",
+      "A4-icon"
+     ],
+     "dependsOn": null,
+     "prompt": "2 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Round diorama platforms seen from 3/4 above, 400x240 proportion: normal = cream and gold with a soft ring groove for a pulse; mini = red-rimmed; boss = a large gold-and-red stage. Each has an empty flat top where a character will stand. Fourth cell: a small gold speech-plate pointer with a downward tail and an empty centre for a code-drawn word. Chunky dark outline, glossy enamel. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    }
+   ]
+  },
+  {
+   "id": "LR03",
+   "title": "Path, chests, banner, gate, progress chip",
+   "dir": "art-candidates/pack-v2/LR03",
+   "prompts": [
+    {
+     "id": "LR03.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_road_materials",
+     "name": "Road surface materials (seamless tiles)",
+     "mode": "sheet",
+     "layout": "2x2",
+     "canvas": "1536x1024",
+     "key": "green",
+     "slice": "sheet",
+     "rawFile": "omm_lr_road_materials_v01.png",
+     "outputs": [
+      "road_mat_stone",
+      "road_mat_plank",
+      "road_mat_metal",
+      "road_mat_carpet"
+     ],
+     "refs": [
+      "A1-style",
+      "A7-board"
+     ],
+     "dependsOn": null,
+     "prompt": "2 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Four seamless square tileable road surface swatches, flat top-down view, no perspective: warm cream stone slabs, honey wood planks, brushed brass-and-steel plates, violet carpet with gold edge stitching. Each fills its cell edge to edge, low contrast, no objects. No outline. Cells touch the background only in the gutters. Flat green #00FF00 background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR03.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_road_pieces",
+     "name": "Road pieces",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_road_pieces_v01.png",
+     "outputs": [
+      "road_endcap",
+      "road_junction",
+      "road_bridge",
+      "road_step",
+      "road_arrow",
+      "road_goal_pad"
+     ],
+     "refs": [
+      "A1-style",
+      "A4-icon"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six cream road pieces in the same thick dark-outlined enamel style, seen from a high 3/4 angle: rounded end cap, small fork junction, short plank bridge, single wide stair step, chunky arrow plate pointing up, round goal pad. Each 300 pixels, empty surfaces. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR03.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_chest_nodes",
+     "name": "Chest nodes: wood, iron, gold x closed / ready / open",
+     "mode": "sheet",
+     "layout": "3x3",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_chest_nodes_v01.png",
+     "outputs": [
+      "chestnode_wood_closed",
+      "chestnode_wood_ready",
+      "chestnode_wood_open",
+      "chestnode_iron_closed",
+      "chestnode_iron_ready",
+      "chestnode_iron_open",
+      "chestnode_gold_closed",
+      "chestnode_gold_ready",
+      "chestnode_gold_open"
+     ],
+     "refs": [
+      "A1-style",
+      "A5-chest"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 3 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Nine road milestone chests, same family as the attached chest, rows wood, iron, gold. Columns: closed; ready = closed with a bright gold glow rim and tiny sparkle shapes; open = lid up with warm light inside. Each sits on a small round brass pad. Silhouette differs per tier. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR03.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_banner_gate",
+     "name": "Chapter banner ribbons and gate arches",
+     "mode": "sheet",
+     "layout": "2x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_banner_gate_v01.png",
+     "outputs": [
+      "banner_chapter_blank",
+      "banner_chapter_done",
+      "gate_arch_closed",
+      "gate_arch_open"
+     ],
+     "refs": [
+      "A1-style",
+      "A3-button"
+     ],
+     "dependsOn": null,
+     "prompt": "2 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Row 1: two long ribbon banners, exactly 3:1, 1100 pixels wide and 360 tall, slightly longer than you think, empty centre for code-drawn text: gold-red-brown rim blank, and a green completed version with a brass check seal. Row 2: a stone-and-brass chapter gate arch 700 by 500, closed with a big padlock and an empty plate for a star count, and the same arch open showing a warm glow. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR03.5",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_progress_chip",
+     "name": "Progress chip, rail medallion, star shelf",
+     "mode": "sheet",
+     "layout": "3x1",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_progress_chip_v01.png",
+     "outputs": [
+      "chip_progress_ring",
+      "rail_medallion_frame",
+      "star_shelf"
+     ],
+     "refs": [
+      "A1-style",
+      "A3-button"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 1 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Row of three UI pieces: a round progress chip with an empty ring track and a chest socket in the centre; a round side-rail event medallion frame with a small empty circle badge at the top-right and a small red dot slot; a brass shelf plate holding three empty star sockets. Dark outline, enamel, empty centres. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    }
+   ]
+  },
+  {
+   "id": "LR04",
+   "title": "Fog and ambient life",
+   "dir": "art-candidates/pack-v2/LR04",
+   "prompts": [
+    {
+     "id": "LR04.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_fog_clouds",
+     "name": "Fog banks and clouds",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "black",
+     "slice": "sheet",
+     "rawFile": "omm_lr_fog_clouds_v01.png",
+     "outputs": [
+      "fog_bank_1",
+      "fog_bank_2",
+      "fog_bank_3",
+      "cloud_1",
+      "cloud_2",
+      "cloud_3"
+     ],
+     "refs": [
+      "A1-style",
+      "A6-fx"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Soft fog banks and fluffy clouds, no outline, smooth falloff, pure white with soft grey shading on pure black #000000, for screen blending. Row 1 three wide low fog banks; row 2 three small toy-like cloud puffs. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    },
+    {
+     "id": "LR04.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_ambient_fx",
+     "name": "Steam, birds, sparkle",
+     "mode": "sheet",
+     "layout": "4x2",
+     "canvas": "1536x1024",
+     "key": "black",
+     "slice": "sheet",
+     "rawFile": "omm_lr_ambient_fx_v01.png",
+     "outputs": [
+      "steam_1",
+      "steam_2",
+      "steam_3",
+      "steam_4",
+      "bird_1",
+      "bird_2",
+      "bird_3",
+      "sparkle_gold"
+     ],
+     "refs": [
+      "A1-style",
+      "A6-fx"
+     ],
+     "dependsOn": null,
+     "prompt": "4 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Ambient effect sprites, white or soft colour on pure black #000000, no outline: four stages of a rising steam puff; three small bird silhouettes in wing-up, mid and wing-down poses; one gold four-point sparkle. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice, trim each cell to bbox, pad 8%."
+    }
+   ]
+  },
+  {
+   "id": "LR05",
+   "title": "Chapter 1 KITCHEN: scenery + props",
+   "dir": "art-candidates/pack-v2/LR05",
+   "prompts": [
+    {
+     "id": "LR05.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_kitchen_entrance",
+     "name": "KITCHEN scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_kitchen_entrance_v01.png",
+     "outputs": [
+      "road_kitchen_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a giant toy-scale kitchen: cream tiled counters, copper pots, wooden shelves, warm orange floor boards, a window with soft sunlight, seen from a high 3/4 angle as a world to walk through. Palette warm cream, copper orange, sage green. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR05.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_kitchen_middle",
+     "name": "KITCHEN scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_kitchen_middle_v01.png",
+     "outputs": [
+      "road_kitchen_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_kitchen_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_kitchen_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same kitchen world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: stacked copper pots, a big whisk standing in a jar, a steaming kettle. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR05.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_kitchen_gate",
+     "name": "KITCHEN scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_kitchen_gate_v01.png",
+     "outputs": [
+      "road_kitchen_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_kitchen_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_kitchen_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same kitchen world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a tall cabinet door arch with brass handles, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR05.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_kitchen",
+     "name": "KITCHEN foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_kitchen_v01.png",
+     "outputs": [
+      "road_kitchen_prop1",
+      "road_kitchen_prop2",
+      "road_kitchen_prop3",
+      "road_kitchen_prop4",
+      "road_kitchen_prop5",
+      "road_kitchen_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the kitchen level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: stacked copper pots, a big whisk standing in a jar, a steaming kettle, a salt shaker, a wooden cutting board with a knife, a toaster. Palette warm cream, copper orange, sage green. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR06",
+   "title": "Chapter 2 LAUNDRY: scenery + props",
+   "dir": "art-candidates/pack-v2/LR06",
+   "prompts": [
+    {
+     "id": "LR06.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_laundry_entrance",
+     "name": "LAUNDRY scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_laundry_entrance_v01.png",
+     "outputs": [
+      "road_laundry_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale laundry room: mint tiles, a round-window washing machine, hanging laundry lines, soap bubbles, pale teal walls, seen from a high 3/4 angle as a world to walk through. Palette mint teal, white foam, warm wood. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR06.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_laundry_middle",
+     "name": "LAUNDRY scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_laundry_middle_v01.png",
+     "outputs": [
+      "road_laundry_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_laundry_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_laundry_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same laundry world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: a laundry basket spilling socks, a soap bottle, a rolled towel. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR06.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_laundry_gate",
+     "name": "LAUNDRY scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_laundry_gate_v01.png",
+     "outputs": [
+      "road_laundry_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_laundry_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_laundry_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same laundry world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a big washing-machine door arch with a round glass window, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR06.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_laundry",
+     "name": "LAUNDRY foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_laundry_v01.png",
+     "outputs": [
+      "road_laundry_prop1",
+      "road_laundry_prop2",
+      "road_laundry_prop3",
+      "road_laundry_prop4",
+      "road_laundry_prop5",
+      "road_laundry_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the laundry level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: a laundry basket spilling socks, a soap bottle, a rolled towel, a clothes peg on a line end, a pile of soap foam, a steam iron. Palette mint teal, white foam, warm wood. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR07",
+   "title": "Chapter 4 ARCADE: scenery + props",
+   "dir": "art-candidates/pack-v2/LR07",
+   "prompts": [
+    {
+     "id": "LR07.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_arcade_entrance",
+     "name": "ARCADE scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_arcade_entrance_v01.png",
+     "outputs": [
+      "road_arcade_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale arcade hall: violet carpet, neon light shafts, rows of cabinets in the distance, glowing floor stripes, seen from a high 3/4 angle as a world to walk through. Palette violet, cyan neon, warm gold. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR07.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_arcade_middle",
+     "name": "ARCADE scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_arcade_middle_v01.png",
+     "outputs": [
+      "road_arcade_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_arcade_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_arcade_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same arcade world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: an arcade cabinet, a claw machine, a pinball table. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR07.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_arcade_gate",
+     "name": "ARCADE scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_arcade_gate_v01.png",
+     "outputs": [
+      "road_arcade_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_arcade_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_arcade_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same arcade world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a glowing neon marquee arch with no lettering, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR07.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_arcade",
+     "name": "ARCADE foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "green",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_arcade_v01.png",
+     "outputs": [
+      "road_arcade_prop1",
+      "road_arcade_prop2",
+      "road_arcade_prop3",
+      "road_arcade_prop4",
+      "road_arcade_prop5",
+      "road_arcade_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the arcade level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: an arcade cabinet, a claw machine, a pinball table, a pile of golden tokens, a giant joystick, a neon star sign without text. Palette violet, cyan neon, warm gold. Flat green #00FF00 background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR08",
+   "title": "Chapter 5 MUSIC ATTIC: scenery + props",
+   "dir": "art-candidates/pack-v2/LR08",
+   "prompts": [
+    {
+     "id": "LR08.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_music_attic_entrance",
+     "name": "MUSIC ATTIC scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_music_attic_entrance_v01.png",
+     "outputs": [
+      "road_music_attic_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale music attic: wooden roof beams, warm honey floor boards, dust in sunbeams, instruments leaning on walls, seen from a high 3/4 angle as a world to walk through. Palette honey wood, brass, dusty rose. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR08.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_music_attic_middle",
+     "name": "MUSIC ATTIC scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_music_attic_middle_v01.png",
+     "outputs": [
+      "road_music_attic_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_music_attic_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_music_attic_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same music attic world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: an acoustic guitar, a drum kit piece, a speaker stack. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR08.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_music_attic_gate",
+     "name": "MUSIC ATTIC scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_music_attic_gate_v01.png",
+     "outputs": [
+      "road_music_attic_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_music_attic_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_music_attic_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same music attic world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a big brass horn arch, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR08.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_music_attic",
+     "name": "MUSIC ATTIC foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_music_attic_v01.png",
+     "outputs": [
+      "road_music_attic_prop1",
+      "road_music_attic_prop2",
+      "road_music_attic_prop3",
+      "road_music_attic_prop4",
+      "road_music_attic_prop5",
+      "road_music_attic_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the music attic level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: an acoustic guitar, a drum kit piece, a speaker stack, a music stand, a brass trumpet, a pile of vinyl records. Palette honey wood, brass, dusty rose. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR09",
+   "title": "Chapter 6 SCRAPYARD: scenery + props",
+   "dir": "art-candidates/pack-v2/LR09",
+   "prompts": [
+    {
+     "id": "LR09.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_scrapyard_entrance",
+     "name": "SCRAPYARD scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_scrapyard_entrance_v01.png",
+     "outputs": [
+      "road_scrapyard_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale scrapyard at sunset: heaps of metal, a distant crane, orange sky, dusty blue-grey ground, seen from a high 3/4 angle as a world to walk through. Palette orange sunset, slate blue, brass. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR09.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_scrapyard_middle",
+     "name": "SCRAPYARD scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_scrapyard_middle_v01.png",
+     "outputs": [
+      "road_scrapyard_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_scrapyard_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_scrapyard_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same scrapyard world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: a scrap heap with a gear on top, a crane hook, a dented barrel. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR09.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_scrapyard_gate",
+     "name": "SCRAPYARD scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_scrapyard_gate_v01.png",
+     "outputs": [
+      "road_scrapyard_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_scrapyard_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_scrapyard_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same scrapyard world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a tall rusted-but-clean-painted steel scrap gate arch, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR09.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_scrapyard",
+     "name": "SCRAPYARD foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_scrapyard_v01.png",
+     "outputs": [
+      "road_scrapyard_prop1",
+      "road_scrapyard_prop2",
+      "road_scrapyard_prop3",
+      "road_scrapyard_prop4",
+      "road_scrapyard_prop5",
+      "road_scrapyard_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the scrapyard level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: a scrap heap with a gear on top, a crane hook, a dented barrel, a broken TV, a pile of gears, a bent pipe. Palette orange sunset, slate blue, brass. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR10",
+   "title": "Chapter 7 PACKING DEPOT: scenery + props",
+   "dir": "art-candidates/pack-v2/LR10",
+   "prompts": [
+    {
+     "id": "LR10.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_packing_depot_entrance",
+     "name": "PACKING DEPOT scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_packing_depot_entrance_v01.png",
+     "outputs": [
+      "road_packing_depot_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale packing depot: cardboard walls, tall shelving, roller conveyors, tape lines on a warm floor, skylight beams, seen from a high 3/4 angle as a world to walk through. Palette cardboard tan, safety yellow, warm grey. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR10.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_packing_depot_middle",
+     "name": "PACKING DEPOT scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_packing_depot_middle_v01.png",
+     "outputs": [
+      "road_packing_depot_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_packing_depot_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_packing_depot_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same packing depot world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: a stack of cardboard crates, a wooden pallet, a giant tape roll. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR10.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_packing_depot_gate",
+     "name": "PACKING DEPOT scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_packing_depot_gate_v01.png",
+     "outputs": [
+      "road_packing_depot_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_packing_depot_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_packing_depot_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same packing depot world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a loading-dock roller door arch with caution stripes, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR10.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_packing_depot",
+     "name": "PACKING DEPOT foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "magenta",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_packing_depot_v01.png",
+     "outputs": [
+      "road_packing_depot_prop1",
+      "road_packing_depot_prop2",
+      "road_packing_depot_prop3",
+      "road_packing_depot_prop4",
+      "road_packing_depot_prop5",
+      "road_packing_depot_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the packing depot level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: a stack of cardboard crates, a wooden pallet, a giant tape roll, a conveyor belt piece with a parcel, a toy forklift, a burlap sack. Palette cardboard tan, safety yellow, warm grey. Flat magenta #FF00FF background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  },
+  {
+   "id": "LR11",
+   "title": "Chapter 8 OBSERVATORY: scenery + props",
+   "dir": "art-candidates/pack-v2/LR11",
+   "prompts": [
+    {
+     "id": "LR11.1",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_observatory_entrance",
+     "name": "OBSERVATORY scenery, entrance tile",
+     "mode": "single",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_observatory_entrance_v01.png",
+     "outputs": [
+      "road_observatory_a"
+     ],
+     "refs": [
+      "A1-style",
+      "A9-background"
+     ],
+     "dependsOn": null,
+     "prompt": "Single image, canvas 1024x1536, vertical full-bleed illustration, no key background. a toy-scale observatory dome room: indigo night windows with stars, brass instruments, polished wood floor with a faint star map, seen from a high 3/4 angle as a world to walk through. Palette indigo, brass, moon cream. The calm centre 55 percent of the width is open low-contrast floor where a code-drawn road will run; props and furniture crowd the left and right 22 percent edges. The bottom of the image is the chapter entrance with a clear open floor. Warm upper-left light, soft depth haze at the top. No road, characters, text, UI or logos.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR11.2",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_observatory_middle",
+     "name": "OBSERVATORY scenery, middle tile (seamless upward)",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_observatory_middle_v01.png",
+     "outputs": [
+      "road_observatory_b"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_observatory_a (the tile below)"
+     ],
+     "dependsOn": "lr_scene_observatory_entrance",
+     "prompt": "Single image, canvas 1024x1536, the next section of the same observatory world, directly ABOVE the attached tile. The bottom edge must continue the attached tile's top edge exactly (same floor, same props cut at the same x positions, same light). Same open centre 55 percent for the road, new props only at the left and right edges: a brass telescope, a globe, a brass orrery with small planets. The top edge should look like the bottom edge so the tile can repeat. Same camera, palette and outline-free painted look as the attached tile. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR11.3",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_scene_observatory_gate",
+     "name": "OBSERVATORY scenery, gate tile with fog",
+     "mode": "edit-chain",
+     "layout": "1x1",
+     "canvas": "1024x1536",
+     "key": "none",
+     "slice": "single",
+     "rawFile": "omm_lr_scene_observatory_gate_v01.png",
+     "outputs": [
+      "road_observatory_c"
+     ],
+     "refs": [
+      "A1-style",
+      "attach: road_observatory_b (the tile below)"
+     ],
+     "dependsOn": "lr_scene_observatory_middle",
+     "prompt": "Single image, canvas 1024x1536, the final section of the same observatory world, directly ABOVE the attached tile; its bottom edge continues the attached top edge exactly. In the upper third stands a great brass telescope-dome arch, spanning 70 percent of the width with an empty dark doorway and a wide round arena floor in front of it. Above and beyond the gate everything dissolves into soft pale fog so the top 12 percent is almost flat fog colour. Open centre kept low-contrast. No road, characters, text, UI.",
+     "slicingNote": "Full-bleed tile: no key. Crop the centre 780x1152 at 2x for the 390-wide world, stack tiles bottom (entrance) to top (gate); run the edge-match check (top row of the lower tile vs bottom row of the upper tile)."
+    },
+    {
+     "id": "LR11.4",
+     "queue": "new",
+     "theme": "level-road-v2",
+     "status": "planned",
+     "promptId": "lr_props_observatory",
+     "name": "OBSERVATORY foreground props",
+     "mode": "sheet",
+     "layout": "3x2",
+     "canvas": "1536x1024",
+     "key": "green",
+     "slice": "sheet",
+     "rawFile": "omm_lr_props_observatory_v01.png",
+     "outputs": [
+      "road_observatory_prop1",
+      "road_observatory_prop2",
+      "road_observatory_prop3",
+      "road_observatory_prop4",
+      "road_observatory_prop5",
+      "road_observatory_prop6"
+     ],
+     "refs": [
+      "A1-style",
+      "A2-unit-camera"
+     ],
+     "dependsOn": null,
+     "prompt": "3 columns by 2 rows sheet, canvas 1536x1024, equal cells, wide gutters, reading order left to right then top to bottom. Six chunky toy-scale scenery props for the observatory level road, each a single object with a soft contact shadow, thick dark local-colour outline, readable at 80 pixels, no mounting plate: a brass telescope, a globe, a brass orrery with small planets, a crystal ball on a stand, a moon lantern, a stack of star-chart scrolls without writing. Palette indigo, brass, moon cream. Flat green #00FF00 background.",
+     "slicingNote": "Sheet: key, despill, slice 3x2, trim each to its bbox, pad 8%, keep contact shadow."
+    }
+   ]
+  }
+ ]
+}
