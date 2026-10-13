@@ -155,6 +155,135 @@ describe('slice-sheet gates', () => {
     expect(r2.cells[1].failed).toContain('empty');
   });
 
+  describe('graded gates, kinds, despeckle', () => {
+    type Out = {
+      pass: boolean;
+      status: string;
+      cells: { name: string; status: string; failed: string[]; warned: string[]; flags: string[]; gates: Record<string, { status: string; value: unknown; threshold: unknown }> }[];
+    };
+    const one = async (s: Sheet, extra: Record<string, unknown> = {}) =>
+      (await sliceSheet(await s.png(), { grid: [1, 1], key: 'magenta', names: ['a'], ...extra })) as unknown as Out;
+    const BRASS: RGB = [150, 100, 30];
+    const CREAM: RGB = [250, 240, 215];
+    /** Outlined plate of the given size, brass frame and a cream centre, centred in cell (0,0). */
+    const plate = (s: Sheet, w: number, h: number, frame = 8) => {
+      const x = (C - w) / 2, y = (C - h) / 2;
+      s.rect(x, y, w, h, BRASS);
+      s.rect(x + frame, y + frame, w - 2 * frame, h - 2 * frame, CREAM);
+    };
+
+    it('a stray near-magenta pixel at the cell corner no longer trips cellBorder', async () => {
+      const s = new Sheet(1, 1);
+      plate(s, 110, 110);
+      s.rect(0, C - 1, 1, 1, [200, 40, 200]); // like the raw (0,1253) pixel
+      s.rect(C - 1, 0, 2, 1, [30, 30, 30]);
+      const r = await one(s, { kind: 'panel' });
+      expect(r.cells[0].failed).toEqual([]);
+      expect(r.cells[0].gates.cellBorder.status).toBe('pass');
+    });
+
+    it('a stray pixel is only forgiven below the despeckle threshold: a larger sliver still fails', async () => {
+      const s = new Sheet(1, 1);
+      plate(s, 110, 110);
+      s.rect(60, 0, 30, 6, [40, 90, 200]);
+      const r = await one(s, { kind: 'panel' });
+      expect(r.cells[0].failed).toContain('cellBorder');
+      expect(r.pass).toBe(false);
+    });
+
+    it('a strip touching both short ends passes with kind strip and fails as a panel', async () => {
+      const mk = () => {
+        const s = new Sheet(1, 1);
+        s.rect(0, 62, C, 36, BRASS);
+        s.rect(0, 70, C, 20, CREAM);
+        return s;
+      };
+      const strip = await one(mk(), { kind: 'strip', aspects: [4] });
+      expect(strip.cells[0].gates.cellBorder.status).toBe('pass');
+      expect(strip.cells[0].failed).toEqual([]);
+      const panel = await one(mk(), { kind: 'panel', aspects: [4] });
+      expect(panel.cells[0].failed).toContain('cellBorder');
+    });
+
+    it('a strip must still keep its long sides clear of the cell border', async () => {
+      const s = new Sheet(1, 1);
+      s.rect(0, 0, C, 40, BRASS); // touches the top edge: a real defect even for a strip
+      const r = await one(s, { kind: 'strip' });
+      expect(r.cells[0].failed).toContain('cellBorder');
+    });
+
+    it('a big cream panel centre is content, not a white hole', async () => {
+      const s = new Sheet(1, 1);
+      s.rect(30, 30, 100, 100, BRASS);
+      s.rect(38, 38, 84, 84, [255, 255, 250]); // near-white centre, ~70% of the plate
+      const r = await one(s, { kind: 'panel' });
+      expect(r.cells[0].gates.whiteInHoles.status).toBe('pass');
+      expect(r.cells[0].failed).toEqual([]);
+    });
+
+    it('a real white blob inside a hole still fails whiteInHoles', async () => {
+      const s = new Sheet(1, 1);
+      s.disc(C / 2, C / 2, 56, [60, 30, 20]);
+      s.disc(C / 2, C / 2, 50, [230, 130, 40]);
+      s.disc(C / 2, C / 2, 12, [255, 255, 255]);
+      const r = await one(s, { kind: 'icon' });
+      expect(r.cells[0].failed).toContain('whiteInHoles');
+    });
+
+    it('a halo still fails in every kind', async () => {
+      for (const kind of ['panel', 'icon', 'strip']) {
+        const s = new Sheet(1, 1);
+        s.disc(C / 2, C / 2, 56, [250, 235, 235]);
+        s.disc(C / 2, C / 2, 50, [50, 40, 90]);
+        const r = await one(s, { kind });
+        expect(r.cells[0].failed, kind).toContain('halo');
+      }
+    });
+
+    it('aspect is graded: within 10% pass, 10-25% warn (flagged, still sliced), over 25% fail', async () => {
+      const bar = (w: number) => {
+        const s = new Sheet(1, 1);
+        s.rect((C - w) / 2, 60, w, 40, BRASS);
+        return s;
+      };
+      const pass = await one(bar(80), { aspects: [2] }); // 2.0
+      expect(pass.cells[0].gates.aspect.status).toBe('pass');
+      const warn = await one(bar(96), { aspects: [2] }); // 2.4, 20% off
+      expect(warn.cells[0].gates.aspect.status).toBe('warn');
+      expect(warn.cells[0].flags).toContain('aspect-warn');
+      expect(warn.cells[0].gates.aspect.value as number).toBeGreaterThan(2.2); // measured ratio (alpha eroded 1 px)
+      expect(warn.cells[0].gates.aspect.value as number).toBeLessThan(2.5);
+      expect(warn.pass).toBe(true);
+      expect(warn.status).toBe('warn');
+      const fail = await one(bar(120), { aspects: [2] }); // 3:1 vs 2:1, 50% off
+      expect(fail.cells[0].gates.aspect.status).toBe('fail');
+      expect(fail.pass).toBe(false);
+    });
+
+    it('coverage has a warn band between pass and fail', async () => {
+      const mk = (r: number) => {
+        const s = new Sheet(1, 1);
+        s.disc(C / 2, C / 2, r, [20, 20, 120]);
+        return s;
+      };
+      expect((await one(mk(40))).cells[0].gates.coverage.status).toBe('pass'); // ~0.2
+      expect((await one(mk(11))).cells[0].gates.coverage.status).toBe('warn'); // ~0.015
+      expect((await one(mk(5))).cells[0].gates.coverage.status).toBe('fail'); // ~0.003
+    });
+
+    it('every gate reports status, value and threshold; unknown kind throws', async () => {
+      const s = new Sheet(1, 1);
+      s.disc(C / 2, C / 2, 45, [230, 130, 40]);
+      const r = await one(s);
+      for (const g of Object.values(r.cells[0].gates)) {
+        expect(['pass', 'warn', 'fail']).toContain(g.status);
+        expect(g).toHaveProperty('value');
+        expect(g).toHaveProperty('threshold');
+      }
+      await expect(one(s, { kind: 'banana' })).rejects.toThrow(/unknown kind/);
+    });
+  });
+
   it('works with a white key', async () => {
     const s = new Sheet(2, 1, [255, 255, 255]);
     s.gadget(0, 0);
