@@ -5,7 +5,7 @@
 // capReach = some option hits the 35% cascade cap; capped = the chosen merge did. Bots think every N s ±20%.
 import { LEVELS } from '../src/content/levels';
 import { TUNING } from '../src/content/tuning';
-import { drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
+import { hitCap, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import { a2Tag, a3Tag, applyA2 } from './a2-flags';
 
@@ -19,7 +19,7 @@ console.log(`chaos-sim | optionA ${TUNING.optionA ? 'ON' : 'OFF'} | optionA2 ${a
 const SUM: { gap: number; arr1: number; arr2: number; triv: number; trivR: number; noPair2: number }[] = [];
 
 type Opt = { f: number; t: number; raw: number; eff: number; count: number; rank: number };
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 function options(s: GameState): Opt[] {
   const out: Opt[] = [];
   const cap = capOf(s);

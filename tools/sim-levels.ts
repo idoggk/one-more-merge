@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { LEVELS, type LevelDef } from '../src/content/levels';
 import { applyPace, DEFAULT_PACE } from '../src/content/experiments';
 import { TUNING, type Pace } from '../src/content/tuning';
-import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
+import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import { a2Tag, a3Tag, applyA2 } from './a2-flags';
 
@@ -39,7 +39,7 @@ const TRIM = args.includes('--trim') ? Number(args[args.indexOf('--trim') + 1]) 
 const ONLY = args.includes('--levels') ? new Set(args[args.indexOf('--levels') + 1].split(',').map(Number)) : null;
 type Bot = { kind: 'random' | 'best'; every: number };
 const NOVICE: Bot = { kind: 'random', every: EVERY };
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 function smart(s: GameState): [number, number] | null {
   let best: [number, number] | null = null, bd = -1;
   for (const [a, b] of legalPairs(s))

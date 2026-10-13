@@ -51,7 +51,7 @@ import { addBoosters, nextYard, recordYard, weekYard, YARD_BOOSTER_START, YARD_C
 import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos } from '../core/endless';
 import { contractsFor, contractText } from '../core/mastery';
-import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { drillsPending, hitCap, newPuzzle, type PuzzleDef } from '../core/game';
 import { budgetPuzzleDef, newBudgetState, type BudgetLevel } from '../core/budget';
 import * as budgetUi from './ui/budget';
 import { applyMergeRule, type SandwichPlan } from '../core/sandwich';
@@ -3081,7 +3081,7 @@ Now beat the real level.`, this.coachY());
           ]),
         );
       // damage number beside the opponent, never on its face
-      const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
+      const capped = this.s.level !== undefined && !this.s.goal && r.total > hitCap(this.s);
       if (capped && !ribbon) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
       if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.stageFloatY(this.target.y - 40), capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });

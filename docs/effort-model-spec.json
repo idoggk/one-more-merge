@@ -1,0 +1,3468 @@
+{
+ "schema": "effort-model-spec/1",
+ "task": "t-755e045c",
+ "date": "2026-10-13",
+ "note": "Targets only. Nothing here changes the live game: the overlay (S1) reads this under TUNING.effortModel (default OFF). hp_first_order is a first-order estimate from docs/EFFORT_AUDIT.md (boss_mult = target / audit time share; minion_mult = (1 - target) / (1 - audit)); the fit loop in docs/EFFORT_MODEL.md section 5 replaces it with measured values. kp_est and hp_trim are estimates from docs/OPENING_VARIETY.md layout numbers, replaced by tools/opening-variety.ts measurements in S3.",
+ "flag": "TUNING.effortModel",
+ "flag_default": false,
+ "constants": {
+  "rank_mult": 2.25,
+  "cascade_cap": 0.35,
+  "stage_ramp": 0.3,
+  "thinker_merge_interval_s": 3,
+  "need_calibration": "effort_budget_s = need_target x clock_s",
+  "boss_share_measure": "time share = (win time - second-to-last kill time) / clear time, smart@3 winning runs, mean, 95% CI lower end >= 0.50",
+  "hp_share_ceiling": 0.75,
+  "impact_basis": "BOSS STAGE: merges needed or clock time from the boss stage start to the win, powers ON versus OFF, common random numbers. Level-clock equivalent = boss-stage % x boss time share (about 0.5 to 0.6).",
+  "impact_today_boss_stage_pct_upper": 6,
+  "goal_effort": {
+   "formula": "E_goal = G x t_g seconds. G = goal size in goal units (the level goal count), t_g = thinker seconds per goal unit = (win time - first-goal-progress time) / G, measured in sim-levels with smart@3 (n >= 30). Need = E_goal / clock.",
+   "refit": "goal_size_next = G x need_target / need_measured (levels.json goal count through tools/sim-levels.ts only). The boss share rule does not apply to goal levels; their last-stage target is the goal stage time share 0.25 to 0.40.",
+   "field": "goal_size_mult_first_order = need_target / audit need_starter on each goal level (31 levels)"
+  }
+ },
+ "need_curve": {
+  "shape_by_position_in_chapter": {
+   "1": 0.4,
+   "2": 0.46,
+   "3": 0.5,
+   "4": 0.52,
+   "5": 0.46,
+   "6": 0.54,
+   "7": 0.56,
+   "8": 0.58,
+   "9": 0.5,
+   "10": 0.62
+  },
+  "chapter_offset_per_chapter": 0.01,
+  "bounds": [
+   0.3,
+   0.7
+  ],
+  "max_step_between_neighbours": 0.15,
+  "max_step_into_boss": 0.2,
+  "max_step_after_boss": -0.25
+ },
+ "targets_by_kind": {
+  "normal": {
+   "last_machine_time_share": [
+    0.28,
+    0.38
+   ],
+   "minion_split": "ramp 1 + 0.3 i over the stages"
+  },
+  "goal": {
+   "goal_stage_time_share": [
+    0.25,
+    0.4
+   ],
+   "note": "cost is time, not HP"
+  },
+  "mini": {
+   "last_boss_time_share_target": 0.52,
+   "lower_ci_floor": 0.5
+  },
+  "boss": {
+   "last_boss_time_share_target": 0.56,
+   "lower_ci_floor": 0.5,
+   "final_boss_target": 0.6
+  },
+  "mania": {
+   "last_machine_time_share": [
+    0.35,
+    0.45
+   ],
+   "need_target": [
+    0.35,
+    0.45
+   ],
+   "powers": "off by design (TUNING.bossAttacks=false)",
+   "note": "no saga level is a mania level today; this row is for the pace=mania levels and Rush"
+  },
+  "teach": {
+   "note": "levels 1-3 are never touched"
+  }
+ },
+ "kit_catalog": {
+  "layouts": {
+   "A": {
+    "chain": 5,
+    "dmg": 1
+   },
+   "B": {
+    "chain": 4,
+    "dmg": 0.75
+   },
+   "C": {
+    "chain": 4,
+    "dmg": 0.75
+   },
+   "D": {
+    "chain": 5,
+    "dmg": 1
+   }
+  },
+  "rank_mixes_by_start_mass": {
+   "8": {
+    "F8": {
+     "parts": 8,
+     "ranks": "8xr1",
+     "kp": 1
+    },
+    "P7": {
+     "parts": 7,
+     "ranks": "1xr2+6xr1",
+     "kp": 1.03
+    },
+    "D6": {
+     "parts": 6,
+     "ranks": "2xr2+4xr1",
+     "kp": 1.06
+    }
+   },
+   "16": {
+    "F16": {
+     "parts": 8,
+     "ranks": "8xr2",
+     "kp": 1
+    },
+    "S16": {
+     "parts": 8,
+     "ranks": "1xr3+5xr2+2xr1",
+     "kp": 1.02
+    },
+    "T16": {
+     "parts": 8,
+     "ranks": "2xr3+2xr2+4xr1",
+     "kp": 1.03
+    }
+   },
+   "32": {
+    "F32": {
+     "parts": 8,
+     "ranks": "8xr3",
+     "kp": 1
+    },
+    "S32": {
+     "parts": 8,
+     "ranks": "1xr4+5xr3+2xr2",
+     "kp": 1.02
+    },
+    "T32": {
+     "parts": 8,
+     "ranks": "2xr4+3xr3+1xr2+2xr1",
+     "kp": 1.04
+    }
+   }
+  },
+  "gifts": {
+   "G0": "plain starter",
+   "GH": "one helper cell (existing start_extra: fan / magnet / battery)",
+   "GNAIL": "Nail Gun as the squad shooter (from L11)",
+   "GJACK": "Jackhammer (from L21)",
+   "GSAW": "Saw Blade (from L31)",
+   "GTORCH": "Blowtorch (from L36)"
+  },
+  "rules": [
+   "adjacent levels never share a layout",
+   "adjacent ordinary levels differ in at least 2 of 3 axes",
+   "any 4 consecutive ordinary levels use at least 3 layouts",
+   "no gift repeats on adjacent levels (G0 excepted)",
+   "G0 is at most 40% of a chapter",
+   "kit power index kp stays within 0.75..1.15 (B and C layouts alone give 0.75, so the trim clamp of -10% is reached on 8 kits; HP trim = (kp - 1) x 50%, at most +-10%); B and C layouts want a peaked rank mix or a gift",
+   "teach, mini-boss and boss levels keep their scripted starts",
+   "at least 5 live pairs at move 1"
+  ],
+  "stats": {
+   "ordinary_levels": 61,
+   "distinct_kits": 51,
+   "largest_group": 3,
+   "adjacent_same_layout": 0,
+   "adjacent_alike_2of3": 0,
+   "levels_total_hp_change_over_25pct": 28,
+   "total_hp_mult_min_max": [
+    0.58,
+    3.12
+   ],
+   "kp_est_range": [
+    0.77,
+    1.1
+   ],
+   "recomputed_after_review": "mix factors 1.00 to 1.06 (was 1.08 to 1.14); kp_est and hp_trim_pct_est regenerated; the deal itself is unchanged"
+  },
+  "mix_factor_basis": "kp mix factor = sum of 10 x 2.25^(rank-1) over the mix divided by the same sum for the flat mix of equal rank mass (pure convexity, chain effects not included; S3 measures the real value).",
+  "cell_rules": {
+   "slot_order": [
+    "shooter[0]",
+    "shooter[1]",
+    "shooter[2]",
+    "shooter[3]",
+    "coil[0]",
+    "coil[1]",
+    "bell[0]",
+    "bell[1]"
+   ],
+   "note": "ranks are dealt to the layout slots in this order (layouts in src/content/openings.ts keep their cells; only the rank per cell and empty slots are new). shooter[0..1] stay the Jumpstart pair.",
+   "assign": {
+    "F": "all 8 slots at the start rank",
+    "S16": "slot0 r3; slots 1-5 r2; slots 6-7 r1",
+    "T16": "slots 0-1 r3; slots 2-3 r2; slots 4-7 r1",
+    "S32": "slot0 r4; slots 1-5 r3; slots 6-7 r2",
+    "T32": "slots 0-1 r4; slots 2-4 r3; slot 5 r2; slots 6-7 r1",
+    "P7": "slot0 r2; slots 1-6 r1; slot 7 EMPTY",
+    "D6": "slots 0-1 r2; slots 2-5 r1; slots 6-7 EMPTY"
+   },
+   "invariants": "tests compare layouts of the SAME mix (rank mass, part count, family multiset equal across A to D); different mixes of one start mass differ in part count by design (P7 7 parts, D6 6 parts). Empty slots are legal. Live pairs >= 5 at move 1 is checked per kit. Jumpstart is applied on top of the kit and is outside the kit mass check."
+  },
+  "gift_rules": {
+   "precedence": "def.shooter (level fixed, today only L6 rocket) > the squad the player picked (opts.shooter) > gift. Gifts never override a player choice.",
+   "GH": "uses the existing start_extra path, including the myHelper substitution",
+   "GSHOOT": "GNAIL, GJACK, GSAW, GTORCH set the squad shooter only when def.shooter is unset AND the player has not picked a squad (campaign default squad). Otherwise they degrade to G0 for that player. Kit variety statistics are computed for the default squad; a player with a chosen squad sees layout and rank mix variety only."
+  }
+ },
+ "boss_powers": [
+  {
+   "id": "pressure_pop",
+   "level": 8,
+   "boss": "PRESSURE POPPER",
+   "archetype": "COUNTDOWN",
+   "size": "S",
+   "lines": 150,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "lid_armor",
+   "level": 10,
+   "boss": "TIN CAN KING",
+   "archetype": "ARMOR (timed)",
+   "size": "M",
+   "lines": 300,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "double_track",
+   "level": 18,
+   "boss": "CAROUSEL CRAB",
+   "archetype": "SCRAMBLE",
+   "size": "S",
+   "lines": 120,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "deep_freeze",
+   "level": 20,
+   "boss": "FRIDGE OVERLORD",
+   "archetype": "LOCK",
+   "size": "M",
+   "lines": 300,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "mirage_decoys",
+   "level": 28,
+   "boss": "VANITY MOTH",
+   "archetype": "SUMMON (chain terminators)",
+   "size": "M",
+   "lines": 260,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "snatch",
+   "level": 30,
+   "boss": "VIPER QUEEN",
+   "archetype": "THEFT",
+   "size": "M",
+   "lines": 320,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "brick_armor",
+   "level": 38,
+   "boss": "BRICK PRINTER",
+   "archetype": "ARMOR (stacking)",
+   "size": "M",
+   "lines": 240,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "overheat",
+   "level": 40,
+   "boss": "TWIN TOASTERS",
+   "archetype": "ENRAGE",
+   "size": "M",
+   "lines": 300,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "ink_cells",
+   "level": 48,
+   "boss": "SCRAP KRAKEN",
+   "archetype": "SHIELD CELLS",
+   "size": "M",
+   "lines": 280,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "encore_echoes",
+   "level": 50,
+   "boss": "PIANO-SAURUS REX",
+   "archetype": "SUMMON (healers)",
+   "size": "L",
+   "lines": 450,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "spring_tonic",
+   "level": 58,
+   "boss": "SPRING JACK",
+   "archetype": "HEAL / INTERRUPT",
+   "size": "S",
+   "lines": 160,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "plate_armor",
+   "level": 60,
+   "boss": "JUNKZILLA",
+   "archetype": "ARMOR (plates) + SHIELD CELLS",
+   "size": "L",
+   "lines": 500,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "slick_rink",
+   "level": 68,
+   "boss": "OIL OTTER",
+   "archetype": "SCRAMBLE (aimed)",
+   "size": "S",
+   "lines": 140,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "rivet_pin",
+   "level": 70,
+   "boss": "RIVET RHINO",
+   "archetype": "LOCK (pin)",
+   "size": "M",
+   "lines": 220,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 15,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  },
+  {
+   "id": "portal_trap",
+   "level": 78,
+   "boss": "PORTAL POSSUM",
+   "archetype": "SCRAMBLE (exile)",
+   "size": "M",
+   "lines": 240,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 10,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 2
+  },
+  {
+   "id": "chrono_forms",
+   "level": 80,
+   "boss": "CHRONO CHIMERA",
+   "archetype": "COMPOSITE (3 forms)",
+   "size": "L",
+   "lines": 450,
+   "impact_target": {
+    "merges_or_time_cost_pct_min": 20,
+    "basis": "boss_stage"
+   },
+   "counter_recovery_min_pct": 40,
+   "blind_bot_win_drop_max_pts": 25,
+   "reader_bot_win_drop_max_pts": 6,
+   "telegraph_ms_min": 600,
+   "casts_min": 3
+  }
+ ],
+ "chapter_power": [
+  {
+   "chapter": 1,
+   "dps": 80,
+   "chain": 5.9,
+   "implied_damage_per_machine": 41,
+   "cannon_equiv_rank": 2.73,
+   "need_starter": 0.51
+  },
+  {
+   "chapter": 2,
+   "dps": 160,
+   "chain": 8.6,
+   "implied_damage_per_machine": 56,
+   "cannon_equiv_rank": 3.12,
+   "need_starter": 0.56
+  },
+  {
+   "chapter": 3,
+   "dps": 295,
+   "chain": 7.1,
+   "implied_damage_per_machine": 125,
+   "cannon_equiv_rank": 4.11,
+   "need_starter": 0.51
+  },
+  {
+   "chapter": 4,
+   "dps": 335,
+   "chain": 7.1,
+   "implied_damage_per_machine": 142,
+   "cannon_equiv_rank": 4.27,
+   "need_starter": 0.58
+  },
+  {
+   "chapter": 5,
+   "dps": 674,
+   "chain": 8,
+   "implied_damage_per_machine": 253,
+   "cannon_equiv_rank": 4.98,
+   "need_starter": 0.61
+  },
+  {
+   "chapter": 6,
+   "dps": 733,
+   "chain": 7.2,
+   "implied_damage_per_machine": 306,
+   "cannon_equiv_rank": 5.22,
+   "need_starter": 0.56
+  },
+  {
+   "chapter": 7,
+   "dps": 430,
+   "chain": 7.3,
+   "implied_damage_per_machine": 176,
+   "cannon_equiv_rank": 4.54,
+   "need_starter": 0.58
+  },
+  {
+   "chapter": 8,
+   "dps": 514,
+   "chain": 7.2,
+   "implied_damage_per_machine": 215,
+   "cannon_equiv_rank": 4.78,
+   "need_starter": 0.59
+  }
+ ],
+ "levels": [
+  {
+   "level": 1,
+   "chapter": 1,
+   "pos": 1,
+   "kind": "teach",
+   "clock_s": 45,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.53,
+    "last_time_share": 1,
+    "dps_starter": 42,
+    "chain_avg": 3
+   },
+   "starter_kit_id": "TEACH",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.53,
+   "effort_budget_s": 23.9,
+   "total_hp_mult_first_order": 1,
+   "breather": true
+  },
+  {
+   "level": 2,
+   "chapter": 1,
+   "pos": 2,
+   "kind": "teach",
+   "clock_s": 45,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.51,
+    "last_time_share": 1,
+    "dps_starter": 35,
+    "chain_avg": 3.9
+   },
+   "starter_kit_id": "TEACH",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.51,
+   "effort_budget_s": 22.9,
+   "total_hp_mult_first_order": 1,
+   "breather": false
+  },
+  {
+   "level": 3,
+   "chapter": 1,
+   "pos": 3,
+   "kind": "teach",
+   "clock_s": 70,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.49,
+    "last_time_share": 0.27,
+    "dps_starter": 82,
+    "chain_avg": 6.6
+   },
+   "starter_kit_id": "TEACH",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.49,
+   "effort_budget_s": 34.3,
+   "total_hp_mult_first_order": 1,
+   "breather": false
+  },
+  {
+   "level": 4,
+   "chapter": 1,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 70,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.45,
+    "last_time_share": 0.08,
+    "dps_starter": 82,
+    "chain_avg": 5.9
+   },
+   "starter_kit_id": "D-F8-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F8",
+    "gift": "G0",
+    "kp_est": 1,
+    "hp_trim_pct_est": 0
+   },
+   "need_target": 0.52,
+   "effort_budget_s": 36.4,
+   "total_hp_mult_first_order": 1.16,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.08,
+   "goal_size_mult_first_order": 1.16
+  },
+  {
+   "level": 5,
+   "chapter": 1,
+   "pos": 5,
+   "kind": "normal",
+   "clock_s": 70,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.52,
+    "last_time_share": 0.25,
+    "dps_starter": 69,
+    "chain_avg": 4.7
+   },
+   "starter_kit_id": "B-D6-G0",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "D6",
+    "gift": "G0",
+    "kp_est": 0.8,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.46,
+   "effort_budget_s": 32.2,
+   "total_hp_mult_first_order": 0.88,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.25
+  },
+  {
+   "level": 6,
+   "chapter": 1,
+   "pos": 6,
+   "kind": "normal",
+   "clock_s": 70,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.49,
+    "last_time_share": 0.3,
+    "dps_starter": 97,
+    "chain_avg": 7.2
+   },
+   "starter_kit_id": "D-F8-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F8",
+    "gift": "G0",
+    "kp_est": 1,
+    "hp_trim_pct_est": 0
+   },
+   "need_target": 0.54,
+   "effort_budget_s": 37.8,
+   "total_hp_mult_first_order": 1.1,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.3
+  },
+  {
+   "level": 7,
+   "chapter": 1,
+   "pos": 7,
+   "kind": "goal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.5,
+    "last_time_share": 0,
+    "dps_starter": 105,
+    "chain_avg": 5.3
+   },
+   "starter_kit_id": "A-D6-G0",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "D6",
+    "gift": "G0",
+    "kp_est": 1.06,
+    "hp_trim_pct_est": 3
+   },
+   "need_target": 0.56,
+   "effort_budget_s": 53.2,
+   "total_hp_mult_first_order": 1.12,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0,
+   "goal_size_mult_first_order": 1.12
+  },
+  {
+   "level": 8,
+   "chapter": 1,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.43,
+    "last_time_share": 0.34,
+    "dps_starter": 117,
+    "chain_avg": 10
+   },
+   "starter_kit_id": "BOSS-8",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.58,
+   "effort_budget_s": 55.1,
+   "total_hp_mult_first_order": 1.35,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.34,
+   "boss_time_budget_s": 28.7,
+   "minion_time_budget_s": 26.4,
+   "minion_stage_weights": [
+    0.435,
+    0.565
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.53,
+    "minion_mult": 0.73,
+    "boss_hp_share_after": 0.678
+   },
+   "boss_power_id": "pressure_pop",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 9,
+   "chapter": 1,
+   "pos": 9,
+   "kind": "normal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.63,
+    "last_time_share": 0.13,
+    "dps_starter": 87,
+    "chain_avg": 6.7
+   },
+   "starter_kit_id": "D-D6-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "D6",
+    "gift": "G0",
+    "kp_est": 1.06,
+    "hp_trim_pct_est": 3
+   },
+   "need_target": 0.5,
+   "effort_budget_s": 47.5,
+   "total_hp_mult_first_order": 0.79,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.13
+  },
+  {
+   "level": 10,
+   "chapter": 1,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.55,
+    "last_time_share": 0.41,
+    "dps_starter": 86,
+    "chain_avg": 5.8
+   },
+   "starter_kit_id": "BOSS-10",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.62,
+   "effort_budget_s": 58.9,
+   "total_hp_mult_first_order": 1.13,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.41,
+   "boss_time_budget_s": 33,
+   "minion_time_budget_s": 25.9,
+   "minion_stage_weights": [
+    0.435,
+    0.565
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.37,
+    "minion_mult": 0.75,
+    "boss_hp_share_after": 0.647
+   },
+   "boss_power_id": "lid_armor",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 13
+  },
+  {
+   "level": 11,
+   "chapter": 2,
+   "pos": 1,
+   "kind": "normal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.71,
+    "last_time_share": 0.15,
+    "dps_starter": 135,
+    "chain_avg": 6.1
+   },
+   "starter_kit_id": "C-D6-G0",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "D6",
+    "gift": "G0",
+    "kp_est": 0.8,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.41,
+   "effort_budget_s": 38.9,
+   "total_hp_mult_first_order": 0.58,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.15
+  },
+  {
+   "level": 12,
+   "chapter": 2,
+   "pos": 2,
+   "kind": "goal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.56,
+    "last_time_share": 0.03,
+    "dps_starter": 149,
+    "chain_avg": 10.4
+   },
+   "starter_kit_id": "B-P7-GH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "P7",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.3
+   },
+   "need_target": 0.47,
+   "effort_budget_s": 44.6,
+   "total_hp_mult_first_order": 0.84,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.03,
+   "goal_size_mult_first_order": 0.84
+  },
+  {
+   "level": 13,
+   "chapter": 2,
+   "pos": 3,
+   "kind": "normal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.59,
+    "last_time_share": 0.16,
+    "dps_starter": 159,
+    "chain_avg": 9.6
+   },
+   "starter_kit_id": "D-P7-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "P7",
+    "gift": "G0",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.51,
+   "effort_budget_s": 48.5,
+   "total_hp_mult_first_order": 0.86,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.16
+  },
+  {
+   "level": 14,
+   "chapter": 2,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.49,
+    "last_time_share": 0.02,
+    "dps_starter": 112,
+    "chain_avg": 6.5
+   },
+   "starter_kit_id": "A-F8-GNAIL",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F8",
+    "gift": "GNAIL",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.53,
+   "effort_budget_s": 50.4,
+   "total_hp_mult_first_order": 1.08,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.02,
+   "goal_size_mult_first_order": 1.08
+  },
+  {
+   "level": 15,
+   "chapter": 2,
+   "pos": 5,
+   "kind": "goal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.53,
+    "last_time_share": 0.06,
+    "dps_starter": 157,
+    "chain_avg": 7.3
+   },
+   "starter_kit_id": "D-F8-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F8",
+    "gift": "G0",
+    "kp_est": 1,
+    "hp_trim_pct_est": 0
+   },
+   "need_target": 0.47,
+   "effort_budget_s": 44.6,
+   "total_hp_mult_first_order": 0.89,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.06,
+   "goal_size_mult_first_order": 0.89
+  },
+  {
+   "level": 16,
+   "chapter": 2,
+   "pos": 6,
+   "kind": "goal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.4,
+    "last_time_share": 0.11,
+    "dps_starter": 230,
+    "chain_avg": 9
+   },
+   "starter_kit_id": "C-P7-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "P7",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.3
+   },
+   "need_target": 0.55,
+   "effort_budget_s": 52.3,
+   "total_hp_mult_first_order": 1.38,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.11,
+   "goal_size_mult_first_order": 1.38
+  },
+  {
+   "level": 17,
+   "chapter": 2,
+   "pos": 7,
+   "kind": "normal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.66,
+    "last_time_share": 0.19,
+    "dps_starter": 127,
+    "chain_avg": 6.8
+   },
+   "starter_kit_id": "A-F8-GH",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F8",
+    "gift": "GH",
+    "kp_est": 1.08,
+    "hp_trim_pct_est": 4
+   },
+   "need_target": 0.57,
+   "effort_budget_s": 54.1,
+   "total_hp_mult_first_order": 0.86,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.19
+  },
+  {
+   "level": 18,
+   "chapter": 2,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.53,
+    "last_time_share": 0.36,
+    "dps_starter": 173,
+    "chain_avg": 12
+   },
+   "starter_kit_id": "BOSS-18",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.59,
+   "effort_budget_s": 56,
+   "total_hp_mult_first_order": 1.11,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.36,
+   "boss_time_budget_s": 29.1,
+   "minion_time_budget_s": 26.9,
+   "minion_stage_weights": [
+    0.435,
+    0.565
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.44,
+    "minion_mult": 0.75,
+    "boss_hp_share_after": 0.658
+   },
+   "boss_power_id": "double_track",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 19,
+   "chapter": 2,
+   "pos": 9,
+   "kind": "normal",
+   "clock_s": 95,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.64,
+    "last_time_share": 0.16,
+    "dps_starter": 160,
+    "chain_avg": 8.8
+   },
+   "starter_kit_id": "C-D6-GNAIL",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "D6",
+    "gift": "GNAIL",
+    "kp_est": 0.82,
+    "hp_trim_pct_est": -9.1
+   },
+   "need_target": 0.51,
+   "effort_budget_s": 48.5,
+   "total_hp_mult_first_order": 0.8,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.16
+  },
+  {
+   "level": 20,
+   "chapter": 2,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 125,
+   "start_rank": 1,
+   "start_mass": 8,
+   "audit": {
+    "need_starter": 0.51,
+    "last_time_share": 0.31,
+    "dps_starter": 200,
+    "chain_avg": 9.7
+   },
+   "starter_kit_id": "BOSS-20",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.63,
+   "effort_budget_s": 78.8,
+   "total_hp_mult_first_order": 1.24,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.31,
+   "boss_time_budget_s": 44.1,
+   "minion_time_budget_s": 34.7,
+   "minion_stage_weights": [
+    0.256,
+    0.333,
+    0.41
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.81,
+    "minion_mult": 0.64,
+    "boss_hp_share_after": 0.739
+   },
+   "boss_power_id": "deep_freeze",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 21,
+   "chapter": 3,
+   "pos": 1,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.53,
+    "last_time_share": 0.01,
+    "dps_starter": 288,
+    "chain_avg": 5.6
+   },
+   "starter_kit_id": "D-F16-GJACK",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F16",
+    "gift": "GJACK",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.42,
+   "effort_budget_s": 52.5,
+   "total_hp_mult_first_order": 0.79,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.01,
+   "goal_size_mult_first_order": 0.79
+  },
+  {
+   "level": 22,
+   "chapter": 3,
+   "pos": 2,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.65,
+    "last_time_share": 0.09,
+    "dps_starter": 229,
+    "chain_avg": 5.8
+   },
+   "starter_kit_id": "A-T16-G0",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "T16",
+    "gift": "G0",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.48,
+   "effort_budget_s": 60,
+   "total_hp_mult_first_order": 0.74,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.09
+  },
+  {
+   "level": 23,
+   "chapter": 3,
+   "pos": 3,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.33,
+    "last_time_share": 0.15,
+    "dps_starter": 118,
+    "chain_avg": 7.5
+   },
+   "starter_kit_id": "B-T16-GH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T16",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.3
+   },
+   "need_target": 0.52,
+   "effort_budget_s": 65,
+   "total_hp_mult_first_order": 1.58,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.15,
+   "goal_size_mult_first_order": 1.58
+  },
+  {
+   "level": 24,
+   "chapter": 3,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.6,
+    "last_time_share": 0.09,
+    "dps_starter": 273,
+    "chain_avg": 6.4
+   },
+   "starter_kit_id": "A-F16-GJACK",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F16",
+    "gift": "GJACK",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.54,
+   "effort_budget_s": 67.5,
+   "total_hp_mult_first_order": 0.9,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.09,
+   "goal_size_mult_first_order": 0.9
+  },
+  {
+   "level": 25,
+   "chapter": 3,
+   "pos": 5,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.71,
+    "last_time_share": 0.1,
+    "dps_starter": 237,
+    "chain_avg": 6.2
+   },
+   "starter_kit_id": "C-F16-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "F16",
+    "gift": "GH",
+    "kp_est": 0.81,
+    "hp_trim_pct_est": -9.5
+   },
+   "need_target": 0.48,
+   "effort_budget_s": 60,
+   "total_hp_mult_first_order": 0.68,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.1
+  },
+  {
+   "level": 26,
+   "chapter": 3,
+   "pos": 6,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.41,
+    "last_time_share": 0.08,
+    "dps_starter": 347,
+    "chain_avg": 9.7
+   },
+   "starter_kit_id": "D-T16-GJACK",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "T16",
+    "gift": "GJACK",
+    "kp_est": 1.08,
+    "hp_trim_pct_est": 4.1
+   },
+   "need_target": 0.56,
+   "effort_budget_s": 70,
+   "total_hp_mult_first_order": 1.37,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.08,
+   "goal_size_mult_first_order": 1.37
+  },
+  {
+   "level": 27,
+   "chapter": 3,
+   "pos": 7,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.35,
+    "last_time_share": 0.15,
+    "dps_starter": 157,
+    "chain_avg": 6.4
+   },
+   "starter_kit_id": "C-F16-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "F16",
+    "gift": "GH",
+    "kp_est": 0.81,
+    "hp_trim_pct_est": -9.5
+   },
+   "need_target": 0.58,
+   "effort_budget_s": 72.5,
+   "total_hp_mult_first_order": 1.66,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.15,
+   "goal_size_mult_first_order": 1.66
+  },
+  {
+   "level": 28,
+   "chapter": 3,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.5,
+    "last_time_share": 0.27,
+    "dps_starter": 436,
+    "chain_avg": 8.4
+   },
+   "starter_kit_id": "BOSS-28",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.6,
+   "effort_budget_s": 75,
+   "total_hp_mult_first_order": 1.2,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.27,
+   "boss_time_budget_s": 39,
+   "minion_time_budget_s": 36,
+   "minion_stage_weights": [
+    0.256,
+    0.333,
+    0.41
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.93,
+    "minion_mult": 0.66,
+    "boss_hp_share_after": 0.745
+   },
+   "boss_power_id": "mirage_decoys",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 29,
+   "chapter": 3,
+   "pos": 9,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.54,
+    "last_time_share": 0.08,
+    "dps_starter": 246,
+    "chain_avg": 6.1
+   },
+   "starter_kit_id": "B-T16-GNAIL",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T16",
+    "gift": "GNAIL",
+    "kp_est": 0.8,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.52,
+   "effort_budget_s": 65,
+   "total_hp_mult_first_order": 0.96,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.08,
+   "goal_size_mult_first_order": 0.96
+  },
+  {
+   "level": 30,
+   "chapter": 3,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.49,
+    "last_time_share": 0.32,
+    "dps_starter": 618,
+    "chain_avg": 8.9
+   },
+   "starter_kit_id": "BOSS-30",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.64,
+   "effort_budget_s": 105.6,
+   "total_hp_mult_first_order": 1.31,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.32,
+   "boss_time_budget_s": 59.1,
+   "minion_time_budget_s": 46.5,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.75,
+    "minion_mult": 0.65,
+    "boss_hp_share_after": 0.73
+   },
+   "boss_power_id": "snatch",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 31,
+   "chapter": 4,
+   "pos": 1,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.5,
+    "last_time_share": 0.15,
+    "dps_starter": 484,
+    "chain_avg": 7.8
+   },
+   "starter_kit_id": "D-F16-GJACK",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F16",
+    "gift": "GJACK",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.43,
+   "effort_budget_s": 53.8,
+   "total_hp_mult_first_order": 0.86,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.15
+  },
+  {
+   "level": 32,
+   "chapter": 4,
+   "pos": 2,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.5,
+    "last_time_share": 0.07,
+    "dps_starter": 178,
+    "chain_avg": 6.3
+   },
+   "starter_kit_id": "B-T16-GH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T16",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.3
+   },
+   "need_target": 0.49,
+   "effort_budget_s": 61.3,
+   "total_hp_mult_first_order": 0.98,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.07,
+   "goal_size_mult_first_order": 0.98
+  },
+  {
+   "level": 33,
+   "chapter": 4,
+   "pos": 3,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.49,
+    "last_time_share": 0.2,
+    "dps_starter": 401,
+    "chain_avg": 6.7
+   },
+   "starter_kit_id": "C-T16-G0",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "T16",
+    "gift": "G0",
+    "kp_est": 0.77,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.53,
+   "effort_budget_s": 66.3,
+   "total_hp_mult_first_order": 1.08,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.2
+  },
+  {
+   "level": 34,
+   "chapter": 4,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.57,
+    "last_time_share": 0.01,
+    "dps_starter": 298,
+    "chain_avg": 5.5
+   },
+   "starter_kit_id": "D-F16-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F16",
+    "gift": "G0",
+    "kp_est": 1,
+    "hp_trim_pct_est": 0
+   },
+   "need_target": 0.55,
+   "effort_budget_s": 68.8,
+   "total_hp_mult_first_order": 0.96,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.01,
+   "goal_size_mult_first_order": 0.96
+  },
+  {
+   "level": 35,
+   "chapter": 4,
+   "pos": 5,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.8,
+    "last_time_share": 0.2,
+    "dps_starter": 221,
+    "chain_avg": 4.5
+   },
+   "starter_kit_id": "B-S16-GH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "S16",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.7
+   },
+   "need_target": 0.49,
+   "effort_budget_s": 61.3,
+   "total_hp_mult_first_order": 0.61,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.2
+  },
+  {
+   "level": 36,
+   "chapter": 4,
+   "pos": 6,
+   "kind": "goal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.39,
+    "last_time_share": 0.1,
+    "dps_starter": 458,
+    "chain_avg": 6.4
+   },
+   "starter_kit_id": "C-S16-G0",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "S16",
+    "gift": "G0",
+    "kp_est": 0.77,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.57,
+   "effort_budget_s": 71.3,
+   "total_hp_mult_first_order": 1.46,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.1,
+   "goal_size_mult_first_order": 1.46
+  },
+  {
+   "level": 37,
+   "chapter": 4,
+   "pos": 7,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.56,
+    "last_time_share": 0.14,
+    "dps_starter": 211,
+    "chain_avg": 9.3
+   },
+   "starter_kit_id": "D-T16-GNAIL",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "T16",
+    "gift": "GNAIL",
+    "kp_est": 1.06,
+    "hp_trim_pct_est": 3
+   },
+   "need_target": 0.59,
+   "effort_budget_s": 73.8,
+   "total_hp_mult_first_order": 1.05,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.14
+  },
+  {
+   "level": 38,
+   "chapter": 4,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.55,
+    "last_time_share": 0.33,
+    "dps_starter": 340,
+    "chain_avg": 11
+   },
+   "starter_kit_id": "BOSS-38",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.61,
+   "effort_budget_s": 76.3,
+   "total_hp_mult_first_order": 1.11,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.33,
+   "boss_time_budget_s": 39.7,
+   "minion_time_budget_s": 36.6,
+   "minion_stage_weights": [
+    0.256,
+    0.333,
+    0.41
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.58,
+    "minion_mult": 0.72,
+    "boss_hp_share_after": 0.687
+   },
+   "boss_power_id": "brick_armor",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 39,
+   "chapter": 4,
+   "pos": 9,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.83,
+    "last_time_share": 0.26,
+    "dps_starter": 278,
+    "chain_avg": 5.4
+   },
+   "starter_kit_id": "C-S16-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "S16",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.7
+   },
+   "need_target": 0.53,
+   "effort_budget_s": 66.3,
+   "total_hp_mult_first_order": 0.64,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.26
+  },
+  {
+   "level": 40,
+   "chapter": 4,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.59,
+    "last_time_share": 0.2,
+    "dps_starter": 476,
+    "chain_avg": 7.8
+   },
+   "starter_kit_id": "BOSS-40",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.65,
+   "effort_budget_s": 107.3,
+   "total_hp_mult_first_order": 1.1,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.2,
+   "boss_time_budget_s": 60.1,
+   "minion_time_budget_s": 47.2,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 2.8,
+    "minion_mult": 0.55,
+    "boss_hp_share_after": 0.836,
+    "needs_cap_lever": true,
+    "boss_mult_capped": 1.65,
+    "boss_stage_cascade_cap_guess": 0.2
+   },
+   "boss_power_id": "overheat",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 41,
+   "chapter": 5,
+   "pos": 1,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.59,
+    "last_time_share": 0,
+    "dps_starter": 635,
+    "chain_avg": 9.1
+   },
+   "starter_kit_id": "B-S32-GSAW",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "S32",
+    "gift": "GSAW",
+    "kp_est": 0.79,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.44,
+   "effort_budget_s": 72.6,
+   "total_hp_mult_first_order": 0.75,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0,
+   "goal_size_mult_first_order": 0.75
+  },
+  {
+   "level": 42,
+   "chapter": 5,
+   "pos": 2,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.46,
+    "last_time_share": 0,
+    "dps_starter": 445,
+    "chain_avg": 8.1
+   },
+   "starter_kit_id": "D-S32-GNAIL",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "S32",
+    "gift": "GNAIL",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.5,
+   "effort_budget_s": 82.5,
+   "total_hp_mult_first_order": 1.09,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0,
+   "goal_size_mult_first_order": 1.09
+  },
+  {
+   "level": 43,
+   "chapter": 5,
+   "pos": 3,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.62,
+    "last_time_share": 0.04,
+    "dps_starter": 445,
+    "chain_avg": 7.2
+   },
+   "starter_kit_id": "A-F32-GTORCH",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F32",
+    "gift": "GTORCH",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.54,
+   "effort_budget_s": 89.1,
+   "total_hp_mult_first_order": 0.87,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.04,
+   "goal_size_mult_first_order": 0.87
+  },
+  {
+   "level": 44,
+   "chapter": 5,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.58,
+    "last_time_share": 0,
+    "dps_starter": 367,
+    "chain_avg": 6.3
+   },
+   "starter_kit_id": "D-F32-GJACK",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "F32",
+    "gift": "GJACK",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.56,
+   "effort_budget_s": 92.4,
+   "total_hp_mult_first_order": 0.97,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0,
+   "goal_size_mult_first_order": 0.97
+  },
+  {
+   "level": 45,
+   "chapter": 5,
+   "pos": 5,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.62,
+    "last_time_share": 0.11,
+    "dps_starter": 440,
+    "chain_avg": 6.4
+   },
+   "starter_kit_id": "C-F32-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "F32",
+    "gift": "GH",
+    "kp_est": 0.81,
+    "hp_trim_pct_est": -9.5
+   },
+   "need_target": 0.5,
+   "effort_budget_s": 62.5,
+   "total_hp_mult_first_order": 0.81,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.11
+  },
+  {
+   "level": 46,
+   "chapter": 5,
+   "pos": 6,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.32,
+    "last_time_share": 0.14,
+    "dps_starter": 1885,
+    "chain_avg": 9.5
+   },
+   "starter_kit_id": "B-S32-GNAIL",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "S32",
+    "gift": "GNAIL",
+    "kp_est": 0.79,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.58,
+   "effort_budget_s": 95.7,
+   "total_hp_mult_first_order": 1.81,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.14,
+   "goal_size_mult_first_order": 1.81
+  },
+  {
+   "level": 47,
+   "chapter": 5,
+   "pos": 7,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.63,
+    "last_time_share": 0.13,
+    "dps_starter": 335,
+    "chain_avg": 6.5
+   },
+   "starter_kit_id": "C-S32-GSAW",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "S32",
+    "gift": "GSAW",
+    "kp_est": 0.79,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.6,
+   "effort_budget_s": 75,
+   "total_hp_mult_first_order": 0.95,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.13
+  },
+  {
+   "level": 48,
+   "chapter": 5,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.48,
+    "last_time_share": 0.33,
+    "dps_starter": 1305,
+    "chain_avg": 13.5
+   },
+   "starter_kit_id": "BOSS-48",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.62,
+   "effort_budget_s": 102.3,
+   "total_hp_mult_first_order": 1.29,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.33,
+   "boss_time_budget_s": 53.2,
+   "minion_time_budget_s": 49.1,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.58,
+    "minion_mult": 0.72,
+    "boss_hp_share_after": 0.687
+   },
+   "boss_power_id": "ink_cells",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 49,
+   "chapter": 5,
+   "pos": 9,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.9,
+    "last_time_share": 0.11,
+    "dps_starter": 308,
+    "chain_avg": 6.1
+   },
+   "starter_kit_id": "D-S32-GH",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "S32",
+    "gift": "GH",
+    "kp_est": 1.1,
+    "hp_trim_pct_est": 5.1
+   },
+   "need_target": 0.54,
+   "effort_budget_s": 67.5,
+   "total_hp_mult_first_order": 0.6,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.11
+  },
+  {
+   "level": 50,
+   "chapter": 5,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.9,
+    "last_time_share": 0.37,
+    "dps_starter": 578,
+    "chain_avg": 7.3
+   },
+   "starter_kit_id": "BOSS-50",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.66,
+   "effort_budget_s": 108.9,
+   "total_hp_mult_first_order": 0.73,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.37,
+   "boss_time_budget_s": 61,
+   "minion_time_budget_s": 47.9,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.51,
+    "minion_mult": 0.7,
+    "boss_hp_share_after": 0.684
+   },
+   "boss_power_id": "encore_echoes",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 51,
+   "chapter": 6,
+   "pos": 1,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.25,
+    "last_time_share": 0.08,
+    "dps_starter": 1696,
+    "chain_avg": 6.5
+   },
+   "starter_kit_id": "C-T32-G0",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "T32",
+    "gift": "G0",
+    "kp_est": 0.78,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.45,
+   "effort_budget_s": 74.3,
+   "total_hp_mult_first_order": 1.8,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.08,
+   "goal_size_mult_first_order": 1.8
+  },
+  {
+   "level": 52,
+   "chapter": 6,
+   "pos": 2,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.78,
+    "last_time_share": 0.12,
+    "dps_starter": 232,
+    "chain_avg": 5.2
+   },
+   "starter_kit_id": "A-F32-GH",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F32",
+    "gift": "GH",
+    "kp_est": 1.08,
+    "hp_trim_pct_est": 4
+   },
+   "need_target": 0.51,
+   "effort_budget_s": 63.8,
+   "total_hp_mult_first_order": 0.65,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.12
+  },
+  {
+   "level": 53,
+   "chapter": 6,
+   "pos": 3,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.4,
+    "last_time_share": 0.03,
+    "dps_starter": 1282,
+    "chain_avg": 10.4
+   },
+   "starter_kit_id": "D-T32-GTORCH",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "T32",
+    "gift": "GTORCH",
+    "kp_est": 1.07,
+    "hp_trim_pct_est": 3.6
+   },
+   "need_target": 0.55,
+   "effort_budget_s": 90.8,
+   "total_hp_mult_first_order": 1.38,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.03,
+   "goal_size_mult_first_order": 1.38
+  },
+  {
+   "level": 54,
+   "chapter": 6,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.6,
+    "last_time_share": 0.02,
+    "dps_starter": 388,
+    "chain_avg": 6.1
+   },
+   "starter_kit_id": "A-F32-GH",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F32",
+    "gift": "GH",
+    "kp_est": 1.08,
+    "hp_trim_pct_est": 4
+   },
+   "need_target": 0.57,
+   "effort_budget_s": 94,
+   "total_hp_mult_first_order": 0.95,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.02,
+   "goal_size_mult_first_order": 0.95
+  },
+  {
+   "level": 55,
+   "chapter": 6,
+   "pos": 5,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.77,
+    "last_time_share": 0.16,
+    "dps_starter": 320,
+    "chain_avg": 6.2
+   },
+   "starter_kit_id": "B-T32-G0",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T32",
+    "gift": "G0",
+    "kp_est": 0.78,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.51,
+   "effort_budget_s": 63.8,
+   "total_hp_mult_first_order": 0.66,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.16
+  },
+  {
+   "level": 56,
+   "chapter": 6,
+   "pos": 6,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.28,
+    "last_time_share": 0.19,
+    "dps_starter": 565,
+    "chain_avg": 8.7
+   },
+   "starter_kit_id": "D-S32-GJACK",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "S32",
+    "gift": "GJACK",
+    "kp_est": 1.07,
+    "hp_trim_pct_est": 3.6
+   },
+   "need_target": 0.59,
+   "effort_budget_s": 97.3,
+   "total_hp_mult_first_order": 2.11,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.19,
+   "goal_size_mult_first_order": 2.11
+  },
+  {
+   "level": 57,
+   "chapter": 6,
+   "pos": 7,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.53,
+    "last_time_share": 0.2,
+    "dps_starter": 561,
+    "chain_avg": 7.5
+   },
+   "starter_kit_id": "B-S32-GH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "S32",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.7
+   },
+   "need_target": 0.61,
+   "effort_budget_s": 76.3,
+   "total_hp_mult_first_order": 1.15,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.2
+  },
+  {
+   "level": 58,
+   "chapter": 6,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.58,
+    "last_time_share": 0.3,
+    "dps_starter": 799,
+    "chain_avg": 6.8
+   },
+   "starter_kit_id": "BOSS-58",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.63,
+   "effort_budget_s": 104,
+   "total_hp_mult_first_order": 1.09,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.3,
+   "boss_time_budget_s": 54.1,
+   "minion_time_budget_s": 49.9,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.73,
+    "minion_mult": 0.69,
+    "boss_hp_share_after": 0.717
+   },
+   "boss_power_id": "spring_tonic",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 59,
+   "chapter": 6,
+   "pos": 9,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.87,
+    "last_time_share": 0.1,
+    "dps_starter": 368,
+    "chain_avg": 4.8
+   },
+   "starter_kit_id": "C-S32-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "S32",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.7
+   },
+   "need_target": 0.55,
+   "effort_budget_s": 68.8,
+   "total_hp_mult_first_order": 0.63,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.1
+  },
+  {
+   "level": 60,
+   "chapter": 6,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 165,
+   "start_rank": 3,
+   "start_mass": 32,
+   "audit": {
+    "need_starter": 0.58,
+    "last_time_share": 0.35,
+    "dps_starter": 1116,
+    "chain_avg": 9.6
+   },
+   "starter_kit_id": "BOSS-60",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.67,
+   "effort_budget_s": 110.6,
+   "total_hp_mult_first_order": 1.16,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.35,
+   "boss_time_budget_s": 61.9,
+   "minion_time_budget_s": 48.7,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.6,
+    "minion_mult": 0.68,
+    "boss_hp_share_after": 0.703
+   },
+   "boss_power_id": "plate_armor",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16
+  },
+  {
+   "level": 61,
+   "chapter": 7,
+   "pos": 1,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.5,
+    "last_time_share": 0.11,
+    "dps_starter": 310,
+    "chain_avg": 5.6
+   },
+   "starter_kit_id": "D-T16-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "T16",
+    "gift": "G0",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.46,
+   "effort_budget_s": 57.5,
+   "total_hp_mult_first_order": 0.92,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.11,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "D",
+     "rank_mix": "T32",
+     "gift": "G0",
+     "kp_est": 1.04,
+     "hp_trim_pct_est": 2
+    },
+    "total_hp_mult_first_order": 1.38
+   }
+  },
+  {
+   "level": 62,
+   "chapter": 7,
+   "pos": 2,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.48,
+    "last_time_share": 0.06,
+    "dps_starter": 661,
+    "chain_avg": 7.5
+   },
+   "starter_kit_id": "B-T16-GTORCH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T16",
+    "gift": "GTORCH",
+    "kp_est": 0.8,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.52,
+   "effort_budget_s": 85.8,
+   "total_hp_mult_first_order": 1.08,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.06,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "B",
+     "rank_mix": "T32",
+     "gift": "GTORCH",
+     "kp_est": 0.8,
+     "hp_trim_pct_est": -9.8
+    },
+    "total_hp_mult_first_order": 1.62
+   },
+   "goal_size_mult_first_order": 1.08
+  },
+  {
+   "level": 63,
+   "chapter": 7,
+   "pos": 3,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.46,
+    "last_time_share": 0.17,
+    "dps_starter": 504,
+    "chain_avg": 9.2
+   },
+   "starter_kit_id": "D-T16-G0",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "T16",
+    "gift": "G0",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.56,
+   "effort_budget_s": 70,
+   "total_hp_mult_first_order": 1.22,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.17,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "D",
+     "rank_mix": "T32",
+     "gift": "G0",
+     "kp_est": 1.04,
+     "hp_trim_pct_est": 2
+    },
+    "total_hp_mult_first_order": 1.83
+   }
+  },
+  {
+   "level": 64,
+   "chapter": 7,
+   "pos": 4,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.86,
+    "last_time_share": 0.08,
+    "dps_starter": 248,
+    "chain_avg": 5.4
+   },
+   "starter_kit_id": "A-F16-GJACK",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F16",
+    "gift": "GJACK",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.58,
+   "effort_budget_s": 72.5,
+   "total_hp_mult_first_order": 0.67,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.08,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "A",
+     "rank_mix": "F32",
+     "gift": "GJACK",
+     "kp_est": 1.05,
+     "hp_trim_pct_est": 2.5
+    },
+    "total_hp_mult_first_order": 1.01
+   }
+  },
+  {
+   "level": 65,
+   "chapter": 7,
+   "pos": 5,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.69,
+    "last_time_share": 0.02,
+    "dps_starter": 318,
+    "chain_avg": 6.4
+   },
+   "starter_kit_id": "C-T16-GH",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "T16",
+    "gift": "GH",
+    "kp_est": 0.83,
+    "hp_trim_pct_est": -8.3
+   },
+   "need_target": 0.52,
+   "effort_budget_s": 85.8,
+   "total_hp_mult_first_order": 0.75,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.02,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "C",
+     "rank_mix": "T32",
+     "gift": "GH",
+     "kp_est": 0.84,
+     "hp_trim_pct_est": -7.9
+    },
+    "total_hp_mult_first_order": 1.13
+   },
+   "goal_size_mult_first_order": 0.75
+  },
+  {
+   "level": 66,
+   "chapter": 7,
+   "pos": 6,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.6,
+    "last_time_share": 0.07,
+    "dps_starter": 287,
+    "chain_avg": 7.1
+   },
+   "starter_kit_id": "A-F16-GNAIL",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F16",
+    "gift": "GNAIL",
+    "kp_est": 1.03,
+    "hp_trim_pct_est": 1.5
+   },
+   "need_target": 0.6,
+   "effort_budget_s": 75,
+   "total_hp_mult_first_order": 1,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.07,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "A",
+     "rank_mix": "F32",
+     "gift": "GNAIL",
+     "kp_est": 1.03,
+     "hp_trim_pct_est": 1.5
+    },
+    "total_hp_mult_first_order": 1.5
+   }
+  },
+  {
+   "level": 67,
+   "chapter": 7,
+   "pos": 7,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.43,
+    "last_time_share": 0.12,
+    "dps_starter": 797,
+    "chain_avg": 7.7
+   },
+   "starter_kit_id": "D-S16-GH",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "S16",
+    "gift": "GH",
+    "kp_est": 1.1,
+    "hp_trim_pct_est": 5.1
+   },
+   "need_target": 0.62,
+   "effort_budget_s": 102.3,
+   "total_hp_mult_first_order": 1.44,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.12,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "D",
+     "rank_mix": "S32",
+     "gift": "GH",
+     "kp_est": 1.1,
+     "hp_trim_pct_est": 5.1
+    },
+    "total_hp_mult_first_order": 2.16
+   },
+   "goal_size_mult_first_order": 1.44
+  },
+  {
+   "level": 68,
+   "chapter": 7,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.57,
+    "last_time_share": 0.24,
+    "dps_starter": 490,
+    "chain_avg": 9.1
+   },
+   "starter_kit_id": "BOSS-68",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.64,
+   "effort_budget_s": 105.6,
+   "total_hp_mult_first_order": 1.12,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.24,
+   "boss_time_budget_s": 54.9,
+   "minion_time_budget_s": 50.7,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 2.17,
+    "minion_mult": 0.63,
+    "boss_hp_share_after": 0.774,
+    "needs_cap_lever": true,
+    "boss_mult_capped": 1.89,
+    "boss_stage_cascade_cap_guess": 0.2
+   },
+   "boss_power_id": "slick_rink",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "total_hp_mult_first_order": 1.68,
+    "hp_first_order": {
+     "boss_mult": 3.25,
+     "minion_mult": 0.95,
+     "boss_hp_share_after": 0.774,
+     "needs_cap_lever": true,
+     "boss_mult_capped": 2.83
+    }
+   }
+  },
+  {
+   "level": 69,
+   "chapter": 7,
+   "pos": 9,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.63,
+    "last_time_share": 0.1,
+    "dps_starter": 199,
+    "chain_avg": 6.1
+   },
+   "starter_kit_id": "B-F16-GH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "F16",
+    "gift": "GH",
+    "kp_est": 0.81,
+    "hp_trim_pct_est": -9.5
+   },
+   "need_target": 0.56,
+   "effort_budget_s": 70,
+   "total_hp_mult_first_order": 0.89,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.1,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "B",
+     "rank_mix": "F32",
+     "gift": "GH",
+     "kp_est": 0.81,
+     "hp_trim_pct_est": -9.5
+    },
+    "total_hp_mult_first_order": 1.33
+   }
+  },
+  {
+   "level": 70,
+   "chapter": 7,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.57,
+    "last_time_share": 0.36,
+    "dps_starter": 484,
+    "chain_avg": 9.1
+   },
+   "starter_kit_id": "BOSS-70",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.68,
+   "effort_budget_s": 112.2,
+   "total_hp_mult_first_order": 1.19,
+   "breather": false,
+   "last_share_target": 0.56,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.36,
+   "boss_time_budget_s": 62.8,
+   "minion_time_budget_s": 49.4,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 1.56,
+    "minion_mult": 0.69,
+    "boss_hp_share_after": 0.693
+   },
+   "boss_power_id": "rivet_pin",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "total_hp_mult_first_order": 1.78,
+    "hp_first_order": {
+     "boss_mult": 2.34,
+     "minion_mult": 1.03,
+     "boss_hp_share_after": 0.693,
+     "needs_cap_lever": false
+    }
+   }
+  },
+  {
+   "level": 71,
+   "chapter": 8,
+   "pos": 1,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.54,
+    "last_time_share": 0.15,
+    "dps_starter": 316,
+    "chain_avg": 6.5
+   },
+   "starter_kit_id": "D-T16-GNAIL",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "T16",
+    "gift": "GNAIL",
+    "kp_est": 1.06,
+    "hp_trim_pct_est": 3
+   },
+   "need_target": 0.47,
+   "effort_budget_s": 58.8,
+   "total_hp_mult_first_order": 0.87,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.15,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "D",
+     "rank_mix": "T32",
+     "gift": "GNAIL",
+     "kp_est": 1.07,
+     "hp_trim_pct_est": 3.6
+    },
+    "total_hp_mult_first_order": 1.3
+   }
+  },
+  {
+   "level": 72,
+   "chapter": 8,
+   "pos": 2,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.17,
+    "last_time_share": 0.25,
+    "dps_starter": 1185,
+    "chain_avg": 7.5
+   },
+   "starter_kit_id": "A-F16-GH",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "F16",
+    "gift": "GH",
+    "kp_est": 1.08,
+    "hp_trim_pct_est": 4
+   },
+   "need_target": 0.53,
+   "effort_budget_s": 87.5,
+   "total_hp_mult_first_order": 3.12,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.25,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "A",
+     "rank_mix": "F32",
+     "gift": "GH",
+     "kp_est": 1.08,
+     "hp_trim_pct_est": 4
+    },
+    "total_hp_mult_first_order": 4.68
+   },
+   "goal_size_mult_first_order": 3.12
+  },
+  {
+   "level": 73,
+   "chapter": 8,
+   "pos": 3,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.36,
+    "last_time_share": 0.16,
+    "dps_starter": 491,
+    "chain_avg": 8.3
+   },
+   "starter_kit_id": "D-S16-GSAW",
+   "starter_kit": {
+    "layout": "D",
+    "rank_mix": "S16",
+    "gift": "GSAW",
+    "kp_est": 1.05,
+    "hp_trim_pct_est": 2.5
+   },
+   "need_target": 0.57,
+   "effort_budget_s": 71.3,
+   "total_hp_mult_first_order": 1.58,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.16,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "D",
+     "rank_mix": "S32",
+     "gift": "GSAW",
+     "kp_est": 1.05,
+     "hp_trim_pct_est": 2.5
+    },
+    "total_hp_mult_first_order": 2.37
+   }
+  },
+  {
+   "level": 74,
+   "chapter": 8,
+   "pos": 4,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.84,
+    "last_time_share": 0,
+    "dps_starter": 249,
+    "chain_avg": 5.4
+   },
+   "starter_kit_id": "B-T16-GTORCH",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T16",
+    "gift": "GTORCH",
+    "kp_est": 0.8,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.59,
+   "effort_budget_s": 97.3,
+   "total_hp_mult_first_order": 0.7,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "B",
+     "rank_mix": "T32",
+     "gift": "GTORCH",
+     "kp_est": 0.8,
+     "hp_trim_pct_est": -9.8
+    },
+    "total_hp_mult_first_order": 1.05
+   },
+   "goal_size_mult_first_order": 0.7
+  },
+  {
+   "level": 75,
+   "chapter": 8,
+   "pos": 5,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.6,
+    "last_time_share": 0.02,
+    "dps_starter": 559,
+    "chain_avg": 9.7
+   },
+   "starter_kit_id": "A-T16-GSAW",
+   "starter_kit": {
+    "layout": "A",
+    "rank_mix": "T16",
+    "gift": "GSAW",
+    "kp_est": 1.06,
+    "hp_trim_pct_est": 3
+   },
+   "need_target": 0.53,
+   "effort_budget_s": 87.5,
+   "total_hp_mult_first_order": 0.88,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.02,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "A",
+     "rank_mix": "T32",
+     "gift": "GSAW",
+     "kp_est": 1.07,
+     "hp_trim_pct_est": 3.6
+    },
+    "total_hp_mult_first_order": 1.32
+   },
+   "goal_size_mult_first_order": 0.88
+  },
+  {
+   "level": 76,
+   "chapter": 8,
+   "pos": 6,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.6,
+    "last_time_share": 0.12,
+    "dps_starter": 553,
+    "chain_avg": 5.7
+   },
+   "starter_kit_id": "C-T16-GJACK",
+   "starter_kit": {
+    "layout": "C",
+    "rank_mix": "T16",
+    "gift": "GJACK",
+    "kp_est": 0.81,
+    "hp_trim_pct_est": -9.4
+   },
+   "need_target": 0.61,
+   "effort_budget_s": 76.3,
+   "total_hp_mult_first_order": 1.02,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.12,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "C",
+     "rank_mix": "T32",
+     "gift": "GJACK",
+     "kp_est": 0.82,
+     "hp_trim_pct_est": -9
+    },
+    "total_hp_mult_first_order": 1.53
+   }
+  },
+  {
+   "level": 77,
+   "chapter": 8,
+   "pos": 7,
+   "kind": "normal",
+   "clock_s": 125,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.86,
+    "last_time_share": 0.09,
+    "dps_starter": 225,
+    "chain_avg": 6.2
+   },
+   "starter_kit_id": "B-S16-GSAW",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "S16",
+    "gift": "GSAW",
+    "kp_est": 0.79,
+    "hp_trim_pct_est": -10
+   },
+   "need_target": 0.63,
+   "effort_budget_s": 78.8,
+   "total_hp_mult_first_order": 0.73,
+   "breather": false,
+   "last_share_target": 0.3,
+   "last_share_note": "last machine of the 30% ramp (28-36% by time); not a boss",
+   "last_share_audit": 0.09,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "B",
+     "rank_mix": "S32",
+     "gift": "GSAW",
+     "kp_est": 0.79,
+     "hp_trim_pct_est": -10
+    },
+    "total_hp_mult_first_order": 1.09
+   }
+  },
+  {
+   "level": 78,
+   "chapter": 8,
+   "pos": 8,
+   "kind": "mini",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.62,
+    "last_time_share": 0.21,
+    "dps_starter": 681,
+    "chain_avg": 7.7
+   },
+   "starter_kit_id": "BOSS-78",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.65,
+   "effort_budget_s": 107.3,
+   "total_hp_mult_first_order": 1.05,
+   "breather": false,
+   "last_share_target": 0.52,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.21,
+   "boss_time_budget_s": 55.8,
+   "minion_time_budget_s": 51.5,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 2.48,
+    "minion_mult": 0.61,
+    "boss_hp_share_after": 0.803,
+    "needs_cap_lever": true,
+    "boss_mult_capped": 1.82,
+    "boss_stage_cascade_cap_guess": 0.2
+   },
+   "boss_power_id": "portal_trap",
+   "min_casts": 2,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "total_hp_mult_first_order": 1.58,
+    "hp_first_order": {
+     "boss_mult": 3.72,
+     "minion_mult": 0.92,
+     "boss_hp_share_after": 0.803,
+     "needs_cap_lever": true,
+     "boss_mult_capped": 2.73
+    }
+   }
+  },
+  {
+   "level": 79,
+   "chapter": 8,
+   "pos": 9,
+   "kind": "goal",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.63,
+    "last_time_share": 0.06,
+    "dps_starter": 352,
+    "chain_avg": 6.6
+   },
+   "starter_kit_id": "B-T16-GJACK",
+   "starter_kit": {
+    "layout": "B",
+    "rank_mix": "T16",
+    "gift": "GJACK",
+    "kp_est": 0.81,
+    "hp_trim_pct_est": -9.4
+   },
+   "need_target": 0.57,
+   "effort_budget_s": 94,
+   "total_hp_mult_first_order": 0.9,
+   "breather": true,
+   "last_share_target": 0.3,
+   "last_share_note": "goal stage time share (the goal machine has no HP); audit median is about 7%",
+   "last_share_audit": 0.06,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "starter_kit": {
+     "layout": "B",
+     "rank_mix": "T32",
+     "gift": "GJACK",
+     "kp_est": 0.82,
+     "hp_trim_pct_est": -9
+    },
+    "total_hp_mult_first_order": 1.35
+   },
+   "goal_size_mult_first_order": 0.9
+  },
+  {
+   "level": 80,
+   "chapter": 8,
+   "pos": 10,
+   "kind": "boss",
+   "clock_s": 165,
+   "start_rank": 2,
+   "start_mass": 16,
+   "audit": {
+    "need_starter": 0.72,
+    "last_time_share": 0.26,
+    "dps_starter": 524,
+    "chain_avg": 8
+   },
+   "starter_kit_id": "BOSS-80",
+   "starter_kit": {
+    "scripted": true
+   },
+   "need_target": 0.69,
+   "effort_budget_s": 113.8,
+   "total_hp_mult_first_order": 0.96,
+   "breather": false,
+   "last_share_target": 0.6,
+   "last_share_floor_lower_ci": 0.5,
+   "last_share_audit": 0.26,
+   "boss_time_budget_s": 68.3,
+   "minion_time_budget_s": 45.5,
+   "minion_stage_weights": [
+    0.172,
+    0.224,
+    0.276,
+    0.328
+   ],
+   "hp_first_order": {
+    "boss_mult": 2.31,
+    "minion_mult": 0.54,
+    "boss_hp_share_after": 0.81,
+    "needs_cap_lever": true,
+    "boss_mult_capped": 1.62,
+    "boss_stage_cascade_cap_guess": 0.2
+   },
+   "boss_power_id": "chrono_forms",
+   "min_casts": 3,
+   "first_cast_s": 6,
+   "cast_every_s_max": 16,
+   "provisional_pending_D5": true,
+   "d5_a": {
+    "start_rank": 3,
+    "start_mass": 32,
+    "note": "D5-A variant: chapters 7 and 8 raised to start rank 3 (mass 32). Effort seconds and need targets are unchanged (power rises with the HP); only HP numbers scale, first order x1.5.",
+    "total_hp_mult_first_order": 1.44,
+    "hp_first_order": {
+     "boss_mult": 3.46,
+     "minion_mult": 0.81,
+     "boss_hp_share_after": 0.81,
+     "needs_cap_lever": true,
+     "boss_mult_capped": 2.43
+    }
+   }
+  }
+ ],
+ "variants": {
+  "D5_A": "levels 61 to 80 carry a d5_a block: start rank 3 (mass 32), kit mixes mapped F16/S16/T16 to F32/S32/T32, HP multipliers x1.5. Default blocks are PROVISIONAL (provisional_pending_D5) until the owner answers D5."
+ }
+}

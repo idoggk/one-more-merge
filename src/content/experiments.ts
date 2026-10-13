@@ -183,6 +183,19 @@ export function applyVariedOpenings(on: boolean) {
   TUNING.variedOpenings = on;
 }
 
+/** QA panel EFFORT MODEL switch (TUNING.effortModel; this device only, not in the save): 'on' = boss / mini-boss HP from the generated overlay, anything else = OFF. */
+export const EFFORT_MODEL_KEY = 'omm_qa_effort_model';
+export function storedEffortModel(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyEffortModel(on: boolean) {
+  TUNING.effortModel = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

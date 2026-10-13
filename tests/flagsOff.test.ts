@@ -44,6 +44,7 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   yardPressure: [false, 'Screw Yard countdown + tap budget with stars'],
   mergeBudget: [false, 'Budget Levels (LAST MERGES): levels with merge_budget play as capped-merge levels'],
   variedOpenings: [false, 'varied openings: 4 seeded start layouts on ordinary levels'],
+  effortModel: [false, 'Effort Model S1: boss / mini-boss HP and boss-stage hit cap from effortOverlay.json'],
 };
 // Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden
 // (see the 'TUNING defaults digest' test) fails on ANY change to a default, so such a flag forces a conscious golden update.

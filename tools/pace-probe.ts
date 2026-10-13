@@ -15,7 +15,7 @@
 import { applyPace, applySpamVariant, type SpamVariant } from '../src/content/experiments';
 import { LEVELS } from '../src/content/levels';
 import { TUNING, type Pace } from '../src/content/tuning';
-import { drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
+import { hitCap, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 
 const args = process.argv.slice(2);
@@ -48,7 +48,7 @@ const BOTS: Bot[] = [
   { name: 'best 2.0s', every: 2, kind: 'best' },
   { name: 'best 3.5s', every: 3.5, kind: 'best' },
 ];
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 type Opt = { f: number; t: number; score: number };
 function options(s: GameState): Opt[] {
   const out: Opt[] = [];

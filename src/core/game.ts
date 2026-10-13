@@ -4,6 +4,7 @@ import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
 import { LAYOUTS, layoutFor } from '../content/openings';
+import { effortFor, r50, type EffortEntry } from '../content/effort';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
 /** r33: each later machine of a stage has +30% of the first one's share of the HP. */
 const STAGE_RAMP = 0.3;
@@ -166,6 +167,8 @@ export interface GameState {
   goal?: { kind: 'rank' | 'chain'; n: number; best: number } | null;
   /** r33 stage (Ido: "a number of machines to defeat, like JunkIlla"): HP machines in a row on one board + one clock.
    *  `goal` = the last machine is the level's goal (only breaks to that rank / chain). `done` = HP of machines already beaten. */
+  /** EFFORT MODEL cap lever: per-hit cap fraction used on the LAST (boss) machine of the stage only; unset = TUNING.cascadeCap. */
+  bossCap?: number;
   stage?: { i: number; hps: number[]; done: number; total: number; visuals: string[]; goal?: { kind: 'rank' | 'chain'; n: number }; boss?: BossState };
   /** r23 chain shield: undefined = no shield; otherwise elapsed time until which it is open. */
   shieldUntil?: number;
@@ -282,6 +285,8 @@ export const relayOf = (s: GameState, k: 0 | 1): Family => s.relays?.[k] ?? (k =
 /** Map a template family (cannon / coil / bell) onto the squad. */
 const squadFam = (s: GameState, f: string): Family => (f === 'shooter' || f === 'cannon' ? shooterOf(s) : f === 'coil' ? relayOf(s, 0) : f === 'bell' ? relayOf(s, 1) : (f as Family));
 
+const r50x = (ov: EffortEntry | undefined, x: number) => (ov ? r50(x) : x);
+
 /** A SAGA level (ChatGPT r15): one monster, one clock, PAIR8 starting board at the level's starting rank. */
 export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Family; jumpstart?: boolean; relays?: [Family, Family] } = {}): GameState {
   const s = newGame(def.seed, false, false, opts.toys ?? [], -1, (def.shooter as Family | undefined) ?? opts.shooter ?? 'cannon');
@@ -364,11 +369,13 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
   const bossStage = !!def.waves && !!s.boss && !s.boss.light;
   if (waves > 1 || (def.waves && (def.goal || bossStage))) {
     // boss stages: `minion_hp` is shared by the minions, `hp` is the boss (the last machine)
-    const pool = bossStage ? def.minion_hp ?? def.hp : def.hp;
+    const ov = TUNING.effortModel && bossStage && !def.goal ? effortFor(def.level) : undefined; // EFFORT MODEL overlay (flag OFF: never read)
+    const pool = bossStage ? r50x(ov, (def.minion_hp ?? def.hp) * (ov?.minionHpMult ?? 1)) : def.hp;
     const w = Array.from({ length: waves }, (_, i) => 1 + STAGE_RAMP * i);
     const sum = w.reduce((a, b) => a + b, 0);
     const hps = w.map((x) => Math.round((pool * x) / sum));
-    if (bossStage) hps.push(def.hp);
+    if (bossStage) hps.push(r50x(ov, def.hp * (ov?.bossHpMult ?? 1)));
+    if (ov?.bossCap !== undefined) s.bossCap = ov.bossCap;
     s.stage = { i: 0, hps, done: 0, total: hps.reduce((a, b) => a + b, 0), visuals: def.wave_visuals ?? [], ...(def.goal ? { goal: { ...def.goal } } : {}) };
     s.hp = s.maxHp = hps[0];
     if (bossStage) {
@@ -1058,12 +1065,18 @@ function rescaleCannons(s: GameState, oldP: number, newP: number) {
   for (const g of s.grid) if (g && g.family === 'cannon') g.cd = (g.cd / oldP) * newP;
 }
 
+/** Per-hit cap of the current machine: cascadeCap of its max HP (EFFORT MODEL: a smaller fraction on the boss stage of the cap-lever levels). */
+export function hitCap(s: GameState): number {
+  const boss = s.bossCap !== undefined && !!s.stage && s.stage.i === s.stage.hps.length - 1 && !s.stage.goal;
+  return Math.ceil(s.maxHp * (boss ? s.bossCap! : TUNING.cascadeCap));
+}
+
 export type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
 
 export function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
   if (dmg <= 0) return;
   dmg = Math.round(dmg * shieldMult(s));
-  if ((src === 'player' || src === 'kick') && s.level !== undefined && !s.goal) dmg = Math.min(dmg, Math.ceil(s.maxHp * TUNING.cascadeCap));
+  if ((src === 'player' || src === 'kick') && s.level !== undefined && !s.goal) dmg = Math.min(dmg, hitCap(s));
   s.stats.totalDamage += dmg;
   s.stats.dmgBy[src] = (s.stats.dmgBy[src] ?? 0) + dmg;
   const before = s.hp;
@@ -1182,7 +1195,7 @@ function nextWave(s: GameState, over: number, ev: GameEvent[]) {
   }
   if (TUNING.breather > 0) s.breatherUntil = s.elapsed + TUNING.breather;
   ev.push({ type: 'newTarget', target: s.target, wave: st.i });
-  if (over > 0 && !s.goal) applyDamage(s, Math.min(over, Math.ceil(s.maxHp * TUNING.cascadeCap)), ev, 'carry');
+  if (over > 0 && !s.goal) applyDamage(s, Math.min(over, hitCap(s)), ev, 'carry');
 }
 
 function makeOffer(s: GameState): PerkId[] {
