@@ -166,6 +166,9 @@ export const TUNING = {
    *  same 8 starter parts (same rank mass) from a seeded no-repeat deal. Teach, boss, mini-boss, puzzle, daily and bounty starts stay scripted. HP / star lines were
    *  tuned on layout A and are NOT refitted. */
   variedOpenings: false,
+  /** CRATE OPENING V2 (docs/art/CRATE_OPENING_V2.md, src/content/crateOpenV2.ts), default OFF (QA row CRATE OPENING V2): with CRATES = TOOLBOX the crate opens as
+   *  anticipation, shake, flash + burst, one hero reveal, a 3-column summary and one COLLECT button. Presentation only. */
+  crateOpenV2: false,
   tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
   /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
    *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation
