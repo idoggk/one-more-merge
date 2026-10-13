@@ -1,0 +1,85 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-2d95ddb9\\tmp-raw\\omm_ui_ui_tooltip_v01.png",
+  "grid": "1x1",
+  "key": "magenta",
+  "kind": "panel",
+  "pass": false,
+  "status": "fail",
+  "cells": [
+    {
+      "name": "ui_tooltip_v01",
+      "status": "fail",
+      "pass": false,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 1 px in components under 315 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.6642,
+          "threshold": "0.03-0.95 (warn down to 0.015 and up to 1.00)",
+          "detail": "0.664 of the cell"
+        },
+        "aspect": {
+          "status": "fail",
+          "pass": false,
+          "value": 1.722,
+          "threshold": "1.333 +-10% pass, +-25% warn",
+          "detail": "object 1.722 vs requested 1.333 (29.1% off)"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.863,
+          "threshold": ">= 0.7",
+          "detail": "object 884x514 px in a 1024x768 canvas: 86% of the width, 67% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 373670,
+          "threshold": "0 < opaque < 786432",
+          "detail": "373670 opaque, 9619 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 373.67,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 6816-45438 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [
+        "aspect"
+      ],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}

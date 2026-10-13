@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Level road v2 - mock, chapter 3 GARAGE (layout study, existing assets only)</title>
+<style>
+  @font-face { font-family: 'Lilita One'; src: url('../../../node_modules/@fontsource/lilita-one/files/lilita-one-latin-400-normal.woff2') format('woff2'); }
+  :root { --A: ../../../src/assets/art; --ink: #2b1d2e; --cream: #f3e3c8; --gold: #ffcf33; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: #1b1420; font-family: 'Lilita One', 'Arial Black', sans-serif; }
+  #phone { position: relative; width: 390px; height: 844px; margin: 0 auto; overflow: hidden; background: #000; }
+  #scroll { position: absolute; inset: 0; overflow-y: scroll; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: none; }
+  #scroll::-webkit-scrollbar { display: none; }
+  #world { position: relative; width: 390px; height: 2260px; overflow: hidden; background: #c9a56f; }
+  /* ---- scenery: far layer = chapter rooms stacked and mirrored (parallax 0.55), floor tint, props ---- */
+  .band { position: absolute; left: -120px; width: 630px; height: 560px; background-size: cover; background-position: center; }
+  #far { position: absolute; left: 0; top: 0; width: 390px; height: 2260px; will-change: transform; }
+  .floorTint { position: absolute; inset: 0; background:
+      linear-gradient(180deg, rgba(60,40,70,.55) 0%, rgba(60,40,70,0) 14%),
+      repeating-linear-gradient(0deg, rgba(120,80,40,.0) 0 118px, rgba(90,55,30,.16) 118px 122px),
+      linear-gradient(180deg, rgba(0,0,0,0) 70%, rgba(40,25,40,.45) 100%); pointer-events: none; }
+  .vignette { position: absolute; inset: 0; box-shadow: inset 0 0 90px 10px rgba(43,29,46,.55); pointer-events: none; }
+  svg#road { position: absolute; left: 0; top: 0; width: 390px; height: 2260px; overflow: visible; }
+  .abs { position: absolute; transform: translate(-50%, -50%); }
+  .prop { position: absolute; transform: translate(-50%, -100%); filter: drop-shadow(0 6px 4px rgba(43,29,46,.45)); }
+  .cloud { position: absolute; width: 90px; height: 28px; border-radius: 30px; background: rgba(255,255,255,.55); filter: blur(1px); animation: drift 38s linear infinite; }
+  @keyframes drift { from { transform: translateX(-140px); } to { transform: translateX(560px); } }
+  /* ---- nodes ---- */
+  .node { position: absolute; transform: translate(-50%, -50%); width: 96px; height: 96px; }
+  .node img.frame { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 100%; max-height: 100%; filter: drop-shadow(0 4px 0 rgba(43,29,46,.35)); }
+  .node .num { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-58%); text-align: center; font-size: 34px; color: var(--ink); text-shadow: 0 2px 0 rgba(255,255,255,.55); }
+  .node.locked .num { color: #6d6070; font-size: 30px; }
+  .node .stars { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); display: flex; gap: 0; }
+  .node .stars img { width: 26px; height: 26px; margin: 0 -1px; }
+  .node .stars img:nth-child(2) { transform: translateY(5px); }
+  .node .stars img.off { filter: grayscale(1) brightness(.55); opacity: .7; }
+  .tag { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); font-size: 15px; color: #fff; padding: 3px 10px 2px; border-radius: 10px; border: 3px solid var(--ink); white-space: nowrap; }
+  .tag.hard { background: #8e58c9; } .tag.mini { background: #e8452c; } .tag.boss { background: #c4191a; }
+  /* current node: round diorama platform, avatar stands on it, pulse ring */
+  .platform { position: absolute; left: 50%; top: 56%; width: 150px; height: 70px; transform: translate(-50%, -50%); border-radius: 50%;
+      background: radial-gradient(ellipse at 50% 35%, #fff3cf 0 40%, #f3c24c 41% 70%, #a8753e 71% 100%); border: 5px solid var(--ink); box-shadow: 0 10px 0 -2px #6b4a2a, 0 16px 10px rgba(0,0,0,.35); }
+  .pulse { position: absolute; left: 50%; top: 56%; width: 150px; height: 70px; border-radius: 50%; border: 5px solid var(--gold); transform: translate(-50%, -50%); animation: pulse 1.4s ease-out infinite; }
+  @keyframes pulse { from { transform: translate(-50%, -50%) scale(1); opacity: .95; } to { transform: translate(-50%, -50%) scale(1.55); opacity: 0; } }
+  .avatar { position: absolute; left: 50%; bottom: 46%; width: 92px; transform: translateX(-50%); animation: bob 1.2s ease-in-out infinite; filter: drop-shadow(0 6px 3px rgba(43,29,46,.5)); }
+  @keyframes bob { 50% { transform: translate(-50%, -6px); } }
+  .here { position: absolute; left: 50%; top: -52px; transform: translateX(-50%); background: var(--gold); color: var(--ink); border: 4px solid var(--ink); border-radius: 12px; padding: 1px 12px 0; font-size: 20px; white-space: nowrap; }
+  .here::after { content: ''; position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); border: 7px solid transparent; border-top: 8px solid var(--ink); }
+  /* chest milestone */
+  .chestnode img { width: 84px; filter: drop-shadow(0 5px 0 rgba(43,29,46,.4)); }
+  .chestnode .cap { position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); font-size: 15px; color: #fff; background: var(--ink); border-radius: 10px; padding: 2px 9px 0; white-space: nowrap; }
+  /* gate */
+  .gate { position: absolute; left: 0; width: 390px; }
+  .banner { position: absolute; left: 50%; transform: translateX(-50%); width: 350px; height: 60px; background: url('../../../src/assets/art/ui_ribbon.webp') center/100% 100% no-repeat; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 25px; letter-spacing: .5px; text-shadow: 0 2px 0 var(--ink); }
+  .fog { position: absolute; left: 0; width: 390px; height: 330px; top: 0; background-size: cover; background-position: center; filter: grayscale(1) blur(2.5px) brightness(.8); opacity: .75;
+      -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 35%, transparent 100%); }
+  .fogtxt { position: absolute; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.9); font-size: 17px; text-shadow: 0 2px 0 var(--ink); white-space: nowrap; }
+  /* HUD */
+  .scrim { position: absolute; z-index: 4; left: 0; right: 0; bottom: 0; height: 250px; background: linear-gradient(180deg, rgba(43,29,46,0), rgba(43,29,46,.78) 70%); pointer-events: none; }
+  .hud { position: absolute; left: 0; right: 0; z-index: 5; pointer-events: none; }
+  .top { top: 0; height: 64px; padding: 10px 14px; display: flex; gap: 8px; align-items: center; background: linear-gradient(180deg, rgba(43,29,46,.85), rgba(43,29,46,0)); }
+  .pill { height: 38px; border-radius: 19px; background: var(--cream); border: 4px solid var(--ink); display: flex; align-items: center; gap: 6px; padding: 0 12px 0 4px; font-size: 20px; color: var(--ink); }
+  .pill img { width: 30px; }
+  .plate { position: absolute; z-index: 5; left: 10px; right: 10px; top: 66px; height: 56px; border-radius: 18px; background: var(--cream); border: 4px solid var(--ink); box-shadow: 0 4px 0 rgba(43,29,46,.4); padding: 4px 10px 0 12px; color: var(--ink); }
+  .plate .t { font-size: 20px; line-height: 20px; }
+  .plate .bar { position: absolute; left: 12px; right: 74px; bottom: 7px; height: 14px; border-radius: 7px; background: #5b4561; border: 2px solid var(--ink); overflow: hidden; }
+  .plate .bar i { display: block; height: 100%; width: 50%; background: linear-gradient(180deg, #ffe27a, #f0a81f); }
+  .plate .bar b { position: absolute; top: -3px; width: 3px; height: 20px; background: rgba(43,29,46,.7); }
+  .plate img { position: absolute; right: 6px; top: -8px; width: 64px; filter: drop-shadow(0 3px 0 rgba(43,29,46,.4)); }
+  .play { position: absolute; z-index: 6; left: 50%; bottom: 96px; transform: translateX(-50%); width: 300px; height: 72px; background: url('../../../src/assets/art/btn_green.webp') center/100% 100% no-repeat; color: #fff; font-size: 31px; display: flex; align-items: center; justify-content: center; text-shadow: 0 3px 0 #1d5a1b; pointer-events: auto; animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: translateX(-50%) scale(1.04); } }
+  .nav { position: absolute; z-index: 6; left: 10px; right: 10px; bottom: 8px; height: 76px; border-radius: 22px; background: var(--ink); display: flex; gap: 4px; padding: 6px; align-items: flex-end; }
+  .nav div { flex: 1; height: 100%; border-radius: 16px; color: #d9cbe0; font-size: 17px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; }
+  .nav div.on { background: var(--gold); color: var(--ink); height: 92px; margin-top: -16px; border: 4px solid var(--ink); border-radius: 18px; }
+  .snap { position: absolute; z-index: 6; right: 14px; bottom: 182px; width: 54px; height: 54px; border-radius: 50%; background: var(--gold); border: 4px solid var(--ink); display: none; align-items: center; justify-content: center; font-size: 26px; color: var(--ink); }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div class="scrim"></div>
+  <div class="hud top">
+    <div class="pill"><img src="../../../src/assets/art/icon_bolt.webp" alt="">1,240</div>
+    <div style="flex:1"></div>
+    <div class="pill"><img src="../../../src/assets/art/icon_gem.webp" alt="">36</div>
+  </div>
+  <div class="plate"><div class="t">CHAPTER 3 · GARAGE</div><div class="bar"><i id="barfill"></i><b style="left:30%"></b><b style="left:60%"></b></div><img src="../../../src/assets/art/chest_closed.webp" alt=""></div>
+  <div id="snap" class="snap">&#9664;</div>
+  <div class="play" id="playbtn">PLAY  LEVEL 26</div>
+  <div class="nav"><div class="on">ROAD</div><div>UNITS</div><div>MACHINE</div><div>EVENTS</div></div>
+  <div id="scroll"><div id="world"></div></div>
+</div>
+<script>
+const A = '../../../src/assets/art/';
+const world = document.getElementById('world');
+const scroller = document.getElementById('scroll');
+const WORLD_H = 2260, CUR = 26, FIRST = 21;
+// ---------- data: chapter 3 = levels 21..30 ----------
+const kind = (n) => n === 30 ? 'boss' : n === 28 ? 'mini' : n === 24 ? 'hard' : n === 25 ? 'chest' : 'normal';
+const stars = { 21: 3, 22: 2, 23: 3, 24: 1, 25: 0 };
+const node = (n) => { const i = n - FIRST; const y = 1930 - i * 150 - (n === 30 ? 40 : 0); const x = 195 + Math.sin(i * 1.05 + 0.4) * 112; return { n, x: n === 30 ? 195 : x, y }; };
+const pts = []; for (let n = FIRST; n <= 30; n++) pts.push(node(n));
+// entrance tail from below and gate tail above
+const startPt = { x: 120, y: 2150 }, gatePt = { x: 195, y: 330 };
+const all = [startPt, ...pts];
+// ---------- scenery: three mirrored room bands (far, parallax) ----------
+const far = document.createElement('div'); far.id = 'far'; world.appendChild(far);
+[[0, 'stage_ch4', 1, true], [520, 'stage_ch3', 1, false], [1040, 'stage_ch3', -1, false], [1560, 'stage_ch3', 1, false], [1990, 'stage_ch3', -1, false]].forEach(([t, k, flip, fogged]) => {
+  const d = document.createElement('div'); d.className = 'band'; d.style.top = t + 'px'; d.style.backgroundImage = `url(${A}${k}.webp)`; if (flip < 0) d.style.transform = 'scaleX(-1)'; far.appendChild(d); });
+const tint = document.createElement('div'); tint.className = 'floorTint'; world.appendChild(tint);
+// ---------- road: thick outlined winding path (smooth through points) ----------
+const NS = 'http://www.w3.org/2000/svg';
+function smooth(P) { let d = `M ${P[0].x} ${P[0].y}`; for (let i = 0; i < P.length - 1; i++) { const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2; const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 }, c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 }; d += ` C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${p2.x} ${p2.y}`; } return d; }
+const svg = document.createElementNS(NS, 'svg'); svg.id = 'road'; svg.setAttribute('viewBox', `0 0 390 ${WORLD_H}`);
+const full = [...all, gatePt]; const done = all.slice(0, 1 + (CUR - FIRST) + 1);
+const layer = (d, w, c, extra = {}) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke', c); p.setAttribute('stroke-width', w); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-linejoin', 'round'); Object.entries(extra).forEach(([k, v]) => p.setAttribute(k, v)); svg.appendChild(p); };
+const dFull = smooth(full), dDone = smooth(done);
+layer(dFull, 8, 'rgba(0,0,0,.28)', { transform: 'translate(0,12)' }); // ground shadow
+layer(dFull, 58, '#2b1d2e');  // thick dark outline
+layer(dFull, 44, '#f3e3c8');  // road surface
+layer(dFull, 44, 'rgba(160,110,60,.18)', { 'stroke-dasharray': '2 22' });
+layer(dFull, 6, 'rgba(120,80,50,.35)', { 'stroke-dasharray': '16 20', transform: 'translate(0,0)' }); // centre dashes
+layer(dDone, 44, '#ffd84a');  // travelled
+layer(dDone, 8, '#fff6c2', { 'stroke-dasharray': '18 22' });
+world.appendChild(svg);
+// ---------- clouds / props ----------
+[[300, 60, 0], [900, 80, -12], [1450, 70, -25]].forEach(([y, w, delay]) => { const c = document.createElement('div'); c.className = 'cloud'; c.style.top = y + 'px'; c.style.animationDelay = delay + 's'; world.appendChild(c); });
+const prop = (k, x, y, w, flip) => { const i = document.createElement('img'); i.className = 'prop'; i.src = A + k + '.webp'; i.style.left = x + 'px'; i.style.top = y + 'px'; i.style.width = w + 'px'; if (flip) i.style.transform = 'translate(-50%,-100%) scaleX(-1)'; world.appendChild(i); };
+prop('coil_1', 52, 1840, 70); prop('bell_3', 345, 1640, 66); prop('crate_wood', 40, 1380, 78); prop('cannon_4', 350, 1130, 76, true);
+prop('crate_iron', 345, 880, 84); prop('coil_1', 44, 700, 64, true); prop('bell_3', 348, 520, 60);
+// ---------- nodes ----------
+function addNode(p) {
+  const n = p.n, k = kind(n), isDone = n < CUR && k !== 'chest', isCur = n === CUR, locked = n > CUR;
+  const el = document.createElement('div');
+  el.className = 'node' + (locked ? ' locked' : '');
+  el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+  if (k === 'chest') {
+    el.className += ' chestnode'; el.innerHTML = `<img class="frame" style="width:84px" src="${A}chest_${n < CUR ? 'open' : 'closed'}.webp"><div class="cap">${n < CUR ? 'CLAIM' : 'LV ' + n}</div>`;
+    world.appendChild(el); return;
+  }
+  if (isCur) {
+    el.style.width = '110px'; el.style.height = '110px';
+    el.innerHTML = `<div class="pulse"></div><div class="platform"></div><img class="avatar" src="${A}cannon_4.webp"><div class="here">YOU</div>`;
+    world.appendChild(el); return;
+  }
+  const frame = k === 'boss' ? 'node_boss' : isDone ? 'node_completed' : locked ? (k === 'hard' ? 'node_hard' : 'node_locked') : 'node_normal';
+  let size = k === 'boss' ? 150 : k === 'mini' ? 116 : 96; el.style.width = size + 'px'; el.style.height = size + 'px';
+  let h = `<img class="frame" src="${A}${frame}.webp"><div class="num">${n}</div>`;
+  if (isDone) { const s = stars[n] || 0; h += `<div class="stars">${[0, 1, 2].map((j) => `<img class="${j < s ? '' : 'off'}" src="${A}star.webp">`).join('')}</div>`; }
+  if (k === 'hard') h += `<div class="tag hard">HARD</div>`;
+  if (k === 'mini') h += `<div class="tag mini">MINI-BOSS</div>`;
+  el.innerHTML = h; world.appendChild(el);
+  if (k === 'mini' || k === 'boss') { const b = document.createElement('img'); b.className = 'prop'; b.src = A + (k === 'boss' ? 'boss_junkzilla_intact' : 'boss_oil_otter_intact') + '.webp'; b.style.left = (k === 'boss' ? p.x : p.x + (p.x > 195 ? -112 : 112)) + 'px'; b.style.top = (k === 'boss' ? p.y - 60 : p.y + 32) + 'px'; b.style.width = (k === 'boss' ? 150 : 84) + 'px'; b.style.filter = 'brightness(.22) contrast(1.1) drop-shadow(0 4px 3px rgba(43,29,46,.5))'; world.appendChild(b); }
+}
+pts.forEach(addNode);
+// ---------- chapter gate + banner + fog of next chapter ----------
+const fog = document.createElement('div'); fog.className = 'fog'; fog.style.backgroundImage = `url(${A}stage_ch4.webp)`; world.appendChild(fog);
+const ft = document.createElement('div'); ft.className = 'fogtxt'; ft.style.top = '70px'; ft.textContent = 'CHAPTER 4 · ARCADE'; world.appendChild(ft);
+const bn = document.createElement('div'); bn.className = 'banner'; bn.style.top = '215px'; bn.textContent = 'GARAGE COMPLETE?'; world.appendChild(bn);
+const gt = document.createElement('div'); gt.className = 'abs'; gt.style.left = '195px'; gt.style.top = '330px'; gt.innerHTML = `<img src="${A}node_locked.webp" style="width:104px;filter:drop-shadow(0 4px 0 rgba(43,29,46,.4))"><div class="cap" style="position:absolute;left:50%;top:92%;transform:translateX(-50%);font-size:15px;color:#fff;background:#2b1d2e;border-radius:10px;padding:2px 9px 0;white-space:nowrap">CH 4 GATE · 10 STARS</div>`; world.appendChild(gt);
+// entrance label
+const en = document.createElement('div'); en.className = 'banner'; en.style.top = '2170px'; en.style.width = '290px'; en.style.height = '48px'; en.style.fontSize = '20px'; en.textContent = 'CHAPTER 3 · GARAGE'; world.appendChild(en);
+// ---------- scroll model: start at current, parallax, snap-to-current button ----------
+const curY = node(CUR).y;
+const targetTop = (y) => Math.max(0, Math.min(WORLD_H - 844, y - 844 * 0.5));
+const q = new URLSearchParams(location.search);
+scroller.scrollTop = q.has('top') ? +q.get('top') : targetTop(curY);
+const snap = document.getElementById('snap');
+function onScroll() { const t = scroller.scrollTop; far.style.transform = `translateY(${t * 0.18}px)`; document.getElementById('barfill').style.width = ((CUR - FIRST) / 10 * 100 + 5) + '%'; snap.style.display = Math.abs(t - targetTop(curY)) > 380 ? 'flex' : 'none'; }
+scroller.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+snap.addEventListener('click', () => scroller.scrollTo({ top: targetTop(curY), behavior: 'smooth' }));
+</script>
+</body>
+</html>

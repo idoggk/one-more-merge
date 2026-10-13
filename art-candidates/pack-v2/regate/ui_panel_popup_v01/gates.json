@@ -1,0 +1,83 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-2d95ddb9\\tmp-raw\\omm_ui_ui_panel_popup_v01.png",
+  "grid": "1x1",
+  "key": "magenta",
+  "kind": "panel",
+  "pass": true,
+  "status": "pass",
+  "cells": [
+    {
+      "name": "ui_panel_popup_v01",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 1 px in components under 315 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.9448,
+          "threshold": "0.03-0.95 (warn down to 0.015 and up to 1.00)",
+          "detail": "0.945 of the cell"
+        },
+        "aspect": {
+          "status": "pass",
+          "pass": true,
+          "value": 1.02,
+          "threshold": "1.000 +-10% pass, +-25% warn",
+          "detail": "object 1.020 vs requested 1.000 (2.0% off)"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.863,
+          "threshold": ">= 0.7",
+          "detail": "object 884x866 px in a 1024x1024 canvas: 86% of the width, 85% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 752320,
+          "threshold": "0 < opaque < 1048576",
+          "detail": "752320 opaque, 10049 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 752.32,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 11483-76554 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}
