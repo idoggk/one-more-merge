@@ -5,7 +5,7 @@ import type { Family } from '../../core/types';
 import { sfx } from '../audio';
 import * as tlog from '../../platform/telemetry';
 import { META_KEY } from '../../platform/backup';
-import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, UNIT_PERKS, levelPerkText, MAX_UNIT_LEVEL, SHOP, UNITS, type CrateKind, type UnitDef, RARITY_COLOR, LATCH_B, CRATES_B } from '../../content/units';
+import { boltsFor, cardsFor, COLLECTION_GOALS, CRATES, FEATURED_CRATE, UNIT_PERKS, levelPerkText, MAX_UNIT_LEVEL, SHOP, UNITS, type CrateKind, type UnitDef, RARITY_COLOR, RARITY_ORDER, LATCH_B, CRATES_B } from '../../content/units';
 import { Rng } from '../../core/rng';
 import { featuredGemUnit, featuredUnit, rollCrate, rollFeatured, rollPack, type CrateCard, openCrateB } from '../../core/crates';
 import { localDate, store, type Meta } from '../meta';
@@ -28,6 +28,8 @@ import { crateName, latchRollUp, popToolboxLatch, toolboxCrateKey, toolboxOn } f
 import { pctB, pityView, guaranteeText } from '../../core/crateOdds';
 import { addOddsButton, showOddsPanel } from './oddsPanel';
 import { loopTween } from '../loopTween';
+import { buildLayout, makeScroller, type Scroller } from './scrollMath';
+import { HEAD_H, makeHeader, mountScroll } from './unitsScroll';
 import { addPortrait, crateArtReady, presentCrateToolbox } from './crateScreen';
 
 export function openUnitsTab(scene: GameScene) {
@@ -37,7 +39,7 @@ export function openUnitsTab(scene: GameScene) {
   scene.homeC = c;
   scene.modal = c;
   scene.loadUnitPictures(() => {
-    if (c.active && scene.modal === c) scene.openUnitsTab(); // pictures landed while the tab is open: redraw with them
+    if (c.active && scene.modal === c) ((carryPos = liveScroller?.pos ?? null), scene.openUnitsTab()); // pictures landed while the tab is open: redraw with them
   });
   const bg = scene.add.image(W / 2, 0, scene.hasArt('road_bg') ? 'road_bg' : 'hero_bg').setOrigin(0.5, 0);
   bg.setScale(Math.max(W / bg.width, H / bg.height));
@@ -49,38 +51,58 @@ export function openUnitsTab(scene: GameScene) {
   scene.button(c, W / 2 - 150, 232, 260, crates ? `OPEN CRATE (${crates})` : 'NO CRATES', crates ? 0x5fbf4a : 0x81736c, () => (crates ? scene.openNextCrate() : scene.showToast('WIN BOSSES, BOUNTIES AND CHESTS FOR CRATES')), 0.7);
   scene.button(c, W / 2 + 150, 232, 260, 'SHOP', 0x8e58c9, () => scene.openUnitShop(), 0.7);
   scene.collectionStrip(c, 304);
-  // owned units: 4 columns of slightly smaller cards
+  // owned units grouped by rarity (cards), then the locked silhouettes; one scrolling window with sticky headers + jump chips
   // t-2fd7bb86: units you don't own yet are a row of small locked silhouettes, not 13 full cards on day 1
-  const owned = UNITS.filter((u) => scene.ownsUnit(u.id));
-  const locked = UNITS.filter((u) => !scene.ownsUnit(u.id));
-  // UI audit (375x667): the last row hid under the bottom nav, so the
-  // rows fit between the collection strip and the nav (cards shrink a little on short phones)
-  const rows = Math.ceil(owned.length / 4), gridTop = 342;
-  const pitch = Math.min(232, (H - 122 - gridTop) / rows), k0 = Math.min(0.8, (pitch - 12) / 274);
-  owned.forEach((u, k) => {
-    const x = W / 2 + ((k % 4) - 1.5) * 172, y = gridTop + (Math.floor(k / 4) + 0.5) * pitch;
-    c.add(scene.unitCard(u, x, y).setScale(k0));
-  });
-  if (locked.length) {
-    // F8: the label sits under the last card row (card art is 274 tall at scale k0), not across its bottom edge
-    const ly = gridTop + (rows - 0.5) * pitch + 137 * k0 + 24;
-    c.add(scene.add.text(W / 2, ly, `LOCKED (${locked.length})  ·  find them in crates`, { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#3b2533', stroke: '#fff0cf', strokeThickness: 4 }).setOrigin(0.5));
-    const per = 7, step = 92;
-    locked.forEach((u, k) => {
-      const row = Math.floor(k / per), inRow = Math.min(per, locked.length - row * per);
-      const x = W / 2 + ((k % per) - (inRow - 1) / 2) * step, y = ly + 66 + row * 96;
-      const t = scene.add.container(x, y);
-      t.add(scene.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-42, -42, 84, 84, 16));
-      const art = scene.unitPortrait(u.id);
-      if (scene.textures.exists(art)) t.add(scene.fitVisible(scene.add.image(0, 0, art), 66).setTintFill(0x8a7a8a).setAlpha(0.5));
-      t.add(scene.add.text(0, 0, '\u{1F512}', { fontSize: '28px' }).setOrigin(0.5));
-      t.setSize(84, 84).setInteractive({ useHandCursor: true });
-      t.on('pointerup', () => (sfx.click(), scene.openUnitDetail(u)));
-      c.add(t);
-    });
+  const groups: { label: string; chip: string; color: number; units: UnitDef[]; locked: boolean }[] = [];
+  for (const r of RARITY_ORDER) {
+    const us = UNITS.filter((u) => u.rarity === r && scene.ownsUnit(u.id));
+    if (us.length) groups.push({ label: `${r.toUpperCase()}  ·  ${us.length}`, chip: r.toUpperCase(), color: RARITY_COLOR[r], units: us, locked: false });
   }
+  const locked = UNITS.filter((u) => !scene.ownsUnit(u.id));
+  if (locked.length) groups.push({ label: `LOCKED (${locked.length})  ·  find them in crates`, chip: 'LOCKED', color: 0x6a5a70, units: locked, locked: true });
+  // cards keep a 12 px gap in both directions; locked tiles are 84 wide with 12 px gaps, 7 per row
+  const CARD_K = 0.76, CARD_ROW = Math.ceil(274 * CARD_K) + 12, LOCK_ROW = 96;
+  const specs = groups.map((g) => (g.locked ? { count: g.units.length, cols: 7, rowH: LOCK_ROW } : { count: g.units.length, cols: 4, rowH: CARD_ROW }));
+  const winBottom = H - 122;
+  let chipY: number | null = 372, winTop = 410, layout = buildLayout(specs, HEAD_H, 24, winBottom - winTop);
+  if (layout.max <= 0 || groups.length < 2) {
+    chipY = null; // everything fits: no jump strip, a taller window
+    winTop = 346;
+    layout = buildLayout(specs, HEAD_H, 24, winBottom - winTop);
+  }
+  const list = scene.add.container(0, 0);
+  const heads: Phaser.GameObjects.Container[] = [];
+  groups.forEach((g, i) => {
+    heads.push(makeHeader(scene, g.label, g.color));
+    g.units.forEach((u, k) => {
+      if (g.locked) {
+        const row = Math.floor(k / 7), inRow = Math.min(7, g.units.length - row * 7);
+        const x = W / 2 + ((k % 7) - (inRow - 1) / 2) * 96, y = layout.bodyTops[i] + row * LOCK_ROW + 42;
+        const t = scene.add.container(x, y);
+        t.add(scene.add.graphics().fillStyle(0x2b1d2e, 0.85).fillRoundedRect(-42, -42, 84, 84, 16));
+        const art = scene.unitPortrait(u.id);
+        if (scene.textures.exists(art)) t.add(scene.fitVisible(scene.add.image(0, 0, art), 66).setTintFill(0x8a7a8a).setAlpha(0.5));
+        t.add(scene.add.text(0, 0, '\u{1F512}', { fontSize: '28px' }).setOrigin(0.5));
+        t.setSize(84, 84).setInteractive({ useHandCursor: true });
+        t.on('pointerup', () => (sfx.click(), scene.openUnitDetail(u)));
+        list.add(t);
+      } else {
+        const x = W / 2 + ((k % 4) - 1.5) * 172, y = layout.bodyTops[i] + Math.floor(k / 4) * CARD_ROW + Math.ceil(274 * CARD_K) / 2;
+        list.add(scene.unitCard(u, x, y).setScale(CARD_K));
+      }
+    });
+  });
+  const scroller = makeScroller(layout.max);
+  if (carryPos !== null) scroller.pos = Math.min(layout.max, Math.max(0, carryPos));
+  carryPos = null;
+  liveScroller = scroller;
+  mountScroll(scene, c, { list, heads, sections: groups, layout, winTop, winBottom, chipY, scroller });
   scene.drawNav(c, 'units');
 }
+
+/** Scroll position carried over a redraw (unit pictures landing while the tab is open). */
+let carryPos: number | null = null;
+let liveScroller: Scroller | null = null;
 
 export function collectionStrip(scene: GameScene, c: Phaser.GameObjects.Container, y: number) {
   const m = scene.meta;
