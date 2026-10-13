@@ -71,3 +71,7 @@ Result: 5 pass (all false positives), 2 warn (ribbons at 3.7:1 are written and f
 
 ## Not done here
 No sheet segmentation by connected components (grid cells only), no 9-slice insets, no per-asset size presets; see section 6 of PROMPT_PACK_V2.md for the fuller spec.
+
+## Trim, fill and strip gates (slicer fix 3)
+
+Since task t-2d95ddb9 every cell is trimmed to the object box before padding, and two gates keep tiny art out of big canvases: `fill` (strips: object at least 90 percent of the output width; other kinds: larger side at least 70 percent of the canvas) and `minHeight` (strips: object at least 24 px tall at 1x). Strips and panels export at 1024 px (PNG) / 512 px (WebP). `--key green` handles violet, purple and pink subjects. Details, root cause and the re-gate results: docs/art/SLICER_FIX_3.md.
