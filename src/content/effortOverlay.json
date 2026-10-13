@@ -1,7 +1,7 @@
 {
  "schema": "effort-overlay/1",
  "spec": "docs/effort-model-spec.json",
- "pass": 1,
+ "pass": 3,
  "baseline": {
   "8": {
    "tb": 15.5767,
@@ -134,81 +134,214 @@
     "tb": 56.745,
     "tm": 68.375
    }
+  },
+  {
+   "8": {
+    "tb": 26.7233,
+    "tm": 21.0067
+   },
+   "10": {
+    "tb": 45.73,
+    "tm": 31.495
+   },
+   "18": {
+    "tb": 29.4483,
+    "tm": 28.06
+   },
+   "20": {
+    "tb": 37.3133,
+    "tm": 39.3383
+   },
+   "28": {
+    "tb": 32.895,
+    "tm": 34.3883
+   },
+   "30": {
+    "tb": 47.1883,
+    "tm": 57.1967
+   },
+   "38": {
+    "tb": 38.28,
+    "tm": 35.915
+   },
+   "40": {
+    "tb": 50.7196,
+    "tm": 86.8518
+   },
+   "48": {
+    "tb": 50.7533,
+    "tm": 54.4183
+   },
+   "50": {
+    "tb": 80.4833,
+    "tm": 74.1267
+   },
+   "58": {
+    "tb": 55.695,
+    "tm": 48.9383
+   },
+   "60": {
+    "tb": 64.4967,
+    "tm": 49.2233
+   },
+   "68": {
+    "tb": 49.4817,
+    "tm": 76.345
+   },
+   "70": {
+    "tb": 59.865,
+    "tm": 44.22
+   },
+   "78": {
+    "tb": 43.9786,
+    "tm": 95.9393
+   },
+   "80": {
+    "tb": 59.0063,
+    "tm": 84.8906
+   }
+  },
+  {
+   "8": {
+    "tb": 21.76,
+    "tm": 21.0067
+   },
+   "10": {
+    "tb": 32.9583,
+    "tm": 24.3467
+   },
+   "18": {
+    "tb": 27.035,
+    "tm": 25.6717
+   },
+   "20": {
+    "tb": 37.9867,
+    "tm": 38.2967
+   },
+   "28": {
+    "tb": 34.275,
+    "tm": 35.2217
+   },
+   "30": {
+    "tb": 46.2317,
+    "tm": 54.8067
+   },
+   "38": {
+    "tb": 39.2817,
+    "tm": 35.9117
+   },
+   "40": {
+    "tb": 47.608,
+    "tm": 95.098
+   },
+   "48": {
+    "tb": 45.6167,
+    "tm": 49.365
+   },
+   "50": {
+    "tb": null,
+    "tm": null
+   },
+   "58": {
+    "tb": 57.74,
+    "tm": 46.6867
+   },
+   "60": {
+    "tb": 66.0583,
+    "tm": 46.5633
+   },
+   "68": {
+    "tb": 49.7583,
+    "tm": 76.8017
+   },
+   "70": {
+    "tb": 58.8733,
+    "tm": 43.3867
+   },
+   "78": {
+    "tb": 54.3167,
+    "tm": 107.0167
+   },
+   "80": {
+    "tb": 51.1955,
+    "tm": 105.7045
+   }
   }
  ],
  "levels": {
   "8": {
-   "bossHpMult": 1.559,
-   "minionHpMult": 0.5796
+   "bossHpMult": 1.3821,
+   "minionHpMult": 0.6339
   },
   "10": {
-   "bossHpMult": 2.3315,
-   "minionHpMult": 0.8192,
-   "bossCap": 0.2
+   "bossHpMult": 1.5134,
+   "minionHpMult": 0.5467,
+   "bossCap": 0.15
   },
   "18": {
-   "bossHpMult": 1.4485,
-   "minionHpMult": 0.5829
+   "bossHpMult": 1.5169,
+   "minionHpMult": 0.533,
+   "bossCap": 0.2
   },
   "20": {
-   "bossHpMult": 1.6047,
-   "minionHpMult": 0.5638,
-   "bossCap": 0.2
+   "bossHpMult": 1.5641,
+   "minionHpMult": 0.5495,
+   "bossCap": 0.15
   },
   "28": {
-   "bossHpMult": 1.4437,
-   "minionHpMult": 0.5073,
-   "bossCap": 0.2
+   "bossHpMult": 1.6247,
+   "minionHpMult": 0.5708,
+   "bossCap": 0.15
   },
   "30": {
-   "bossHpMult": 2.8981,
-   "minionHpMult": 1.0183,
-   "bossCap": 0.2
+   "bossHpMult": 3.1598,
+   "minionHpMult": 1.1102,
+   "bossCap": 0.15
   },
   "38": {
-   "bossHpMult": 1.4477,
-   "minionHpMult": 0.6858
+   "bossHpMult": 1.4881,
+   "minionHpMult": 0.6509
   },
   "40": {
-   "bossHpMult": 2.701,
-   "minionHpMult": 0.949,
+   "bossHpMult": 4.7549,
+   "minionHpMult": 1.6706,
    "bossCap": 0.15
   },
   "48": {
-   "bossHpMult": 2.4266,
-   "minionHpMult": 0.8526,
-   "bossCap": 0.2
+   "bossHpMult": 1.9807,
+   "minionHpMult": 0.6959,
+   "bossCap": 0.15
   },
   "50": {
-   "bossHpMult": 1.8547,
-   "minionHpMult": 0.6517,
-   "bossCap": 0.2
+   "bossHpMult": 1.9611,
+   "minionHpMult": 0.6891,
+   "bossCap": 0.15
   },
   "58": {
-   "bossHpMult": 1.3189,
-   "minionHpMult": 0.4849
+   "bossHpMult": 1.1238,
+   "minionHpMult": 0.5299
   },
   "60": {
-   "bossHpMult": 1.523,
-   "minionHpMult": 0.5611
+   "bossHpMult": 1.1014,
+   "minionHpMult": 0.4853
   },
   "68": {
-   "bossHpMult": 2.5931,
-   "minionHpMult": 0.9111,
+   "bossHpMult": 2.8553,
+   "minionHpMult": 1.0032,
    "bossCap": 0.15
   },
   "70": {
-   "bossHpMult": 1.5038,
-   "minionHpMult": 0.6341
+   "bossHpMult": 1.2252,
+   "minionHpMult": 0.615
   },
   "78": {
-   "bossHpMult": 2.9526,
-   "minionHpMult": 1.0374,
+   "bossHpMult": 5.0543,
+   "minionHpMult": 1.7758,
    "bossCap": 0.15
   },
   "80": {
-   "bossHpMult": 2.4056,
-   "minionHpMult": 0.8452,
+   "bossHpMult": 6.2355,
+   "minionHpMult": 2.1909,
    "bossCap": 0.15
   }
  }

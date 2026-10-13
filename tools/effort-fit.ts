@@ -5,6 +5,7 @@
 //   npx vite-node tools/effort-audit.ts --part a --smart-only --out effort-audit-data-base --levels 8,10,...     baseline, flag OFF (once)
 //   npx vite-node tools/effort-audit.ts --part a --smart-only --effort --levels 8,10,... --n 30                 measure the overlay, flag ON
 //   npx vite-node tools/effort-fit.ts --iterate [--data effort-audit-data-effort] [--base effort-audit-data-base]   one correction pass (at most 3)
+//   npx vite-node tools/effort-fit.ts --rebuild                                       replay the recorded measurements from the spec (after a solver change)
 //   npx vite-node tools/effort-fit.ts --report [--data ...] [--base ...]              markdown table: tau, CI, need, HP share, cap, win rate
 // Iteration (a pass reads the smart@3 stage times of the current overlay): each stage's clear time is modelled as T = c x HP multiplier ^ e
 // (e from the last two measured points, the baseline counts as the point (1, 1) while the cap is unchanged; one point = e 0.5).
@@ -61,14 +62,20 @@ export function firstOrder(spec: { levels: SpecLevel[] }): Overlay {
 interface Pt { mb: number; mm: number; tb: number; tm: number }
 const E_DEFAULT = 0.5; // elasticity of clear time to HP when only one point is known (tools/effort-diag.ts: 0.15 to 0.6 on the boss levels)
 const E_MIN = 0.15, E_MAX = 1;
+const EASE = 0.85; // multiplier step when a measurement had no winning run
+const AIM_MARGIN = 0.01; // the third pass aims this far above the target so the interval's lower end clears the 0.50 floor
 const STEP_MIN = 0.5, STEP_MAX = 2; // one pass moves a multiplier by at most this factor
 /** The multiplier that makes a stage take `want` seconds. Clear time follows a power law in the HP multiplier, T = c x m^e (the player's damage grows
  *  while a stage lasts, so time rises slower than HP: tools/effort-diag.ts); e comes from the last two points when they differ. */
-function solve(pts: Pt[], mult: (p: Pt) => number, time: (p: Pt) => number, want: number): number {
+function solve(pts: Pt[], mult: (p: Pt) => number, time: (p: Pt) => number, want: number, robust: boolean): number {
   const q = pts[pts.length - 1];
   const p = pts.length > 1 ? pts[pts.length - 2] : undefined;
   let e = E_DEFAULT;
-  if (p && Math.abs(Math.log(mult(q) / mult(p))) > 0.05 && time(q) > 0 && time(p) > 0) e = Math.min(E_MAX, Math.max(E_MIN, Math.log(time(q) / time(p)) / Math.log(mult(q) / mult(p))));
+  if (p && Math.abs(Math.log(mult(q) / mult(p))) > 0.05 && time(q) > 0 && time(p) > 0) {
+    const raw = Math.log(time(q) / time(p)) / Math.log(mult(q) / mult(p));
+    // the last pass does not trust a noisy slope: outside [E_MIN, E_MAX] it keeps the default instead of clamping (a clamped 0.15 amplifies the step 6x)
+    e = robust && !(raw >= E_MIN && raw <= E_MAX) ? E_DEFAULT : Math.min(E_MAX, Math.max(E_MIN, raw));
+  }
   return mult(q) * Math.min(STEP_MAX, Math.max(STEP_MIN, (want / time(q)) ** (1 / e)));
 }
 
@@ -80,12 +87,16 @@ function applyPass(o: Overlay, targets: Record<string, number>, hist: Record<str
     const n = Number(k);
     const m = t[k], b0 = o.baseline[k];
     nh[k] = [...(hist[k] ?? []), ...(m && m.tb > 0 && m.tm > 0 ? [{ mb: e.bossHpMult, mm: e.minionHpMult, tb: m.tb, tm: m.tm }] : [])];
-    if (!m || !(m.tb > 0 && m.tm > 0) || !b0) { levels[k] = { ...e }; continue; }
+    if (m && !(m.tb > 0 && m.tm > 0) && b0) { // no winning run at all: ease both stages instead of guessing from nothing
+      levels[k] = { bossHpMult: r4(e.bossHpMult * EASE), minionHpMult: r4(Math.max(MINION_FLOOR, e.minionHpMult * EASE)), ...(e.bossCap !== undefined ? { bossCap: e.bossCap } : {}) };
+      continue;
+    }
+    if (!m || !b0) { levels[k] = { ...e }; continue; }
     const E = b0.tb + b0.tm;
-    const tau = targets[k];
+    const tau = targets[k] + (o.pass >= 2 ? AIM_MARGIN : 0);
     let next: Entry = {
-      bossHpMult: solve(nh[k], (p) => p.mb, (p) => p.tb, tau * E),
-      minionHpMult: Math.max(MINION_FLOOR, solve(nh[k], (p) => p.mm, (p) => p.tm, (1 - tau) * E)),
+      bossHpMult: solve(nh[k], (p) => p.mb, (p) => p.tb, tau * E, o.pass >= 2),
+      minionHpMult: Math.max(MINION_FLOOR, solve(nh[k], (p) => p.mm, (p) => p.tm, (1 - tau) * E, o.pass >= 2)),
       ...(e.bossCap !== undefined ? { bossCap: e.bossCap } : {}),
     };
     if (hpShare(n, next) > SHARE_CEIL) {
@@ -211,6 +222,10 @@ if (!process.env.VITEST) {
   if (args.includes('--write')) {
     writeFileSync(OVERLAY, serialize(firstOrder(readJson(SPEC))));
     console.log(`wrote ${OVERLAY} (pass 0, first order)`);
+  } else if (args.includes('--rebuild')) {
+    const o = readJson<Overlay>(OVERLAY);
+    writeFileSync(OVERLAY, serialize(replay(readJson(SPEC), o)));
+    console.log(`rebuilt ${OVERLAY} from its recorded measurements (pass ${o.pass})`);
   } else if (args.includes('--check')) {
     const errs = check();
     if (errs.length) { console.error(errs.join('\n')); process.exit(1); }
