@@ -263,6 +263,20 @@ export function applyResourceFly(on: boolean) {
   RESOURCE_FLY.on = on;
 }
 
+/** QA panel UNIT SHOTS switch (this device only, not in the save): 'on' = per-family projectiles and chain colours. Presentation only, outside TUNING. */
+export const UNIT_SHOTS_KEY = 'omm_qa_unit_shots';
+export const UNIT_SHOTS = { on: false };
+export function storedUnitShots(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUnitShots(on: boolean) {
+  UNIT_SHOTS.on = on;
+}
+
 /** QA panel UNIT IDLE switch (this device only, not in the save): 'on' = units breathe, blink, hop on merge and wobble when picked.
  *  Presentation only, so it lives outside TUNING like RESOURCE_FLY (the flags-off golden's TUNING digest stays unchanged). */
 export const UNIT_IDLE_KEY = 'omm_qa_unit_idle';
