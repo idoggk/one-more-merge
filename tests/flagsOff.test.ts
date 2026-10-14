@@ -46,6 +46,7 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   variedOpenings: [false, 'varied openings: 4 seeded start layouts on ordinary levels'],
   paceCaps: [false, 'pace caps: plain kickback twins and matchmaker copies stop above rank 4 (kickbackTwinMaxRank / matchCopyMax stay 8 = no change)'],
   crateOpenV2: [false, 'crate opening V2: anticipation, shake, flash, hero reveal, 3-column summary (presentation only)'],
+  levelRoadV2: [false, 'level road v2: the ROAD tab as a winding world (presentation only)'],
 };
 // Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden
 // (see the 'TUNING defaults digest' test) fails on ANY change to a default, so such a flag forces a conscious golden update.
