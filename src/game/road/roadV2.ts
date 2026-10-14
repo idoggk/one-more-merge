@@ -176,8 +176,8 @@ export function openRoadV2(scene: GameScene) {
       road.add(im);
     }
     const plate = scene.add.graphics();
-    plate.fillStyle(INK, 1).fillRoundedRect(ch.x - 56, ch.y - 94, 112, 34, 14).fillStyle(st === 'open' ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(ch.x - 52, ch.y - 90, 104, 26, 11);
-    road.add([plate, scene.add.text(ch.x, ch.y - 77, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5)]);
+    plate.fillStyle(INK, 1).fillRoundedRect(ch.x - 56, ch.y + 52, 112, 34, 14).fillStyle(st === 'open' ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(ch.x - 52, ch.y + 56, 104, 26, 11);
+    road.add([plate, scene.add.text(ch.x, ch.y + 69, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5)]);
     const hit = scene.add.zone(ch.x, ch.y + 10, 130, 130).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
       if (scroller.moved()) return;
