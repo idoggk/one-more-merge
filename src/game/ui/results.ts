@@ -26,6 +26,8 @@ import { BOUNTY_BOLTS, MASTERY_CHAIN, MASTERY_MILESTONES, MASTERY_TIME_LEFT } fr
 import { localDate, store } from '../meta';
 import { FEATURE_INFO } from '../unlocks';
 import type { GameScene } from '../GameScene';
+import { RESOURCE_FLY } from '../../content/experiments';
+import { flyToChip } from '../fx/resourceFly';
 import { openBudgetResult } from './budget';
 import { W, REDUCED_MOTION, TROPHY_AT, TROPHY_SHELF, YARD_UNLOCK, H, fmt, PUZZLES } from '../sceneKit';
 import { fitLine, soCloseText } from '../fx/soClose';
@@ -424,6 +426,7 @@ export function openLevelResult(scene: GameScene, won: boolean) {
     rx0 += wOf(o);
   });
   if (bolts > 0) scene.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
+  if (bolts > 0 && RESOURCE_FLY.on) scene.time.delayedCall(450 + got * 220, () => flyToChip(scene, c, 'bolt', bolts, m.bolts ?? 0, { x: W / 2, y: top + 410 }, { x: W - 95, y: top + 30 }));
   if (parts.length) c.add(scene.add.text(W / 2, top + 452, parts.join('  \u00b7  '), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
   if (lines.length) {
     // F6 (walkthrough 2): one reward per row, at most 3, then '+N more' (never a wall of text over the buttons)
@@ -735,6 +738,11 @@ export function openPuzzleResult(scene: GameScene, won: boolean) {
   const helpLine = help.showMove ? 'Stuck? NEXT MOVE shows a right merge.' : help.hint ? 'Stuck? HINT lights the part to move first.' : `A hint unlocks after ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0)} more ${HELP.hintAfter - (pz.fails?.[def.id] ?? 0) === 1 ? 'try' : 'tries'}.`;
   c.add(scene.add.text(W / 2, top + 70, won ? 'SOLVED!' : 'NOT QUITE', { fontFamily: 'Lilita One, Arial Black', fontSize: '58px', color: won ? '#8e58c9' : '#3b2533' }).setOrigin(0.5));
   c.add(scene.add.text(W / 2, top + 150, won ? lines.join('\n') : scene.s.puzzle.missedUnit ? missedUnitText(FAMILY_INFO[def.unit as 'cannon'].name, helpLine) : `The machine had ${fmt(Math.max(0, Math.round(scene.s.hp)))} HP left.\nThe order of merges matters - and which\npiece you drop onto which.\n${helpLine}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: '#5a3a3a', align: 'center', lineSpacing: 8 }).setOrigin(0.5, 0));
+  if (firstSolve && RESOURCE_FLY.on) {
+    const src = { x: W / 2, y: top + 175 };
+    if (rw.bolts > 0) flyToChip(scene, c, 'bolt', rw.bolts, m.bolts ?? 0, src, { x: W - 95, y: top + 30 });
+    if (kind === 'daily' && rw.gems > 0) flyToChip(scene, c, 'gem', rw.gems, m.gems ?? 0, src, { x: 95, y: top + 30 });
+  }
   const nextDrill = won && kind === 'drill' && def.unit ? (PUZZLES.drills[def.unit] ?? []).find((p) => !pz.drills.includes(p.id)) : undefined;
   if (nextDrill) scene.button(c, W / 2, top + 440, 420, 'NEXT DRILL', 0x8e58c9, () => scene.startPuzzle(nextDrill, 'drill'), 0.95);
   else if (!won) {

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY } from '../../content/experiments';
+import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY } from '../../content/experiments';
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
@@ -110,6 +110,8 @@ applyEffortModel(qaEffortModel());
 // QA-only: UI KIT V3 (rebuilt level intro popup), default OFF, this device only
 export const qaUiKitV3 = () => storedUiKitV3(() => localStorage.getItem(UI_KIT_V3_KEY));
 applyUiKitV3(qaUiKitV3());
+export const qaResourceFly = () => storedResourceFly(() => localStorage.getItem(RESOURCE_FLY_KEY));
+applyResourceFly(qaResourceFly());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
 export const qaLevelRoadV2 = () => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
 applyLevelRoadV2(qaLevelRoadV2());
@@ -663,6 +665,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_ui_kit_v3', { on });
         },
         toast: (on) => (on ? 'UI KIT V3 ON  ·  OPEN ANY LEVEL' : 'UI KIT V3 OFF (old level card)'),
+      }),
+      // RESOURCE FLY: reward icons arc to a counter on results, puzzle payout and collection claim (visual only)
+      qaFlag({
+        id: 'resourceFly',
+        title: 'RESOURCE FLY',
+        desc: 'Rewards fly to a counter. Next result',
+        get: () => !!qaResourceFly(),
+        set: (on) => {
+          store(RESOURCE_FLY_KEY, on ? 'on' : null);
+          applyResourceFly(on);
+          tlog.log('qa_resource_fly', { on });
+        },
+        toast: (on) => (on ? 'RESOURCE FLY ON  ·  FINISH A LEVEL OR SOLVE A PUZZLE' : 'RESOURCE FLY OFF'),
       }),
       // the same phone setting as Settings, SCREEN SHAKE (kept in its own key, not in the save code)
       qaChoice<ShakeLevel>({

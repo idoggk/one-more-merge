@@ -248,6 +248,21 @@ export function applyUiKitV3(on: boolean) {
   TUNING.uiKitV3 = on;
 }
 
+/** QA panel RESOURCE FLY switch (this device only, not in the save): 'on' = rewards fly to a counter. Presentation only, so it lives outside TUNING
+ *  (the core never reads it; the flags-off golden's TUNING digest stays unchanged). */
+export const RESOURCE_FLY_KEY = 'omm_qa_resource_fly';
+export const RESOURCE_FLY = { on: false };
+export function storedResourceFly(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyResourceFly(on: boolean) {
+  RESOURCE_FLY.on = on;
+}
+
 /** QA panel LEVEL ROAD V2 switch (TUNING.levelRoadV2; this device only, not in the save): 'on' = the new ROAD tab, anything else = OFF. */
 export const LEVEL_ROAD_V2_KEY = 'omm_qa_level_road_v2';
 export function storedLevelRoadV2(read: () => string | null): boolean {

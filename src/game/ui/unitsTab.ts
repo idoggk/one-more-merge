@@ -28,6 +28,8 @@ import { crateName, latchRollUp, popToolboxLatch, toolboxCrateKey, toolboxOn } f
 import { pctB, pityView, guaranteeText } from '../../core/crateOdds';
 import { addOddsButton, showOddsPanel } from './oddsPanel';
 import { loopTween } from '../loopTween';
+import { RESOURCE_FLY } from '../../content/experiments';
+import { flyResource } from '../fx/resourceFly';
 import { buildLayout, makeScroller, type Scroller } from './scrollMath';
 import { HEAD_H, makeHeader, mountScroll } from './unitsScroll';
 import { addPortrait, crateArtReady, presentCrateToolbox } from './crateScreen';
@@ -129,6 +131,11 @@ export function collectionStrip(scene: GameScene, c: Phaser.GameObjects.Containe
       m.collClaimed = i + 1;
       if (r.bolts) m.bolts = (m.bolts ?? 0) + r.bolts;
       if (r.gems) m.gems = (m.gems ?? 0) + r.gems;
+      if (RESOURCE_FLY.on) {
+        const from = { x: W - 120, y }; // the CLAIM button; the tab redraws at once, the icons live on the scene
+        if (r.bolts) flyResource(scene, 'bolt', r.bolts, from, { x: W - 60, y: 40 });
+        if (r.gems) flyResource(scene, 'gem', r.gems, from, { x: 60, y: 40 });
+      }
       if (r.crate) scene.giveCrate(r.crate);
       store(META_KEY, JSON.stringify(m));
       tlog.log('collection_claim', { i, prize });
