@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY } from '../../content/experiments';
+import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY } from '../../content/experiments';
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
@@ -116,6 +116,8 @@ applyResourceFly(qaResourceFly());
 // QA-only: UNIT SHOTS (per-family projectiles and chain colours), default OFF, this device only
 export const qaUnitShots = () => storedUnitShots(() => localStorage.getItem(UNIT_SHOTS_KEY));
 applyUnitShots(qaUnitShots());
+export const qaUnitIdle = () => storedUnitIdle(() => localStorage.getItem(UNIT_IDLE_KEY));
+applyUnitIdle(qaUnitIdle());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
 export const qaLevelRoadV2 = () => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
 applyLevelRoadV2(qaLevelRoadV2());
@@ -695,6 +697,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_unit_shots', { on });
         },
         toast: (on) => (on ? 'UNIT SHOTS ON  ·  FIRE A CHAIN' : 'UNIT SHOTS OFF'),
+      }),
+      // UNIT IDLE: board, tray and units-tab pictures breathe / blink / hop / wobble (visual only, reduced motion = none)
+      qaFlag({
+        id: 'unitIdle',
+        title: 'UNIT IDLE',
+        desc: 'Units breathe, blink, hop, wobble',
+        get: () => !!qaUnitIdle(),
+        set: (on) => {
+          store(UNIT_IDLE_KEY, on ? 'on' : null);
+          applyUnitIdle(on);
+          tlog.log('qa_unit_idle', { on });
+        },
+        toast: (on) => (on ? 'UNIT IDLE ON  ·  WATCH THE BOARD' : 'UNIT IDLE OFF'),
       }),
       // the same phone setting as Settings, SCREEN SHAKE (kept in its own key, not in the save code)
       qaChoice<ShakeLevel>({
