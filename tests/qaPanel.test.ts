@@ -17,7 +17,7 @@ const EXPECTED_ROWS = [
   'cratesLook', // crates
   'crateOpenV2',
   'spam', 'varied', 'paceCaps', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
-  'yardMode', // screw yard
+  'yardMode', 'yardBook', // screw yard
   'shake', // display
 ];
 
@@ -34,12 +34,12 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('units')).toEqual(['allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode']);
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
     expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'budget', 'budgetPick', 'tools', 'yardPressure']);
-    expect(ids('yard')).toEqual(['yardMode']);
+    expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
     expect(ids('display')).toEqual(['shake']);
   });
   it('on/off settings are switches, multi-choice settings are segmented controls', () => {
     const kind = (id: string) => QA_ROWS.find((r) => r.spec.id === id)!.spec.kind;
-    for (const id of ['thinkBank', 'allNew', 'unlockPlan', 'varied', 'budget', 'tools', 'yardPressure']) expect(kind(id), id).toBe('switch');
+    for (const id of ['thinkBank', 'allNew', 'unlockPlan', 'varied', 'budget', 'tools', 'yardPressure', 'yardBook']) expect(kind(id), id).toBe('switch');
     for (const id of ['mergeRule', 'mergeAssist', 'pace', 'rosterMode', 'cratesLook', 'spam', 'yardMode', 'shake']) expect(kind(id), id).toBe('segment');
     expect(kind('batches')).toBe('grid');
     expect(QA_ROWS.find((r) => r.spec.id === 'batches')!.spec.count).toBe(7);

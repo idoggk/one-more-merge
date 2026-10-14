@@ -12,6 +12,9 @@ import type { GameScene } from '../GameScene';
 import { W, YARD_UNLOCK, H } from '../sceneKit';
 import { mergesText } from '../../content/sceneCopy';
 import { qaYardObject } from './qaPanel';
+import { TUNING } from '../../content/tuning';
+import { isUnlocked, lockedText, playable, readBook } from '../../core/yardBook';
+import { bookObject, openYardBook } from '../yardBook';
 import { pickedUnit, pickUnit, UNIT_NAMES, YARD_UNITS, yardObjectOf } from '../../content/yardObjects';
 
 /** EVENTS tab: Daily (level 3), Challenge (level 5), Remix (level 10), plus the classic 3-monster run. */
@@ -119,11 +122,21 @@ export function openYardEvent(scene: GameScene) {
   const nx = nextYard(yd);
   if (qaYardObject()) {
     // QA SCREW YARD = OBJECT: which unit to take apart (default: rotation by day); easy > hard left to right
-    const now = pickedUnit();
-    YARD_UNITS.forEach((u, i) => scene.button(c, W / 2 + (i - 1) * 190, top + PH - 245, 175, UNIT_NAMES[u], u === now ? 0x5fbf4a : 0x8a6a4a, () => (pickUnit(u), openYardEvent(scene)), 0.6));
+    // YARD BOOK ON: the unlock chain applies (a locked object cannot be picked; the day's pick falls back to the last open one)
+    const rec = readBook(scene.meta.yardBook);
+    const now = TUNING.yardBook ? playable(rec, pickedUnit()) : pickedUnit();
+    YARD_UNITS.forEach((u, i) => {
+      const shut = TUNING.yardBook && !isUnlocked(rec, u);
+      scene.button(c, W / 2 + (i - 1) * 190, top + PH - 245, 175, UNIT_NAMES[u], shut ? 0x5a4a5a : u === now ? 0x5fbf4a : 0x8a6a4a, () => (shut ? scene.showToast(lockedText(u)) : (pickUnit(u), openYardEvent(scene))), 0.6);
+    });
   }
-  scene.button(c, W / 2, top + PH - 170, 460, qaYardObject() ? `PLAY ${yardObjectOf().name}` : `PLAY YARD ${nx}`, 0x5fbf4a, () => scene.startYard(nx), 0.95);
-  scene.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => scene.openTitle('events'), 0.75);
+  const book = TUNING.yardBook && qaYardObject();
+  const playName = TUNING.yardBook ? bookObject(scene.meta).name : yardObjectOf().name;
+  scene.button(c, W / 2, top + PH - 170, 460, qaYardObject() ? `PLAY ${playName}` : `PLAY YARD ${nx}`, 0x5fbf4a, () => scene.startYard(nx), 0.95);
+  if (book) {
+    scene.button(c, W / 2 - 150, top + PH - 70, 240, 'BACK', 0x8a6a4a, () => scene.openTitle('events'), 0.75);
+    scene.button(c, W / 2 + 150, top + PH - 70, 240, 'BOOK', 0xe0a020, () => openYardBook(scene), 0.75);
+  } else scene.button(c, W / 2, top + PH - 70, 260, 'BACK', 0x8a6a4a, () => scene.openTitle('events'), 0.75);
 }
 
 export function openOtherModes(scene: GameScene) {

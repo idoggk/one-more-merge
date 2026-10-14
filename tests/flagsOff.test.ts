@@ -42,6 +42,7 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   'r5.dynMates': [false, 'Dynamo wakes the block\'s own parts too'],
   tools: [false, 'power tools: Row Surge (chain 5+) and Gear Bomb (sandwich) made on the board'],
   yardPressure: [false, 'Screw Yard countdown + tap budget with stars'],
+  yardBook: [false, 'Screw Yard Book: tap-budget stars, unit crate + cards counter, Collection Book'],
   mergeBudget: [false, 'Budget Levels (LAST MERGES): levels with merge_budget play as capped-merge levels'],
   variedOpenings: [false, 'varied openings: 4 seeded start layouts on ordinary levels'],
   paceCaps: [false, 'pace caps: plain kickback twins and matchmaker copies stop above rank 4 (kickbackTwinMaxRank / matchCopyMax stay 8 = no change)'],
