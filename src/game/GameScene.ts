@@ -95,6 +95,7 @@ import * as results from './ui/results';
 import * as eventsTab from './ui/eventsTab';
 import * as unitsTab from './ui/unitsTab';
 import * as roadTab from './ui/roadTab';
+import * as levelIntro from './ui/levelIntro';
 import * as machineTab from './ui/machineTab';
 export { localDate };
 export { computeLayout, H, layoutHeight, RS, setRenderScale, W } from './sceneKit';
@@ -4024,6 +4025,7 @@ Now beat the real level.`, this.coachY());
 
   /** Level card (ChatGPT r15/r16): monster, ONE modifier sentence, star goals, Jumpstart switch, PLAY. */
   openLevelSheet(n: number) {
+    if (TUNING.uiKitV3) return levelIntro.openLevelIntroV3(this, n);
     sfx.cardOpen();
     const def = LEVELS[n - 1];
     if (!def) return;

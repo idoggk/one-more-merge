@@ -166,6 +166,9 @@ export const TUNING = {
    *  same 8 starter parts (same rank mass) from a seeded no-repeat deal. Teach, boss, mini-boss, puzzle, daily and bounty starts stay scripted. HP / star lines were
    *  tuned on layout A and are NOT refitted. */
   variedOpenings: false,
+  /** UI KIT V3 (src/game/ui/levelIntro*.ts), default OFF (QA row UI KIT V3): the level intro popup is rebuilt from the v3 kit (framed panel, ribbon, hero
+   *  picture, minion chips, tool chips, big PLAY, Jumpstart card below). Presentation only: the core never reads it. OFF = the old level card. */
+  uiKitV3: false,
   tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
   /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
    *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation
