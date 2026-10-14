@@ -484,9 +484,7 @@ export class GameScene extends Phaser.Scene {
     sfx.click();
     tlog.log('inspect', { fam: g.family, rank: g.rank });
     this.paused = true;
-    const cw = W - 60, L = -cw / 2 + 30;
-    const bodyT = this.add.text(L, 0, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: cw - 250 }, lineSpacing: 4 });
-    const ch0 = Math.max(330, 92 + bodyT.height + 122); // a long description pushed the damage and Try lines onto itself
+    const cw = W - 60, L = -cw / 2 + 30, bodyT = this.add.text(L, 0, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: cw - 250 }, lineSpacing: 4 }), ch0 = Math.max(330, 92 + bodyT.height + 122); // a long description pushed the damage and Try lines onto itself
     // clarity pass 1: MARKS row (every state on this part, icon + one sentence) and what a merge right now does with them
     const { marks, mergeNow } = inspectMarks(this.s, idx);
     const markRows = marks.map((m) => ({ m, t: this.add.text(0, 0, `${m.label}: ${m.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', wordWrap: { width: cw - 110 }, lineSpacing: 2 }).setOrigin(0, 0.5) }));
