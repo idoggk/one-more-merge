@@ -85,6 +85,7 @@ import { hitFormula, type HitFormula } from '../core/hitFormula';
 import { BIG_CHAIN, bigFinish, chainHoldMs, playChainLadder } from './fx/chainLadder';
 import { getShakeLevel, shakeCamera, type ShakeKind } from './fx/shake';
 import { PartReact } from './fx/partReact';
+import { IdleDirector } from './fx/idleDirector';
 import { W, CELL, DRAG_LIFT, DRAG_LIFT_TOUCH, MERGE_ARRIVE, REDUCED_MOTION, SNAP_CUE_GAP, BX, SCRAP_X, TAP_MIN, lighten, mmss, CLOCK_X, TROPHY_AT, TROPHY_SHELF, TRIAL_BATTLES, TRIAL_LEVEL, TRIAL_UNLOCK, YARD_UNLOCK, ITEM_X, H, RS, BY, TRAY_Y, EVENT_Y, HP_Y, STAGE_TOP, STAGE_H, TARGET_Y, it0Stage, ATTACK_ICON, SLOT, AMP_COL, PRIME_COL, ITEM_COL, ATTACK_COL, LOCK_COL, KICK_COL, OD_COL, type Gfx, drawPrimeMark, drawAmpMark, drawBossCell, cellXY, fmt, PUZZLES, pooledText, recycleWith, bakeTexture } from './sceneKit';
 import * as qa from './ui/qaPanel';
 import { qaMergeRule, qaPace, qaThinkBank, qaUnits, qaYardObject } from './ui/qaPanel';
@@ -172,6 +173,7 @@ export class GameScene extends Phaser.Scene {
   maniaBadge: Phaser.GameObjects.Text | null = null;
   thinkBadge: Phaser.GameObjects.Text | null = null;
   modal: Phaser.GameObjects.Container | null = null;
+  idle!: IdleDirector; // UNIT IDLE (visual only), see fx/idleDirector.ts
   /** r43: this attempt's command log (best-chain replay on the results screen). */
   runLog: RunLog = newRunLog();
   /** r46: the best run to race on a replay of a beaten level (null = no pace line). */
@@ -368,6 +370,8 @@ export class GameScene extends Phaser.Scene {
     this.trayLabel = this.add.text(BX + 28, TRAY_Y, 'NEXT', { fontFamily: 'Lilita One, Arial Black', fontSize: '26px', color: this.trayPlate ? '#5a3a2a' : '#fbe7c6' }).setOrigin(0, 0.5).setDepth(2);
     this.trayArc = this.add.graphics().setDepth(2);
     this.trayIcon = this.add.image(BX + 150, TRAY_Y, 'cannon_1').setDisplaySize(62, 62).setDepth(2);
+    this.idle = new IdleDirector(this, { canIdle: () => this.canAct() && this.dragIdx < 0 && this.time.now - this.lastMergeAt > 1500, board: () => this.idleBoardPics() });
+    this.idle.watch('tray', this.trayIcon, false);
     this.trayBadge = this.add.text(BX + 176, TRAY_Y + 18, '', { fontFamily: 'Arial Black', fontSize: '18px', color: '#fff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5).setDepth(3);
     this.pendingText = this.add.text(BX + 250, TRAY_Y, '', { fontFamily: 'Arial Black', fontSize: '20px', color: '#9e2416' }).setOrigin(0, 0.5).setDepth(2);
 
@@ -827,6 +831,7 @@ export class GameScene extends Phaser.Scene {
     c.gid = g.id;
     const img = this.add.image(0, 0, unitTex(this, `${g.family}_${g.rank}`));
     this.fitSprite(img);
+    img.setName('unitpic');
     const decor = rankDecor(this, g.family, g.rank, FAMILY_INFO[g.family].color, CELL * 0.38);
     const dice = this.hasArt(`dice_${g.rank}`);
     const badge = dice ? null : this.add.graphics();
@@ -863,6 +868,15 @@ export class GameScene extends Phaser.Scene {
     c.add([...decor.under, parts[0], ...decor.mid, ...parts.slice(1), ...decor.over]);
     c.setSize(CELL, CELL).setDepth(10);
     return c;
+  }
+
+  idleBoardPics(): [string, Phaser.GameObjects.Image][] {
+    const out: [string, Phaser.GameObjects.Image][] = [];
+    for (const [id, v] of this.views) {
+      const pic = v.getByName('unitpic') as Phaser.GameObjects.Image | null;
+      if (pic) out.push([`b${id}`, pic]);
+    }
+    return out;
   }
 
   /** Visible (alpha) bounds of a texture, in source pixels; cached. Packs v1-v9 have different padding. */
@@ -1527,6 +1541,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(MERGE_ARRIVE, () => {
           if (!nv.active) return;
           nv.setVisible(true);
+          this.idle.hop(nv.getByName('unitpic') as Phaser.GameObjects.Image | null);
           if (!REDUCED_MOTION)
             this.tweens.chain({
               targets: nv,
@@ -1643,6 +1658,7 @@ Now beat the real level.`, this.coachY());
     const src = this.dragIdx >= 0 && this.moved ? this.dragIdx : -1;
     // while holding: everything you can't merge with fades, matches stay bright (playtest: ranks were confused)
     const held = src >= 0 ? this.s.grid[src] : null;
+    this.idle.wobble(held && (this.views.get(held.id)?.getByName('unitpic') as Phaser.GameObjects.Image | undefined));
     this.s.grid.forEach((b, i) => {
       const v = b ? this.views.get(b.id) : undefined;
       if (!v) return;

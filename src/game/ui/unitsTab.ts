@@ -160,7 +160,7 @@ export function unitCard(scene: GameScene, u: UnitDef, x: number, y: number) {
   cc.add(scene.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(-102, -132, 204, 268, 22).fillStyle(rc, 1).fillRoundedRect(-98, -128, 196, 260, 19).fillStyle(0xfbe7c6, 1).fillRoundedRect(-90, -100, 180, 170, 14));
   cc.add(scene.add.text(0, -114, u.rarity.toUpperCase(), { fontFamily: 'Lilita One, Arial Black', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5));
   const art = scene.unitPortrait(u.id);
-  if (owned) addPortrait(scene, cc, u.id, u.rarity, 0, -16, 140); // real art, or a clean framed glyph tile while the unit has none
+  if (owned) (addPortrait(scene, cc, u.id, u.rarity, 0, -16, 140), scene.idle.watchLast(`u:${u.id}`, cc)); // real art, or a clean framed glyph tile while the unit has none
   else if (scene.textures.exists(art)) cc.add(scene.fitVisible(scene.add.image(0, -16, art), 140).setTint(0x2b1d2e).setAlpha(0.6));
   addUnitJob(scene, cc, u.id, 0, 58);
   // r38 rarity frame art (ChatGPT v22, transparent centre) over the card edge

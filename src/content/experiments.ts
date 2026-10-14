@@ -263,6 +263,21 @@ export function applyResourceFly(on: boolean) {
   RESOURCE_FLY.on = on;
 }
 
+/** QA panel UNIT IDLE switch (this device only, not in the save): 'on' = units breathe, blink, hop on merge and wobble when picked.
+ *  Presentation only, so it lives outside TUNING like RESOURCE_FLY (the flags-off golden's TUNING digest stays unchanged). */
+export const UNIT_IDLE_KEY = 'omm_qa_unit_idle';
+export const UNIT_IDLE = { on: false };
+export function storedUnitIdle(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUnitIdle(on: boolean) {
+  UNIT_IDLE.on = on;
+}
+
 /** QA panel LEVEL ROAD V2 switch (TUNING.levelRoadV2; this device only, not in the save): 'on' = the new ROAD tab, anything else = OFF. */
 export const LEVEL_ROAD_V2_KEY = 'omm_qa_level_road_v2';
 export function storedLevelRoadV2(read: () => string | null): boolean {
