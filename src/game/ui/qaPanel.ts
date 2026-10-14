@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY } from '../../content/experiments';
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
-import { applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
+import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
 import { TOOLBOX_KEY, toolboxOn } from '../fx/toolboxCrates';
@@ -115,7 +115,9 @@ applyResourceFly(qaResourceFly());
 export const qaUnitIdle = () => storedUnitIdle(() => localStorage.getItem(UNIT_IDLE_KEY));
 applyUnitIdle(qaUnitIdle());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
-export const qaLevelRoadV2 = () => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
+export const qaRoadPolish = () => storedRoadPolish(() => localStorage.getItem(ROAD_POLISH_KEY));
+applyRoadPolish(qaRoadPolish());
+export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
 applyLevelRoadV2(qaLevelRoadV2());
 
 
@@ -564,6 +566,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_level_road_v2', { on });
         },
         toast: (on) => (on ? 'LEVEL ROAD V2 ON  ·  OPEN THE ROAD TAB' : 'LEVEL ROAD V2 OFF (live game)'),
+      }),
+      // ROAD POLISH: on top of LEVEL ROAD V2: parallax, belt road, ambient life, avatar hop, chest rattle, unlock sequence (visual only)
+      qaFlag({
+        id: 'roadPolish',
+        title: 'ROAD POLISH',
+        desc: 'Needs LEVEL ROAD V2. Open ROAD',
+        get: () => !!qaRoadPolish(),
+        set: (on) => {
+          store(ROAD_POLISH_KEY, on ? 'on' : null);
+          applyRoadPolish(on);
+          tlog.log('qa_road_polish', { on });
+        },
+        toast: (on) => (on ? 'ROAD POLISH ON  ·  OPEN THE ROAD TAB' : 'ROAD POLISH OFF'),
       }),
       // t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left)
       qaFlag({

@@ -12,6 +12,8 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
+import { ROAD_POLISH } from '../../content/experiments';
+import { createRoadPolish } from './roadPolishFx';
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
@@ -80,7 +82,7 @@ export function openRoadV2(scene: GameScene) {
   });
   const placeFar = (scroll: number) => {
     const mid = (top + bottom) / 2;
-    for (const f of farLayers) f.fc.y = mid + (scroll + f.cy - mid) * 0.8 - f.cy;
+    for (const f of farLayers) f.fc.y = mid + (scroll + f.cy - mid) * (polish?.farK ?? 0.8) - f.cy;
   };
 
   // ---- verge props + steam ------------------------------------------------------------------------------------------------
@@ -126,6 +128,9 @@ export function openRoadV2(scene: GameScene) {
       for (let i = 0; i + 1 < seg.pts.length; i += 2) pg.lineBetween(seg.pts[i].x, seg.pts[i].y, seg.pts[i + 1].x, seg.pts[i + 1].y);
     }
   }
+
+  // ROAD POLISH (flag, default OFF): parallax, ground ramp, belt stripe, ambient life, avatar hop, unlock sequence; see roadPolishFx.ts
+  const polish = ROAD_POLISH.on ? createRoadPolish({ scene, c, far, road, lay, cur, top, bottom }) : null;
 
   // ---- fog over chapters not reached yet; banners; gates -------------------------------------------------------------------
   const fogKey = slotArt(has, 'fog') ?? 'road_fog';
@@ -216,6 +221,7 @@ export function openRoadV2(scene: GameScene) {
       im.setScale(104 / Math.max(im.width, im.height));
       if (st === 'closed' && cur === ch.afterLevel && !REDUCED_MOTION) loopTween(scene, { targets: im, angle: { from: -5, to: 5 }, duration: 160, yoyo: true, repeat: -1, repeatDelay: 1400 }, im);
       road.add(im);
+      polish?.chest(im, st === 'closed' && cur === ch.afterLevel);
     }
     const plate = scene.add.graphics();
     // the plate sits ABOVE the chest: the YOU pointer of the level below it never reaches it
@@ -326,7 +332,11 @@ export function openRoadV2(scene: GameScene) {
         hero.add(av);
       }
       nodeLayer.add(hero);
-      if (!REDUCED_MOTION) loopTween(scene, { targets: hero, y: hero.y - 10, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, hero);
+      const bob = () => {
+        if (!REDUCED_MOTION && hero.active) loopTween(scene, { targets: hero, y: hero.y - 10, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, hero);
+      };
+      if (polish) polish.hero(hero, 0, py - 16 - n.y, plat, bob);
+      else bob();
       // number plate on the front of the platform + YOU pointer
       const np = scene.add.graphics();
       np.fillStyle(INK, 1).fillRoundedRect(n.x - 52, py + 22, 104, 62, 20).fillStyle(0xfbe7c6, 1).fillRoundedRect(n.x - 47, py + 27, 94, 52, 16);
@@ -348,18 +358,24 @@ export function openRoadV2(scene: GameScene) {
       const done = state === 'completed' || state === 'open';
       const ny = n.y - im.displayHeight * (done ? 0.095 : 0.07);
       nodeLayer.add(scene.add.text(n.x, ny, String(n.level), { fontFamily: FONT, fontSize: n.level >= 10 ? '44px' : '50px', color: state === 'locked' ? '#6f7fa0' : '#3b2533', stroke: state === 'locked' ? '#e8eefc' : '#fff7e6', strokeThickness: 3 }).setOrigin(0.5));
+      const starImgs: Phaser.GameObjects.Image[] = [];
       if (state === 'completed' || state === 'open')
         for (let k = 0; k < 3; k++) {
           const st = scene.add.image(n.x + (k - 1) * 36, n.y + im.displayHeight * 0.26 + (k === 1 ? 5 : 0), 'star');
           st.setScale(36 / Math.max(st.width, st.height)).setAlpha(k < starsOf(n.level, stars) ? 1 : 0.25);
           nodeLayer.add(st);
+          starImgs.push(st);
         }
+      polish?.node(n, state, im, starImgs);
       kindFront(n, n.x, n.y, im.displayHeight);
     }
     const hit = scene.add.zone(n.x, n.y + (isCur ? 30 : 0), size + 40, size + 60).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
       if (scroller.moved()) return;
-      if (n.level > cur) return scene.showToast(`FINISH LEVEL ${cur} FIRST`);
+      if (n.level > cur) {
+        polish?.shake(n.level);
+        return scene.showToast(`FINISH LEVEL ${cur} FIRST`);
+      }
       scene.roadLessonDone?.();
       scene.roadLessonDone = null;
       sfx.nodeTap();
@@ -443,6 +459,7 @@ export function openRoadV2(scene: GameScene) {
   const redraw = (scroll: number) => {
     road.y = scroll;
     placeFar(scroll);
+    polish?.place(scroll);
     backdrop.clear();
     const bandH = 28;
     for (let sy = 0; sy < H; sy += bandH) {
@@ -464,12 +481,15 @@ export function openRoadV2(scene: GameScene) {
       else backArrow.fillTriangle(-14, -22, 14, -22, 0, -4);
     }
   };
+  // with a climb to show (polish), the road opens on the level the player came from and glides up to the new one
+  const fromNode = polish?.span ? byLevel.get(polish.span.from) : undefined;
+  const startScroll = fromNode ? snapScroll(fromNode.y, top, bottom, lo, hi) : Math.max(lo, home - 360);
   const scroller = attachRoadScroll(scene, c, {
     startY: 110, endY: bottom, lo, hi,
-    start: REDUCED_MOTION ? home : Math.max(lo, home - 360),
+    start: REDUCED_MOTION ? home : startScroll,
     onScroll: redraw,
   });
-  if (!REDUCED_MOTION && home - 360 >= lo) scroller.to(home, 650);
+  if (!REDUCED_MOTION && startScroll !== home && (fromNode || home - 360 >= lo)) scroller.to(home, fromNode ? 600 : 650);
   c.once(Phaser.GameObjects.Events.DESTROY, () => mask.destroy());
 
   // first road visit: lesson 1 (the ring lives in road space so it scrolls with the road)
