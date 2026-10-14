@@ -6,9 +6,12 @@ import { SEASON_TIERS, seasonTier } from '../../core/season';
 import type { GameScene } from '../GameScene';
 import { W, REDUCED_MOTION, H } from '../sceneKit';
 import { loopTween } from '../loopTween';
+import { TUNING } from '../../content/tuning';
+import { openRoadV2 } from '../road/roadV2';
 
 /** ROAD tab (ChatGPT r15): a scrolling path of numbered levels, HARD / MEGA HARD tags, little machines at work. */
 export function openRoadTab(scene: GameScene) {
+  if (TUNING.levelRoadV2) return openRoadV2(scene);
   scene.closeModal();
   const m = scene.meta;
   const c = scene.add.container(0, 0).setDepth(100);

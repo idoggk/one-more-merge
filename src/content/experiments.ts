@@ -248,6 +248,19 @@ export function applyUiKitV3(on: boolean) {
   TUNING.uiKitV3 = on;
 }
 
+/** QA panel LEVEL ROAD V2 switch (TUNING.levelRoadV2; this device only, not in the save): 'on' = the new ROAD tab, anything else = OFF. */
+export const LEVEL_ROAD_V2_KEY = 'omm_qa_level_road_v2';
+export function storedLevelRoadV2(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyLevelRoadV2(on: boolean) {
+  TUNING.levelRoadV2 = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

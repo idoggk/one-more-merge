@@ -139,6 +139,18 @@ const sfxKeys = [...sfxBody.matchAll(/^ {2}([a-zA-Z0-9_]+): /gm)].map((m) => m[1
 for (const k of sfxKeys) add({ id: `sfx_${k}`, category: 'sounds', subcategory: 'sfx', name: `sfx.${k}`, file: 'code-drawn', status: 'draft', source: 'synth', notes: 'synthesized in audio.ts (WebAudio)' });
 for (const mode of ['normal', 'mini', 'boss', 'final']) add({ id: `music_${mode}`, category: 'sounds', subcategory: 'music', name: `Music (${mode})`, file: 'code-drawn', status: 'draft', source: 'synth', notes: 'procedural loop in audio.ts' });
 
+// ---- level road v2 slots (src/game/road/roadArt.ts ROAD_SLOTS): a code-drawn fallback until the picture file lands -------------------
+const roadSlots = [
+  ...Array.from({ length: 8 }, (_, i) => `chapterScenery_${i + 1}`),
+  'pathTile',
+  ...['normal', 'hard', 'mega', 'mini', 'boss'].flatMap((k) => ['locked', 'open', 'done'].map((s) => `nodeFrame_${k}_${s}`)),
+  'avatarMarker',
+  'fog',
+];
+for (const id of roadSlots) {
+  if (!existsSync(`${ART_DIR}/${id}.webp`) && !existsSync(`${ART_DIR}/${id}.png`)) add({ id, category: 'backgrounds', subcategory: 'level-road-v2', name: `Road slot ${id}`, file: 'code-drawn', status: 'placeholder', source: 'code', notes: 'slot read by src/game/road (drop src/assets/art/<id>.png|webp to replace the code-drawn fallback)' });
+}
+
 // ---- merge with existing registry (keep hand edits) ---------------------------------------------------------------------------
 const old = existsSync(REGISTRY_PATH) && read(REGISTRY_PATH).includes(BEGIN) ? new Map(readRegistry().map((e) => [e.id, e])) : new Map();
 const seen = new Set();
