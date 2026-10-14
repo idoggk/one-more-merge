@@ -8,7 +8,7 @@ import { sfx } from '../audio';
 import type { GameScene } from '../GameScene';
 import { loopTween } from '../loopTween';
 import { H, REDUCED_MOTION, W } from '../sceneKit';
-import { drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, frameKind, lerpColor, lookOf, skyColorAt, slotArt, type FrameKind } from './roadArt';
+import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, frameKind, lerpColor, lookOf, skyColorAt, slotArt, type FrameKind } from './roadArt';
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
@@ -94,7 +94,8 @@ export function openRoadV2(scene: GameScene) {
       const left = nodeXAt(y) > ROAD.centerX;
       const x = left ? 52 + hash01(ch.chapter * 100 + i) * 56 : W - 52 - hash01(ch.chapter * 100 + i) * 56;
       const s = 0.85 + hash01(ch.chapter * 7 + i * 3) * 0.5;
-      drawProp(props, look.prop, x, y, s, look.accent, i + ch.chapter);
+      if (i % 2 === 0) drawBigProp(props, look.prop, left ? 82 : W - 82, y, 0.95, look.accent, left ? 1 : -1);
+      else drawProp(props, look.prop, x, y, s, look.accent, i + ch.chapter);
       if (!REDUCED_MOTION && Math.abs(ch.chapter - curChapter) <= 1 && i % 3 === 0) {
         const puff = scene.add.circle(x, y - 40, 14, 0xffffff, 0.5);
         road.add(puff);
@@ -107,6 +108,12 @@ export function openRoadV2(scene: GameScene) {
   const pg = scene.add.graphics();
   road.add(pg);
   const pathTile = slotArt(has, 'pathTile');
+  for (const seg of lay.segments) {
+    // themed ground under the path and a soft shadow, so the nodes pop off the scenery
+    const gc = lookOf(Math.ceil(seg.from / ROAD.levelsPerChapter));
+    pg.lineStyle(250, lerpColor(gc.bottom, gc.accent, 0.35), 0.4).strokePoints(seg.pts);
+    pg.lineStyle(100, 0x000000, 0.22).strokePoints(seg.pts.map((p) => ({ x: p.x, y: p.y + 12 })));
+  }
   for (const seg of lay.segments) {
     const ch = Math.ceil(seg.from / ROAD.levelsPerChapter);
     const surface = lerpColor(0xf3e3c8, lookOf(ch).accent, 0.12);
@@ -122,6 +129,7 @@ export function openRoadV2(scene: GameScene) {
 
   // ---- fog over chapters not reached yet; banners; gates -------------------------------------------------------------------
   const fogKey = slotArt(has, 'fog') ?? 'road_fog';
+  const fades: { y: number; objs: { setAlpha(a: number): unknown }[] }[] = []; // world elements that fade out under the header chip
   for (const ch of lay.chapters) {
     const look = lookOf(ch.chapter);
     const reached = ch.chapter <= curChapter;
@@ -131,38 +139,72 @@ export function openRoadV2(scene: GameScene) {
     const gy = ch.gateY;
     const gg = scene.add.graphics();
     road.add(gg);
-    const pillar = (px: number, flip: number) => {
-      gg.fillStyle(INK, 1).fillRoundedRect(px - 38, gy - 110, 76, 200, 18);
-      gg.fillStyle(look.accent, 1).fillRoundedRect(px - 32, gy - 104, 64, 188, 14);
-      gg.fillStyle(0xffffff, 0.22).fillRoundedRect(px - 28 + (flip > 0 ? 0 : 36), gy - 100, 20, 176, 8);
-    };
-    pillar(ROAD.centerX - 190, 1);
-    pillar(ROAD.centerX + 190, -1);
-    gg.fillStyle(INK, 1).fillRoundedRect(ROAD.centerX - 250, gy - 160, 500, 74, 26);
-    gg.fillStyle(lerpColor(look.accent, 0xffffff, 0.2), 1).fillRoundedRect(ROAD.centerX - 244, gy - 154, 488, 62, 22);
-    if (open) {
-      gg.fillStyle(0xffe27a, 0.28).fillRect(ROAD.centerX - 150, gy - 90, 300, 160);
-    } else {
-      gg.fillStyle(INK, 1).fillCircle(ROAD.centerX, gy + 6, 44).fillStyle(0xe0a020, 1).fillCircle(ROAD.centerX, gy + 6, 38);
-      gg.lineStyle(9, INK, 1).strokeCircle(ROAD.centerX, gy - 14, 14).fillStyle(INK, 1).fillRoundedRect(ROAD.centerX - 17, gy - 6, 34, 28, 6);
+    const cx = ROAD.centerX;
+    const stone = lerpColor(look.accent, 0xd8d0c0, 0.55), stoneDk = lerpColor(look.accent, INK, 0.3);
+    // stone pillars with block lines
+    for (const px of [cx - 190, cx + 190]) {
+      gg.fillStyle(INK, 1).fillRoundedRect(px - 44, gy - 118, 88, 214, 14);
+      gg.fillStyle(stone, 1).fillRoundedRect(px - 38, gy - 112, 76, 202, 10);
+      for (let by2 = gy - 112; by2 < gy + 90; by2 += 50) gg.lineStyle(4, stoneDk, 0.7).lineBetween(px - 38, by2, px + 38, by2);
+      gg.fillStyle(0xffffff, 0.25).fillRect(px - 32, gy - 108, 12, 194);
     }
-    road.add(scene.add.text(ROAD.centerX, gy - 123, open ? `CHAPTER ${ch.chapter} CLEARED` : ch.chapter === lay.chapters.length ? 'FINAL GATE' : `CHAPTER ${ch.chapter} GATE`, { fontFamily: FONT, fontSize: '34px', color: '#2b1d2e' }).setOrigin(0.5));
-    // fog above a closed gate: the next chapter is a tease
-    if (!open && ch.chapter < lay.chapters.length) {
-      for (let i = 0; i < 13; i++) {
-        const fx = 40 + (i % 5) * 160 + hash01(ch.chapter * 50 + i) * 60, fy = gy - 330 - Math.floor(i / 5) * 80;
-        road.add(scene.add.image(fx, fy, fogKey).setScale(2.1 + hash01(i + 7) * 0.8).setAlpha(reached ? 0.55 : 0.8));
+    // the arch: a thick half ring between the pillars, outlined
+    const ring = (rOut: number, rIn: number, col: number) => {
+      const pts: { x: number; y: number }[] = [];
+      for (let k = 0; k <= 24; k++) pts.push({ x: cx - Math.cos((k / 24) * Math.PI) * rOut, y: gy - 40 - Math.sin((k / 24) * Math.PI) * rOut * 0.62 });
+      for (let k = 24; k >= 0; k--) pts.push({ x: cx - Math.cos((k / 24) * Math.PI) * rIn, y: gy - 40 - Math.sin((k / 24) * Math.PI) * rIn * 0.62 });
+      gg.fillStyle(col, 1).fillPoints(pts, true);
+    };
+    ring(236, 134, INK);
+    ring(228, 142, stone);
+    for (let k = 1; k < 9; k++) {
+      const a = (k / 9) * Math.PI;
+      gg.lineStyle(4, stoneDk, 0.7).lineBetween(cx - Math.cos(a) * 142, gy - 40 - Math.sin(a) * 142 * 0.62, cx - Math.cos(a) * 228, gy - 40 - Math.sin(a) * 228 * 0.62);
+    }
+    // keystone
+    const ky = gy - 40 - 0.62 * 185;
+    gg.fillStyle(INK, 1).fillTriangle(cx - 44, ky - 52, cx + 44, ky - 52, cx + 30, ky + 44).fillTriangle(cx - 44, ky - 52, cx - 30, ky + 44, cx + 30, ky + 44);
+    gg.fillStyle(open ? 0xffcf33 : 0xe0a020, 1).fillTriangle(cx - 36, ky - 46, cx + 36, ky - 46, cx + 24, ky + 36).fillTriangle(cx - 36, ky - 46, cx - 24, ky + 36, cx + 24, ky + 36);
+    if (open) {
+      gg.fillStyle(0xffe27a, 0.3).fillRect(cx - 134, gy - 118, 268, 210);
+    } else {
+      // lit padlock hanging in the opening
+      gg.fillStyle(0xffe27a, 0.22).fillCircle(cx, gy + 6, 74);
+      gg.lineStyle(14, INK, 1).strokeCircle(cx, gy - 18, 20);
+      gg.lineStyle(7, 0xf3e3c8, 1).strokeCircle(cx, gy - 18, 20);
+      gg.fillStyle(INK, 1).fillRoundedRect(cx - 34, gy - 8, 68, 56, 12).fillStyle(0xffcf33, 1).fillRoundedRect(cx - 28, gy - 2, 56, 44, 9);
+      gg.fillStyle(INK, 1).fillCircle(cx, gy + 16, 7).fillRect(cx - 3, gy + 16, 6, 14);
+    }
+    road.add(scene.add.text(cx, gy + 66, open ? `CHAPTER ${ch.chapter} CLEARED` : ch.chapter === lay.chapters.length ? 'FINAL GATE' : `CHAPTER ${ch.chapter} GATE`, { fontFamily: FONT, fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
+    // fog + a desaturated silhouette of the next chapter above the gate: the world goes on
+    if (ch.chapter < lay.chapters.length) {
+      const nextLook = lookOf(ch.chapter + 1);
+      const tease = scene.add.graphics();
+      drawFarBand(tease, W, gy - 640, 400, 0x8a94a8, ch.chapter * 11, FAR_STYLE[ch.chapter % FAR_STYLE.length]);
+      tease.setAlpha(open ? 0.6 : 0.9);
+      road.add(tease);
+      const fog = scene.add.graphics();
+      for (let k = 0; k < 36; k++) fog.fillStyle(lerpColor(0xffffff, nextLook.bottom, 0.15), Math.sin(((k + 0.5) / 36) * Math.PI) * (open ? 0.5 : 0.8)).fillRect(0, gy - 600 + k * 12, W, 13);
+      road.add(fog);
+      for (let i = 0; i < 3; i++) {
+        const cl = scene.add.image(120 + i * 250 + hash01(ch.chapter * 9 + i) * 40, gy - 250 - (i % 2) * 70, fogKey).setScale(2.4 + hash01(i + 7) * 0.6).setAlpha(open ? 0.5 : 0.85);
+        road.add(cl);
+        if (!REDUCED_MOTION) loopTween(scene, { targets: cl, x: cl.x + (i % 2 ? -30 : 30), duration: 5000 + i * 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, cl);
       }
     }
-    // entrance banner
+    // entrance banner: a ribbon with scroll ends BESIDE the path, with a chapter icon
     const by = ch.bannerY;
+    const bx = 24, bw = 290;
     const bg = scene.add.graphics();
-    bg.fillStyle(INK, 1).fillRoundedRect(ROAD.centerX - 250, by - 52, 500, 104, 30);
-    bg.fillStyle(look.accent, 1).fillRoundedRect(ROAD.centerX - 243, by - 45, 486, 90, 26);
-    bg.fillStyle(0xffffff, 0.2).fillRoundedRect(ROAD.centerX - 236, by - 40, 472, 34, 18);
-    road.add(bg);
-    road.add(scene.add.text(ROAD.centerX, by - 20, `CHAPTER ${ch.chapter}`, { fontFamily: FONT, fontSize: '24px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-    road.add(scene.add.text(ROAD.centerX, by + 12, look.name, { fontFamily: FONT, fontSize: '44px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0.5));
+    bg.fillStyle(INK, 1).fillTriangle(bx - 22, by - 8, bx + 30, by - 38, bx + 30, by + 62).fillTriangle(bx + bw + 22, by - 8, bx + bw - 30, by - 38, bx + bw - 30, by + 62);
+    bg.fillStyle(lerpColor(look.accent, INK, 0.35), 1).fillTriangle(bx - 14, by - 6, bx + 30, by - 30, bx + 30, by + 52).fillTriangle(bx + bw + 14, by - 6, bx + bw - 30, by - 30, bx + bw - 30, by + 52);
+    bg.fillStyle(INK, 1).fillRoundedRect(bx, by - 52, bw, 104, 16).fillStyle(look.accent, 1).fillRoundedRect(bx + 6, by - 46, bw - 12, 92, 12).fillStyle(0xffffff, 0.22).fillRoundedRect(bx + 12, by - 40, bw - 24, 30, 10);
+    bg.fillStyle(INK, 1).fillCircle(bx + 44, by, 34).fillStyle(0xfbe7c6, 1).fillCircle(bx + 44, by, 28);
+    const bn = scene.add.text(bx + 44, by + 1, String(ch.chapter), { fontFamily: FONT, fontSize: '40px', color: '#3b2533' }).setOrigin(0.5);
+    const bt = scene.add.text(bx + 94, by + 2, look.name, { fontFamily: FONT, fontSize: '40px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 7 }).setOrigin(0, 0.5);
+    if (bt.width > bw - 120) bt.setScale((bw - 120) / bt.width);
+    road.add([bg, bn, bt]);
+    fades.push({ y: by, objs: [bg, bn, bt] });
   }
 
   // ---- milestone chests on the verge ---------------------------------------------------------------------------------------
@@ -176,8 +218,11 @@ export function openRoadV2(scene: GameScene) {
       road.add(im);
     }
     const plate = scene.add.graphics();
-    plate.fillStyle(INK, 1).fillRoundedRect(ch.x - 56, ch.y + 52, 112, 34, 14).fillStyle(st === 'open' ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(ch.x - 52, ch.y + 56, 104, 26, 11);
-    road.add([plate, scene.add.text(ch.x, ch.y + 69, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5)]);
+    // the plate sits ABOVE the chest: the YOU pointer of the level below it never reaches it
+    // (and BELOW it when the player stands on the level just above the chest, so it never meets that node's plate and ribbon)
+    const py2 = cur === ch.afterLevel + 1 ? 52 : -90;
+    plate.fillStyle(INK, 1).fillRoundedRect(ch.x - 56, ch.y + py2, 112, 34, 14).fillStyle(st === 'open' ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(ch.x - 52, ch.y + py2 + 4, 104, 26, 11);
+    road.add([plate, scene.add.text(ch.x, ch.y + py2 + 17, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5)]);
     const hit = scene.add.zone(ch.x, ch.y + 10, 130, 130).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
       if (scroller.moved()) return;
@@ -188,18 +233,32 @@ export function openRoadV2(scene: GameScene) {
   }
 
   // ---- nodes ----------------------------------------------------------------------------------------------------------------
-  const tag = (n: RoadNode, x: number, y: number, size: number) => {
+  /** Node-kind parts that belong to the medallion: shield outline (mini-boss, drawn behind), horns (mega / boss), a ribbon plate wrapped round its foot (all but normal). */
+  const kindBack = (n: RoadNode, x: number, y: number, size: number) => {
+    if (n.kind !== 'mini') return;
+    const r = size * 0.56, g = scene.add.graphics();
+    const pts = [{ x: x - r, y: y - r * 0.7 }, { x: x + r, y: y - r * 0.7 }, { x: x + r, y: y + r * 0.1 }, { x, y: y + r * 1.05 }, { x: x - r, y: y + r * 0.1 }];
+    g.fillStyle(INK, 1).fillPoints(pts, true);
+    g.fillStyle(0x2b8f9a, 1).fillPoints(pts.map((p) => ({ x: x + (p.x - x) * 0.93, y: y + (p.y - y) * 0.93 })), true);
+    nodeLayer.add(g);
+  };
+  const kindFront = (n: RoadNode, x: number, y: number, size: number, horns = true) => {
     if (n.kind === 'normal' && n.ribbon === 'none') return;
-    const boss = n.kind === 'boss', mini = n.kind === 'mini';
-    const label = boss ? 'BOSS' : mini ? 'MINI-BOSS' : n.ribbon === 'mega' ? 'MEGA HARD' : 'HARD';
-    const col = boss ? 0x2b1d2e : mini ? 0x2b6f7a : n.ribbon === 'mega' ? 0xd8261a : 0x8e58c9;
-    const t = scene.add.text(x, y - size * 0.46, label, { fontFamily: FONT, fontSize: '26px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5);
-    const w = t.width + 44;
+    const boss = n.kind === 'boss', mini = n.kind === 'mini', mega = n.ribbon === 'mega';
+    const label = boss ? 'BOSS' : mini ? 'MINI' : mega ? 'MEGA HARD' : 'HARD';
+    const col = boss ? 0x2b1d2e : mini ? 0x1f6f7a : mega ? 0xd8261a : 0x8e58c9;
     const g = scene.add.graphics();
-    g.fillStyle(INK, 1).fillRoundedRect(x - w / 2 - 4, t.y - 22, w + 8, 44, 14).fillStyle(col, 1).fillRoundedRect(x - w / 2, t.y - 18, w, 36, 11);
-    if (!boss && !mini && n.ribbon === 'mega') g.fillStyle(0xfff0cf, 1).fillTriangle(x - w / 2 + 4, t.y - 14, x - w / 2 - 6, t.y - 40, x - w / 2 + 22, t.y - 16).fillTriangle(x + w / 2 - 4, t.y - 14, x + w / 2 + 6, t.y - 40, x + w / 2 - 22, t.y - 16);
-    if (boss) g.lineStyle(3, 0xffcf33, 1).strokeRoundedRect(x - w / 2, t.y - 18, w, 36, 11);
-    road.add([g, t]);
+    if (horns && (mega || boss)) {
+      const hc = boss ? 0xffcf33 : 0xfff0cf;
+      for (const sd of [-1, 1]) g.fillStyle(INK, 1).fillTriangle(x + sd * size * 0.2, y - size * 0.42, x + sd * size * 0.5, y - size * 0.42, x + sd * size * 0.48, y - size * 0.78).fillStyle(hc, 1).fillTriangle(x + sd * size * 0.25, y - size * 0.43, x + sd * size * 0.46, y - size * 0.43, x + sd * size * 0.45, y - size * 0.7);
+    }
+    const t = scene.add.text(x, y + size * 0.5, label, { fontFamily: FONT, fontSize: '24px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5);
+    const w = Math.max(size * 0.72, t.width + 36), h = 38, ry = t.y;
+    g.fillStyle(INK, 1).fillTriangle(x - w / 2 - 22, ry - h / 2 + 10, x - w / 2 + 10, ry - h / 2, x - w / 2 + 10, ry + h / 2 + 8).fillTriangle(x + w / 2 + 22, ry - h / 2 + 10, x + w / 2 - 10, ry - h / 2, x + w / 2 - 10, ry + h / 2 + 8);
+    g.fillStyle(lerpColor(col, INK, 0.4), 1).fillTriangle(x - w / 2 - 14, ry - h / 2 + 12, x - w / 2 + 10, ry - h / 2 + 4, x - w / 2 + 10, ry + h / 2 + 2).fillTriangle(x + w / 2 + 14, ry - h / 2 + 12, x + w / 2 - 10, ry - h / 2 + 4, x + w / 2 - 10, ry + h / 2 + 2);
+    g.fillStyle(INK, 1).fillRoundedRect(x - w / 2, ry - h / 2 - 3, w, h + 6, 10).fillStyle(col, 1).fillRoundedRect(x - w / 2 + 4, ry - h / 2 + 1, w - 8, h - 2, 7).fillStyle(0xffffff, 0.22).fillRoundedRect(x - w / 2 + 8, ry - h / 2 + 4, w - 16, 10, 5);
+    if (boss) g.lineStyle(3, 0xffcf33, 1).strokeRoundedRect(x - w / 2 + 4, ry - h / 2 + 1, w - 8, h - 2, 7);
+    nodeLayer.add([g, t]);
   };
   const nodeLayer = scene.add.container(0, 0);
   road.add(nodeLayer);
@@ -252,9 +311,18 @@ export function openRoadV2(scene: GameScene) {
         bi.setScale((n.kind === 'boss' ? 230 : 180) / Math.max(bi.width, bi.height));
         hero.add(bi);
       }
+      const withBoss = n.kind !== 'normal' && !!bk && has(bk);
+      // beside a boss the avatar gets its own small platform, so the two never crowd each other
+      const avX = withBoss ? (n.x > ROAD.centerX ? -205 : 205) : 0;
+      if (withBoss) {
+        const sp = scene.add.graphics();
+        sp.fillStyle(0x000000, 0.25).fillEllipse(n.x + avX, py + 36, 150, 54).fillStyle(INK, 1).fillEllipse(n.x + avX, py + 28, 140, 50).fillStyle(0xffcf33, 1).fillEllipse(n.x + avX, py + 20, 128, 40).fillStyle(0xfff0b8, 1).fillEllipse(n.x + avX, py + 18, 86, 22);
+        nodeLayer.add(sp);
+      }
       if (has('cannon_4')) {
-        const av = scene.add.image(bk && has(bk) ? -92 : 0, bk && has(bk) ? -36 : -62, 'cannon_4');
-        av.setScale((bk && has(bk) ? 96 : 150) / Math.max(av.width, av.height));
+        const av = scene.add.image(avX, -62, 'cannon_4');
+        av.setScale((withBoss ? 110 : 150) / Math.max(av.width, av.height));
+        if (withBoss) av.y = 36 - av.displayHeight / 2;
         hero.add(av);
       }
       nodeLayer.add(hero);
@@ -263,14 +331,14 @@ export function openRoadV2(scene: GameScene) {
       const np = scene.add.graphics();
       np.fillStyle(INK, 1).fillRoundedRect(n.x - 52, py + 22, 104, 62, 20).fillStyle(0xfbe7c6, 1).fillRoundedRect(n.x - 47, py + 27, 94, 52, 16);
       nodeLayer.add([np, scene.add.text(n.x, py + 54, String(n.level), { fontFamily: FONT, fontSize: n.level >= 10 ? '42px' : '48px', color: '#3b2533' }).setOrigin(0.5)]);
-      const withBoss = n.kind !== 'normal' && !!bk && has(bk);
-      const you = scene.add.container(n.x + (withBoss ? -92 : 0), py - (withBoss ? 150 : 178));
+      const you = scene.add.container(n.x + avX, py - (withBoss ? 110 : 178));
       you.add(scene.add.graphics().fillStyle(INK, 1).fillRoundedRect(-62, -26, 124, 52, 18).fillTriangle(-14, 24, 14, 24, 0, 42).fillStyle(0xffcf33, 1).fillRoundedRect(-57, -21, 114, 42, 14));
       you.add(scene.add.text(0, 0, 'YOU', { fontFamily: FONT, fontSize: '32px', color: '#2b1d2e' }).setOrigin(0.5));
       nodeLayer.add(you);
       if (!REDUCED_MOTION) loopTween(scene, { targets: you, y: you.y - 9, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, you);
-      tag(n, n.x, py + 112 + 46, 100); // the ribbon hangs under the number plate
+      kindFront(n, n.x, py + 62, 100, false); // the ribbon hangs under the number plate
     } else {
+      kindBack(n, n.x, n.y, size);
       const im = scene.add.image(n.x, n.y, tex);
       im.setScale(size / Math.max(im.width, im.height));
       if (state === 'locked') im.setTint(LOCKED_TINT).setAlpha(0.92);
@@ -286,7 +354,7 @@ export function openRoadV2(scene: GameScene) {
           st.setScale(36 / Math.max(st.width, st.height)).setAlpha(k < starsOf(n.level, stars) ? 1 : 0.25);
           nodeLayer.add(st);
         }
-      if (state === 'locked' || state === 'open') tag(n, n.x, n.y, im.displayHeight);
+      kindFront(n, n.x, n.y, im.displayHeight);
     }
     const hit = scene.add.zone(n.x, n.y + (isCur ? 30 : 0), size + 40, size + 60).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
@@ -338,31 +406,28 @@ export function openRoadV2(scene: GameScene) {
   c.add(chip);
   const def = LEVELS[cur - 1];
   const ptag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
+  const showSeason = scene.currentLevel() > 3;
+  const playW = showSeason ? 480 : 620, playX = showSeason ? 40 + playW / 2 : W / 2; // Season is a square button beside PLAY, not a floater on the road
   const play = scene.endlessOpen()
-    ? scene.button(c, W / 2, H - 182, 620, `ENDLESS  ·  FLOOR ${scene.endlessRec().floor}`, 0x8e58c9, () => scene.startEndless(), 1.0)
-    : scene.button(c, W / 2, H - 182, 620, `PLAY  LEVEL ${cur}${ptag}`, 0x5fbf4a, () => {
+    ? scene.button(c, playX, H - 182, playW, `ENDLESS  ·  FLOOR ${scene.endlessRec().floor}`, 0x8e58c9, () => scene.startEndless(), 1.0)
+    : scene.button(c, playX, H - 182, playW, `PLAY  LEVEL ${cur}${ptag}`, 0x5fbf4a, () => {
         scene.roadLessonDone?.();
         scene.roadLessonDone = null;
         scene.openLevelSheet(cur);
       }, 1.0);
-  if (scene.currentLevel() > 3) {
+  if (showSeason) {
     const sr = scene.seasonRec();
-    const sb = scene.add.container(76, 252);
-    sb.add(scene.add.graphics().fillStyle(INK, 1).fillRoundedRect(-52, -34, 104, 68, 20).fillStyle(0xe0a020, 1).fillRoundedRect(-48, -30, 96, 60, 17));
-    sb.add(scene.add.text(0, -9, 'SEASON', { fontFamily: FONT, fontSize: '18px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
-    sb.add(scene.add.text(0, 14, `${seasonTier(sr)}/${SEASON_TIERS}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5));
-    if (scene.seasonClaimable() > 0) sb.add(scene.add.circle(46, -28, 11, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
-    sb.add(scene.add.zone(0, 0, 104, 68).setInteractive({ useHandCursor: true }).on('pointerup', () => (sfx.click(), scene.openSeason())));
+    const sb = scene.add.container(W - 40 - 50, H - 182);
+    sb.add(scene.add.graphics().fillStyle(INK, 1).fillRoundedRect(-50, -46, 100, 92, 22).fillStyle(0xe0a020, 1).fillRoundedRect(-45, -41, 90, 82, 18).fillStyle(0xffffff, 0.25).fillRoundedRect(-40, -37, 80, 22, 10));
+    sb.add(scene.add.text(0, -14, 'SEASON', { fontFamily: FONT, fontSize: '17px', color: '#ffffff', stroke: '#2b1d2e', strokeThickness: 4 }).setOrigin(0.5));
+    sb.add(scene.add.text(0, 16, `${seasonTier(sr)}/${SEASON_TIERS}`, { fontFamily: FONT, fontSize: '26px', color: '#2b1d2e' }).setOrigin(0.5));
+    if (scene.seasonClaimable() > 0) sb.add(scene.add.circle(44, -42, 12, 0xe8452c).setStrokeStyle(3, 0xfff0cf));
+    sb.add(scene.add.zone(0, 0, 100, 92).setInteractive({ useHandCursor: true }).on('pointerup', () => (sfx.click(), scene.openSeason())));
     c.add(sb);
   }
-  const qa = scene.add.container(W - 66, 252);
-  qa.add(scene.add.circle(0, 0, 38, 0xd8261a).setStrokeStyle(5, INK));
-  qa.add(scene.add.text(0, 0, 'QA', { fontFamily: FONT, fontSize: '28px', color: '#ffffff' }).setOrigin(0.5));
-  qa.add(scene.add.zone(0, 0, 90, 90).setInteractive({ useHandCursor: true }).on('pointerup', () => scene.openQaTools()));
-  c.add(qa);
   if (!REDUCED_MOTION) loopTween(scene, { targets: play, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, play);
   // back to me: shows when the current node is off screen; a tap glides there
-  const back = scene.add.container(W - 72, H - 306);
+  const back = scene.add.container(W - 72, H - 345);
   const backArrow = scene.add.graphics();
   back.add([scene.add.circle(0, 0, 46, 0xffcf33).setStrokeStyle(6, INK), backArrow, scene.add.text(0, 14, 'YOU', { fontFamily: FONT, fontSize: '22px', color: '#2b1d2e' }).setOrigin(0.5)]);
   back.add(scene.add.zone(0, 0, 100, 100).setInteractive({ useHandCursor: true }).on('pointerup', () => {
@@ -385,6 +450,10 @@ export function openRoadV2(scene: GameScene) {
       backdrop.fillStyle(skyColorAt(lay.chapters, chapterAtY(lay.chapters, wy), wy), 1).fillRect(0, sy, W, bandH + 1);
     }
     for (const cl of clouds) cl.img.y = ((cl.base + scroll * cl.k) % (H + 300) + (H + 300)) % (H + 300) - 150;
+    for (const f of fades) {
+      const a = Math.min(1, Math.max(0, (f.y + scroll - 170) / 110));
+      for (const o of f.objs) o.setAlpha(a);
+    }
     setChip(chapterAtY(lay.chapters, (top + bottom) / 2 - scroll));
     const far_ = farFromCurrent(curNode.y, scroll, top, bottom);
     if (far_ !== back.visible) back.setVisible(far_);

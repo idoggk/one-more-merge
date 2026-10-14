@@ -132,6 +132,76 @@ export function drawProp(g: Phaser.GameObjects.Graphics, prop: ChapterLook['prop
   }
 }
 
+/** A big, saturated, outlined foreground prop that hugs the path (kitchen pot + stove, washer drum, arcade cabinet, observatory telescope...). `s` ~ 1 is about 170 px tall. */
+export function drawBigProp(g: Phaser.GameObjects.Graphics, prop: ChapterLook['prop'], x: number, y: number, s: number, accent: number, flip = 1) {
+  const INK = 0x2b1d2e;
+  const hi = lerpColor(accent, 0xffffff, 0.5), lo = lerpColor(accent, INK, 0.35);
+  const box = (cx: number, cy: number, w: number, h: number, col: number, r = 14) => {
+    g.fillStyle(INK, 1).fillRoundedRect(cx - w / 2 - 5 * s, cy - h / 2 - 5 * s, w + 10 * s, h + 10 * s, r * s + 4);
+    g.fillStyle(col, 1).fillRoundedRect(cx - w / 2, cy - h / 2, w, h, r * s);
+  };
+  const disc = (cx: number, cy: number, r: number, col: number) => g.fillStyle(INK, 1).fillCircle(cx, cy, r + 5 * s).fillStyle(col, 1).fillCircle(cx, cy, r);
+  g.fillStyle(0x000000, 0.22).fillEllipse(x, y + 78 * s, 190 * s, 40 * s);
+  switch (prop) {
+    case 'pots': // stove with a giant steaming pot
+      box(x, y + 40 * s, 150 * s, 80 * s, 0xe8e2d4);
+      disc(x - 40 * s, y + 40 * s, 12 * s, 0x777777);
+      disc(x + 40 * s, y + 40 * s, 12 * s, 0x777777);
+      box(x, y - 22 * s, 120 * s, 84 * s, 0xd8452c, 22);
+      g.fillStyle(0xffffff, 0.35).fillRoundedRect(x - 48 * s, y - 50 * s, 18 * s, 56 * s, 8 * s);
+      box(x, y - 70 * s, 136 * s, 22 * s, 0xb8341f, 10);
+      break;
+    case 'bubbles': // washer drum
+      box(x, y, 150 * s, 170 * s, 0xf2f6fa, 24);
+      disc(x, y + 14 * s, 54 * s, 0x6ec3d8);
+      disc(x, y + 14 * s, 36 * s, 0xbdeaf2);
+      g.fillStyle(0xffffff, 0.6).fillCircle(x - 14 * s, y, 8 * s);
+      disc(x - 46 * s, y - 62 * s, 8 * s, 0xe8452c);
+      box(x + 20 * s, y - 62 * s, 60 * s, 14 * s, hi, 6);
+      break;
+    case 'gears': // big cog + tyre
+      for (let i = 0; i < 10; i++) disc(x + Math.cos((i / 10) * Math.PI * 2) * 62 * s, y + Math.sin((i / 10) * Math.PI * 2) * 62 * s, 14 * s, 0xe0a020);
+      disc(x, y, 58 * s, 0xe0a020);
+      disc(x, y, 22 * s, lo);
+      disc(x + 70 * s * flip, y + 46 * s, 36 * s, 0x3a3a46);
+      disc(x + 70 * s * flip, y + 46 * s, 14 * s, 0xb0b0b8);
+      break;
+    case 'pixels': // arcade cabinet
+      box(x, y, 116 * s, 176 * s, 0x6a3fc2, 18);
+      box(x, y - 34 * s, 84 * s, 66 * s, 0x1e2a4a, 8);
+      g.fillStyle(0x56e0ff, 1).fillRect(x - 24 * s, y - 52 * s, 16 * s, 16 * s).fillStyle(0xff5cc8, 1).fillRect(x + 4 * s, y - 32 * s, 16 * s, 16 * s);
+      disc(x - 22 * s, y + 38 * s, 10 * s, 0xe8452c);
+      disc(x + 22 * s, y + 38 * s, 10 * s, 0xffcf33);
+      break;
+    case 'notes': // drum + note
+      box(x, y + 20 * s, 130 * s, 100 * s, 0xc83a3a, 30);
+      g.fillStyle(0xfff0cf, 1).fillRoundedRect(x - 56 * s, y - 20 * s, 112 * s, 16 * s, 8 * s);
+      disc(x - 14 * s, y - 70 * s, 18 * s, 0x2b1d2e);
+      g.fillStyle(INK, 1).fillRect(x - 2 * s, y - 130 * s, 9 * s, 62 * s);
+      break;
+    case 'crates': // crate stack + barrel
+      box(x - 20 * s, y + 40 * s, 110 * s, 80 * s, 0xb98a55, 8);
+      box(x + 10 * s, y - 36 * s, 90 * s, 70 * s, 0xd0a36a, 8);
+      g.lineStyle(6 * s, INK, 1).lineBetween(x - 70 * s, y + 4 * s, x + 30 * s, y + 76 * s);
+      disc(x + 62 * s * flip, y + 50 * s, 30 * s, 0x4f86c8);
+      break;
+    case 'boxes': // parcels
+      box(x - 14 * s, y + 38 * s, 130 * s, 84 * s, 0xc89a52, 8);
+      box(x + 8 * s, y - 40 * s, 94 * s, 70 * s, 0xe0b46a, 8);
+      g.fillStyle(0xe8452c, 1).fillRect(x - 4 * s, y - 74 * s, 14 * s, 70 * s).fillRect(x - 40 * s, y + 20 * s, 52 * s, 14 * s);
+      break;
+    case 'stars': // telescope on a tripod
+      g.lineStyle(10 * s, INK, 1).lineBetween(x, y + 10 * s, x - 56 * s, y + 80 * s).lineBetween(x, y + 10 * s, x + 56 * s, y + 80 * s);
+      g.save();
+      g.translateCanvas(x, y - 10 * s).rotateCanvas(-0.6 * flip);
+      box(0, 0, 40 * s, 150 * s, 0x6a7cc8, 14);
+      box(0, -78 * s, 56 * s, 22 * s, 0xffcf33, 8);
+      g.restore();
+      disc(x + 60 * s * flip, y - 80 * s, 14 * s, 0xfff2b0);
+      break;
+  }
+}
+
 /** Far-layer style per chapter (parallax fallback): what the back wall of that room looks like. */
 export type FarStyle = 'tiles' | 'shelves' | 'skyline' | 'mounds' | 'domes';
 export const FAR_STYLE: FarStyle[] = ['tiles', 'tiles', 'shelves', 'skyline', 'shelves', 'mounds', 'shelves', 'domes'];

@@ -8,7 +8,7 @@ export const ROAD = {
   /** vertical distance between two levels of one chapter */
   spacing: 250,
   /** extra climb from a chapter's boss to the next chapter's level 1 (gate + banner + fog live here) */
-  chapterGap: 760,
+  chapterGap: 940,
   levelsPerChapter: 10,
   chapters: 8,
   /** nodes stay inside [xMin, xMax] so the side rails (x < 110) never touch a medallion */
