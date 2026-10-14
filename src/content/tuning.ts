@@ -96,6 +96,14 @@ export const TUNING = {
   /** Auto-fuse only into rank <= this, so Kickback never skips the player's expensive upgrades. */
   kickbackMaxRank: 2,
   kickbackFall: 0.6,
+  /** PACE CAPS (t-157b3f78), default OFF: when paceCaps is on, a plain kickback twin copies only parts of rank <= paceCapTwin and a
+   *  matchmaker copy only parts of rank <= paceCapMatch (fuses and every other mechanic untouched). The two Max keys are the
+   *  no-change defaults (8 = above any rank that matters). */
+  kickbackTwinMaxRank: 8,
+  matchCopyMax: 8,
+  paceCaps: false,
+  paceCapTwin: 4,
+  paceCapMatch: 4,
   /** EXPERIMENT (t-ce493a56, mid-level chaos Option A), default OFF: Overdrive charges by chain size (links past the
    *  merged part, odChain to fill), reactive parts are earned by chain size (1 per partsPerChain activations, at most
    *  maxEarn; a board under floorBelow parts still earns 1) and land at most one per `beat` s; matchmaker share drops. */

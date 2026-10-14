@@ -524,7 +524,8 @@ export function matchmakerPick(s: GameState, ordinal: number): { family: Family;
   const noPair = !groups.some((e) => e.n >= 2);
   if (!noPair && (hash2(s.seed, ordinal) % 1000) / 1000 >= matchShare()) return null;
   // ordinary copies respect the level's rank cap; a rescue (no legal pair) may copy anything lonely
-  const capped = noPair ? lonely : lonely.filter((e) => e.rank <= (s.copyCap ?? MAX_RANK));
+  const mmMax = matchMaxRank();
+  const capped = (noPair ? lonely : lonely.filter((e) => e.rank <= (s.copyCap ?? MAX_RANK))).filter((e) => e.rank <= mmMax);
   if (!capped.length) return null;
   // bias toward low ranks so the board keeps flowing, but sometimes feed a high piece toward MAX
   const pool = capped.slice(0, Math.min(capped.length, 3));
@@ -1439,6 +1440,11 @@ export function resumable(s: GameState | null, levelCount: number): GameState | 
 
 type DropPlan = { idx: number; land: number; id: number };
 
+/** PACE CAPS: highest rank a plain kickback twin may copy (TUNING.kickbackTwinMaxRank, or 4 with TUNING.paceCaps). */
+const twinMaxRank = () => Math.min(TUNING.kickbackTwinMaxRank, TUNING.paceCaps ? TUNING.paceCapTwin : TUNING.kickbackTwinMaxRank);
+/** PACE CAPS: highest rank a matchmaker copy may have (TUNING.matchCopyMax, or 4 with TUNING.paceCaps). */
+const matchMaxRank = () => Math.min(TUNING.matchCopyMax, TUNING.paceCaps ? TUNING.paceCapMatch : TUNING.matchCopyMax);
+
 /** Choose where a loose part will land (next to a lonely match). Consumes kickRng once. */
 export function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: boolean): DropPlan | null {
   const taken = new Set<number>([...reserved, ...locked(s), ...bossPendingCells(s.boss), ...bossBlocked(s.boss).noDrop]);
@@ -1449,6 +1455,7 @@ export function planDrop(s: GameState, reserved: ReadonlySet<number>, fuse: bool
   s.grid.forEach((g, idx) => {
     if (!g || g.tool || g.rank >= capOf(s, g.family) || taken.has(idx) || (counts.get(g.family + g.rank)! % 2) === 0) return;
     if (fuse && g.rank > TUNING.kickbackMaxRank) return;
+    if (!fuse && g.rank > twinMaxRank()) return;
     const r = Math.floor(idx / COLS), c = idx % COLS;
     for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
       const rr = r + dr, cc = c + dc;

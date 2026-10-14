@@ -44,6 +44,7 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   yardPressure: [false, 'Screw Yard countdown + tap budget with stars'],
   mergeBudget: [false, 'Budget Levels (LAST MERGES): levels with merge_budget play as capped-merge levels'],
   variedOpenings: [false, 'varied openings: 4 seeded start layouts on ordinary levels'],
+  paceCaps: [false, 'pace caps: plain kickback twins and matchmaker copies stop above rank 4 (kickbackTwinMaxRank / matchCopyMax stay 8 = no change)'],
   crateOpenV2: [false, 'crate opening V2: anticipation, shake, flash, hero reveal, 3-column summary (presentation only)'],
 };
 // Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden

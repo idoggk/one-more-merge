@@ -196,6 +196,19 @@ export function applyCrateOpenV2(on: boolean) {
   TUNING.crateOpenV2 = on;
 }
 
+/** QA panel PACE CAPS switch (t-157b3f78; this device only, not in the save): 'on' = TUNING.paceCaps (twins / matchmaker copies capped at rank 4). */
+export const PACE_CAPS_KEY = 'omm_qa_pace_caps';
+export function storedPaceCaps(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyPaceCaps(on: boolean) {
+  TUNING.paceCaps = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';
