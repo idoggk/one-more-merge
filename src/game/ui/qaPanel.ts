@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY } from '../../content/experiments';
+import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
@@ -102,6 +102,9 @@ export const qaVariedOpenings = () => storedVariedOpenings(() => localStorage.ge
 applyVariedOpenings(qaVariedOpenings());
 applyCrateOpenV2(storedCrateOpenV2(() => localStorage.getItem(CRATE_OPEN_V2_KEY)));
 applyPaceCaps(storedPaceCaps(() => localStorage.getItem(PACE_CAPS_KEY)));
+// QA-only: EFFORT MODEL (boss / mini-boss HP from the generated overlay), default OFF, this device only; applied when a level starts
+export const qaEffortModel = () => storedEffortModel(() => localStorage.getItem(EFFORT_MODEL_KEY));
+applyEffortModel(qaEffortModel());
 
 
 /** Roster B batches shown in the NEW UNITS group (each is its own this-device-only switch, same keys as before). */
@@ -523,6 +526,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_pace_caps', { on });
         },
         toast: (on) => (on ? 'PACE CAPS ON  ·  START A LEVEL  ·  HP NOT REFITTED' : 'PACE CAPS OFF (live game)'),
+      }),
+      // EFFORT MODEL S1: ON = the 16 boss / mini-boss levels use the effort overlay (bigger boss, smaller minions); stars and other levels unchanged
+      qaFlag({
+        id: 'effortModel',
+        title: 'EFFORT MODEL',
+        desc: 'Bigger boss, tiny minions. Next level',
+        get: () => !!qaEffortModel(),
+        set: (on) => {
+          store(EFFORT_MODEL_KEY, on ? 'on' : null);
+          applyEffortModel(on);
+          tlog.log('qa_effort_model', { on });
+        },
+        toast: (on) => (on ? 'EFFORT MODEL ON  ·  BOSS + MINI-BOSS LEVELS  ·  STARS NOT REFITTED' : 'EFFORT MODEL OFF (live game)'),
       }),
       // t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left)
       qaFlag({

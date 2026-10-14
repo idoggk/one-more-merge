@@ -11,5 +11,5 @@
  "L25": "1ee94235:1831/null,dc6ba9ad:1754/null,7114f51e:1787/null,0d18b44c:1782/null,78983c34:1908/null,9d7a1229:1840/null,9d7a1229:1840/null,end:won@29:{\"perks\":[],\"stats\":{\"bestRank\":5,\"biggestChain\":13,\"biggestHit\":1826.5007812499998,\"dmgBy\":{\"carry\":2484,\"kick\":1873,\"passive\":2126,\"player\":17259},\"kickFuses\":2,\"merges\":30,\"scraps\":0,\"totalDamage\":23742},\"target\":1},9d7a1229:1840/null",
  "L30-boss": "cce3ac93:2047/null,151d76cd:2105/null,c956e208:2034/null,aaa2cf4a:2105/null,152848d8:2089/null,434c5b7b:2120/null,af125adb:2093/null,90ee2314:2071/null,1397027f:2038/null,fb7a492b:2082/null,9bc802d6:2176/null,723f1ca9:2047/null,723f1ca9:2047/null,end:won@59:{\"perks\":[],\"stats\":{\"bestRank\":6,\"biggestChain\":10,\"biggestHit\":1795.6845703125,\"dmgBy\":{\"carry\":1624,\"kick\":430,\"passive\":9683,\"player\":40925},\"kickFuses\":1,\"merges\":60,\"scraps\":0,\"totalDamage\":52662},\"target\":3},723f1ca9:2047/null",
  "puzzle": "90d6a37e:1166/null,end:lost@0:{\"perks\":[],\"stats\":{\"bestRank\":2,\"biggestChain\":1,\"biggestHit\":22.5,\"dmgBy\":{\"player\":23},\"kickFuses\":0,\"merges\":1,\"scraps\":0,\"totalDamage\":23},\"target\":0},90d6a37e:1166/null",
- "_tuningDigest": "3413f5e7:5648"
+ "_tuningDigest": "032924d3:5754"
 }
