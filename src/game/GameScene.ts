@@ -484,8 +484,9 @@ export class GameScene extends Phaser.Scene {
     sfx.click();
     tlog.log('inspect', { fam: g.family, rank: g.rank });
     this.paused = true;
-    const cw = W - 60, ch0 = 330;
-    const L = -cw / 2 + 30;
+    const cw = W - 60, L = -cw / 2 + 30;
+    const bodyT = this.add.text(L, 0, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: cw - 250 }, lineSpacing: 4 });
+    const ch0 = Math.max(330, 92 + bodyT.height + 122); // a long description pushed the damage and Try lines onto itself
     // clarity pass 1: MARKS row (every state on this part, icon + one sentence) and what a merge right now does with them
     const { marks, mergeNow } = inspectMarks(this.s, idx);
     const markRows = marks.map((m) => ({ m, t: this.add.text(0, 0, `${m.label}: ${m.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', wordWrap: { width: cw - 110 }, lineSpacing: 2 }).setOrigin(0, 0.5) }));
@@ -523,8 +524,7 @@ export class GameScene extends Phaser.Scene {
     }
     c.add(this.add.text(L + 72, -ch / 2 + 50, `${info.name.toUpperCase()}  ·  ${info.role}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0, 0.5));
     c.add(this.add.text(cw / 2 - 30, -ch / 2 + 50, `Rank ${g.rank}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(1, 0.5));
-    const textW = cw - 250;
-    c.add(this.add.text(L, -ch / 2 + 92, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: textW }, lineSpacing: 4 }));
+    c.add(bodyT.setPosition(L, -ch / 2 + 92));
     const raw = rawDamage(g.family, g.rank);
     const dmg = g.family === 'cannon' ? `Auto shot ${Math.round(raw * TUNING.passiveMult)}  ·  Chain shot ${Math.round(raw)}` : raw > 0 ? `Hits for ${Math.round(raw)} in a chain` : 'No damage: it helps the others';
     c.add(this.add.text(L, -ch / 2 + ch0 - 110, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
