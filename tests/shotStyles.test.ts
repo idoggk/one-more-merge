@@ -48,13 +48,14 @@ describe('unit shot style table', () => {
     expect(liveShots().projectiles).toBe(0);
     expect(SHOT_CAPS.impacts).toBe(24);
   });
-  it('flag defaults OFF and only the stored "on" turns it on', () => {
-    expect(UNIT_SHOTS.on).toBe(false);
-    expect(storedUnitShots(() => null)).toBe(false);
-    expect(storedUnitShots(() => 'on')).toBe(true);
-    expect(storedUnitShots(() => { throw new Error('x'); })).toBe(false);
-    applyUnitShots(true);
+  it('flag defaults ON and only the stored "off" turns it off', () => {
     expect(UNIT_SHOTS.on).toBe(true);
+    expect(storedUnitShots(() => null)).toBe(true);
+    expect(storedUnitShots(() => 'on')).toBe(true);
+    expect(storedUnitShots(() => 'off')).toBe(false);
+    expect(storedUnitShots(() => { throw new Error('x'); })).toBe(true);
     applyUnitShots(false);
+    expect(UNIT_SHOTS.on).toBe(false);
+    applyUnitShots(true);
   });
 });

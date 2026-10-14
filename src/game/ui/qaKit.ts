@@ -153,7 +153,7 @@ export function qaAction(o: Base & { label: QaText; color: number; ctrlW?: numbe
 }
 
 /** An on/off setting: a real switch. `get` is true / false, or 'mixed' for a group that is partly on (tapping it turns the group on). */
-export function qaFlag(o: Base & { get: () => boolean | 'mixed'; set: (on: boolean) => void; toast: (on: boolean) => string }): QaRow {
+export function qaFlag(o: Base & { get: () => boolean | 'mixed'; set: (on: boolean) => void; toast: (on: boolean) => string; defOn?: boolean }): QaRow {
   const state = (): SwitchState => {
     const v = o.get();
     return v === 'mixed' ? 'mixed' : v ? 'on' : 'off';
@@ -162,7 +162,8 @@ export function qaFlag(o: Base & { get: () => boolean | 'mixed'; set: (on: boole
     spec: { id: o.id, kind: 'switch', hasDesc: !!o.desc },
     title: o.title,
     desc: o.desc,
-    reset: () => state() !== 'off' && o.set(false),
+    // defOn: a visual-only switch that ships ON; its default (and RESET ALL) is ON
+    reset: () => state() !== (o.defOn ? 'on' : 'off') && o.set(!!o.defOn),
     apply: (v) => o.set(!!v),
     draw: (q, l) => {
       card(q, l.rect);

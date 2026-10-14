@@ -41,6 +41,28 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
     expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'shake']);
   });
+  it('visual-only switches ship ON, can be turned off, and RESET ALL puts them back ON', async () => {
+    const { TUNING } = await import('../src/content/tuning');
+    const { RESOURCE_FLY, UNIT_IDLE, UNIT_SHOTS, ROAD_POLISH } = await import('../src/content/experiments');
+    expect([TUNING.uiKitV3, TUNING.levelRoadV2, TUNING.crateOpenV2, RESOURCE_FLY.on, UNIT_IDLE.on, UNIT_SHOTS.on, ROAD_POLISH.on]).toEqual(Array(7).fill(true));
+    // behaviour flags stay OFF
+    expect([TUNING.effortModel, TUNING.paceCaps, TUNING.yardBook]).toEqual([false, false, false]);
+    const q = { scene: { showToast() {} }, reopen() {} } as never;
+    const mem = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) });
+    try {
+      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPolish', 'crateOpenV2']) {
+        const row = QA_ROWS.find((r) => r.spec.id === id)!;
+        row.apply!(false, q);
+        expect([...mem.values()].pop(), id).toBe('off');
+        row.reset!(q);
+      }
+      expect([...mem.keys()], 'back on = no stored key').toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect([TUNING.uiKitV3, TUNING.levelRoadV2, TUNING.crateOpenV2, RESOURCE_FLY.on, UNIT_IDLE.on, UNIT_SHOTS.on, ROAD_POLISH.on]).toEqual(Array(7).fill(true));
+  });
   it('on/off settings are switches, multi-choice settings are segmented controls', () => {
     const kind = (id: string) => QA_ROWS.find((r) => r.spec.id === id)!.spec.kind;
     for (const id of ['thinkBank', 'allNew', 'unlockPlan', 'varied', 'effortModel', 'budget', 'tools', 'yardPressure', 'yardBook']) expect(kind(id), id).toBe('switch');

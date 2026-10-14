@@ -488,11 +488,12 @@ export const QA_SECTIONS: QaSection[] = [
       // crate opening redo: needs CRATE LOOK = TOOLBOX; ON = anticipation, shake, flash, one hero reveal, 3-column summary, COLLECT
       qaFlag({
         id: 'crateOpenV2',
+        defOn: true,
         title: 'CRATE OPENING V2',
         desc: 'New opening. Needs TOOLBOX look',
         get: () => storedCrateOpenV2(() => localStorage.getItem(CRATE_OPEN_V2_KEY)),
         set: (on) => {
-          store(CRATE_OPEN_V2_KEY, on ? 'on' : null);
+          store(CRATE_OPEN_V2_KEY, on ? null : 'off');
           applyCrateOpenV2(on);
           tlog.log('qa_crate_open_v2', { on });
         },
@@ -561,11 +562,12 @@ export const QA_SECTIONS: QaSection[] = [
       // LEVEL ROAD V2: ON = the ROAD tab is a winding world with chapter scenery, gates, chests and momentum scroll; presentation only
       qaFlag({
         id: 'roadv2',
+        defOn: true,
         title: 'LEVEL ROAD V2',
         desc: 'New ROAD tab. Open ROAD',
         get: () => !!qaLevelRoadV2(),
         set: (on) => {
-          store(LEVEL_ROAD_V2_KEY, on ? 'on' : null);
+          store(LEVEL_ROAD_V2_KEY, on ? null : 'off');
           applyLevelRoadV2(on);
           tlog.log('qa_level_road_v2', { on });
         },
@@ -574,11 +576,12 @@ export const QA_SECTIONS: QaSection[] = [
       // ROAD POLISH: on top of LEVEL ROAD V2: parallax, belt road, ambient life, avatar hop, chest rattle, unlock sequence (visual only)
       qaFlag({
         id: 'roadPolish',
+        defOn: true,
         title: 'ROAD POLISH',
         desc: 'Needs LEVEL ROAD V2. Open ROAD',
         get: () => !!qaRoadPolish(),
         set: (on) => {
-          store(ROAD_POLISH_KEY, on ? 'on' : null);
+          store(ROAD_POLISH_KEY, on ? null : 'off');
           applyRoadPolish(on);
           tlog.log('qa_road_polish', { on });
         },
@@ -677,11 +680,12 @@ export const QA_SECTIONS: QaSection[] = [
       // UI KIT V3: the rebuilt level intro popup (presentation only)
       qaFlag({
         id: 'uiKitV3',
+        defOn: true,
         title: 'UI KIT V3',
         desc: 'New level intro popup. Next level',
         get: () => !!qaUiKitV3(),
         set: (on) => {
-          store(UI_KIT_V3_KEY, on ? 'on' : null);
+          store(UI_KIT_V3_KEY, on ? null : 'off');
           applyUiKitV3(on);
           tlog.log('qa_ui_kit_v3', { on });
         },
@@ -690,11 +694,12 @@ export const QA_SECTIONS: QaSection[] = [
       // RESOURCE FLY: reward icons arc to a counter on results, puzzle payout and collection claim (visual only)
       qaFlag({
         id: 'resourceFly',
+        defOn: true,
         title: 'RESOURCE FLY',
         desc: 'Rewards fly to a counter. Next result',
         get: () => !!qaResourceFly(),
         set: (on) => {
-          store(RESOURCE_FLY_KEY, on ? 'on' : null);
+          store(RESOURCE_FLY_KEY, on ? null : 'off');
           applyResourceFly(on);
           tlog.log('qa_resource_fly', { on });
         },
@@ -703,11 +708,12 @@ export const QA_SECTIONS: QaSection[] = [
       // UNIT SHOTS: each shooter family fires its own projectile, chains take the source unit's colour (visual only)
       qaFlag({
         id: 'unitShots',
+        defOn: true,
         title: 'UNIT SHOTS',
         desc: 'Per-family shots + chain colours. Next chain',
         get: () => !!qaUnitShots(),
         set: (on) => {
-          store(UNIT_SHOTS_KEY, on ? 'on' : null);
+          store(UNIT_SHOTS_KEY, on ? null : 'off');
           applyUnitShots(on);
           tlog.log('qa_unit_shots', { on });
         },
@@ -716,11 +722,12 @@ export const QA_SECTIONS: QaSection[] = [
       // UNIT IDLE: board, tray and units-tab pictures breathe / blink / hop / wobble (visual only, reduced motion = none)
       qaFlag({
         id: 'unitIdle',
+        defOn: true,
         title: 'UNIT IDLE',
         desc: 'Units breathe, blink, hop, wobble',
         get: () => !!qaUnitIdle(),
         set: (on) => {
-          store(UNIT_IDLE_KEY, on ? 'on' : null);
+          store(UNIT_IDLE_KEY, on ? null : 'off');
           applyUnitIdle(on);
           tlog.log('qa_unit_idle', { on });
         },

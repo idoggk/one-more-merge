@@ -39,13 +39,14 @@ describe('resource fly geometry', () => {
 });
 
 describe('resource fly flag', () => {
-  it('defaults OFF and follows the stored value', () => {
-    expect(RESOURCE_FLY.on).toBe(false);
-    expect(storedResourceFly(() => 'on')).toBe(true);
-    expect(storedResourceFly(() => null)).toBe(false);
-    expect(storedResourceFly(() => { throw new Error('x'); })).toBe(false);
-    applyResourceFly(true);
+  it('defaults ON and only a stored "off" turns it off', () => {
     expect(RESOURCE_FLY.on).toBe(true);
+    expect(storedResourceFly(() => 'on')).toBe(true);
+    expect(storedResourceFly(() => null)).toBe(true);
+    expect(storedResourceFly(() => 'off')).toBe(false);
+    expect(storedResourceFly(() => { throw new Error('x'); })).toBe(true);
     applyResourceFly(false);
+    expect(RESOURCE_FLY.on).toBe(false);
+    applyResourceFly(true);
   });
 });

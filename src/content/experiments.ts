@@ -196,14 +196,20 @@ export function applyVariedOpenings(on: boolean) {
   TUNING.variedOpenings = on;
 }
 
+/** Visual-only flags ship ON: stored 'off' turns one off (the QA switch writes it); missing, 'on' (older QA builds) or unreadable storage = ON.
+ *  Storage is this device only, never the save. */
+export function storedDefaultOn(read: () => string | null): boolean {
+  try {
+    return read() !== 'off';
+  } catch {
+    return true;
+  }
+}
+
 /** QA panel CRATE OPENING V2 switch (TUNING.crateOpenV2; this device only, not in the save): 'on' = the new opening sequence, anything else = OFF. */
 export const CRATE_OPEN_V2_KEY = 'omm_qa_crate_open_v2';
 export function storedCrateOpenV2(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyCrateOpenV2(on: boolean) {
   TUNING.crateOpenV2 = on;
@@ -238,11 +244,7 @@ export function applyEffortModel(on: boolean) {
 /** QA panel UI KIT V3 switch (TUNING.uiKitV3; this device only, not in the save): 'on' = the rebuilt level intro popup, anything else = OFF. */
 export const UI_KIT_V3_KEY = 'omm_qa_ui_kit_v3';
 export function storedUiKitV3(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyUiKitV3(on: boolean) {
   TUNING.uiKitV3 = on;
@@ -251,13 +253,9 @@ export function applyUiKitV3(on: boolean) {
 /** QA panel RESOURCE FLY switch (this device only, not in the save): 'on' = rewards fly to a counter. Presentation only, so it lives outside TUNING
  *  (the core never reads it; the flags-off golden's TUNING digest stays unchanged). */
 export const RESOURCE_FLY_KEY = 'omm_qa_resource_fly';
-export const RESOURCE_FLY = { on: false };
+export const RESOURCE_FLY = { on: true };
 export function storedResourceFly(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyResourceFly(on: boolean) {
   RESOURCE_FLY.on = on;
@@ -265,13 +263,9 @@ export function applyResourceFly(on: boolean) {
 
 /** QA panel UNIT SHOTS switch (this device only, not in the save): 'on' = per-family projectiles and chain colours. Presentation only, outside TUNING. */
 export const UNIT_SHOTS_KEY = 'omm_qa_unit_shots';
-export const UNIT_SHOTS = { on: false };
+export const UNIT_SHOTS = { on: true };
 export function storedUnitShots(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyUnitShots(on: boolean) {
   UNIT_SHOTS.on = on;
@@ -280,13 +274,9 @@ export function applyUnitShots(on: boolean) {
 /** QA panel UNIT IDLE switch (this device only, not in the save): 'on' = units breathe, blink, hop on merge and wobble when picked.
  *  Presentation only, so it lives outside TUNING like RESOURCE_FLY (the flags-off golden's TUNING digest stays unchanged). */
 export const UNIT_IDLE_KEY = 'omm_qa_unit_idle';
-export const UNIT_IDLE = { on: false };
+export const UNIT_IDLE = { on: true };
 export function storedUnitIdle(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyUnitIdle(on: boolean) {
   UNIT_IDLE.on = on;
@@ -295,13 +285,9 @@ export function applyUnitIdle(on: boolean) {
 /** QA panel ROAD POLISH switch (this device only, not in the save): 'on' = parallax, belt road, ambient life, avatar hop, node and chest motion,
  *  unlock sequence on the ROAD tab. Needs levelRoadV2. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
 export const ROAD_POLISH_KEY = 'omm_qa_road_polish';
-export const ROAD_POLISH = { on: false };
+export const ROAD_POLISH = { on: true };
 export function storedRoadPolish(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyRoadPolish(on: boolean) {
   ROAD_POLISH.on = on;
@@ -310,11 +296,7 @@ export function applyRoadPolish(on: boolean) {
 /** QA panel LEVEL ROAD V2 switch (TUNING.levelRoadV2; this device only, not in the save): 'on' = the new ROAD tab, anything else = OFF. */
 export const LEVEL_ROAD_V2_KEY = 'omm_qa_level_road_v2';
 export function storedLevelRoadV2(read: () => string | null): boolean {
-  try {
-    return read() === 'on';
-  } catch {
-    return false;
-  }
+  return storedDefaultOn(read);
 }
 export function applyLevelRoadV2(on: boolean) {
   TUNING.levelRoadV2 = on;
