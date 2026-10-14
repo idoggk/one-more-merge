@@ -48,6 +48,7 @@ const FLAG_REGISTRY: Record<string, [Off, string]> = {
   paceCaps: [false, 'pace caps: plain kickback twins and matchmaker copies stop above rank 4 (kickbackTwinMaxRank / matchCopyMax stay 8 = no change)'],
   crateOpenV2: [false, 'crate opening V2: anticipation, shake, flash, hero reveal, 3-column summary (presentation only)'],
   effortModel: [false, 'Effort Model S1: boss / mini-boss HP and boss-stage hit cap from effortOverlay.json'],
+  uiKitV3: [false, 'UI kit v3 level intro popup (presentation only; the core never reads it)'],
 };
 // Flags that do not default to false (string / number / nested) cannot be auto-detected: the TUNING digest in the golden
 // (see the 'TUNING defaults digest' test) fails on ANY change to a default, so such a flag forces a conscious golden update.

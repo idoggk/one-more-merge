@@ -235,6 +235,19 @@ export function applyEffortModel(on: boolean) {
   TUNING.effortModel = on;
 }
 
+/** QA panel UI KIT V3 switch (TUNING.uiKitV3; this device only, not in the save): 'on' = the rebuilt level intro popup, anything else = OFF. */
+export const UI_KIT_V3_KEY = 'omm_qa_ui_kit_v3';
+export function storedUiKitV3(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUiKitV3(on: boolean) {
+  TUNING.uiKitV3 = on;
+}
+
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,
  *  anything else / missing / unreadable = OFF. Applied with units.ts applyRoster7. */
 export const ROSTER7_KEY = 'omm_qa_roster_7';

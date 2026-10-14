@@ -18,6 +18,7 @@ const EXPECTED_ROWS = [
   'crateOpenV2',
   'spam', 'varied', 'paceCaps', 'effortModel', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
   'yardMode', 'yardBook', // screw yard
+  'uiKitV3', // display
   'shake', // display
 ];
 
@@ -35,7 +36,7 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
     expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
-    expect(ids('display')).toEqual(['shake']);
+    expect(ids('display')).toEqual(['uiKitV3', 'shake']);
   });
   it('on/off settings are switches, multi-choice settings are segmented controls', () => {
     const kind = (id: string) => QA_ROWS.find((r) => r.spec.id === id)!.spec.kind;

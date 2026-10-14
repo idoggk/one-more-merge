@@ -182,6 +182,9 @@ export const TUNING = {
    *  `effortModelOpts`: time-share targets (mini-boss / chapter boss / final boss, used by tools/effort-fit.ts) and the boss-stage cap steps (0.20, then 0.15). */
   effortModel: false,
   effortModelOpts: { tauMini: 0.52, tauBoss: 0.56, tauFinal: 0.6, bossCap: [0.2, 0.15] as number[] },
+  /** UI KIT V3 (src/game/ui/levelIntro*.ts), default OFF (QA row UI KIT V3): the level intro popup is rebuilt from the v3 kit (framed panel, ribbon, hero
+   *  picture, minion chips, tool chips, big PLAY, Jumpstart card below). Presentation only: the core never reads it. OFF = the old level card. */
+  uiKitV3: false,
   tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
   /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
    *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation

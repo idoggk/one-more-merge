@@ -62,8 +62,7 @@ import { decodeCurve, levelProgress, type PaceCurve } from '../core/pace';
 import { BONUS_XP, rollSeason, seasonCount, seasonTier, seasonUnit, type SeasonEvent, type SeasonRec, type SeasonReward } from '../core/season';
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
-import { yardObjectOf } from '../content/yardObjects';
-import { bookObject, bookResult } from './yardBook';
+import { yardObjectOf } from '../content/yardObjects'; import { bookObject, bookResult } from './yardBook';
 import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
 import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, mergesText, OD_LABEL, stageHudText, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
@@ -95,7 +94,7 @@ import * as hud from './ui/hud';
 import * as results from './ui/results';
 import * as eventsTab from './ui/eventsTab';
 import * as unitsTab from './ui/unitsTab';
-import * as roadTab from './ui/roadTab';
+import * as roadTab from './ui/roadTab'; import * as levelIntro from './ui/levelIntro';
 import * as machineTab from './ui/machineTab';
 export { localDate };
 export { computeLayout, H, layoutHeight, RS, setRenderScale, W } from './sceneKit';
@@ -4024,6 +4023,7 @@ Now beat the real level.`, this.coachY());
 
   /** Level card (ChatGPT r15/r16): monster, ONE modifier sentence, star goals, Jumpstart switch, PLAY. */
   openLevelSheet(n: number) {
+    if (TUNING.uiKitV3) return levelIntro.openLevelIntroV3(this, n);
     sfx.cardOpen();
     const def = LEVELS[n - 1];
     if (!def) return;
