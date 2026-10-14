@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
-import { applyPace, applyThinkBank, applyUnits } from '../content/experiments';
+import { applyPace, applyThinkBank, applyUnits, UNIT_SHOTS } from '../content/experiments';
+import { playStyledShot } from './fx/shotFx';
+import { hasShotStyle, linkStyle } from './fx/shotStyles';
 import {
   canMerge,
   capOf,
@@ -2868,8 +2870,9 @@ Now beat the real level.`, this.coachY());
     this.tweens.add({ targets: f, alpha: 0, delay: 25, duration: outMs, ease: 'Quad.Out', onUpdate: follow, onComplete: () => f.destroy() });
   }
 
-  shoot(fromX: number, fromY: number, color: number, delay: number, big: boolean, onHit?: () => void, scale = big ? 1.7 : 0.8) {
+  shoot(fromX: number, fromY: number, color: number, delay: number, big: boolean, onHit?: () => void, scale = big ? 1.7 : 0.8, unit?: { family: Family; rank: number }) {
     this.time.delayedCall(delay, () => {
+      if (unit && UNIT_SHOTS.on && playStyledShot(this, unit.family, unit.rank, fromX, fromY, big ? 230 : 200, onHit)) return;
       const b = this.add.image(fromX, fromY, 'dot').setTint(color).setDepth(52).setScale(scale);
       const trail = big ? this.add.image(fromX, fromY, 'dot').setTint(0xffffff).setDepth(51).setScale(1).setAlpha(0.6) : null;
       const tx = this.target.x + Phaser.Math.Between(-50, 50);
@@ -2960,6 +2963,8 @@ Now beat the real level.`, this.coachY());
       const b = cellXY(e.to);
       const col = e.kind === 'item' ? ITEM_COL : e.kind === 'coil' ? 0x5fe8ff : e.kind === 'bell' ? 0xffd34a : e.kind === 'magnet' ? 0xe07af0 : e.kind === 'battery' ? PRIME_COL : e.kind === 'fan' ? 0xbfe8ff : e.kind === 'backfire' ? 0xff5a3c : e.kind === 'bridge' ? 0x6ff3ff : e.kind === 'chime' ? 0xffe066 : e.kind === 'horn' ? 0xe8b060 : e.kind === 'fuse_box' ? 0xff7ab0 : e.kind === 'arc' ? 0x7a9aff : e.kind === 'amp' ? AMP_COL : 0xffffff;
       const d = windup + (depthOf.get(e.from) ?? 0) * step;
+      const src = UNIT_SHOTS.on ? r.activations.find((x) => x.idx === e.from) : undefined;
+      const ls = src && hasShotStyle(src.family) ? linkStyle(src.family, src.rank, e.kind === 'spark' ? 5 : e.kind === 'item' ? 11 : 8, col) : null;
       this.time.delayedCall(d, () => {
         if (e.kind === 'backfire' || e.kind === 'bridge' || e.kind === 'chime') this.signatureFx(e.kind, a, b);
         else if ((e.kind === 'magnet' || e.kind === 'battery' || e.kind === 'fan') && maxToys.has(e.kind)) this.signatureFx(e.kind, a, b);
@@ -2968,8 +2973,12 @@ Now beat the real level.`, this.coachY());
           const len = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
           arc.setRotation(Math.atan2(b.y - a.y, b.x - a.x)).setDisplaySize(len, Math.min(60, (arc.height / arc.width) * len * 1.4));
           this.tweens.add({ targets: arc, alpha: 0, delay: 220, duration: 220, onComplete: () => arc.destroy() });
+        } else if (ls) {
+          if (ls.glow) lg.lineStyle(ls.width * 2, ls.color, 0.25).lineBetween(a.x, a.y, b.x, b.y);
+          lg.lineStyle(ls.width, ls.color, 0.9).lineBetween(a.x, a.y, b.x, b.y);
+          if (ls.whiteCore) lg.lineStyle(Math.max(2, ls.width * 0.35), 0xffffff, 0.95).lineBetween(a.x, a.y, b.x, b.y);
         } else lg.lineStyle(e.kind === 'spark' ? 5 : e.kind === 'item' ? 11 : 8, col, 0.85).lineBetween(a.x, a.y, b.x, b.y);
-        const p = this.add.image(a.x, a.y, 'spark').setTint(col).setDepth(31).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD);
+        const p = this.add.image(a.x, a.y, 'spark').setTint(ls?.color ?? col).setDepth(31).setScale(1.1).setBlendMode(Phaser.BlendModes.ADD);
         this.tweens.add({ targets: p, x: b.x, y: b.y, angle: 180, duration: Math.max(60, step), onComplete: () => p.destroy() });
       });
     }
@@ -3050,7 +3059,7 @@ Now beat the real level.`, this.coachY());
         }
       });
       // t-e91097cd: only a machine that deals damage fires a shot at the monster
-      if (a.contribution > 0) this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon');
+      if (a.contribution > 0) this.shoot(x, y - 30, color, delay + 30, a.family === 'cannon', undefined, undefined, hasShotStyle(a.family) ? a : undefined);
       playJobTag(this, a, { x, y }, delay); // roster B: Mortar DEPTH x1.48, Rocket BURST x2 ... over the machine
     });
     const end = windup + maxDepth * step + 260 + chainHoldMs(r.count);

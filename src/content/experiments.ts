@@ -263,6 +263,20 @@ export function applyResourceFly(on: boolean) {
   RESOURCE_FLY.on = on;
 }
 
+/** QA panel UNIT SHOTS switch (this device only, not in the save): 'on' = per-family projectiles and chain colours. Presentation only, outside TUNING. */
+export const UNIT_SHOTS_KEY = 'omm_qa_unit_shots';
+export const UNIT_SHOTS = { on: false };
+export function storedUnitShots(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUnitShots(on: boolean) {
+  UNIT_SHOTS.on = on;
+}
+
 /** QA panel LEVEL ROAD V2 switch (TUNING.levelRoadV2; this device only, not in the save): 'on' = the new ROAD tab, anything else = OFF. */
 export const LEVEL_ROAD_V2_KEY = 'omm_qa_level_road_v2';
 export function storedLevelRoadV2(read: () => string | null): boolean {
