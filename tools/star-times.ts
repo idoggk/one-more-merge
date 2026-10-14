@@ -7,15 +7,15 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { applyPace, DEFAULT_PACE } from '../src/content/experiments';
 import { LEVELS } from '../src/content/levels';
-import { TUNING, type Pace } from '../src/content/tuning';
-import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
+import { type Pace } from '../src/content/tuning';
+import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 
 const args = process.argv.slice(2);
 const N = Number(args[args.indexOf('--n') + 1]) || 40;
 const PACE = (args.includes('--pace') ? args[args.indexOf('--pace') + 1] : DEFAULT_PACE) as Pace;
 applyPace(PACE);
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 const pick = (s: GameState, rng: Rng, smart: boolean): [number, number] | null => {
   const p = legalPairs(s);
   if (!p.length) return null;

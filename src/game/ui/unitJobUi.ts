@@ -10,7 +10,9 @@ const FONT = 'Lilita One, Arial Black';
 export function addUnitJob(scene: Phaser.Scene, parent: Phaser.GameObjects.Container, id: string, x: number, y: number, size = 22) {
   const j = unitJob(id);
   if (!j) return;
-  parent.add(scene.add.text(x, y, j.job, { fontFamily: FONT, fontSize: `${size}px`, color: '#ffffff', backgroundColor: '#8e58c9', padding: { x: 10, y: 2 } }).setOrigin(0.5));
+  const t = scene.add.text(x, y, j.job, { fontFamily: FONT, fontSize: `${size}px`, color: '#ffffff', backgroundColor: '#8e58c9', padding: { x: 10, y: 2 } }).setOrigin(0.5);
+  if (t.width > 164) t.setScale(164 / t.width); // long jobs (SAME FAMILY, OPEN SPACE) stayed inside the card frame
+  parent.add(t);
 }
 
 /** Detail page: the WHEN MERGED line alone (the job word sits in the role line). */

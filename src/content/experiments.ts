@@ -94,6 +94,19 @@ export function applyYardPressure(on: boolean) {
   TUNING.yardPressure = on;
 }
 
+/** QA panel YARD BOOK row (TUNING.yardBook; this device only, not in the save); missing = OFF. */
+export const YARD_BOOK_KEY = 'omm_qa_yard_book';
+export function storedYardBook(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyYardBook(on: boolean) {
+  TUNING.yardBook = on;
+}
+
 /** QA panel UNITS row, t-4a966cee: OFF / B0 / B1 (same key: 'on' = B0, 'b1' = B1; anything else = OFF);
  *  t-e91097cd adds ROSTER B ('rb': TUNING.rosterB, the B jobs + Support card). */
 export type UnitsVariant = 'off' | 'b0' | 'b1' | 'rb';
@@ -207,6 +220,19 @@ export function storedPaceCaps(read: () => string | null): boolean {
 }
 export function applyPaceCaps(on: boolean) {
   TUNING.paceCaps = on;
+}
+
+/** QA panel EFFORT MODEL switch (TUNING.effortModel; this device only, not in the save): 'on' = boss / mini-boss HP from the generated overlay, anything else = OFF. */
+export const EFFORT_MODEL_KEY = 'omm_qa_effort_model';
+export function storedEffortModel(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyEffortModel(on: boolean) {
+  TUNING.effortModel = on;
 }
 
 /** QA panel ROSTER 7 switch (t-67cd7c5b, roster B batch 7; this device only, not in the save): 'on' = TUNING.roster7,

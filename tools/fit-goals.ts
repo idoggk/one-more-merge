@@ -10,8 +10,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { applyPace, DEFAULT_PACE } from '../src/content/experiments';
 import { LEVELS, type LevelDef } from '../src/content/levels';
-import { TUNING, type Pace } from '../src/content/tuning';
-import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
+import { type Pace } from '../src/content/tuning';
+import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import { fitHp, isStagedChain, pickGoalN, r50, refHp } from './fit-goals-lib';
 
@@ -26,7 +26,7 @@ const PACE = (arg('--pace') ?? DEFAULT_PACE) as Pace;
 applyPace(PACE);
 const ONLY = arg('--levels') ? new Set(arg('--levels')!.split(',').map(Number)) : null;
 
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 // level-report smart3: chain goal = the longest previewed chain, else capped damage
 function thinker(s: GameState): [number, number] | null {
   let best: [number, number] | null = null, bd = -1;

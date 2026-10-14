@@ -9,7 +9,7 @@
 import { applyPace, applySpamVariant, DEFAULT_PACE, type SpamVariant } from '../src/content/experiments';
 import { LEVELS, starGoals, type LevelDef } from '../src/content/levels';
 import { TICK, TUNING, type Pace } from '../src/content/tuning';
-import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
+import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 
 const args = process.argv.slice(2);
@@ -31,7 +31,7 @@ for (const kv of SET ? SET.split(',') : []) {
 }
 
 type Opt = { f: number; t: number; score: number };
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 function options(s: GameState): Opt[] {
   const out: Opt[] = [];
   for (const [a, b] of legalPairs(s))

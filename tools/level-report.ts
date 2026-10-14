@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { applyPace, applySpamVariant, type SpamVariant } from '../src/content/experiments';
 import { LEVELS, starGoals, type LevelDef } from '../src/content/levels';
 import { TUNING, type Pace } from '../src/content/tuning';
-import { choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
+import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
 import { BOT_KEYS, CSV_HEADER, MD_HEADER, bossCheck, botStat, chapterSummary, flags, parseCsv, rampFlags, toCsvRow, toMdRow, type BotKey, type Row } from './level-report-lib';
 
@@ -31,7 +31,7 @@ applyPace(PACE);
 const TAG = `${PACE}${VARIANT !== 'off' ? `+${VARIANT}` : ''}${VARIED ? '+varied' : ''}`;
 
 type Opt = { f: number; t: number; score: number };
-const capOf = (s: GameState) => (s.goal ? Infinity : Math.ceil(s.maxHp * TUNING.cascadeCap));
+const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 // goal-aware score (chaos-sim.ts): rank goal = the highest new rank, chain goal = the longest chain, else capped damage
 function options(s: GameState): Opt[] {
   const out: Opt[] = [];

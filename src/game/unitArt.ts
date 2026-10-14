@@ -3,7 +3,9 @@
 // glow ring under the base plate, 5-6 gold ring + star pips, 7-8 gold ring + shimmer + a crown pip. Nothing here touches the model.
 import Phaser from 'phaser';
 import { UNITS } from '../content/units';
+import { rankArtKey } from './rankArt';
 import { bakeTexture, REDUCED_MOTION, RS } from './sceneKit';
+import { hasShippedArt } from './textures';
 
 /** Units whose picture is unit_<id> (the batch 1 units keep their own per-rank art but get the same rank treatment). */
 export const PICTURE_UNITS = new Set([
@@ -15,6 +17,7 @@ const GOLD = 0xffc83a;
 
 /** Swap a `<family>_<rank>` texture key for the unit's picture once it has loaded; the code-drawn stand-in stays the fallback. */
 export function unitTex(scene: Phaser.Scene, key: string): string {
+  key = rankArtKey(key, hasShippedArt);
   const m = /^(.+)_\d+$/.exec(key);
   if (!m || !PICTURE_UNITS.has(m[1])) return key;
   const pic = `unit_${m[1]}`;

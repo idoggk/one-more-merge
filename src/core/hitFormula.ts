@@ -3,7 +3,7 @@
 // formula counts up link by link. Pure: plays the real `drop` on a throwaway copy (like mergePreview), so every
 // number is exactly what the merge deals. Never mutates the state passed in.
 import { TUNING } from '../content/tuning';
-import { a2Scale, canMerge, drop, odByChain, puzzleClassic, sandwichFor, shieldMult, type GameEvent, type GameState } from './game';
+import { a2Scale, canMerge, drop, hitCap, odByChain, puzzleClassic, sandwichFor, shieldMult, type GameEvent, type GameState } from './game';
 import { ITEM_MARK, PALETTE, primeMult, type Meaning } from './marks';
 import { isShooter, type CascadeResult, type Family, type Gadget, type JobKey } from './types';
 
@@ -148,7 +148,7 @@ function formulaNow(s: GameState, from: number, to: number): HitFormula | null {
   const shield = shieldMult(c); // read after the drop: a 4+ chain reopens the shield before its damage lands
   if (shield !== 1) terms.push({ key: 'shield', label: 'SHIELD', mult: shield, hue: SHIELD_HUE });
   const raw = res.total > 0 ? Math.round(res.total * shield) : 0;
-  const capAt = s.level !== undefined && !s.goal ? Math.ceil(s.maxHp * TUNING.cascadeCap) : Infinity;
+  const capAt = s.level !== undefined && !s.goal ? hitCap(s) : Infinity;
   const dealt = (c.stats.dmgBy?.player ?? 0) - (s.stats.dmgBy?.player ?? 0);
   return { machines: res.count, base: s0, links, ...(jobKeys.length || TUNING.rosterB ? { linkFam: res.activations.map((x) => x.family), linkHit } : {}), terms, raw, cap: raw > capAt ? capAt : null, damage: dealt, result: res };
 }

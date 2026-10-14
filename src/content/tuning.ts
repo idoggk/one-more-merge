@@ -177,6 +177,11 @@ export const TUNING = {
   /** CRATE OPENING V2 (docs/art/CRATE_OPENING_V2.md, src/content/crateOpenV2.ts), default OFF (QA row CRATE OPENING V2): with CRATES = TOOLBOX the crate opens as
    *  anticipation, shake, flash + burst, one hero reveal, a 3-column summary and one COLLECT button. Presentation only. */
   crateOpenV2: false,
+  /** EFFORT MODEL S1 (docs/EFFORT_MODEL.md, src/content/effortOverlay.json), default OFF (QA row EFFORT MODEL): boss and minion HP of the 16 boss / mini-boss
+   *  levels (and the boss-stage per-hit cap on the cap-lever levels) come from the generated overlay so the last boss carries about half of the level's TIME.
+   *  `effortModelOpts`: time-share targets (mini-boss / chapter boss / final boss, used by tools/effort-fit.ts) and the boss-stage cap steps (0.20, then 0.15). */
+  effortModel: false,
+  effortModelOpts: { tauMini: 0.52, tauBoss: 0.56, tauFinal: 0.6, bossCap: [0.2, 0.15] as number[] },
   tl: { chain: 5, maxBoard: 2, perLevel: 1, fromLevel: 10, effectRank: 1, surgeRows: 3 },
   /** MERGE ASSIST (t-8426336a), default OFF: forgiving drop target, valid-target highlight, offset held part, tap shortcut,
    *  gentle failed-drop feedback for new players. 'auto' = on for a new player (levels 1-10, < 30 lifetime merges). Presentation
@@ -192,6 +197,10 @@ export const TUNING = {
   /** PROTOTYPE, default OFF (QA row YARD PRESSURE): the turnable-object Screw Yard gets a countdown from the first tap
    *  and a tap budget with stars (src/core/yardPressure.ts, numbers in src/content/yardObjects.ts). OFF = today's yard. */
   yardPressure: false,
+  /** PROTOTYPE, default OFF (QA row YARD BOOK): Screw Yard "Dismantle and Collect". Stars = tap budget (screws x1.3 + 4) and
+   *  holding-row peak, a unit crate with a +N CARDS counter on the HUD, and a 3-tile Collection Book with saved best stars
+   *  (meta.yardBook) and a Cannon > Coil > Bell unlock chain (src/core/yardBook.ts, src/game/yardBook.ts). OFF = today's yard. */
+  yardBook: false,
   // probe L11-80: grace 1 / 1.5 also froze the 2.5 s tapper between taps (3★ gap 0-8 pts); 2 keeps a thinker's pause
   // free but not a quick tapper's (3★ gap ~27 pts); rate 0.4-0.5 sat in between; the bank rarely binds (19-42 s used)
   tb: { grace: 2, rate: 0, bank: 60 },

@@ -20,6 +20,8 @@ import { getShakeLevel, shakeCamera } from './fx/shake';
 import { TUNING } from '../content/tuning';
 import { clock, countTap, dangerOf, newPressure, pressureStars, secondsLeft, tapsFrac, tapsLeft, tickClock, timeFrac, type Danger, type PressureState } from '../core/yardPressure';
 import { REDUCED_MOTION } from './sceneKit';
+import { budgetOf } from '../core/yardBook';
+import { YardBookHud } from './yardBook';
 
 const DANGER_COLOR: Record<Danger, number> = { calm: 0x8ef08a, amber: 0xf0a020, red: 0xe8452c };
 const DANGER_CSS: Record<Danger, string> = { calm: '#fff0cf', amber: '#ffc04a', red: '#ff6a4a' };
@@ -131,6 +133,8 @@ export class ObjectYardScene extends Phaser.Scene {
   timeTxt?: Phaser.GameObjects.Text;
   tapTxt?: Phaser.GameObjects.Text;
   pauseLayer?: Phaser.GameObjects.Container;
+  /** TUNING.yardBook: live TAPS n/N + star pips + the unit crate (null = today's yard). */
+  book: YardBookHud | null = null;
   /** Screws still flying to their box / the row (a spent budget is judged once they land). */
   flights = 0;
   lastSec = -1;
@@ -146,8 +150,11 @@ export class ObjectYardScene extends Phaser.Scene {
     this.turning = false;
     this.ended = false;
     this.hammerArmed = false;
-    const cfg = TUNING.yardPressure ? pressureCfg(d.lvl) : null;
+    // YARD BOOK + YARD PRESSURE together: Cannon plays without the clock, Coil and Bell with it (the book's tap budget is then the loss line too)
+    const cfg = TUNING.yardPressure && !(TUNING.yardBook && d.lvl.id === 'cannon') ? pressureCfg(d.lvl) : null;
+    if (cfg && TUNING.yardBook) cfg.budget = budgetOf(d.lvl);
     this.P = cfg && newPressure(cfg);
+    this.book = null;
     this.flights = 0;
     this.lastSec = -1;
     this.pauseLayer = undefined;
@@ -208,6 +215,10 @@ export class ObjectYardScene extends Phaser.Scene {
     this.drawUi();
     this.drawBar();
     this.buildPressure();
+    if (TUNING.yardBook && YARD_UNITS.some((u) => u === this.st.lvl.id)) {
+      this.book = new YardBookHud(this);
+      this.tapTxt?.setVisible(false); // the book's TAPS n/N replaces the pressure one
+    }
     // a lost WebGL context (iOS backgrounding) wipes the bands: bake them again once it is back
     const rebake = () => { this.drawObject(); this.drawUi(); this.drawBar(); };
     this.game.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, rebake);
@@ -330,6 +341,7 @@ export class ObjectYardScene extends Phaser.Scene {
 
   /** One screw tap counted (a wasted tap on a blocked / turned-away screw too); the first starts the clock. */
   pressureTap() {
+    this.book?.tap();
     const P = this.P;
     if (!P) return;
     const first = !P.started;
@@ -882,7 +894,10 @@ export class ObjectYardScene extends Phaser.Scene {
   }
 
   afterMove(r: ObjTap) {
-    r.left.forEach((l) => this.moment.play(l.slot, l.color));
+    r.left.forEach((l) => {
+      this.moment.play(l.slot, l.color);
+      this.book?.boxDone(l.slot, l.color);
+    });
     this.drawUi();
     this.drawObject();
     if (this.st.won) this.finish(true);
@@ -914,8 +929,12 @@ export class ObjectYardScene extends Phaser.Scene {
       sfx.invalid();
       shakeCamera(this.cameras.main, 'yardFail');
     }
-    this.data0.onResult?.({ won, quit: false, moves: this.st.moves, ...this.prize(won) });
-    this.time.delayedCall(1100, () => this.resultPanel(won, tx));
+    const prize = this.prize(won);
+    this.data0.onResult?.({ won, quit: false, moves: this.st.moves, ...prize });
+    // YARD BOOK: the crate pops and the cards flip out before the result panel
+    const reveal = this.book && prize.reward ? this.book.reveal(prize.stars ?? 1, prize.reward.count) : 0;
+    if (reveal) tx.setY(this.cy + 150).setFontSize('44px');
+    this.time.delayedCall(1100 + reveal, () => this.resultPanel(won, tx));
   }
 
   /** Banner / panel title: TIME UP and OUT OF TAPS under pressure, else today's words. */
@@ -928,7 +947,7 @@ export class ObjectYardScene extends Phaser.Scene {
   prize(won: boolean): { stars?: number; reward?: { unit: YardUnit; count: number } } {
     const unit = YARD_UNITS.find((u) => u === this.st.lvl.id);
     if (!won || !unit) return {};
-    const stars = this.P ? pressureStars(this.P) : yardStars(this.st.peak);
+    const stars = this.book ? this.book.stars() : this.P ? pressureStars(this.P) : yardStars(this.st.peak);
     return { stars, reward: { unit, count: yardReward(unit, stars) } };
   }
 
@@ -954,6 +973,7 @@ export class ObjectYardScene extends Phaser.Scene {
   /** The result panel, drawn over the yard (the object stays visible behind a dim). */
   resultPanel(won: boolean, banner: Phaser.GameObjects.Text) {
     banner.destroy();
+    this.book?.clear();
     const moves = this.st.moves;
     const cx = W / 2, top = H / 2 - 250;
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x1a0f1c, 0.55).setDepth(80).setAlpha(0);

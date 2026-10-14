@@ -51,7 +51,7 @@ import { addBoosters, nextYard, recordYard, weekYard, YARD_BOOSTER_START, YARD_C
 import { BOOSTER_COPY } from '../core/marks';
 import { ENDLESS_UNLOCK, endlessDef, endlessPos } from '../core/endless';
 import { contractsFor, contractText } from '../core/mastery';
-import { drillsPending, newPuzzle, type PuzzleDef } from '../core/game';
+import { drillsPending, hitCap, newPuzzle, type PuzzleDef } from '../core/game';
 import { budgetPuzzleDef, newBudgetState, type BudgetLevel } from '../core/budget';
 import * as budgetUi from './ui/budget';
 import { applyMergeRule, type SandwichPlan } from '../core/sandwich';
@@ -63,6 +63,7 @@ import { BONUS_XP, rollSeason, seasonCount, seasonTier, seasonUnit, type SeasonE
 import type { YardData, YardResult } from './ScrewScene';
 import type { ObjectYardData, ObjectYardResult } from './ObjectYardScene';
 import { yardObjectOf } from '../content/yardObjects';
+import { bookObject, bookResult } from './yardBook';
 import { BOUNTY_BOLTS, bountiesFor, newBountyFight, TWIST_TEXT, twistText, type BountyTwist } from '../core/bounty';
 import { BOUNTY_LOCKED, chainWakeText, CHALLENGES, CHAPTER_MONSTER, FACE, GUIDE, ITEM_COPY, mergesText, OD_LABEL, stageHudText, TUTORIAL } from '../content/sceneCopy';
 import { dailyBetter, dailySeed, loadMeta, localDate, store, type DailyBest, type Meta } from './meta';
@@ -483,8 +484,7 @@ export class GameScene extends Phaser.Scene {
     sfx.click();
     tlog.log('inspect', { fam: g.family, rank: g.rank });
     this.paused = true;
-    const cw = W - 60, ch0 = 330;
-    const L = -cw / 2 + 30;
+    const cw = W - 60, L = -cw / 2 + 30, bodyT = this.add.text(L, 0, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: cw - 250 }, lineSpacing: 4 }), ch0 = Math.max(330, 92 + bodyT.height + 122); // a long description pushed the damage and Try lines onto itself
     // clarity pass 1: MARKS row (every state on this part, icon + one sentence) and what a merge right now does with them
     const { marks, mergeNow } = inspectMarks(this.s, idx);
     const markRows = marks.map((m) => ({ m, t: this.add.text(0, 0, `${m.label}: ${m.text}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '21px', color: '#3b2533', wordWrap: { width: cw - 110 }, lineSpacing: 2 }).setOrigin(0, 0.5) }));
@@ -522,8 +522,7 @@ export class GameScene extends Phaser.Scene {
     }
     c.add(this.add.text(L + 72, -ch / 2 + 50, `${info.name.toUpperCase()}  ·  ${info.role}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '34px', color: '#3b2533' }).setOrigin(0, 0.5));
     c.add(this.add.text(cw / 2 - 30, -ch / 2 + 50, `Rank ${g.rank}`, { fontFamily: 'Lilita One, Arial Black', fontSize: '30px', color: '#b06a1a' }).setOrigin(1, 0.5));
-    const textW = cw - 250;
-    c.add(this.add.text(L, -ch / 2 + 92, info.text, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '23px', color: '#3b2533', wordWrap: { width: textW }, lineSpacing: 4 }));
+    c.add(bodyT.setPosition(L, -ch / 2 + 92));
     const raw = rawDamage(g.family, g.rank);
     const dmg = g.family === 'cannon' ? `Auto shot ${Math.round(raw * TUNING.passiveMult)}  ·  Chain shot ${Math.round(raw)}` : raw > 0 ? `Hits for ${Math.round(raw)} in a chain` : 'No damage: it helps the others';
     c.add(this.add.text(L, -ch / 2 + ch0 - 110, dmg, { fontFamily: 'Lilita One, Arial Black', fontSize: '25px', color: '#e8452c' }));
@@ -3081,7 +3080,7 @@ Now beat the real level.`, this.coachY());
           ]),
         );
       // damage number beside the opponent, never on its face
-      const capped = this.s.level !== undefined && !this.s.goal && r.total > this.s.maxHp * TUNING.cascadeCap;
+      const capped = this.s.level !== undefined && !this.s.goal && r.total > hitCap(this.s);
       if (capped && !ribbon) this.showEvent(`x${r.count} CHAIN  \u00b7  MAX HIT!`, '#ffd24a', 1500);
       if (!this.s.goal && r.count <= 1) this.floatText(this.target.x + 150, this.stageFloatY(this.target.y - 40), capped ? 'MAX' : fmt(r.total), tired ? '#8a7a82' : huge ? '#ffcf33' : '#ffffff', tired ? 26 : huge ? 44 : 34, huge ? 200 : 0);
     });
@@ -3941,7 +3940,7 @@ Now beat the real level.`, this.coachY());
 
   /** QA SCREW YARD: OBJECT - the unit object picked in EVENTS (Cannon / Coil / Bell; nothing booked to the week). A clear pays that unit's cards. */
   startObjectYard() {
-    const lvl = yardObjectOf();
+    const lvl = TUNING.yardBook ? bookObject(this.meta) : yardObjectOf();
     tlog.log('yard_object_start', { obj: lvl.id });
     this.closeModal();
     const data: ObjectYardData = { lvl, onEnd: (r) => this.endObjectYard(r), onResult: (r) => this.objectYardResult(r) };
@@ -3952,6 +3951,7 @@ Now beat the real level.`, this.coachY());
   /** A cleared unit object pays cards of that unit through the normal collection path. */
   objectYardResult(r: ObjectYardResult) {
     tlog.log('yard_object_end', { won: r.won, moves: r.moves, stars: r.stars });
+    if (TUNING.yardBook) bookResult(this.meta, r);
     if (r.reward) this.applyCards([{ unit: r.reward.unit, count: r.reward.count, isNew: !this.ownsUnit(r.reward.unit) }]);
   }
 
