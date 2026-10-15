@@ -14,3 +14,5 @@ Score = tools/rank-clarity.mjs (threshold 30). Scored with redo-1 pieces + redo-
 | dynamo 7-8 | 19.6 | 54.8 (silhouette + colour differ) | DONE: rank 8 = caged cyan sphere core in a tall gold ring cage, crown, slim silver pedestal (sheet `raw/dyn8_sheet.png` cell 2; cell 4 scored 45.6, colour only) |
 | robot_arm 7-8 | 19.9 | 81.2 (all four channels) | DONE: rank 8 = tall emerald/cream 3-segment arm, glowing claw holding a crown, narrow base (sheet `raw/arm8_sheet.png` cell 4) |
 | hydraulic_press 7-8 | 22.6 | 66.4 (sil, size, colour) | DONE: rank 8 = compact dark-steel press, one massive piston, gold anvil head, hot orange seams, crown (sheet `raw/hyd8_sheet.png` cell 2) |
+| blast_plate 3-4 | 21.5 | 58.1 (sil, colour, edges) | DONE: rank 4 = wide low olive-green bunker plate, three gold spikes, hazard stripes, side wings (sheet `raw/blast4_sheet.png` cell 2) |
+| blast_plate 4-5 | 23.1 | 59.5 (sil, colour) | side effect |
