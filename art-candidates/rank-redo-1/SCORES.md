@@ -5,3 +5,7 @@ Score = tools/rank-clarity.mjs (higher = more distinct, threshold 30). Pieces: `
 | Pair | Before | After | Verdict |
 |---|---|---|---|
 | router 7-8 | 12.8 | 37.1 (silhouette + edges differ) | DONE: tall tower, emerald domes, twin side domes, red dial (raw sheet `raw/router8_sheet.png`, cell 1) |
+| vice 2-3 | 15.2 | 31.2 | DONE (sheet `raw/vice345_sheet.png` cell 5 = rank 3, 232 px box) |
+| vice 3-4 | 15.7 | 32.7 | DONE (cell 6 = rank 4, double jaw, 242 px box) |
+| vice 4-5 | 18.1 | 34.6 (silhouette differs) | DONE (cell 4 = rank 5, tower + dial, 252 px box) |
+| vice 5-6 | 26.7 | 34.5 | side effect of new rank 5 |

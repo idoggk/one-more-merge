@@ -1,11 +1,10 @@
-Threshold 30; 7 adjacent pairs (both ranks approved), worst first.
+Threshold 30; 6 adjacent pairs (both ranks approved), worst first.
 
 | # | Unit | Ranks | Score | IoU | Size ratio | Colour dist | Edge diff | Channels that differ |
 |---|---|---|---|---|---|---|---|---|
-| 1 | router | 4-5 | 28.3 | 0.827 | 0.993 | 22 | 0.115 | none (FAILS 2-of rule) |
-| 2 | router | 3-4 | 35.4 | 0.802 | 0.979 | 41.2 | 0.072 | colour (FAILS 2-of rule) |
-| 3 | router | 7-8 | 37.1 | 0.758 | 0.94 | 5.3 | 0.196 | edges (FAILS 2-of rule) |
-| 4 | router | 6-7 | 40.9 | 0.8 | 0.937 | 27.4 | 0.187 | edges (FAILS 2-of rule) |
-| 5 | router | 5-6 | 41.2 | 0.79 | 0.941 | 39.4 | 0.115 | colour (FAILS 2-of rule) |
-| 6 | router | 1-2 | 41.8 | 0.776 | 1 | 43.4 | 0.164 | colour (FAILS 2-of rule) |
-| 7 | router | 2-3 | 49.9 | 0.754 | 0.933 | 72.7 | 0.086 | colour (FAILS 2-of rule) |
+| 1 | vice | 2-3 | 21 | 0.892 | 0.891 | 9.3 | 0.009 | none (FAILS 2-of rule) |
+| 2 | vice | 1-2 | 21.1 | 0.895 | 0.979 | 20.4 | 0.074 | none (FAILS 2-of rule) |
+| 3 | vice | 6-7 | 25 | 0.852 | 0.978 | 13.1 | 0.124 | none (FAILS 2-of rule) |
+| 4 | vice | 5-6 | 34.5 | 0.855 | 0.906 | 26.3 | 0.114 | none (FAILS 2-of rule) |
+| 5 | vice | 4-5 | 34.6 | 0.742 | 0.944 | 9.4 | 0.111 | sil (FAILS 2-of rule) |
+| 6 | vice | 3-4 | 37 | 0.736 | 0.932 | 9.2 | 0.13 | sil (FAILS 2-of rule) |

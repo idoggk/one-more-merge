@@ -2,145 +2,121 @@
  "threshold": 30,
  "pairs": [
   {
-   "unit": "router",
-   "from": 4,
-   "to": 5,
-   "iou": 0.827,
-   "sizeRatio": 0.993,
-   "colDist": 22,
-   "edgeDiff": 0.115,
+   "unit": "vice",
+   "from": 2,
+   "to": 3,
+   "iou": 0.892,
+   "sizeRatio": 0.891,
+   "colDist": 9.3,
+   "edgeDiff": 0.009,
    "ch": {
-    "sil": 0.35,
-    "size": 0.03,
-    "colour": 0.37,
-    "edges": 0.33
+    "sil": 0.22,
+    "size": 0.44,
+    "colour": 0.15,
+    "edges": 0.03
    },
-   "score": 28.3,
+   "score": 21,
    "differs": [],
    "rule2": false
   },
   {
-   "unit": "router",
-   "from": 3,
-   "to": 4,
-   "iou": 0.802,
-   "sizeRatio": 0.979,
-   "colDist": 41.2,
-   "edgeDiff": 0.072,
-   "ch": {
-    "sil": 0.4,
-    "size": 0.08,
-    "colour": 0.69,
-    "edges": 0.21
-   },
-   "score": 35.4,
-   "differs": [
-    "colour"
-   ],
-   "rule2": false
-  },
-  {
-   "unit": "router",
-   "from": 7,
-   "to": 8,
-   "iou": 0.758,
-   "sizeRatio": 0.94,
-   "colDist": 5.3,
-   "edgeDiff": 0.196,
-   "ch": {
-    "sil": 0.48,
-    "size": 0.24,
-    "colour": 0.09,
-    "edges": 0.56
-   },
-   "score": 37.1,
-   "differs": [
-    "edges"
-   ],
-   "rule2": false
-  },
-  {
-   "unit": "router",
-   "from": 6,
-   "to": 7,
-   "iou": 0.8,
-   "sizeRatio": 0.937,
-   "colDist": 27.4,
-   "edgeDiff": 0.187,
-   "ch": {
-    "sil": 0.4,
-    "size": 0.25,
-    "colour": 0.46,
-    "edges": 0.53
-   },
-   "score": 40.9,
-   "differs": [
-    "edges"
-   ],
-   "rule2": false
-  },
-  {
-   "unit": "router",
-   "from": 5,
-   "to": 6,
-   "iou": 0.79,
-   "sizeRatio": 0.941,
-   "colDist": 39.4,
-   "edgeDiff": 0.115,
-   "ch": {
-    "sil": 0.42,
-    "size": 0.24,
-    "colour": 0.66,
-    "edges": 0.33
-   },
-   "score": 41.2,
-   "differs": [
-    "colour"
-   ],
-   "rule2": false
-  },
-  {
-   "unit": "router",
+   "unit": "vice",
    "from": 1,
    "to": 2,
-   "iou": 0.776,
-   "sizeRatio": 1,
-   "colDist": 43.4,
-   "edgeDiff": 0.164,
+   "iou": 0.895,
+   "sizeRatio": 0.979,
+   "colDist": 20.4,
+   "edgeDiff": 0.074,
    "ch": {
-    "sil": 0.45,
-    "size": 0,
-    "colour": 0.72,
-    "edges": 0.47
+    "sil": 0.21,
+    "size": 0.08,
+    "colour": 0.34,
+    "edges": 0.21
    },
-   "score": 41.8,
+   "score": 21.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 6,
+   "to": 7,
+   "iou": 0.852,
+   "sizeRatio": 0.978,
+   "colDist": 13.1,
+   "edgeDiff": 0.124,
+   "ch": {
+    "sil": 0.3,
+    "size": 0.09,
+    "colour": 0.22,
+    "edges": 0.35
+   },
+   "score": 25,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 5,
+   "to": 6,
+   "iou": 0.855,
+   "sizeRatio": 0.906,
+   "colDist": 26.3,
+   "edgeDiff": 0.114,
+   "ch": {
+    "sil": 0.29,
+    "size": 0.38,
+    "colour": 0.44,
+    "edges": 0.33
+   },
+   "score": 34.5,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 4,
+   "to": 5,
+   "iou": 0.742,
+   "sizeRatio": 0.944,
+   "colDist": 9.4,
+   "edgeDiff": 0.111,
+   "ch": {
+    "sil": 0.52,
+    "size": 0.23,
+    "colour": 0.16,
+    "edges": 0.32
+   },
+   "score": 34.6,
    "differs": [
-    "colour"
+    "sil"
    ],
    "rule2": false
   },
   {
-   "unit": "router",
-   "from": 2,
-   "to": 3,
-   "iou": 0.754,
-   "sizeRatio": 0.933,
-   "colDist": 72.7,
-   "edgeDiff": 0.086,
+   "unit": "vice",
+   "from": 3,
+   "to": 4,
+   "iou": 0.736,
+   "sizeRatio": 0.932,
+   "colDist": 9.2,
+   "edgeDiff": 0.13,
    "ch": {
-    "sil": 0.49,
+    "sil": 0.53,
     "size": 0.27,
-    "colour": 1,
-    "edges": 0.25
+    "colour": 0.15,
+    "edges": 0.37
    },
-   "score": 49.9,
+   "score": 37,
    "differs": [
-    "colour"
+    "sil"
    ],
    "rule2": false
   }
  ],
  "missing": {
-  "router": []
+  "vice": [
+   8
+  ]
  }
 }
