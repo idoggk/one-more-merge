@@ -1,0 +1,35 @@
+{
+  "task": "t-aa7cfeb0",
+  "badges": {
+    "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+    "KEEP": [
+      "bases/badge_base_brass.png", "bases/badge_base_brass_locked.png",
+      "bases/badge_base_copper.png", "bases/badge_base_copper_locked.png",
+      "bases/badge_base_teal.png", "bases/badge_base_teal_locked.png",
+      "glyphs/badge_glyph_daily.png", "glyphs/badge_glyph_daily_open.png", "glyphs/badge_glyph_offers.png",
+      "glyphs/badge_glyph_season.png", "glyphs/badge_glyph_quests.png", "glyphs/badge_glyph_album.png",
+      "glyphs/badge_glyph_mail.png", "glyphs/badge_glyph_mail_open.png",
+      "parts/badge_ribbon_timer.png", "parts/badge_ribbon_timer_urgent.png", "parts/badge_ribbon_timer_expired.png",
+      "parts/badge_ribbon_count.png", "parts/badge_dot.png", "parts/badge_dot_green.png",
+      "parts/badge_new.png", "parts/badge_lock.png"
+    ],
+    "FIX": {
+      "bases/badge_base_brass_ready.png": "re-key glow (no pink), warm gold-white glow, brighter top so ready differs from idle in grayscale",
+      "bases/badge_base_copper_ready.png": "same as brass ready",
+      "bases/badge_base_teal_ready.png": "white-mint glow, no pink",
+      "glyphs/badge_glyph_events.png": "flag too thin at 48 px and blue on teal/slate: bold yellow pennant, thick pole",
+      "parts/badge_count_bubble.png": "gold on gold base invisible: red or cream-rimmed bubble like the dots"
+    },
+    "REDO": []
+  },
+  "ranks": {
+    "branch": "orch/t-14819aae-rank-redo-1-the-near-twin-rank-p",
+    "KEEP": ["router_8", "vice_3", "rivet_gun_8", "piston_4", "piston_8"],
+    "FIX": {
+      "vice_4": "tower is grander than rank 5 and reads as another machine: same vice, one bigger screw column, max 15% taller",
+      "vice_5": "plainer than 4 and close to rank 2: double gold-capped jaws, dial, green gem, crown nub",
+      "piston_5": "still 27.4: change silhouette to a tall upright triple-barrel fan, narrower than rank 4"
+    },
+    "REDO": []
+  }
+}

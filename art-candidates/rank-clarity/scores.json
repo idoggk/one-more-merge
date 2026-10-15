@@ -1,0 +1,2543 @@
+{
+ "threshold": 30,
+ "pairs": [
+  {
+   "unit": "router",
+   "from": 7,
+   "to": 8,
+   "iou": 0.911,
+   "sizeRatio": 0.976,
+   "colDist": 9.7,
+   "edgeDiff": 0.01,
+   "ch": {
+    "sil": 0.18,
+    "size": 0.1,
+    "colour": 0.16,
+    "edges": 0.03
+   },
+   "score": 12.8,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 2,
+   "to": 3,
+   "iou": 0.9,
+   "sizeRatio": 0.992,
+   "colDist": 16.6,
+   "edgeDiff": 0.018,
+   "ch": {
+    "sil": 0.2,
+    "size": 0.03,
+    "colour": 0.28,
+    "edges": 0.05
+   },
+   "score": 15.2,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 7,
+   "to": 8,
+   "iou": 0.866,
+   "sizeRatio": 0.974,
+   "colDist": 4.1,
+   "edgeDiff": 0.02,
+   "ch": {
+    "sil": 0.27,
+    "size": 0.1,
+    "colour": 0.07,
+    "edges": 0.06
+   },
+   "score": 15.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 3,
+   "to": 4,
+   "iou": 0.881,
+   "sizeRatio": 0.976,
+   "colDist": 5.9,
+   "edgeDiff": 0.041,
+   "ch": {
+    "sil": 0.24,
+    "size": 0.1,
+    "colour": 0.1,
+    "edges": 0.12
+   },
+   "score": 15.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 7,
+   "to": 8,
+   "iou": 0.863,
+   "sizeRatio": 0.972,
+   "colDist": 9,
+   "edgeDiff": 0.014,
+   "ch": {
+    "sil": 0.27,
+    "size": 0.11,
+    "colour": 0.15,
+    "edges": 0.04
+   },
+   "score": 17,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 3,
+   "to": 4,
+   "iou": 0.85,
+   "sizeRatio": 0.979,
+   "colDist": 9.8,
+   "edgeDiff": 0.003,
+   "ch": {
+    "sil": 0.3,
+    "size": 0.08,
+    "colour": 0.16,
+    "edges": 0.01
+   },
+   "score": 17.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "spring",
+   "from": 6,
+   "to": 7,
+   "iou": 0.875,
+   "sizeRatio": 0.969,
+   "colDist": 8,
+   "edgeDiff": 0.034,
+   "ch": {
+    "sil": 0.25,
+    "size": 0.12,
+    "colour": 0.13,
+    "edges": 0.1
+   },
+   "score": 17.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "capacitor",
+   "from": 5,
+   "to": 6,
+   "iou": 0.866,
+   "sizeRatio": 0.983,
+   "colDist": 13.9,
+   "edgeDiff": 0.015,
+   "ch": {
+    "sil": 0.27,
+    "size": 0.07,
+    "colour": 0.23,
+    "edges": 0.04
+   },
+   "score": 17.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 4,
+   "to": 5,
+   "iou": 0.879,
+   "sizeRatio": 0.997,
+   "colDist": 8.1,
+   "edgeDiff": 0.096,
+   "ch": {
+    "sil": 0.24,
+    "size": 0.01,
+    "colour": 0.14,
+    "edges": 0.28
+   },
+   "score": 18.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "spring",
+   "from": 7,
+   "to": 8,
+   "iou": 0.88,
+   "sizeRatio": 0.991,
+   "colDist": 6.2,
+   "edgeDiff": 0.108,
+   "ch": {
+    "sil": 0.24,
+    "size": 0.03,
+    "colour": 0.1,
+    "edges": 0.31
+   },
+   "score": 18.5,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 4,
+   "to": 5,
+   "iou": 0.853,
+   "sizeRatio": 0.977,
+   "colDist": 11.8,
+   "edgeDiff": 0.02,
+   "ch": {
+    "sil": 0.29,
+    "size": 0.09,
+    "colour": 0.2,
+    "edges": 0.06
+   },
+   "score": 18.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "blowtorch",
+   "from": 7,
+   "to": 8,
+   "iou": 0.84,
+   "sizeRatio": 0.995,
+   "colDist": 6.4,
+   "edgeDiff": 0.067,
+   "ch": {
+    "sil": 0.32,
+    "size": 0.02,
+    "colour": 0.11,
+    "edges": 0.19
+   },
+   "score": 19.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "belt_drive",
+   "from": 6,
+   "to": 7,
+   "iou": 0.854,
+   "sizeRatio": 0.986,
+   "colDist": 10.8,
+   "edgeDiff": 0.054,
+   "ch": {
+    "sil": 0.29,
+    "size": 0.06,
+    "colour": 0.18,
+    "edges": 0.15
+   },
+   "score": 19.5,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "dynamo",
+   "from": 7,
+   "to": 8,
+   "iou": 0.87,
+   "sizeRatio": 0.986,
+   "colDist": 9.6,
+   "edgeDiff": 0.087,
+   "ch": {
+    "sil": 0.26,
+    "size": 0.06,
+    "colour": 0.16,
+    "edges": 0.25
+   },
+   "score": 19.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "robot_arm",
+   "from": 7,
+   "to": 8,
+   "iou": 0.823,
+   "sizeRatio": 0.998,
+   "colDist": 7.8,
+   "edgeDiff": 0.052,
+   "ch": {
+    "sil": 0.35,
+    "size": 0.01,
+    "colour": 0.13,
+    "edges": 0.15
+   },
+   "score": 19.9,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "belt_drive",
+   "from": 5,
+   "to": 6,
+   "iou": 0.825,
+   "sizeRatio": 0.977,
+   "colDist": 8.4,
+   "edgeDiff": 0.036,
+   "ch": {
+    "sil": 0.35,
+    "size": 0.09,
+    "colour": 0.14,
+    "edges": 0.1
+   },
+   "score": 20.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 5,
+   "to": 6,
+   "iou": 0.819,
+   "sizeRatio": 1,
+   "colDist": 9.3,
+   "edgeDiff": 0.054,
+   "ch": {
+    "sil": 0.36,
+    "size": 0,
+    "colour": 0.15,
+    "edges": 0.16
+   },
+   "score": 20.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "spring",
+   "from": 1,
+   "to": 2,
+   "iou": 0.845,
+   "sizeRatio": 0.949,
+   "colDist": 2.1,
+   "edgeDiff": 0.061,
+   "ch": {
+    "sil": 0.31,
+    "size": 0.21,
+    "colour": 0.04,
+    "edges": 0.17
+   },
+   "score": 20.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 1,
+   "to": 2,
+   "iou": 0.895,
+   "sizeRatio": 0.979,
+   "colDist": 20.4,
+   "edgeDiff": 0.074,
+   "ch": {
+    "sil": 0.21,
+    "size": 0.08,
+    "colour": 0.34,
+    "edges": 0.21
+   },
+   "score": 21.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "blast_plate",
+   "from": 3,
+   "to": 4,
+   "iou": 0.892,
+   "sizeRatio": 0.993,
+   "colDist": 17.2,
+   "edgeDiff": 0.114,
+   "ch": {
+    "sil": 0.22,
+    "size": 0.03,
+    "colour": 0.29,
+    "edges": 0.32
+   },
+   "score": 21.5,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "capacitor",
+   "from": 6,
+   "to": 7,
+   "iou": 0.84,
+   "sizeRatio": 0.995,
+   "colDist": 13.9,
+   "edgeDiff": 0.067,
+   "ch": {
+    "sil": 0.32,
+    "size": 0.02,
+    "colour": 0.23,
+    "edges": 0.19
+   },
+   "score": 21.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "hydraulic_press",
+   "from": 7,
+   "to": 8,
+   "iou": 0.82,
+   "sizeRatio": 0.973,
+   "colDist": 7.1,
+   "edgeDiff": 0.064,
+   "ch": {
+    "sil": 0.36,
+    "size": 0.11,
+    "colour": 0.12,
+    "edges": 0.18
+   },
+   "score": 22.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "blast_plate",
+   "from": 4,
+   "to": 5,
+   "iou": 0.809,
+   "sizeRatio": 0.964,
+   "colDist": 13.9,
+   "edgeDiff": 0.006,
+   "ch": {
+    "sil": 0.38,
+    "size": 0.14,
+    "colour": 0.23,
+    "edges": 0.02
+   },
+   "score": 23.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "spring",
+   "from": 2,
+   "to": 3,
+   "iou": 0.866,
+   "sizeRatio": 0.991,
+   "colDist": 17.7,
+   "edgeDiff": 0.101,
+   "ch": {
+    "sil": 0.27,
+    "size": 0.04,
+    "colour": 0.29,
+    "edges": 0.29
+   },
+   "score": 23.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "spring",
+   "from": 4,
+   "to": 5,
+   "iou": 0.825,
+   "sizeRatio": 0.998,
+   "colDist": 9.2,
+   "edgeDiff": 0.102,
+   "ch": {
+    "sil": 0.35,
+    "size": 0.01,
+    "colour": 0.15,
+    "edges": 0.29
+   },
+   "score": 23.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "lathe",
+   "from": 5,
+   "to": 6,
+   "iou": 0.76,
+   "sizeRatio": 0.991,
+   "colDist": 7.6,
+   "edgeDiff": 0.025,
+   "ch": {
+    "sil": 0.48,
+    "size": 0.04,
+    "colour": 0.13,
+    "edges": 0.07
+   },
+   "score": 23.9,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "wrecking_ball",
+   "from": 3,
+   "to": 4,
+   "iou": 0.835,
+   "sizeRatio": 0.984,
+   "colDist": 16.3,
+   "edgeDiff": 0.086,
+   "ch": {
+    "sil": 0.33,
+    "size": 0.06,
+    "colour": 0.27,
+    "edges": 0.24
+   },
+   "score": 24.8,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 6,
+   "to": 7,
+   "iou": 0.852,
+   "sizeRatio": 0.978,
+   "colDist": 13.1,
+   "edgeDiff": 0.124,
+   "ch": {
+    "sil": 0.3,
+    "size": 0.09,
+    "colour": 0.22,
+    "edges": 0.35
+   },
+   "score": 25,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "hydraulic_press",
+   "from": 2,
+   "to": 3,
+   "iou": 0.784,
+   "sizeRatio": 0.986,
+   "colDist": 17.8,
+   "edgeDiff": 0.015,
+   "ch": {
+    "sil": 0.43,
+    "size": 0.05,
+    "colour": 0.3,
+    "edges": 0.04
+   },
+   "score": 25.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "blowtorch",
+   "from": 4,
+   "to": 5,
+   "iou": 0.788,
+   "sizeRatio": 0.968,
+   "colDist": 10.8,
+   "edgeDiff": 0.048,
+   "ch": {
+    "sil": 0.42,
+    "size": 0.13,
+    "colour": 0.18,
+    "edges": 0.14
+   },
+   "score": 25.9,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "pipe",
+   "from": 6,
+   "to": 7,
+   "iou": 0.807,
+   "sizeRatio": 0.986,
+   "colDist": 4,
+   "edgeDiff": 0.142,
+   "ch": {
+    "sil": 0.39,
+    "size": 0.06,
+    "colour": 0.07,
+    "edges": 0.41
+   },
+   "score": 26,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 7,
+   "to": 8,
+   "iou": 0.784,
+   "sizeRatio": 0.968,
+   "colDist": 6.4,
+   "edgeDiff": 0.07,
+   "ch": {
+    "sil": 0.43,
+    "size": 0.13,
+    "colour": 0.11,
+    "edges": 0.2
+   },
+   "score": 26,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "capacitor",
+   "from": 3,
+   "to": 4,
+   "iou": 0.791,
+   "sizeRatio": 0.935,
+   "colDist": 12,
+   "edgeDiff": 0.005,
+   "ch": {
+    "sil": 0.42,
+    "size": 0.26,
+    "colour": 0.2,
+    "edges": 0.02
+   },
+   "score": 26.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 6,
+   "to": 7,
+   "iou": 0.768,
+   "sizeRatio": 0.993,
+   "colDist": 10.6,
+   "edgeDiff": 0.068,
+   "ch": {
+    "sil": 0.46,
+    "size": 0.03,
+    "colour": 0.18,
+    "edges": 0.19
+   },
+   "score": 26.5,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "vice",
+   "from": 5,
+   "to": 6,
+   "iou": 0.822,
+   "sizeRatio": 0.953,
+   "colDist": 16.9,
+   "edgeDiff": 0.055,
+   "ch": {
+    "sil": 0.36,
+    "size": 0.19,
+    "colour": 0.28,
+    "edges": 0.16
+   },
+   "score": 26.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 5,
+   "to": 6,
+   "iou": 0.83,
+   "sizeRatio": 0.947,
+   "colDist": 13.6,
+   "edgeDiff": 0.092,
+   "ch": {
+    "sil": 0.34,
+    "size": 0.21,
+    "colour": 0.23,
+    "edges": 0.26
+   },
+   "score": 27.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "belt_drive",
+   "from": 2,
+   "to": 3,
+   "iou": 0.765,
+   "sizeRatio": 0.985,
+   "colDist": 9.2,
+   "edgeDiff": 0.092,
+   "ch": {
+    "sil": 0.47,
+    "size": 0.06,
+    "colour": 0.15,
+    "edges": 0.26
+   },
+   "score": 28.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 4,
+   "to": 5,
+   "iou": 0.827,
+   "sizeRatio": 0.993,
+   "colDist": 22,
+   "edgeDiff": 0.115,
+   "ch": {
+    "sil": 0.35,
+    "size": 0.03,
+    "colour": 0.37,
+    "edges": 0.33
+   },
+   "score": 28.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "hydraulic_press",
+   "from": 1,
+   "to": 2,
+   "iou": 0.78,
+   "sizeRatio": 0.955,
+   "colDist": 10.4,
+   "edgeDiff": 0.081,
+   "ch": {
+    "sil": 0.44,
+    "size": 0.18,
+    "colour": 0.17,
+    "edges": 0.23
+   },
+   "score": 29.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "wrecking_ball",
+   "from": 1,
+   "to": 2,
+   "iou": 0.758,
+   "sizeRatio": 0.938,
+   "colDist": 9.4,
+   "edgeDiff": 0.038,
+   "ch": {
+    "sil": 0.48,
+    "size": 0.25,
+    "colour": 0.16,
+    "edges": 0.11
+   },
+   "score": 29.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "hydraulic_press",
+   "from": 5,
+   "to": 6,
+   "iou": 0.765,
+   "sizeRatio": 0.979,
+   "colDist": 12.7,
+   "edgeDiff": 0.088,
+   "ch": {
+    "sil": 0.47,
+    "size": 0.09,
+    "colour": 0.21,
+    "edges": 0.25
+   },
+   "score": 29.7,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "pipe",
+   "from": 5,
+   "to": 6,
+   "iou": 0.771,
+   "sizeRatio": 0.995,
+   "colDist": 14.3,
+   "edgeDiff": 0.114,
+   "ch": {
+    "sil": 0.46,
+    "size": 0.02,
+    "colour": 0.24,
+    "edges": 0.33
+   },
+   "score": 30,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "dynamo",
+   "from": 6,
+   "to": 7,
+   "iou": 0.819,
+   "sizeRatio": 0.96,
+   "colDist": 14.9,
+   "edgeDiff": 0.131,
+   "ch": {
+    "sil": 0.36,
+    "size": 0.16,
+    "colour": 0.25,
+    "edges": 0.37
+   },
+   "score": 30.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "capacitor",
+   "from": 1,
+   "to": 2,
+   "iou": 0.784,
+   "sizeRatio": 0.951,
+   "colDist": 23.4,
+   "edgeDiff": 0.037,
+   "ch": {
+    "sil": 0.43,
+    "size": 0.2,
+    "colour": 0.39,
+    "edges": 0.11
+   },
+   "score": 31.1,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 4,
+   "to": 5,
+   "iou": 0.698,
+   "sizeRatio": 0.988,
+   "colDist": 12.2,
+   "edgeDiff": 0.037,
+   "ch": {
+    "sil": 0.6,
+    "size": 0.05,
+    "colour": 0.2,
+    "edges": 0.11
+   },
+   "score": 31.3,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 3,
+   "to": 4,
+   "iou": 0.706,
+   "sizeRatio": 0.989,
+   "colDist": 17.7,
+   "edgeDiff": 0.025,
+   "ch": {
+    "sil": 0.59,
+    "size": 0.05,
+    "colour": 0.29,
+    "edges": 0.07
+   },
+   "score": 31.7,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "lathe",
+   "from": 1,
+   "to": 2,
+   "iou": 0.759,
+   "sizeRatio": 0.983,
+   "colDist": 28.9,
+   "edgeDiff": 0.033,
+   "ch": {
+    "sil": 0.48,
+    "size": 0.07,
+    "colour": 0.48,
+    "edges": 0.09
+   },
+   "score": 32.2,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "lathe",
+   "from": 3,
+   "to": 4,
+   "iou": 0.774,
+   "sizeRatio": 0.927,
+   "colDist": 16.1,
+   "edgeDiff": 0.065,
+   "ch": {
+    "sil": 0.45,
+    "size": 0.29,
+    "colour": 0.27,
+    "edges": 0.19
+   },
+   "score": 32.9,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "wrench",
+   "from": 5,
+   "to": 6,
+   "iou": 0.697,
+   "sizeRatio": 0.981,
+   "colDist": 9,
+   "edgeDiff": 0.075,
+   "ch": {
+    "sil": 0.61,
+    "size": 0.08,
+    "colour": 0.15,
+    "edges": 0.22
+   },
+   "score": 33,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "blowtorch",
+   "from": 6,
+   "to": 7,
+   "iou": 0.807,
+   "sizeRatio": 0.97,
+   "colDist": 24.3,
+   "edgeDiff": 0.13,
+   "ch": {
+    "sil": 0.39,
+    "size": 0.12,
+    "colour": 0.41,
+    "edges": 0.37
+   },
+   "score": 33.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 6,
+   "to": 7,
+   "iou": 0.786,
+   "sizeRatio": 0.979,
+   "colDist": 15.4,
+   "edgeDiff": 0.164,
+   "ch": {
+    "sil": 0.43,
+    "size": 0.08,
+    "colour": 0.26,
+    "edges": 0.47
+   },
+   "score": 33.4,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "hydraulic_press",
+   "from": 6,
+   "to": 7,
+   "iou": 0.714,
+   "sizeRatio": 0.909,
+   "colDist": 10.5,
+   "edgeDiff": 0.008,
+   "ch": {
+    "sil": 0.57,
+    "size": 0.36,
+    "colour": 0.18,
+    "edges": 0.02
+   },
+   "score": 34.1,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "capacitor",
+   "from": 4,
+   "to": 5,
+   "iou": 0.724,
+   "sizeRatio": 0.941,
+   "colDist": 17.1,
+   "edgeDiff": 0.032,
+   "ch": {
+    "sil": 0.55,
+    "size": 0.24,
+    "colour": 0.28,
+    "edges": 0.09
+   },
+   "score": 34.3,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "blueprint",
+   "from": 2,
+   "to": 3,
+   "iou": 0.631,
+   "sizeRatio": 0.983,
+   "colDist": 7.4,
+   "edgeDiff": 0.025,
+   "ch": {
+    "sil": 0.74,
+    "size": 0.07,
+    "colour": 0.12,
+    "edges": 0.07
+   },
+   "score": 34.8,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 3,
+   "to": 4,
+   "iou": 0.802,
+   "sizeRatio": 0.979,
+   "colDist": 41.2,
+   "edgeDiff": 0.072,
+   "ch": {
+    "sil": 0.4,
+    "size": 0.08,
+    "colour": 0.69,
+    "edges": 0.21
+   },
+   "score": 35.4,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "wrecking_ball",
+   "from": 5,
+   "to": 6,
+   "iou": 0.773,
+   "sizeRatio": 0.957,
+   "colDist": 18.5,
+   "edgeDiff": 0.143,
+   "ch": {
+    "sil": 0.45,
+    "size": 0.17,
+    "colour": 0.31,
+    "edges": 0.41
+   },
+   "score": 35.9,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "pipe",
+   "from": 4,
+   "to": 5,
+   "iou": 0.82,
+   "sizeRatio": 0.977,
+   "colDist": 34.9,
+   "edgeDiff": 0.148,
+   "ch": {
+    "sil": 0.36,
+    "size": 0.09,
+    "colour": 0.58,
+    "edges": 0.42
+   },
+   "score": 36.4,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 1,
+   "to": 2,
+   "iou": 0.759,
+   "sizeRatio": 0.92,
+   "colDist": 7.4,
+   "edgeDiff": 0.148,
+   "ch": {
+    "sil": 0.48,
+    "size": 0.32,
+    "colour": 0.12,
+    "edges": 0.42
+   },
+   "score": 36.6,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "dynamo",
+   "from": 5,
+   "to": 6,
+   "iou": 0.713,
+   "sizeRatio": 0.974,
+   "colDist": 8.1,
+   "edgeDiff": 0.158,
+   "ch": {
+    "sil": 0.57,
+    "size": 0.11,
+    "colour": 0.14,
+    "edges": 0.45
+   },
+   "score": 36.8,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "tilt_lever",
+   "from": 2,
+   "to": 3,
+   "iou": 0.832,
+   "sizeRatio": 0.965,
+   "colDist": 67.2,
+   "edgeDiff": 0.019,
+   "ch": {
+    "sil": 0.34,
+    "size": 0.14,
+    "colour": 1,
+    "edges": 0.05
+   },
+   "score": 37.3,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "crane",
+   "from": 1,
+   "to": 2,
+   "iou": 0.802,
+   "sizeRatio": 0.968,
+   "colDist": 32.9,
+   "edgeDiff": 0.148,
+   "ch": {
+    "sil": 0.4,
+    "size": 0.13,
+    "colour": 0.55,
+    "edges": 0.42
+   },
+   "score": 37.8,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "dynamo",
+   "from": 4,
+   "to": 5,
+   "iou": 0.694,
+   "sizeRatio": 0.983,
+   "colDist": 6.6,
+   "edgeDiff": 0.195,
+   "ch": {
+    "sil": 0.61,
+    "size": 0.07,
+    "colour": 0.11,
+    "edges": 0.56
+   },
+   "score": 39.2,
+   "differs": [
+    "sil",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "pipe",
+   "from": 3,
+   "to": 4,
+   "iou": 0.734,
+   "sizeRatio": 0.972,
+   "colDist": 34.5,
+   "edgeDiff": 0.073,
+   "ch": {
+    "sil": 0.53,
+    "size": 0.11,
+    "colour": 0.57,
+    "edges": 0.21
+   },
+   "score": 39.2,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "spring",
+   "from": 5,
+   "to": 6,
+   "iou": 0.754,
+   "sizeRatio": 0.943,
+   "colDist": 14.9,
+   "edgeDiff": 0.18,
+   "ch": {
+    "sil": 0.49,
+    "size": 0.23,
+    "colour": 0.25,
+    "edges": 0.51
+   },
+   "score": 39.4,
+   "differs": [
+    "edges"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "blowtorch",
+   "from": 3,
+   "to": 4,
+   "iou": 0.742,
+   "sizeRatio": 0.981,
+   "colDist": 31.9,
+   "edgeDiff": 0.122,
+   "ch": {
+    "sil": 0.52,
+    "size": 0.07,
+    "colour": 0.53,
+    "edges": 0.35
+   },
+   "score": 39.7,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "spring",
+   "from": 3,
+   "to": 4,
+   "iou": 0.744,
+   "sizeRatio": 0.931,
+   "colDist": 15.4,
+   "edgeDiff": 0.165,
+   "ch": {
+    "sil": 0.51,
+    "size": 0.27,
+    "colour": 0.26,
+    "edges": 0.47
+   },
+   "score": 40.6,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 6,
+   "to": 7,
+   "iou": 0.8,
+   "sizeRatio": 0.937,
+   "colDist": 27.4,
+   "edgeDiff": 0.187,
+   "ch": {
+    "sil": 0.4,
+    "size": 0.25,
+    "colour": 0.46,
+    "edges": 0.53
+   },
+   "score": 40.9,
+   "differs": [
+    "edges"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "blowtorch",
+   "from": 1,
+   "to": 2,
+   "iou": 0.734,
+   "sizeRatio": 0.905,
+   "colDist": 11.6,
+   "edgeDiff": 0.148,
+   "ch": {
+    "sil": 0.53,
+    "size": 0.38,
+    "colour": 0.19,
+    "edges": 0.42
+   },
+   "score": 41.2,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 5,
+   "to": 6,
+   "iou": 0.79,
+   "sizeRatio": 0.941,
+   "colDist": 39.4,
+   "edgeDiff": 0.115,
+   "ch": {
+    "sil": 0.42,
+    "size": 0.24,
+    "colour": 0.66,
+    "edges": 0.33
+   },
+   "score": 41.2,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 6,
+   "to": 7,
+   "iou": 0.764,
+   "sizeRatio": 0.927,
+   "colDist": 13.2,
+   "edgeDiff": 0.222,
+   "ch": {
+    "sil": 0.47,
+    "size": 0.29,
+    "colour": 0.22,
+    "edges": 0.63
+   },
+   "score": 41.8,
+   "differs": [
+    "edges"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 1,
+   "to": 2,
+   "iou": 0.776,
+   "sizeRatio": 1,
+   "colDist": 43.4,
+   "edgeDiff": 0.164,
+   "ch": {
+    "sil": 0.45,
+    "size": 0,
+    "colour": 0.72,
+    "edges": 0.47
+   },
+   "score": 41.8,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "belt_drive",
+   "from": 3,
+   "to": 4,
+   "iou": 0.687,
+   "sizeRatio": 0.894,
+   "colDist": 7,
+   "edgeDiff": 0.109,
+   "ch": {
+    "sil": 0.63,
+    "size": 0.42,
+    "colour": 0.12,
+    "edges": 0.31
+   },
+   "score": 42,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "tilt_lever",
+   "from": 4,
+   "to": 5,
+   "iou": 0.842,
+   "sizeRatio": 0.984,
+   "colDist": 55.2,
+   "edgeDiff": 0.18,
+   "ch": {
+    "sil": 0.32,
+    "size": 0.07,
+    "colour": 0.92,
+    "edges": 0.51
+   },
+   "score": 42.6,
+   "differs": [
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blast_plate",
+   "from": 5,
+   "to": 6,
+   "iou": 0.821,
+   "sizeRatio": 0.989,
+   "colDist": 39.9,
+   "edgeDiff": 0.251,
+   "ch": {
+    "sil": 0.36,
+    "size": 0.05,
+    "colour": 0.66,
+    "edges": 0.72
+   },
+   "score": 42.9,
+   "differs": [
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blowtorch",
+   "from": 2,
+   "to": 3,
+   "iou": 0.737,
+   "sizeRatio": 0.976,
+   "colDist": 44.7,
+   "edgeDiff": 0.091,
+   "ch": {
+    "sil": 0.53,
+    "size": 0.09,
+    "colour": 0.75,
+    "edges": 0.26
+   },
+   "score": 43,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "wrecking_ball",
+   "from": 4,
+   "to": 5,
+   "iou": 0.65,
+   "sizeRatio": 0.939,
+   "colDist": 24.5,
+   "edgeDiff": 0.038,
+   "ch": {
+    "sil": 0.7,
+    "size": 0.24,
+    "colour": 0.41,
+    "edges": 0.11
+   },
+   "score": 43.2,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "blueprint",
+   "from": 5,
+   "to": 6,
+   "iou": 0.683,
+   "sizeRatio": 0.944,
+   "colDist": 6.1,
+   "edgeDiff": 0.205,
+   "ch": {
+    "sil": 0.63,
+    "size": 0.22,
+    "colour": 0.1,
+    "edges": 0.58
+   },
+   "score": 43.5,
+   "differs": [
+    "sil",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blowtorch",
+   "from": 5,
+   "to": 6,
+   "iou": 0.742,
+   "sizeRatio": 0.963,
+   "colDist": 36.2,
+   "edgeDiff": 0.14,
+   "ch": {
+    "sil": 0.52,
+    "size": 0.15,
+    "colour": 0.6,
+    "edges": 0.4
+   },
+   "score": 43.7,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "belt_drive",
+   "from": 1,
+   "to": 2,
+   "iou": 0.726,
+   "sizeRatio": 0.976,
+   "colDist": 19.6,
+   "edgeDiff": 0.236,
+   "ch": {
+    "sil": 0.55,
+    "size": 0.1,
+    "colour": 0.33,
+    "edges": 0.68
+   },
+   "score": 43.9,
+   "differs": [
+    "sil",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "rewind_crank",
+   "from": 2,
+   "to": 3,
+   "iou": 0.725,
+   "sizeRatio": 0.971,
+   "colDist": 45.1,
+   "edgeDiff": 0.1,
+   "ch": {
+    "sil": 0.55,
+    "size": 0.12,
+    "colour": 0.75,
+    "edges": 0.29
+   },
+   "score": 45.1,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "tilt_lever",
+   "from": 5,
+   "to": 6,
+   "iou": 0.779,
+   "sizeRatio": 0.972,
+   "colDist": 51.1,
+   "edgeDiff": 0.144,
+   "ch": {
+    "sil": 0.44,
+    "size": 0.11,
+    "colour": 0.85,
+    "edges": 0.41
+   },
+   "score": 45.2,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "dynamo",
+   "from": 1,
+   "to": 2,
+   "iou": 0.692,
+   "sizeRatio": 0.907,
+   "colDist": 14.9,
+   "edgeDiff": 0.149,
+   "ch": {
+    "sil": 0.62,
+    "size": 0.37,
+    "colour": 0.25,
+    "edges": 0.43
+   },
+   "score": 45.6,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 1,
+   "to": 2,
+   "iou": 0.593,
+   "sizeRatio": 0.961,
+   "colDist": 7.6,
+   "edgeDiff": 0.135,
+   "ch": {
+    "sil": 0.81,
+    "size": 0.16,
+    "colour": 0.13,
+    "edges": 0.39
+   },
+   "score": 45.9,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "lathe",
+   "from": 4,
+   "to": 5,
+   "iou": 0.695,
+   "sizeRatio": 0.9,
+   "colDist": 14.6,
+   "edgeDiff": 0.16,
+   "ch": {
+    "sil": 0.61,
+    "size": 0.4,
+    "colour": 0.24,
+    "edges": 0.46
+   },
+   "score": 46.4,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "piston",
+   "from": 2,
+   "to": 3,
+   "iou": 0.677,
+   "sizeRatio": 0.942,
+   "colDist": 15.3,
+   "edgeDiff": 0.195,
+   "ch": {
+    "sil": 0.65,
+    "size": 0.23,
+    "colour": 0.26,
+    "edges": 0.56
+   },
+   "score": 46.8,
+   "differs": [
+    "sil",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "ladder",
+   "from": 5,
+   "to": 6,
+   "iou": 0.496,
+   "sizeRatio": 0.989,
+   "colDist": 13.1,
+   "edgeDiff": 0.053,
+   "ch": {
+    "sil": 1,
+    "size": 0.04,
+    "colour": 0.22,
+    "edges": 0.15
+   },
+   "score": 48.3,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "blast_plate",
+   "from": 2,
+   "to": 3,
+   "iou": 0.842,
+   "sizeRatio": 0.971,
+   "colDist": 104.4,
+   "edgeDiff": 0.254,
+   "ch": {
+    "sil": 0.32,
+    "size": 0.12,
+    "colour": 1,
+    "edges": 0.72
+   },
+   "score": 49.5,
+   "differs": [
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "ladder",
+   "from": 4,
+   "to": 5,
+   "iou": 0.531,
+   "sizeRatio": 0.968,
+   "colDist": 21.8,
+   "edgeDiff": 0.045,
+   "ch": {
+    "sil": 0.94,
+    "size": 0.13,
+    "colour": 0.36,
+    "edges": 0.13
+   },
+   "score": 49.9,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 2,
+   "to": 3,
+   "iou": 0.754,
+   "sizeRatio": 0.933,
+   "colDist": 72.7,
+   "edgeDiff": 0.086,
+   "ch": {
+    "sil": 0.49,
+    "size": 0.27,
+    "colour": 1,
+    "edges": 0.25
+   },
+   "score": 49.9,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "robot_arm",
+   "from": 1,
+   "to": 2,
+   "iou": 0.678,
+   "sizeRatio": 0.92,
+   "colDist": 34.5,
+   "edgeDiff": 0.111,
+   "ch": {
+    "sil": 0.64,
+    "size": 0.32,
+    "colour": 0.57,
+    "edges": 0.32
+   },
+   "score": 50,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "crane",
+   "from": 3,
+   "to": 4,
+   "iou": 0.713,
+   "sizeRatio": 0.99,
+   "colDist": 88.5,
+   "edgeDiff": 0.112,
+   "ch": {
+    "sil": 0.57,
+    "size": 0.04,
+    "colour": 1,
+    "edges": 0.32
+   },
+   "score": 50.1,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 5,
+   "to": 6,
+   "iou": 0.616,
+   "sizeRatio": 0.931,
+   "colDist": 14.8,
+   "edgeDiff": 0.162,
+   "ch": {
+    "sil": 0.77,
+    "size": 0.28,
+    "colour": 0.25,
+    "edges": 0.46
+   },
+   "score": 50.5,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "crane",
+   "from": 2,
+   "to": 3,
+   "iou": 0.722,
+   "sizeRatio": 1,
+   "colDist": 106.4,
+   "edgeDiff": 0.164,
+   "ch": {
+    "sil": 0.56,
+    "size": 0,
+    "colour": 1,
+    "edges": 0.47
+   },
+   "score": 51.7,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "rewind_crank",
+   "from": 3,
+   "to": 4,
+   "iou": 0.721,
+   "sizeRatio": 0.964,
+   "colDist": 43.3,
+   "edgeDiff": 0.211,
+   "ch": {
+    "sil": 0.56,
+    "size": 0.14,
+    "colour": 0.72,
+    "edges": 0.6
+   },
+   "score": 51.7,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "pipe",
+   "from": 2,
+   "to": 3,
+   "iou": 0.67,
+   "sizeRatio": 0.984,
+   "colDist": 47.9,
+   "edgeDiff": 0.152,
+   "ch": {
+    "sil": 0.66,
+    "size": 0.07,
+    "colour": 0.8,
+    "edges": 0.43
+   },
+   "score": 52.3,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 4,
+   "to": 5,
+   "iou": 0.603,
+   "sizeRatio": 0.914,
+   "colDist": 19.5,
+   "edgeDiff": 0.126,
+   "ch": {
+    "sil": 0.79,
+    "size": 0.35,
+    "colour": 0.33,
+    "edges": 0.36
+   },
+   "score": 52.3,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "ladder",
+   "from": 2,
+   "to": 3,
+   "iou": 0.665,
+   "sizeRatio": 0.92,
+   "colDist": 41,
+   "edgeDiff": 0.101,
+   "ch": {
+    "sil": 0.67,
+    "size": 0.32,
+    "colour": 0.68,
+    "edges": 0.29
+   },
+   "score": 52.7,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 2,
+   "to": 3,
+   "iou": 0.56,
+   "sizeRatio": 0.885,
+   "colDist": 22.8,
+   "edgeDiff": 0.014,
+   "ch": {
+    "sil": 0.88,
+    "size": 0.46,
+    "colour": 0.38,
+    "edges": 0.04
+   },
+   "score": 52.8,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "robot_arm",
+   "from": 5,
+   "to": 6,
+   "iou": 0.632,
+   "sizeRatio": 0.965,
+   "colDist": 69.1,
+   "edgeDiff": 0.024,
+   "ch": {
+    "sil": 0.74,
+    "size": 0.14,
+    "colour": 1,
+    "edges": 0.07
+   },
+   "score": 53.6,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "dynamo",
+   "from": 3,
+   "to": 4,
+   "iou": 0.661,
+   "sizeRatio": 0.941,
+   "colDist": 63.5,
+   "edgeDiff": 0.048,
+   "ch": {
+    "sil": 0.68,
+    "size": 0.23,
+    "colour": 1,
+    "edges": 0.14
+   },
+   "score": 54.5,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "wrecking_ball",
+   "from": 2,
+   "to": 3,
+   "iou": 0.57,
+   "sizeRatio": 0.949,
+   "colDist": 27.2,
+   "edgeDiff": 0.124,
+   "ch": {
+    "sil": 0.86,
+    "size": 0.2,
+    "colour": 0.45,
+    "edges": 0.35
+   },
+   "score": 54.6,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "rivet_gun",
+   "from": 3,
+   "to": 4,
+   "iou": 0.593,
+   "sizeRatio": 0.901,
+   "colDist": 16.9,
+   "edgeDiff": 0.16,
+   "ch": {
+    "sil": 0.81,
+    "size": 0.4,
+    "colour": 0.28,
+    "edges": 0.46
+   },
+   "score": 55.2,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "robot_arm",
+   "from": 6,
+   "to": 7,
+   "iou": 0.676,
+   "sizeRatio": 0.899,
+   "colDist": 39.4,
+   "edgeDiff": 0.208,
+   "ch": {
+    "sil": 0.65,
+    "size": 0.4,
+    "colour": 0.66,
+    "edges": 0.59
+   },
+   "score": 59,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blueprint",
+   "from": 4,
+   "to": 5,
+   "iou": 0.718,
+   "sizeRatio": 0.953,
+   "colDist": 53,
+   "edgeDiff": 0.278,
+   "ch": {
+    "sil": 0.56,
+    "size": 0.19,
+    "colour": 0.88,
+    "edges": 0.8
+   },
+   "score": 59.9,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 1,
+   "to": 2,
+   "iou": 0.582,
+   "sizeRatio": 0.881,
+   "colDist": 18.6,
+   "edgeDiff": 0.19,
+   "ch": {
+    "sil": 0.84,
+    "size": 0.47,
+    "colour": 0.31,
+    "edges": 0.54
+   },
+   "score": 60.1,
+   "differs": [
+    "sil",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "belt_drive",
+   "from": 4,
+   "to": 5,
+   "iou": 0.643,
+   "sizeRatio": 0.861,
+   "colDist": 11.2,
+   "edgeDiff": 0.298,
+   "ch": {
+    "sil": 0.71,
+    "size": 0.56,
+    "colour": 0.19,
+    "edges": 0.85
+   },
+   "score": 60.5,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "ladder",
+   "from": 3,
+   "to": 4,
+   "iou": 0.651,
+   "sizeRatio": 0.913,
+   "colDist": 43.9,
+   "edgeDiff": 0.194,
+   "ch": {
+    "sil": 0.7,
+    "size": 0.35,
+    "colour": 0.73,
+    "edges": 0.55
+   },
+   "score": 60.6,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blast_plate",
+   "from": 1,
+   "to": 2,
+   "iou": 0.605,
+   "sizeRatio": 0.835,
+   "colDist": 12.6,
+   "edgeDiff": 0.207,
+   "ch": {
+    "sil": 0.79,
+    "size": 0.66,
+    "colour": 0.21,
+    "edges": 0.59
+   },
+   "score": 60.7,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "lathe",
+   "from": 2,
+   "to": 3,
+   "iou": 0.653,
+   "sizeRatio": 0.867,
+   "colDist": 29.3,
+   "edgeDiff": 0.222,
+   "ch": {
+    "sil": 0.69,
+    "size": 0.53,
+    "colour": 0.49,
+    "edges": 0.63
+   },
+   "score": 60.8,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "ladder",
+   "from": 1,
+   "to": 2,
+   "iou": 0.446,
+   "sizeRatio": 0.92,
+   "colDist": 16.9,
+   "edgeDiff": 0.156,
+   "ch": {
+    "sil": 1,
+    "size": 0.32,
+    "colour": 0.28,
+    "edges": 0.45
+   },
+   "score": 61,
+   "differs": [
+    "sil"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "tilt_lever",
+   "from": 1,
+   "to": 2,
+   "iou": 0.606,
+   "sizeRatio": 0.942,
+   "colDist": 80.1,
+   "edgeDiff": 0.088,
+   "ch": {
+    "sil": 0.79,
+    "size": 0.23,
+    "colour": 1,
+    "edges": 0.25
+   },
+   "score": 61.3,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "tilt_lever",
+   "from": 3,
+   "to": 4,
+   "iou": 0.564,
+   "sizeRatio": 0.916,
+   "colDist": 49.4,
+   "edgeDiff": 0.082,
+   "ch": {
+    "sil": 0.87,
+    "size": 0.34,
+    "colour": 0.82,
+    "edges": 0.23
+   },
+   "score": 62.8,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "dynamo",
+   "from": 2,
+   "to": 3,
+   "iou": 0.597,
+   "sizeRatio": 0.909,
+   "colDist": 60,
+   "edgeDiff": 0.101,
+   "ch": {
+    "sil": 0.81,
+    "size": 0.37,
+    "colour": 1,
+    "edges": 0.29
+   },
+   "score": 65.3,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "capacitor",
+   "from": 2,
+   "to": 3,
+   "iou": 0.608,
+   "sizeRatio": 0.942,
+   "colDist": 40.5,
+   "edgeDiff": 0.301,
+   "ch": {
+    "sil": 0.78,
+    "size": 0.23,
+    "colour": 0.67,
+    "edges": 0.86
+   },
+   "score": 66.6,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "robot_arm",
+   "from": 2,
+   "to": 3,
+   "iou": 0.451,
+   "sizeRatio": 0.907,
+   "colDist": 93.5,
+   "edgeDiff": 0.018,
+   "ch": {
+    "sil": 1,
+    "size": 0.37,
+    "colour": 1,
+    "edges": 0.05
+   },
+   "score": 68.5,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "robot_arm",
+   "from": 3,
+   "to": 4,
+   "iou": 0.432,
+   "sizeRatio": 0.912,
+   "colDist": 96.1,
+   "edgeDiff": 0.029,
+   "ch": {
+    "sil": 1,
+    "size": 0.35,
+    "colour": 1,
+    "edges": 0.08
+   },
+   "score": 68.7,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "pipe",
+   "from": 1,
+   "to": 2,
+   "iou": 0.559,
+   "sizeRatio": 0.913,
+   "colDist": 41.3,
+   "edgeDiff": 0.243,
+   "ch": {
+    "sil": 0.88,
+    "size": 0.35,
+    "colour": 0.69,
+    "edges": 0.69
+   },
+   "score": 69.9,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "rewind_crank",
+   "from": 4,
+   "to": 5,
+   "iou": 0.557,
+   "sizeRatio": 0.816,
+   "colDist": 9.2,
+   "edgeDiff": 0.295,
+   "ch": {
+    "sil": 0.89,
+    "size": 0.73,
+    "colour": 0.15,
+    "edges": 0.84
+   },
+   "score": 70,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blueprint",
+   "from": 3,
+   "to": 4,
+   "iou": 0.621,
+   "sizeRatio": 0.905,
+   "colDist": 52.8,
+   "edgeDiff": 0.255,
+   "ch": {
+    "sil": 0.76,
+    "size": 0.38,
+    "colour": 0.88,
+    "edges": 0.73
+   },
+   "score": 70.1,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "crane",
+   "from": 4,
+   "to": 5,
+   "iou": 0.498,
+   "sizeRatio": 0.918,
+   "colDist": 56.2,
+   "edgeDiff": 0.113,
+   "ch": {
+    "sil": 1,
+    "size": 0.33,
+    "colour": 0.94,
+    "edges": 0.32
+   },
+   "score": 71.8,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "rewind_crank",
+   "from": 5,
+   "to": 6,
+   "iou": 0.53,
+   "sizeRatio": 0.811,
+   "colDist": 9,
+   "edgeDiff": 0.287,
+   "ch": {
+    "sil": 0.94,
+    "size": 0.76,
+    "colour": 0.15,
+    "edges": 0.82
+   },
+   "score": 72.2,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "crane",
+   "from": 5,
+   "to": 6,
+   "iou": 0.434,
+   "sizeRatio": 0.915,
+   "colDist": 63.1,
+   "edgeDiff": 0.111,
+   "ch": {
+    "sil": 1,
+    "size": 0.34,
+    "colour": 1,
+    "edges": 0.32
+   },
+   "score": 73.1,
+   "differs": [
+    "sil",
+    "colour"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "robot_arm",
+   "from": 4,
+   "to": 5,
+   "iou": 0.505,
+   "sizeRatio": 0.965,
+   "colDist": 71.7,
+   "edgeDiff": 0.205,
+   "ch": {
+    "sil": 0.99,
+    "size": 0.14,
+    "colour": 1,
+    "edges": 0.59
+   },
+   "score": 74.1,
+   "differs": [
+    "sil",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "rewind_crank",
+   "from": 1,
+   "to": 2,
+   "iou": 0.545,
+   "sizeRatio": 0.84,
+   "colDist": 30,
+   "edgeDiff": 0.281,
+   "ch": {
+    "sil": 0.91,
+    "size": 0.64,
+    "colour": 0.5,
+    "edges": 0.8
+   },
+   "score": 75.2,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "tesla_tower",
+   "from": 2,
+   "to": 3,
+   "iou": 0.441,
+   "sizeRatio": 0.839,
+   "colDist": 10.8,
+   "edgeDiff": 0.376,
+   "ch": {
+    "sil": 1,
+    "size": 0.64,
+    "colour": 0.18,
+    "edges": 1
+   },
+   "score": 76.5,
+   "differs": [
+    "sil",
+    "size",
+    "edges"
+   ],
+   "rule2": true
+  },
+  {
+   "unit": "blueprint",
+   "from": 1,
+   "to": 2,
+   "iou": 0.587,
+   "sizeRatio": 0.847,
+   "colDist": 49.7,
+   "edgeDiff": 0.329,
+   "ch": {
+    "sil": 0.83,
+    "size": 0.61,
+    "colour": 0.83,
+    "edges": 0.94
+   },
+   "score": 80.7,
+   "differs": [
+    "sil",
+    "size",
+    "colour",
+    "edges"
+   ],
+   "rule2": true
+  }
+ ],
+ "missing": {
+  "belt_drive": [
+   8
+  ],
+  "blast_plate": [
+   7,
+   8
+  ],
+  "blowtorch": [],
+  "blueprint": [
+   7,
+   8
+  ],
+  "capacitor": [
+   8
+  ],
+  "crane": [
+   7
+  ],
+  "dynamo": [],
+  "hydraulic_press": [
+   4
+  ],
+  "ladder": [
+   7
+  ],
+  "lathe": [
+   7,
+   8
+  ],
+  "pipe": [
+   8
+  ],
+  "piston": [],
+  "rewind_crank": [
+   7,
+   8
+  ],
+  "rivet_gun": [],
+  "robot_arm": [],
+  "router": [],
+  "spring": [],
+  "tesla_tower": [],
+  "tilt_lever": [
+   7,
+   8
+  ],
+  "vice": [
+   8
+  ],
+  "wrecking_ball": [
+   7
+  ],
+  "wrench": [
+   2,
+   4
+  ]
+ }
+}
