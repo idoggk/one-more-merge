@@ -10,6 +10,7 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { applyPace, applySpamVariant, type SpamVariant } from '../src/content/experiments';
 import { LEVELS, starGoals, type LevelDef } from '../src/content/levels';
+import { applyLevelPace2 } from '../src/content/levelPace2';
 import { TUNING, type Pace } from '../src/content/tuning';
 import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameEvent, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
@@ -28,7 +29,10 @@ const VARIED = args.includes('--varied'); // TUNING.variedOpenings: the 4 start 
 TUNING.variedOpenings = VARIED;
 applySpamVariant(VARIANT);
 applyPace(PACE);
-const TAG = `${PACE}${VARIANT !== 'off' ? `+${VARIANT}` : ''}${VARIED ? '+varied' : ''}`;
+// --pace2: measure the LEVEL PACE 2 numbers (src/content/levelPace2.json); the tag gets +pace2 so the files do not mix with the live ones
+const PACE2 = args.includes('--pace2');
+if (PACE2) applyLevelPace2(true);
+const TAG = `${PACE}${VARIANT !== 'off' ? `+${VARIANT}` : ''}${VARIED ? '+varied' : ''}${PACE2 ? '+pace2' : ''}`;
 
 type Opt = { f: number; t: number; score: number };
 const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));

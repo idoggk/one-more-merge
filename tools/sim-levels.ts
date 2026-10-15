@@ -102,6 +102,71 @@ function play(def: LevelDef, botSeed: number, idle = false, bot: Bot = NOVICE): 
   return s.phase === 'won';
 }
 
+// --pace2 (LEVEL PACE 2, t-a177b529): MEDIAN-CLEAR-TIME FLOOR constraint. Instead of a win-rate target, each level's HP (and clock) is fitted so the
+// thinker (best previewed merge every 3 s) AND the fast tapper (every 1 s) clear in at least the floor for that level (tools/pace-lib.ts floorFor:
+// 45 s L1-3, 60 s to L15, 90 s at L30, 120 s from L50, bosses +30%, MANIA levels about half). HP is only ever raised, the fast bot is pushed up
+// only while the thinker stays under 1.5x the floor, the clock is ~1.8x the floor (never below today's), and the thinker must still win >= 85% inside it.
+// Writes src/content/levelPace2.json (or --pace2-out <file> for a parallel range; join them with --pace2-merge a.json,b.json) and NEVER levels.json.
+//   npx vite-node tools/sim-levels.ts --pace2 [--from 1 --to 80 | --levels 5,6] [--n 10] [--pace2-out file] [--dry]
+const PACE2 = args.includes('--pace2');
+const PACE2_MERGE = args.includes('--pace2-merge') ? args[args.indexOf('--pace2-merge') + 1].split(',') : null;
+const PACE2_FILE = 'src/content/levelPace2.json';
+if (PACE2_MERGE) {
+  const merged: Record<string, unknown> = JSON.parse(readFileSync(PACE2_FILE, 'utf8')).levels ?? {};
+  for (const f of PACE2_MERGE) Object.assign(merged, JSON.parse(readFileSync(f, 'utf8')).levels);
+  const sorted = Object.fromEntries(Object.entries(merged).sort((a, b) => Number(a[0]) - Number(b[0])));
+  writeFileSync(PACE2_FILE, JSON.stringify({ balance_status: 'FLOOR_FIT_SMART3_SMART1 (tools/sim-levels.ts --pace2)', levels: sorted }, null, 2) + '\n');
+  console.log(`merged ${PACE2_MERGE.length} files -> ${PACE2_FILE} (${Object.keys(sorted).length} levels)`);
+  process.exit(0);
+}
+function clearTime(def: LevelDef, every: number, seed: number): number {
+  const s = newLevel(def);
+  const rng = new Rng(seed);
+  let next = every * (0.8 + 0.4 * rng.next());
+  while (s.phase === 'playing' || s.phase === 'choice') {
+    if (s.phase === 'choice') {
+      choosePerk(s, s.offer[0]);
+      continue;
+    }
+    if (s.elapsed >= next) {
+      next += every * (0.8 + 0.4 * rng.next());
+      const m = smart(s);
+      if (m) drop(s, m[0], m[1], s.grid[m[0]]!.id);
+    }
+    tick(s);
+  }
+  return s.phase === 'won' ? s.elapsed : NaN;
+}
+if (PACE2) {
+  const { floorFor, clockFor, fitK, median, r50: round50, isMania } = await import('./pace-lib');
+  const { applyLevelPace2 } = await import('../src/content/levelPace2');
+  applyLevelPace2(false); // fit from the live (levels.json) numbers
+  const NP = Number(args[args.indexOf('--n') + 1]) || 10;
+  const outFile = args.includes('--pace2-out') ? args[args.indexOf('--pace2-out') + 1] : PACE2_FILE;
+  const result: Record<string, unknown> = outFile === PACE2_FILE ? JSON.parse(readFileSync(PACE2_FILE, 'utf8')).levels ?? {} : {};
+  for (const def of LEVELS) {
+    if (def.level < from || def.level > to || (ONLY && !ONLY.has(def.level))) continue;
+    const floor = floorFor(def.level);
+    const clock = isMania(def.level) ? Math.max(60, clockFor(floor, 0)) : clockFor(floor, def.time_seconds);
+    const at = (k: number, c = clock): LevelDef => ({ ...def, hp: round50(def.hp * k), ...(def.minion_hp ? { minion_hp: round50(def.minion_hp * k) } : {}), time_seconds: c });
+    const cache = new Map<string, number[]>();
+    const runs = (k: number, every: number, c = clock, n = NP) => {
+      const key = `${k.toFixed(4)}/${every}/${c}/${n}`;
+      if (!cache.has(key)) cache.set(key, Array.from({ length: n }, (_, i) => clearTime(at(k, c), every, def.level * 1009 + (i + 1) * 7919 + 100000)));
+      return cache.get(key)!;
+    };
+    const fit = fitK(floor, (k) => (runs(k, 3).filter(Number.isFinite).length / NP >= 0.8 ? median(runs(k, 3)) : Infinity), (k) => median(runs(k, 1)) || 0, !isMania(def.level), isMania(def.level) ? 0.15 : 1);
+    let c = clock;
+    let win = runs(fit.k, 3, c).filter(Number.isFinite).length / NP;
+    for (let i = 0; i < 4 && win < 0.85; i++) (c = Math.ceil((c * 1.15) / 5) * 5, win = runs(fit.k, 3, c).filter(Number.isFinite).length / NP);
+    const d = at(fit.k, c);
+    const t3 = median(runs(fit.k, 3, c)), t1 = median(runs(fit.k, 1, c));
+    console.log(`L${String(def.level).padStart(2)} floor ${floor}s${isMania(def.level) ? ' MANIA' : ''}  hp ${def.hp}${def.minion_hp ? `+${def.minion_hp}` : ''} -> ${d.hp}${d.minion_hp ? `+${d.minion_hp}` : ''} (x${fit.k.toFixed(2)})  clock ${def.time_seconds} -> ${c}  thinker ${t3.toFixed(0)}s win ${(win * 100).toFixed(0)}%  fast ${t1.toFixed(0)}s${fit.fastMet ? '' : '  FAST UNDER FLOOR'}`);
+    result[String(def.level)] = { hp: d.hp, ...(d.minion_hp ? { minion_hp: d.minion_hp } : {}), time_seconds: c, ...(isMania(def.level) ? { mania: true } : {}) };
+  }
+  if (!args.includes('--dry')) writeFileSync(outFile, JSON.stringify({ balance_status: 'FLOOR_FIT_SMART3_SMART1 (tools/sim-levels.ts --pace2)', levels: result }, null, 2) + '\n');
+  process.exit(0);
+}
 const winRate = (def: LevelDef, offset = 0, bot: Bot = SMART ? { kind: 'best', every: 3.5 } : FIT_SMART ? { kind: 'best', every: EVERY } : NOVICE) => {
   let w = 0;
   for (let k = 1; k <= N; k++) if (play(def, def.seed * 31 + k + offset, false, bot)) w++;

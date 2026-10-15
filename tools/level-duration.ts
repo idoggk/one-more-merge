@@ -6,6 +6,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { applyPace } from '../src/content/experiments';
 import { LEVELS } from '../src/content/levels';
+import { applyLevelPace2 } from '../src/content/levelPace2';
 import { newLevel } from '../src/core/game';
 import { BOT_KEYS, parseCsv, type BotKey, type Row } from './level-report-lib';
 
@@ -14,9 +15,12 @@ const DIR = args.includes("--dir") ? args[args.indexOf("--dir") + 1] : "level-re
 const MIN = Number(args[args.indexOf('--min') + 1]) || 45;
 const REF = (args.includes('--bot') ? args[args.indexOf('--bot') + 1] : 'smart3') as BotKey;
 applyPace('calm');
+// --pace2: the table of the LEVEL PACE 2 numbers (level-report --pace2 files, tag calm+pace2)
+const PACE2 = args.includes('--pace2');
+if (PACE2) applyLevelPace2(true);
 
 const rows = new Map<number, Row>();
-for (const f of readdirSync(DIR).filter((f) => f.startsWith('calm_L') && f.endsWith('.csv')))
+for (const f of readdirSync(DIR).filter((f) => f.startsWith(PACE2 ? 'calm+pace2_L' : 'calm_L') && f.endsWith('.csv')))
   for (const r of parseCsv(readFileSync(`${DIR}/${f}`, 'utf8'))) rows.set(r.level, r);
 
 const s0 = (x: number) => (Number.isFinite(x) ? String(Math.round(x)) : '-');

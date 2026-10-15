@@ -7,6 +7,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { applyPace, DEFAULT_PACE } from '../src/content/experiments';
 import { LEVELS } from '../src/content/levels';
+import { applyLevelPace2 } from '../src/content/levelPace2';
 import { type Pace } from '../src/content/tuning';
 import { hitCap, choosePerk, drop, legalPairs, newLevel, previewMerge, tick, type GameState } from '../src/core/game';
 import { Rng } from '../src/core/rng';
@@ -15,6 +16,9 @@ const args = process.argv.slice(2);
 const N = Number(args[args.indexOf('--n') + 1]) || 40;
 const PACE = (args.includes('--pace') ? args[args.indexOf('--pace') + 1] : DEFAULT_PACE) as Pace;
 applyPace(PACE);
+// --pace2: derive the star lines on the LEVEL PACE 2 numbers (src/content/levelPace2.json) and, with --write, store them there (never in levels.json)
+const PACE2 = args.includes('--pace2');
+if (PACE2) applyLevelPace2(true);
 const capOf = (s: GameState) => (s.goal ? Infinity : hitCap(s));
 const pick = (s: GameState, rng: Rng, smart: boolean): [number, number] | null => {
   const p = legalPairs(s);
@@ -91,7 +95,13 @@ for (const def of LEVELS) {
   console.log(`L${String(L).padStart(2)} T=${T}s  rand2.5 win ${Math.round(ordinary.win * 100)}% ${ordinary.t.toFixed(1)}s  smart3 win ${Math.round(thinker.win * 100)}% ${thinker.t.toFixed(1)}s  -> stars ${s2}s / ${s3}s (3★ ${(s3 / T).toFixed(2)}T)`);
 }
 console.log(`pace ${PACE} | mean 3★ line ${(fr.reduce((a, b) => a + b, 0) / fr.length).toFixed(2)}T`);
-if (args.includes('--write')) {
+if (args.includes('--write') && PACE2) {
+  const path = 'src/content/levelPace2.json';
+  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  for (const [L, st] of Object.entries(out)) if (raw.levels[L]) raw.levels[L].star_times = st;
+  writeFileSync(path, JSON.stringify(raw, null, 2) + '\n');
+  console.log('wrote star_times to levelPace2.json');
+} else if (args.includes('--write')) {
   const path = 'src/content/levels.json';
   const raw = JSON.parse(readFileSync(path, 'utf8'));
   for (const lv of raw.levels) if (out[lv.level]) lv.star_times = out[lv.level];
