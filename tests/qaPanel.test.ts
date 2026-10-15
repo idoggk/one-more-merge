@@ -26,6 +26,7 @@ const EXPECTED_ROWS = [
   'uiJuice', // display
   'mapBadges', 'mapBadgesForce', // display
   'shake', // display
+  'qaPanelV2', // display
 ];
 
 describe('QA registry: every old row is still there', () => {
@@ -42,7 +43,7 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
     expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'levelPace2', 'levelTimeline', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'roadPerfHud', 'roadSurfaceKit', 'roadMapMock1', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
-    expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'mascotMotion', 'mascotDemo', 'mapBadges', 'mapBadgesForce', 'uiJuice', 'shake']);
+    expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'mascotMotion', 'mascotDemo', 'mapBadges', 'mapBadgesForce', 'uiJuice', 'shake', 'qaPanelV2']);
   });
   it('visual-only switches ship ON, can be turned off, and RESET ALL puts them back ON', async () => {
     const { TUNING } = await import('../src/content/tuning');
@@ -55,7 +56,7 @@ describe('QA registry: every old row is still there', () => {
     const mem = new Map<string, string>();
     vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) });
     try {
-      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'crateOpenV2']) {
+      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'crateOpenV2', 'qaPanelV2']) {
         const row = QA_ROWS.find((r) => r.spec.id === id)!;
         row.apply!(false, q);
         expect([...mem.values()].pop(), id).toBe('off');
@@ -350,6 +351,274 @@ describe('QA sections collapse', () => {
     expect(qaCollapsed.has(sec.id)).toBe(!before);
     expect(reopened).toBe(1);
     if (qaCollapsed.has(sec.id) !== before) (before ? qaCollapsed.add(sec.id) : qaCollapsed.delete(sec.id));
+  });
+});
+
+// ---------- QA PANEL V2: presets, groups, search, "?" help, old switches last, 44 px targets ----------
+
+const { buildV2Sections, v2InitialCollapsed, applyPreset, rowSnapshot, v2Rows } = await import('../src/game/ui/qaPanelV2');
+const META = await import('../src/game/ui/qaMeta');
+const PRE = await import('../src/game/ui/qaPresets');
+const { QA_PANEL_V2 } = await import('../src/content/experiments');
+const nodeFs = await import('node:fs');
+
+const V2_SCREENS: [string, number][] = [['390x844', 1558], ['360x640', 1280]];
+const v2q = (extra: object = {}) => ({ scene: { showToast() {}, add: stubScene().scene.add }, c: new Obj('container'), oy: 0, jump: 5, save() {}, reopen() {}, ...extra }) as never;
+const memStorage = () => {
+  const mem = new Map<string, string>();
+  vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) });
+  return mem;
+};
+const v2env = (last: string | null = null, search = '') => {
+  const st = { helpOpen: new Set<string>(), search };
+  const env = { rows: QA_ROWS, lastPreset: () => last, setLastPreset: (id: string | null) => void (last = id), askSearch: (_cur: string): string | null => null, build: () => 'Build: test' };
+  return { st, env, sections: () => buildV2Sections(env, st) };
+};
+
+describe('QA panel V2: the switch is on by default and the old registry is untouched', () => {
+  it('QA PANEL V2 ships ON and the old section list is still there (OFF restores it)', () => {
+    expect(QA_PANEL_V2.on).toBe(true);
+    expect(QA_SECTIONS.map((s) => s.id)).toEqual(['guide', 'quick', 'feel', 'units', 'crates', 'tests', 'yard', 'display']);
+    expect(QA_ROWS.find((r) => r.spec.id === 'qaPanelV2')!.def).toBe('true');
+  });
+});
+
+describe('QA panel V2: every switch has plain words, and is in the cleanup table', () => {
+  it('every row has an entry, labels are at most 4 words, help is one sentence', () => {
+    for (const r of QA_ROWS) expect(META.QA_META[r.spec.id], `${r.spec.id} needs a QA_META entry`).toBeTruthy();
+    for (const id of Object.keys(META.QA_META)) expect(QA_ROWS.some((r) => r.spec.id === id), `${id} is not a row`).toBe(true);
+    for (const [id, m] of Object.entries(META.QA_META)) {
+      expect(m.label.split(/\s+/).length, id).toBeLessThanOrEqual(4);
+      expect(m.help, id).not.toContain('\n');
+      expect(m.help.length, id).toBeGreaterThan(10);
+      expect(m.help.length, id).toBeLessThanOrEqual(110);
+      expect(m.retire.length, id).toBeGreaterThan(5);
+    }
+  });
+  it('docs/design/QA_CLEANUP.md lists every switch with its default, state, action and what retiring changes', () => {
+    const md = nodeFs.readFileSync('docs/design/QA_CLEANUP.md', 'utf8');
+    for (const [id, m] of Object.entries(META.QA_META)) {
+      const line = md.split('\n').find((l) => l.startsWith(`| \`${id}\` |`));
+      expect(line, `${id} missing from QA_CLEANUP.md`).toBeTruthy();
+      expect(line, id).toContain(m.state);
+      expect(line, id).toContain(m.action);
+    }
+  });
+  it('obsolete switches are marked old', () => {
+    for (const [id, m] of Object.entries(META.QA_META)) if (m.state === 'obsolete') expect(m.old, id).toBe(true);
+    expect(META.qaLabel(META.QA_META.roadPerf2)).toContain('(old)');
+    expect(META.qaLabel(META.QA_META.roadPolish)).not.toContain('(old)');
+  });
+});
+
+describe('QA panel V2: presets', () => {
+  it('there are 5 presets and every flag they set is a real switch that can be applied', () => {
+    expect(PRE.QA_PRESETS.map((p) => p.title)).toEqual(['PLAYER VIEW', 'NEW FEATURES', 'ROAD TEST', 'LEVEL LENGTH TEST', 'RESET ALL']);
+    for (const p of PRE.QA_PRESETS) {
+      for (const [id] of p.flags) expect(QA_ROWS.find((r) => r.spec.id === id)?.apply, `${p.id}: ${id}`).toBeTypeOf('function');
+      // one plain description, short enough for 4 lines on a phone
+      const lines = Math.ceil(p.what.length / 48) + Math.ceil((p.look.length + 9) / 48);
+      expect(lines, p.id).toBeLessThanOrEqual(4);
+    }
+    const flagIds = (id: string) => PRE.QA_PRESETS.find((p) => p.id === id)!.flags.map(([k]) => k);
+    expect(flagIds('length')).toEqual(['levelPace2', 'levelTimeline']);
+    expect(flagIds('road')).toContain('roadPerfHud');
+    for (const id of ['levelPace2', 'levelTimeline', 'roadMapMock1', 'mascotMotion', 'mapBadges', 'roadSurfaceKit', 'uiJuice']) expect(flagIds('features'), id).toContain(id);
+  });
+  it('tapping a preset sets exactly its switches; the active one is highlighted; a stray switch shows CUSTOM', () => {
+    memStorage();
+    try {
+      const q = v2q();
+      const snap = (pick: 'read' | 'def') => rowSnapshot(QA_ROWS, q, pick);
+      const want = (id: string) => PRE.QA_PRESETS.find((p) => p.id === id)!;
+      applyPreset(want('player'), QA_ROWS, q);
+      expect(PRE.activePreset(snap('read'), snap('def'))?.id).toBe('player');
+      applyPreset(want('length'), QA_ROWS, q);
+      expect(snap('read').levelPace2).toBe('true');
+      expect(snap('read').levelTimeline).toBe('true');
+      expect(snap('read').roadMapMock1).toBe('false');
+      expect(PRE.activePreset(snap('read'), snap('def'))?.id).toBe('length');
+      // one switch changed by hand: no preset matches any more
+      QA_ROWS.find((r) => r.spec.id === 'uiJuice')!.apply!(true, q);
+      expect(PRE.activePreset(snap('read'), snap('def'))).toBeNull();
+      expect(PRE.statusLines(snap('read'), snap('def'), 'length', (id) => META.QA_META[id].label)).toEqual(['NOW: CUSTOM (3 differ from PLAYER VIEW)', 'Since LEVEL LENGTH TEST: UI juice']);
+      // NEW FEATURES then RESET ALL
+      applyPreset(want('features'), QA_ROWS, q);
+      expect(PRE.activePreset(snap('read'), snap('def'))?.id).toBe('features');
+      expect(snap('read').uiJuice).toBe('true');
+      applyPreset(want('reset'), QA_ROWS, q);
+      expect(PRE.activePreset(snap('read'), snap('def'))?.id).toBe('player');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+  it('"what changed since last visit": names the switches that differ, or says it is the same', () => {
+    const d = { a: 'false', b: 'false' };
+    expect(PRE.statusLines(d, d, null, (x) => x)[1]).toBe('No preset set yet on this phone.');
+    expect(PRE.statusLines(d, d, 'player', (x) => x)[1]).toBe('Same as the last preset you set: PLAYER VIEW.');
+    expect(PRE.statusLines({ a: 'true', b: 'true' }, d, 'player', (x) => x.toUpperCase())[1]).toBe('Since PLAYER VIEW: A, B');
+    expect(PRE.listNames(['one two three', 'four five six', 'seven eight nine'], 20)).toBe('one two three +2 more');
+  });
+  it('a preset card sets the switches, remembers the preset, toasts and redraws', () => {
+    memStorage();
+    try {
+      const v = v2env();
+      const { scene, all, toasts } = stubScene();
+      let redraws = 0;
+      const q = { scene, c: new Obj('container'), oy: 0, jump: 5, save() {}, reopen: () => redraws++ } as never;
+      const sec = v.sections()[0];
+      const row = sec.rows.find((r) => r.spec.id === 'preset_length')!;
+      row.draw(q, L.layoutRow(row.spec, 0));
+      all.find((o) => o.interactive)!.handlers.pointerup();
+      expect(QA_ROWS.find((r) => r.spec.id === 'levelPace2')!.read!(q)).toBe('true');
+      expect(toasts[0]).toContain('LEVEL LENGTH TEST');
+      expect(redraws).toBe(1);
+      applyPreset(PRE.QA_PRESETS[0], QA_ROWS, q);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('QA panel V2: list, groups, search, help', () => {
+  it('shows PRESETS, FIND A SWITCH, then the six groups folded; a jump-to-level control sits under the presets', () => {
+    const v = v2env();
+    const s = v.sections();
+    expect(s.map((x) => x.id)).toEqual(['presets', 'find', 'g_road', 'g_levels', 'g_units', 'g_yard', 'g_ui', 'g_debug']);
+    expect(s[0].rows.map((r) => r.spec.id)).toEqual(['presetStatus', 'preset_player', 'preset_features', 'preset_road', 'preset_length', 'preset_reset', 'jump']);
+    expect([...v2InitialCollapsed()]).toEqual(['g_road', 'g_levels', 'g_units', 'g_yard', 'g_ui', 'g_debug']);
+    expect(s.map((x) => x.title).slice(2)).toEqual(['ROAD (12)', 'LEVELS (13)', 'UNITS (9)', 'SCREW YARD (3)', 'UI (6)', expect.stringMatching(/^DEBUG/)]);
+  });
+  it('every registry row is reachable somewhere in V2 (nothing lost), once', () => {
+    const ids = buildV2Sections(v2env().env, v2env().st).flatMap((s) => s.rows.map((r) => r.spec.id)).filter((id) => !id.startsWith('preset') && id !== 'search');
+    expect([...ids].sort()).toEqual(QA_ROWS.map((r) => r.spec.id).sort());
+  });
+  it('old switches are labelled and sorted last inside their group', () => {
+    const s = v2env().sections();
+    for (const g of s.filter((x) => x.id.startsWith('g_'))) {
+      const flags = g.rows.map((r) => !!META.QA_META[r.spec.id]?.old);
+      const first = flags.indexOf(true);
+      if (first >= 0) expect(flags.slice(first).every(Boolean), g.id).toBe(true);
+    }
+    const road = s.find((x) => x.id === 'g_road')!.rows.map((r) => r.spec.id);
+    expect(road.indexOf('roadPolish')).toBeLessThan(road.indexOf('roadPerf'));
+    expect(road.at(-1)).toBe('roadPerf4');
+    expect(s.find((x) => x.id === 'g_road')!.rows.find((r) => r.spec.id === 'roadPerf')!.title).toBe('Road perf 1 (old)');
+  });
+  it('search keeps only matching switches and hides the groups; no match says so', () => {
+    const hit = v2env(null, 'perf').sections();
+    expect(hit.map((x) => x.id)).toEqual(['presets', 'find']);
+    expect(hit[1].rows.map((r) => r.spec.id)).toEqual(['search', 'roadPerfHud', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4']);
+    expect(META.matchesQuery('mascotMotion', META.QA_META.mascotMotion, 'BOLT')).toBe(true);
+    expect(META.matchesQuery('mascotMotion', META.QA_META.mascotMotion, 'bolt road')).toBe(false);
+    expect(v2env(null, 'zzzz').sections()[1].rows.map((r) => r.spec.id)).toEqual(['search', 'noHits']);
+    // an old switch can be found by typing "old"
+    expect(v2env(null, 'old').sections()[1].rows.some((r) => r.spec.id === 'roadPerf')).toBe(true);
+  });
+  it('the search button asks for a word, stores it and redraws; cancel keeps the old one', () => {
+    const v = v2env();
+    const asked: string[] = [];
+    let answer: string | null = '  road  ';
+    v.env.askSearch = (cur: string) => (asked.push(cur), answer);
+    const { scene, all } = stubScene();
+    let redraws = 0;
+    const q = { scene, c: new Obj('container'), oy: 0, jump: 1, save() {}, reopen: () => redraws++ } as never;
+    const row = v.sections()[1].rows[0];
+    row.draw(q, L.layoutRow(row.spec, 0));
+    all.find((o) => o.interactive)!.handlers.pointerup();
+    expect(v.st.search).toBe('road');
+    expect(redraws).toBe(1);
+    answer = null;
+    all.find((o) => o.interactive)!.handlers.pointerup();
+    expect(v.st.search).toBe('road');
+  });
+  it('the "?" button opens one plain sentence under the row, and closes it again', () => {
+    const v = v2env();
+    const row = QA_ROWS.find((r) => r.spec.id === 'levelPace2')!;
+    expect(v2Rows(row, META.QA_META.levelPace2, v.st)).toHaveLength(1);
+    const { scene, all } = stubScene();
+    let redraws = 0;
+    const q = { scene, c: new Obj('container'), oy: 0, jump: 1, save() {}, reopen: () => redraws++ } as never;
+    const [wrapped] = v2Rows(row, META.QA_META.levelPace2, v.st);
+    wrapped.draw(q, L.layoutRow(wrapped.spec, 0));
+    const texts = all.filter((o) => o.isText).map((o) => o.text);
+    expect(texts).toContain('Longer levels'); // the short label, not the old 'LEVEL PACE 2'
+    expect(texts).not.toContain('LEVEL PACE 2');
+    const help = all.filter((o) => o.interactive).find((o) => o.box().x < 100)!;
+    help.handlers.pointerup();
+    expect(v.st.helpOpen.has('levelPace2')).toBe(true);
+    expect(redraws).toBe(1);
+    const open = v2Rows(row, META.QA_META.levelPace2, v.st);
+    expect(open.map((r) => r.spec.id)).toEqual(['levelPace2', 'levelPace2_help']);
+  });
+  it('a switch in V2 still flips its own setting (same row, new label)', () => {
+    memStorage();
+    try {
+      const v = v2env();
+      const row = QA_ROWS.find((r) => r.spec.id === 'uiJuice')!;
+      const { scene, all, toasts } = stubScene();
+      const q = { scene, c: new Obj('container'), oy: 0, jump: 1, save() {}, reopen() {} } as never;
+      const [wrapped] = v2Rows(row, META.QA_META.uiJuice, v.st);
+      wrapped.draw(q, L.layoutRow(wrapped.spec, 0));
+      all.filter((o) => o.interactive).find((o) => o.box().x > 400)!.handlers.pointerup();
+      expect(row.read!(q)).toBe('true');
+      expect(toasts.at(-1)).toContain('UI JUICE ON');
+      row.reset!(q);
+      expect(row.read!(q)).toBe('false');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('QA panel V2 layout: nothing overlaps, 44 pt targets, everything reachable', () => {
+  for (const [name, H] of V2_SCREENS) {
+    for (const [mode, collapsedSet, help, search] of [['groups open', new Set<string>(), false, ''], ['help open', new Set<string>(), true, ''], ['search', new Set<string>(), false, 'perf'], ['folded', v2InitialCollapsed(), false, '']] as const) {
+      it(`${name} ${mode}`, () => {
+        const v = v2env(null, search);
+        if (help) for (const id of Object.keys(META.QA_META)) v.st.helpOpen.add(id);
+        const sections = v.sections();
+        const geo = L.layoutPanel(sections.map((s) => ({ id: s.id, rows: s.rows.map((r) => r.spec) })), collapsedSet, H);
+        const w = Number(name.split('x')[0]) / 720;
+        const pt = (d: number) => d * w;
+        const rects = geo.sections.flatMap((s) => [s.header, ...s.rows.map((r) => r.rect)]);
+        rects.forEach((r, i) => i && expect(r.y).toBeGreaterThanOrEqual(rects[i - 1].y + rects[i - 1].h));
+        for (const s of geo.sections) {
+          expect(pt(s.header.h)).toBeGreaterThanOrEqual(44);
+          expect(L.qaReachable(geo, s.header), s.id).toBe(true);
+          for (const row of s.rows) {
+            expect(L.qaReachable(geo, row.rect), row.id).toBe(true);
+            const solid = row.parts.filter((p) => p.role !== 'hit');
+            solid.forEach((p, i) => {
+              expect(L.rectInside(p.rect, row.rect), `${row.id} ${p.role}`).toBe(true);
+              solid.slice(i + 1).forEach((o) => expect(rectsOverlapEps(p.rect, o.rect), `${row.id} ${p.role}/${o.role}`).toBe(false));
+            });
+            for (const p of row.parts.filter((x) => x.role === 'control' || x.role === 'help' || x.role === 'hit')) expect(pt(p.rect.h), `${row.id} ${p.role}`).toBeGreaterThanOrEqual(43.9);
+            if (row.parts.some((p) => p.role === 'help')) expect(pt(row.parts.find((p) => p.role === 'help')!.rect.w), `${row.id} help`).toBeGreaterThanOrEqual(39);
+          }
+        }
+        // draw everything for real into the stub: nothing throws, every text sits inside its row
+        const { scene, all } = stubScene();
+        const list = new Obj('container');
+        const q = { scene, c: list, oy: 0, jump: 5, save() {}, reopen() {} } as never;
+        geo.sections.forEach((sl, si) => {
+          qaSectionHeader(q, sl, sections[si].title, !collapsedSet.has(sections[si].id), () => {});
+          sl.rows.forEach((rl, ri) => sections[si].rows[ri].draw(q, rl));
+        });
+        const rowRects = geo.sections.flatMap((s) => s.rows.map((r) => r.rect));
+        for (const t of all.filter((o) => o.isText && !hasInteractiveAncestor(o))) {
+          const b = t.box();
+          expect(rowRects.some((rr) => inside(b, rr)) || geo.sections.some((s) => inside(b, s.header)), `${t.text} fits a row`).toBe(true);
+        }
+      });
+    }
+  }
+  it('a QA row without help keeps the exact old geometry (the old panel is unchanged)', () => {
+    const spec = { id: 'x', kind: 'switch' as const, hasDesc: true };
+    const plain = L.layoutRow(spec, 100);
+    expect(plain.parts.some((p) => p.role === 'help')).toBe(false);
+    const withHelp = L.layoutRow({ ...spec, help: true }, 100);
+    expect(withHelp.parts.find((p) => p.role === 'title')!.rect.x).toBe(plain.parts.find((p) => p.role === 'title')!.rect.x + L.QA_HELP_W);
   });
 });
 

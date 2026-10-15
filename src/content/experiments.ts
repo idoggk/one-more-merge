@@ -517,3 +517,13 @@ export function allNewState(rosterB: boolean, batches: readonly boolean[]): AllN
   const all = [rosterB, ...batches];
   return all.every(Boolean) ? 'on' : all.some(Boolean) ? 'mixed' : 'off';
 }
+
+/** QA PANEL V2 switch (this device only, not in the save): default ON = presets + grouped list; 'off' restores the old section panel. UI only, outside TUNING. */
+export const QA_PANEL_V2_KEY = 'omm_qa_panel_v2';
+export const QA_PANEL_V2 = { on: true };
+export function storedQaPanelV2(read: () => string | null): boolean {
+  return storedDefaultOn(read);
+}
+export function applyQaPanelV2(on: boolean) {
+  QA_PANEL_V2.on = on;
+}

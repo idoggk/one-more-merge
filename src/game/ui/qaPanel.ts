@@ -6,6 +6,7 @@ import { applyLevelTimeline, storedLevelTimeline, LEVEL_TIMELINE_KEY } from '../
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
 import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../content/experiments';
+import { applyQaPanelV2, storedQaPanelV2, QA_PANEL_V2, QA_PANEL_V2_KEY } from '../../content/experiments';
 import { openMascotDemo } from './mascotDemo';
 import { applyRoadSurfaceKit, storedRoadSurfaceKit, ROAD_SURFACE_KIT_KEY } from '../../content/experiments';
 import { applyRoadMapMock1, storedRoadMapMock1, ROAD_MAP_MOCK1_KEY } from '../../content/experiments';
@@ -32,6 +33,7 @@ import { layoutPanel } from './qaLayout';
 import { qaAction, qaChips, qaChoice, qaFlag, qaGrid, qaGuideCard, qaGuideTop, qaSectionHeader, qaStepper, setFitText, type QaCtx, type QaRow, type QaSection } from './qaKit';
 import { GUIDE_KEY, GUIDE_TESTS, guideProgress, readGuide, resetAll, startTest, withAnswer, type GuideAnswer, type GuideNav } from './qaGuide';
 import { currentBuildLabel } from './buildInfo';
+import { buildV2Sections, v2InitialCollapsed, type V2State } from './qaPanelV2';
 
 // t-2c7cbae7 QA-only: mid-level chaos experiment preset, kept on this device only (not in the save / backup code)
 const SPAM_KEY = 'omm_qa_spam_variant';
@@ -164,6 +166,9 @@ export const qaRoadPerfHud = () => storedRoadPerfHud(() => localStorage.getItem(
 applyRoadPerfHud(qaRoadPerfHud());
 export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
 applyLevelRoadV2(qaLevelRoadV2());
+// QA PANEL V2 (presets + grouped list), default ON; OFF restores the old section panel. UI only, this device only
+export const qaPanelV2 = () => storedQaPanelV2(() => localStorage.getItem(QA_PANEL_V2_KEY));
+applyQaPanelV2(qaPanelV2());
 
 
 /** Roster B batches shown in the NEW UNITS group (each is its own this-device-only switch, same keys as before). */
@@ -980,6 +985,20 @@ export const QA_SECTIONS: QaSection[] = [
         },
         toast: (id) => `SCREEN SHAKE ${id.toUpperCase()}`,
       }),
+      // QA PANEL V2: ON = presets + switches by group + search; OFF = this old section list (UI only)
+      qaFlag({
+        id: 'qaPanelV2',
+        defOn: true,
+        title: 'QA PANEL V2',
+        desc: 'Presets + groups. OFF = old list',
+        get: () => !!qaPanelV2(),
+        set: (on) => {
+          store(QA_PANEL_V2_KEY, on ? null : 'off');
+          applyQaPanelV2(on);
+          tlog.log('qa_panel_v2', { on });
+        },
+        toast: (on) => (on ? 'QA PANEL V2 ON' : 'QA PANEL V2 OFF (old list)'),
+      }),
     ],
   },
 ];
@@ -989,7 +1008,25 @@ export const QA_ROWS: QaRow[] = QA_SECTIONS.flatMap((s) => s.rows);
 /** Which sections are folded away: remembered while the game runs (not saved). START HERE starts open, the rest folded. */
 const collapsed = new Set<string>(QA_SECTIONS.slice(1).map((s) => s.id));
 export const qaCollapsed = collapsed;
-const panelSpec = () => QA_SECTIONS.map((s) => ({ id: s.id, rows: s.rows.map((r) => r.spec) }));
+const panelSpec = (sections: readonly QaSection[]) => sections.map((s) => ({ id: s.id, rows: s.rows.map((r) => r.spec) }));
+
+/** QA PANEL V2 state (remembered while the game runs, not saved): folded groups, open "?" helps, the search word, and the last preset set on this phone. */
+const collapsedV2 = v2InitialCollapsed();
+const v2State: V2State = { helpOpen: new Set<string>(), search: '' };
+const LAST_PRESET_KEY = 'omm_qa_last_preset';
+const v2Env = {
+  rows: QA_ROWS,
+  lastPreset: () => {
+    try {
+      return localStorage.getItem(LAST_PRESET_KEY);
+    } catch {
+      return null;
+    }
+  },
+  setLastPreset: (id: string | null) => store(LAST_PRESET_KEY, id),
+  askSearch: (current: string) => (typeof window !== 'undefined' && typeof window.prompt === 'function' ? window.prompt('Search switches (empty clears)', current) : null),
+  build: () => `Build: ${currentBuildLabel()}`,
+};
 
 /** Drag farther than this (design px) and the gesture is a scroll, not a tap. */
 const DRAG_SLOP = 12;
@@ -998,10 +1035,15 @@ const DRAG_SLOP = 12;
  *  (touch drag, mouse wheel), clamped to the content. */
 let lastScroll = 0;
 export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepScroll = false) {
+  if (!QA_PANEL_V2.on) return openSections(scene, jump, keepScroll, QA_SECTIONS, collapsed);
+  return openSections(scene, jump, keepScroll, buildV2Sections(v2Env, v2State), collapsedV2);
+}
+
+function openSections(scene: GameScene, jump: number, keepScroll: boolean, sections: readonly QaSection[], collapsed: Set<string>) {
   if (!keepScroll) lastScroll = 0;
   scene.loadUnitPictures(); // a batch switch may just have put units in play: fetch their pictures now
   if (!keepScroll) scene.closeModal(); // a redraw of this sheet replaces it at once (no fade, no double dim)
-  const geo = layoutPanel(panelSpec(), collapsed, H);
+  const geo = layoutPanel(panelSpec(sections), collapsed, H);
   const PH = geo.panelH;
   const c = scene.sheet(PH);
   if (keepScroll) {
@@ -1016,7 +1058,7 @@ export function openQaTools(scene: GameScene, jump = scene.currentLevel(), keepS
   c.add(list);
   const q: QaCtx = { scene, c: list, oy: top, jump, save: () => store(META_KEY, JSON.stringify(m)), reopen: () => scene.openQaTools(q.jump, true) };
   geo.sections.forEach((sl, si) => {
-    const def = QA_SECTIONS[si];
+    const def = sections[si];
     qaSectionHeader(q, sl, def.title, !collapsed.has(def.id), () => {
       if (collapsed.has(def.id)) collapsed.delete(def.id);
       else collapsed.add(def.id);

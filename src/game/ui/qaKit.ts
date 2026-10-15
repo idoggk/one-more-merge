@@ -10,10 +10,10 @@ import { QA_ACTION_W, QA_CTRL_H, QA_INLINE_SEGMENTS, type Part, type QaRowSpec, 
 export const QA_FONT = 'Lilita One, Arial Black';
 /** The game's own UI colours (panel cream, ink, brown, green, amber). */
 export const QA_INK = 0x2b1d2e;
-const GREEN = 0x5fbf4a;
-const AMBER = 0xd9a441;
-const BROWN = 0x8a6a4a;
-const OFF_GREY = 0xb5a48c;
+export const GREEN = 0x5fbf4a;
+export const AMBER = 0xd9a441;
+export const BROWN = 0x8a6a4a;
+export const OFF_GREY = 0xb5a48c;
 
 /** What a QA row draws into: the scrolling list, plus the level picked in JUMP TO LEVEL (kept when the panel reopens). */
 export interface QaCtx {
@@ -22,6 +22,8 @@ export interface QaCtx {
   /** Sheet top: layout y values are relative to it. */
   oy: number;
   jump: number;
+  /** QA PANEL V2 only: the short label a row draws instead of its own title / description (set around one row's draw). */
+  label?: { title: string; desc?: string };
   save: () => void;
   /** Redraw the panel (after a switch changes), keeping the picked level, the scroll and the open sections. */
   reopen: () => void;
@@ -39,6 +41,10 @@ export interface QaRow {
   reset?: (q: QaCtx) => void;
   /** Set the setting to `v` (true / false for a flag, an option id for a multi-choice), as a tap would, without the toast. */
   apply?: (v: boolean | string, q: QaCtx) => void;
+  /** The setting's current value as a string (flags: 'true' / 'false' / 'mixed'; multi-choice: the option id). Only on resettable settings. */
+  read?: (q: QaCtx) => string;
+  /** The default `read` returns after RESET ALL. */
+  def?: string;
 }
 export interface QaSection {
   id: string;
@@ -50,7 +56,7 @@ export interface QaSection {
 
 const cx = (r: Rect) => r.x + r.w / 2;
 const cy = (q: QaCtx, r: Rect) => r.y + q.oy + r.h / 2;
-const part = (l: RowLayout, role: Part['role'], i?: number) => l.parts.find((p) => p.role === role && (i === undefined || p.i === i))?.rect as Rect;
+export const part = (l: RowLayout, role: Part['role'], i?: number) => l.parts.find((p) => p.role === role && (i === undefined || p.i === i))?.rect as Rect;
 const parts = (l: RowLayout, role: Part['role']) => l.parts.filter((p) => p.role === role);
 
 /** Shrink a text to fit `maxW` (long labels shrink, they never overflow). */
@@ -61,14 +67,14 @@ export function fitText(t: Phaser.GameObjects.Text, maxW: number) {
 export const setFitText = (t: Phaser.GameObjects.Text, str: string, maxW: number) => fitText(t.setText(str), maxW);
 
 /** Left-aligned text centred vertically in `r`, shrunk to fit its width. */
-function textIn(q: QaCtx, r: Rect, str: string, font: string, size: number, color: string, extra: Phaser.Types.GameObjects.Text.TextStyle = {}) {
+export function textIn(q: QaCtx, r: Rect, str: string, font: string, size: number, color: string, extra: Phaser.Types.GameObjects.Text.TextStyle = {}) {
   const t = q.scene.add.text(r.x, r.y + q.oy + r.h / 2, str, { fontFamily: font, fontSize: `${size}px`, color, ...extra }).setOrigin(0, 0.5);
   q.c.add(fitText(t, r.w));
   return t;
 }
 
 /** The pressable control: an interactive container as tall as the hit rect, with the visuals drawn around its centre. */
-function control(q: QaCtx, r: Rect, onTap: () => void) {
+export function control(q: QaCtx, r: Rect, onTap: () => void) {
   const { scene } = q;
   const ctl = scene.add.container(cx(r), cy(q, r)).setSize(r.w, r.h).setInteractive({ useHandCursor: true });
   ctl.on('pointerdown', () => {
@@ -86,7 +92,7 @@ function control(q: QaCtx, r: Rect, onTap: () => void) {
   return ctl;
 }
 
-const card = (q: QaCtx, r: Rect, fill = 0xfff6e6) => {
+export const card = (q: QaCtx, r: Rect, fill = 0xfff6e6) => {
   const g = q.scene.add.graphics().fillStyle(fill, 1).fillRoundedRect(r.x, r.y + q.oy, r.w, r.h, 22).lineStyle(2, 0xd9bf94, 1).strokeRoundedRect(r.x, r.y + q.oy, r.w, r.h, 22);
   q.c.add(g);
 };
@@ -96,7 +102,7 @@ const checkMark = (g: Phaser.GameObjects.Graphics, x: number, y: number, color =
 };
 
 /** A pill button inside a control's centre (`w` wide, QA_CTRL_H tall): the label shrinks to fit. */
-function pill(q: QaCtx, ctl: Phaser.GameObjects.Container, w: number, label: string, color: number, fontSize = 28) {
+export function pill(q: QaCtx, ctl: Phaser.GameObjects.Container, w: number, label: string, color: number, fontSize = 28) {
   const g = q.scene.add.graphics().fillStyle(QA_INK, 1).fillRoundedRect(-w / 2, -QA_CTRL_H / 2, w, QA_CTRL_H, 24).fillStyle(color, 1).fillRoundedRect(-w / 2 + 4, -QA_CTRL_H / 2 + 3, w - 8, QA_CTRL_H - 10, 20);
   const t = q.scene.add.text(0, -2, label, { fontFamily: QA_FONT, fontSize: `${fontSize}px`, color: '#fff', stroke: '#2b1d2e', strokeThickness: 5 }).setOrigin(0.5);
   fitText(t, w - 28);
@@ -123,6 +129,10 @@ function drawSwitch(q: QaCtx, ctl: Phaser.GameObjects.Container, w: number, stat
 const descOf = (d: QaText | undefined) => qaText(d);
 /** Title (and the description under it) of a row, in the title / desc rects. */
 function drawText(q: QaCtx, l: RowLayout, title: string, desc?: QaText) {
+  if (q.label) {
+    title = q.label.title;
+    desc = q.label.desc;
+  }
   textIn(q, part(l, 'title'), title, QA_FONT, 28, '#3b2533');
   const d = descOf(desc);
   if (d) textIn(q, part(l, 'desc'), d, 'Arial', 20, '#7a5a4a', { fontStyle: 'bold' });
@@ -165,6 +175,8 @@ export function qaFlag(o: Base & { get: () => boolean | 'mixed'; set: (on: boole
     // defOn: a visual-only switch that ships ON; its default (and RESET ALL) is ON
     reset: () => state() !== (o.defOn ? 'on' : 'off') && o.set(!!o.defOn),
     apply: (v) => o.set(!!v),
+    read: () => String(o.get()),
+    def: String(!!o.defOn),
     draw: (q, l) => {
       card(q, l.rect);
       drawText(q, l, o.title, o.desc);
@@ -188,6 +200,8 @@ export function qaChoice<T>(o: Base & { options: readonly { id: T; label: string
     title: o.title,
     desc: o.desc,
     reset: o.def === undefined ? undefined : (q) => o.current(q) !== o.def && o.pick(o.def as T, q),
+    read: o.def === undefined ? undefined : (q) => String(o.current(q)),
+    def: o.def === undefined ? undefined : String(o.def),
     apply: (v, q) => {
       const opt = o.options.find((x) => String(x.id) === v);
       if (!opt) throw new Error(`${o.id}: no option "${String(v)}"`);

@@ -13,6 +13,54 @@ Two ways:
 
 Tap **BACK** (top right of the panel) to leave.
 
+## The new panel (QA PANEL V2): start here
+
+The panel now opens on **presets**. You no longer have to remember switches: tap a preset, do what it says, look at what it says.
+
+From the top:
+
+1. **A status block.** It says `NOW: PLAYER VIEW`, or `NOW: CUSTOM (3 differ from PLAYER VIEW)` when your switches match no preset. The second line says what changed since the last preset you set ("Since ROAD TEST: Perf readout"). The third line is the build. Put the build in every bug report.
+2. **Five presets**, each a big card with a button (44 pt tall):
+   - **PLAYER VIEW**: every switch at its shipped default. This is what a player sees. If something is odd here, it is a real bug.
+   - **NEW FEATURES**: every finished feature that is still OFF, turned on together (longer levels, armor clock, road map mock, Bolt motion, map badges, road surface kit, road polish, UI juice, toolbox crates).
+   - **ROAD TEST**: all road switches on, plus the FPS readout in the corner of the ROAD tab.
+   - **LEVEL LENGTH TEST**: longer levels and the armor clock on.
+   - **RESET ALL**: every switch back to default and forgets the last preset.
+   The tapped preset turns green and says **ACTIVE**. Tapping a preset first puts every switch back to default, then sets its own, so presets never pile up.
+3. **JUMP TO LEVEL** sits right under the presets (-10, -1, +1, +10, GO).
+4. **FIND A SWITCH**: tap SEARCH and type a word (road, boss, crate, old...). Only matching switches show. Empty text clears.
+5. **The full list by group**: ROAD, LEVELS, UNITS, SCREW YARD, UI, DEBUG. Tap a group to open it. Every switch has a short name (4 words at most) and a round **?** button: tap it for one plain sentence, tap again to close. Old switches say **(old)** and sit at the bottom of their group.
+
+The old section panel is still there: in DEBUG turn **New QA panel** OFF to get it back. Every switch exists in both. The tables further down use the old names, so they still help you find a switch.
+
+What to do with every switch (keep, fold into a preset, or retire) is in `docs/design/QA_CLEANUP.md`. Nothing was removed.
+
+### Four phone recipes
+
+**A. Check what a player sees**
+1. Open QA TOOLS (red QA button on ROAD, or Settings).
+2. Tap **SET** on **PLAYER VIEW**. The card turns green and says ACTIVE.
+3. Tap **BACK** and play. Anything odd is a real bug.
+
+**B. Look at all the new work in two minutes**
+1. Tap **SET** on **NEW FEATURES**, then **BACK**.
+2. Open the ROAD tab: map badges, the road map mock, road kit pieces. Drag it.
+3. Open any level card: Bolt moves. Open a popup: it pops in.
+4. Play a level: it takes longer (about 1 minute early, 2 minutes later).
+5. When done, open QA TOOLS and tap **RESET ALL**.
+
+**C. Test the road drag**
+1. Tap **SET** on **ROAD TEST**, then **BACK**, then open ROAD.
+2. Drag the road for 10 seconds. Write down the three numbers in the corner (objects, motions, FPS).
+3. Tell us: is the picture steady and smooth? Add the numbers and the build line.
+4. To compare with the old road, open the **ROAD** group in the list, turn **Road perf 4 (old)** OFF, reopen ROAD, drag again.
+
+**D. Time a level**
+1. Tap **SET** on **LEVEL LENGTH TEST**.
+2. Under the presets, set **JUMP TO LEVEL** (for example 3, then 40) and tap **GO**.
+3. Start a stopwatch when you tap play. Stop when the result shows.
+4. Early levels should be about 1 minute, later ones about 2. A clear in seconds is a bug: report the level number and the time.
+
 ## How the panel works
 
 - The panel has **sections**. Tap a section title to open or fold it. Only START HERE is open at first.
