@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="body" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#7fe6ff"/><stop offset="0.45" stop-color="#17b2dc"/><stop offset="1" stop-color="#0a6a8e"/></linearGradient><linearGradient id="trim" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#ffd9a0"/><stop offset="0.45" stop-color="#f2933a"/><stop offset="1" stop-color="#a85a16"/></linearGradient><linearGradient id="wood" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#ffd9a0"/><stop offset="0.45" stop-color="#f2933a"/><stop offset="1" stop-color="#a85a16"/></linearGradient><linearGradient id="gw" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#6a5a78"/><stop offset="0.45" stop-color="#3a2f46"/><stop offset="1" stop-color="#1f1828"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8fe9ff" stop-opacity="0"/><stop offset="78%" stop-color="#8fe9ff" stop-opacity="0"/><stop offset="88%" stop-color="#8fe9ff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#8fe9ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="112" r="122" fill="url(#glow)"/>
+  <circle cx="128" cy="112" r="104" fill="none" stroke="#8fe9ff" stroke-opacity="0.3" stroke-width="4"/>
+  <g transform="translate(128 112) scale(0.68)">
+    <ellipse cx="0" cy="94" rx="92" ry="13" fill="#000" fill-opacity="0.3"/>
+    
+      <!-- 1 base block -->
+      <path d="M-72,62 Q-72,50 -60,50 L60,50 Q72,50 72,62 L72,80 L-72,80 Z" fill="url(#body)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M-64,58 Q-64,54 -58,54 L30,54 L30,60 L-64,60 Z" fill="#fff" fill-opacity="0.5"/>
+      <!-- 2 small wheels -->
+      
+  <circle cx="-46" cy="84" r="17" fill="url(#gw)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="-46" cy="84" r="7.14" fill="url(#trim)" stroke="#33180f" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M-59.6,81.45 A13.94,13.94 0 0 1 -47.7,70.4 L-46.85,73.46000000000001 A10.88,10.88 0 0 0 -56.54,82.3 Z" fill="#fff" fill-opacity="0.35"/>
+      
+  <circle cx="46" cy="84" r="17" fill="url(#gw)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="46" cy="84" r="7.14" fill="url(#trim)" stroke="#33180f" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M32.4,81.45 A13.94,13.94 0 0 1 44.3,70.4 L45.15,73.46000000000001 A10.88,10.88 0 0 0 35.46,82.3 Z" fill="#fff" fill-opacity="0.35"/>
+      <!-- 3 tower -->
+      <path d="M-36,52 L-22,-34 L22,-34 L36,52 Z" fill="url(#body)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M-28,44 L-16,-26 L-6,-26 L-17,44 Z" fill="#fff" fill-opacity="0.5"/>
+      <!-- 4 copper winding rings -->
+      <rect x="-34" y="-12" width="68" height="17" rx="8" fill="url(#trim)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+      <rect x="-38" y="16" width="76" height="17" rx="8" fill="url(#trim)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- 5 top ball -->
+      <circle cx="0" cy="-56" r="31" fill="url(#body)" stroke="#33180f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M-24,-62 A26,26 0 0 1 -4,-82 L-6,-72 A18,18 0 0 0 -17,-60 Z" fill="#fff" fill-opacity="0.7"/>
+      <!-- 6 bolt badge -->
+      <path d="M6,-72 L-12,-52 L-1,-52 L-6,-36 L14,-58 L3,-58 Z" fill="#fff3a0" stroke="#33180f" stroke-width="4.5" stroke-linejoin="round"/>
+  </g>
+  <circle cx="128" cy="236" r="7.5" fill="#fff6c2" stroke="#33180f" stroke-width="4"/>
+</svg>
