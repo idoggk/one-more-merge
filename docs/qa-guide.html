@@ -1,0 +1,185 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>QA tools guide</title><style>:root{--bg:#fffaf0;--fg:#2b1d2e;--card:#fff;--line:#e0cdb0;--acc:#d8261a;--mut:#6a5040}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1420;--fg:#f6ecd8;--card:#2a1e30;--line:#4a3a52;--acc:#ff7a5c;--mut:#c9b8a0}}
+*{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:20px/1.5 system-ui,-apple-system,Arial,sans-serif;max-width:760px;margin:auto}
+h1{font-size:30px}h2{font-size:26px;border-bottom:3px solid var(--acc);padding-bottom:4px;margin-top:36px}h3{font-size:22px;margin-top:28px}
+li{margin:8px 0}code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:.9em}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:17px}th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}th{background:var(--card)}
+@media(max-width:640px){thead{display:none}table,tbody,tr,td{display:block;width:100%}tr{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:12px 0;padding:6px}td{border:0;padding:4px 8px}td:first-child{font-weight:bold;font-size:20px;color:var(--acc)}td:not(:first-child)::before{content:attr(data-h) ": ";color:var(--mut);font-size:15px;font-weight:bold}}</style></head><body>
+<h1>QA tools guide (plain words)</h1>
+<p>The QA panel is for testing. It is not part of the real game. Every switch here is saved on <b>this phone only</b>, not in your save. A phone-friendly copy of this page is <code>docs/qa-guide.html</code>.</p>
+<p>Read from <code>src/game/ui/qaPanel.ts</code>, <code>src/content/experiments.ts</code>, <code>tests/qaPanel.test.ts</code> (build of 2026-10-15, commit a157f3d).</p>
+<h2>How to open it</h2>
+<p>Two ways:</p>
+<ol>
+<li>Tap the round red <b>QA</b> button on the <b>ROAD</b> tab (right side, under the top bar).</li>
+<li>Open <b>Settings</b> and tap the red <b>QA TOOLS</b> button.</li>
+</ol>
+<p>Tap <b>BACK</b> (top right of the panel) to leave.</p>
+<h2>How the panel works</h2>
+<ul>
+<li>The panel has <b>sections</b>. Tap a section title to open or fold it. Only START HERE is open at first.</li>
+<li>Drag with one finger to scroll.</li>
+<li>A <b>switch</b> has an ON/OFF pill. Tap it. A message at the top tells you what changed.</li>
+<li>A <b>choice row</b> shows several words in a bar (for example OFF / CALM / MANIA). Tap one word.</li>
+<li>A <b>button</b> (GIVE, SHOW, ...) does a thing once.</li>
+<li>Many rows say when they apply: <b>Next level</b> means start a new level first. <b>Open ROAD</b> means leave and reopen the ROAD tab.</li>
+<li><b>RESET ALL</b> (top of START HERE) puts every switch back to its default. It does not touch SCREEN SHAKE or any GIVE button.</li>
+<li>The line "Which build am I on" shows the build. Put it in every bug report.</li>
+</ul>
+<h2>The sections</h2>
+<div class="tw"><table><thead><tr><th>Section</th><th>What it is</th></tr></thead><tbody>
+<tr><td data-h="Section">START HERE</td><td data-h="What it is">8 guided tests. Tap START, do what the card says, then answer YES or NOT RIGHT. Also RESET ALL.</td></tr>
+<tr><td data-h="Section">QUICK TOOLS</td><td data-h="What it is">Shortcuts: jump to a level, get units, crates, bolts.</td></tr>
+<tr><td data-h="Section">MERGE FEEL</td><td data-h="What it is">Rules that change how merging and level speed feel.</td></tr>
+<tr><td data-h="Section">UNITS</td><td data-h="What it is">Turn on the newer units and unit experiments.</td></tr>
+<tr><td data-h="Section">CRATES</td><td data-h="What it is">How crates look and open.</td></tr>
+<tr><td data-h="Section">LEVELS AND TESTS</td><td data-h="What it is">Mixed bag: level experiments and almost all road-map switches.</td></tr>
+<tr><td data-h="Section">SCREW YARD</td><td data-h="What it is">The Screw Yard event experiments.</td></tr>
+<tr><td data-h="Section">DISPLAY</td><td data-h="What it is">Looks and motion only. Nothing here changes how a level is won.</td></tr>
+</tbody></table></div>
+<h2>Every switch</h2>
+<p>"Default" is what you get after RESET ALL. ON-by-default switches are already part of the game.</p>
+<h3>START HERE</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">RESET ALL (button)</td><td data-h="Meaning">Puts every switch back to its default.</td><td data-h="Default">–</td><td data-h="What you see">Everything returns to normal.</td><td data-h="When to use">Before a fresh test, or when something looks odd.</td></tr>
+<tr><td data-h="Name on screen">Tested N of 8</td><td data-h="Meaning">Counts your answered guided tests.</td><td data-h="Default">–</td><td data-h="What you see">A counter.</td><td data-h="When to use">To see what is left.</td></tr>
+<tr><td data-h="Name on screen">Test 1 NEW CRATE OPENING</td><td data-h="Meaning">Sets the toolbox crates, gives 3 crates, opens UNITS.</td><td data-h="Default">–</td><td data-h="What you see">Toolbox that shakes and bursts.</td><td data-h="When to use">To check crate opening.</td></tr>
+<tr><td data-h="Name on screen">Test 2 UNITS SCREEN SCROLLING</td><td data-h="Meaning">Turns on all new units, gives every unit level 5, opens UNITS.</td><td data-h="Default">–</td><td data-h="What you see">A long unit list.</td><td data-h="When to use">To check scrolling.</td></tr>
+<tr><td data-h="Name on screen">Test 3 MERGE ASSIST HELP</td><td data-h="Meaning">Turns MERGE ASSIST on, jumps to level 4.</td><td data-h="Default">–</td><td data-h="What you see">A glow shows which part to tap.</td><td data-h="When to use">To check the helper.</td></tr>
+<tr><td data-h="Name on screen">Test 4 SANDWICH BONUS MERGE</td><td data-h="Meaning">Sets MERGE RULE to +2 AND BONUS, jumps to level 6.</td><td data-h="Default">–</td><td data-h="What you see">The middle part joins in.</td><td data-h="When to use">To check the sandwich rule.</td></tr>
+<tr><td data-h="Name on screen">Test 5 CAPPED MERGE LEVEL</td><td data-h="Meaning">Turns on BUDGET LEVELS, starts the first one.</td><td data-h="Default">–</td><td data-h="What you see">A merge counter, no clock.</td><td data-h="When to use">To check the last-merges level.</td></tr>
+<tr><td data-h="Name on screen">Test 6 POWER TOOLS TEST</td><td data-h="Meaning">Turns on POWER TOOLS, jumps to level 12.</td><td data-h="Default">–</td><td data-h="What you see">Row Surge or Gear Bomb appears.</td><td data-h="When to use">To check the tools.</td></tr>
+<tr><td data-h="Name on screen">Test 7 SCREW YARD PRESSURE</td><td data-h="Meaning">Sets SCREW YARD to OBJECT and YARD PRESSURE on, opens the yard.</td><td data-h="Default">–</td><td data-h="What you see">A countdown and tap budget.</td><td data-h="When to use">To check yard pressure.</td></tr>
+<tr><td data-h="Name on screen">Test 8 VARIED LEVEL OPENINGS</td><td data-h="Meaning">Turns on VARIED OPENINGS, jumps to level 7.</td><td data-h="Default">–</td><td data-h="What you see">Different start layout per try.</td><td data-h="When to use">To check opening variety.</td></tr>
+</tbody></table></div>
+<p>Each START first resets every switch, then sets only its own. So a START wipes switches you set by hand.</p>
+<h3>QUICK TOOLS</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">JUMP TO LEVEL</td><td data-h="Meaning">Pick a number with -10 / -1 / +1 / +10, tap GO. All earlier levels count as cleared (2 stars).</td><td data-h="Default">–</td><td data-h="What you see">The road opens on that level card.</td><td data-h="When to use">To reach a late level fast.</td></tr>
+<tr><td data-h="Name on screen">ALL UNITS (LV 5)</td><td data-h="Meaning">Every unit goes to level 5.</td><td data-h="Default">button</td><td data-h="What you see">A message "ALL 13 UNITS AT LEVEL 5".</td><td data-h="When to use">To test the units screen or strong squads.</td></tr>
+<tr><td data-h="Name on screen">UNLOCK ALL</td><td data-h="Meaning">Opens every locked feature.</td><td data-h="Default">button</td><td data-h="What you see">A message; tabs and features open.</td><td data-h="When to use">To reach Team, Puzzles, Workshop and so on.</td></tr>
+<tr><td data-h="Name on screen">BOLTS AND GEMS</td><td data-h="Meaning">+2000 bolts and +500 gems each tap.</td><td data-h="Default">button</td><td data-h="What you see">Counters grow.</td><td data-h="When to use">To test shops and upgrades.</td></tr>
+<tr><td data-h="Name on screen">+3 CRATES</td><td data-h="Meaning">One crate of each tier.</td><td data-h="Default">button</td><td data-h="What you see">A message; crates in the UNITS tab.</td><td data-h="When to use">To test crate opening.</td></tr>
+<tr><td data-h="Name on screen">START OVER</td><td data-h="Meaning">Wipes the whole save. Tap twice within 3 seconds.</td><td data-h="Default">button</td><td data-h="What you see">The game reloads like a new install.</td><td data-h="When to use">Only when you want a brand-new player.</td></tr>
+</tbody></table></div>
+<h3>MERGE FEEL</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">THINK BANK</td><td data-h="Meaning">If the board stands still for a few seconds, the level clock stops.</td><td data-h="Default">OFF</td><td data-h="What you see">Clock pauses while you think. Next level.</td><td data-h="When to use">To test slower, thinking play.</td></tr>
+<tr><td data-h="Name on screen">MERGE RULE</td><td data-h="Meaning">Choose the sandwich merge rule: TODAY, a +2 version, or +2 AND BONUS.</td><td data-h="Default">TODAY</td><td data-h="What you see">Merging two parts with one between them also takes the middle part. Next level.</td><td data-h="When to use">To test the sandwich idea.</td></tr>
+<tr><td data-h="Name on screen">MERGE ASSIST</td><td data-h="Meaning">OFF, ON, or AUTO. A glow points to the next tap. AUTO = levels 1-10 and your first 30 merges. Same as the Settings option.</td><td data-h="Default">OFF</td><td data-h="What you see">A glow on the parts.</td><td data-h="When to use">To check help for new players.</td></tr>
+<tr><td data-h="Name on screen">PACE</td><td data-h="Meaning">How fast a level runs: TODAY, CALM, MANIA.</td><td data-h="Default">CALM</td><td data-h="What you see">Slower or faster spawns. Next level.</td><td data-h="When to use">To compare level speed.</td></tr>
+</tbody></table></div>
+<h3>UNITS</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">ALL NEW UNITS</td><td data-h="Meaning">Turns on crates B and unit batches 1 to 7 together. Shows MIXED if only some are on.</td><td data-h="Default">OFF</td><td data-h="What you see">More units in collection, crates and squads. Row text shows how many units are in play.</td><td data-h="When to use">To see the full roster.</td></tr>
+<tr><td data-h="Name on screen">UNIT BATCHES (BATCH 1..7)</td><td data-h="Meaning">Seven cards; each turns one group of new units on or off. Batch 1: Nail Gun, Jackhammer, Gear, Saw Blade. 2: Wrench, Piston, Spring, Belt Drive. 3: Blowtorch, Pipe, Blast Plate, Tesla Tower. 4: Capacitor, Blueprint, Ladder, Rewind Crank. 5: Crane, Dynamo, Wrecking Ball. 6: Robot Arm, Tilt Lever. 7: Rivet Gun, Vice, Router, Hydraulic Press, Lathe.</td><td data-h="Default">all OFF</td><td data-h="What you see">Lit card = on. Those units appear.</td><td data-h="When to use">To test one group alone.</td></tr>
+<tr><td data-h="Name on screen">UNLOCK PLAN</td><td data-h="Meaning">New units arrive by chapter: gifts on levels 10, 13, 20, 25, 30, 35, 40, 50, crate tiers, rarer units later.</td><td data-h="Default">OFF</td><td data-h="What you see">Gifts at those levels.</td><td data-h="When to use">To test how units are handed out.</td></tr>
+<tr><td data-h="Name on screen">BATCHES + PLAN (ALL ON)</td><td data-h="Meaning">Turns batches 1-7 and the unlock plan on. Only turns on, never off.</td><td data-h="Default">button</td><td data-h="What you see">A message.</td><td data-h="When to use">A quick way to get everything. Use RESET ALL to undo.</td></tr>
+<tr><td data-h="Name on screen">ROSTER MODE</td><td data-h="Meaning">Unit job experiments: OFF, B0, B1, ROSTER B.</td><td data-h="Default">OFF</td><td data-h="What you see">Units behave differently in levels. Next level.</td><td data-h="When to use">For unit-job testing only.</td></tr>
+</tbody></table></div>
+<h3>CRATES</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">CRATE LOOK</td><td data-h="Meaning">OLD crates or the TOOLBOX set (Tool Bag, Toolbox, Tool Chest).</td><td data-h="Default">OLD</td><td data-h="What you see">The crate pictures change.</td><td data-h="When to use">To see the new crate art.</td></tr>
+<tr><td data-h="Name on screen">CRATE OPENING V2</td><td data-h="Meaning">The new opening: buildup, shake, flash, one big reveal, summary, COLLECT. Needs CRATE LOOK = TOOLBOX.</td><td data-h="Default">ON</td><td data-h="What you see">A longer, nicer opening.</td><td data-h="When to use">To compare with the old opening (turn it OFF).</td></tr>
+</tbody></table></div>
+<h3>LEVELS AND TESTS</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">SPAM TEST</td><td data-h="Meaning">Fast tapping pays less: OFF, A2, A3, A3+TIRE.</td><td data-h="Default">OFF</td><td data-h="What you see">Rewards shrink if you tap fast. Next level.</td><td data-h="When to use">To test anti-spam rules.</td></tr>
+<tr><td data-h="Name on screen">VARIED OPENINGS</td><td data-h="Meaning">Ordinary levels start from one of 4 layouts.</td><td data-h="Default">OFF</td><td data-h="What you see">A different start on retries. Next level.</td><td data-h="When to use">To check variety. Boss levels, puzzles and daily stay the same.</td></tr>
+<tr><td data-h="Name on screen">PACE CAPS</td><td data-h="Meaning">Free copies stop above rank 4, so top ranks take longer.</td><td data-h="Default">OFF</td><td data-h="What you see">Fewer free high-rank parts. Next level.</td><td data-h="When to use">To test how hard top ranks are.</td></tr>
+<tr><td data-h="Name on screen">EFFORT MODEL</td><td data-h="Meaning">Bosses get more health and minions less.</td><td data-h="Default">OFF</td><td data-h="What you see">A bigger boss with tiny minions on boss and mini-boss levels. Next level.</td><td data-h="When to use">To test boss fights. Stars are not rebalanced.</td></tr>
+<tr><td data-h="Name on screen">LEVEL ROAD V2</td><td data-h="Meaning">The new ROAD tab: winding world, chapter scenery, gates, chests, momentum scroll.</td><td data-h="Default">ON</td><td data-h="What you see">The new road. Reopen ROAD.</td><td data-h="When to use">To compare with the old road (turn OFF).</td></tr>
+<tr><td data-h="Name on screen">ROAD POLISH</td><td data-h="Meaning">Extra life on the road: parallax, moving road belt, little animals, hero hop, chest rattle. Needs LEVEL ROAD V2.</td><td data-h="Default">OFF</td><td data-h="What you see">A livelier road. Reopen ROAD.</td><td data-h="When to use">To check road motion and smoothness.</td></tr>
+<tr><td data-h="Name on screen">ROAD PERF</td><td data-h="Meaning">Hides road pieces that are off screen while you scroll.</td><td data-h="Default">ON</td><td data-h="What you see">Same look, smoother. Reopen ROAD.</td><td data-h="When to use">Turn OFF to compare speed.</td></tr>
+<tr><td data-h="Name on screen">ROAD PERF 2</td><td data-h="Meaning">Second speed pass: no mask, cached sky, paused off-screen motion.</td><td data-h="Default">ON</td><td data-h="What you see">Same look, smoother. Reopen ROAD.</td><td data-h="When to use">Turn OFF to compare speed.</td></tr>
+<tr><td data-h="Name on screen">ROAD PERF 3</td><td data-h="Meaning">Third speed pass: fewer updates while scrolling, resting belt. Needs ROAD PERF 2.</td><td data-h="Default">ON</td><td data-h="What you see">Same look, smoother. Reopen ROAD.</td><td data-h="When to use">Turn OFF to compare speed.</td></tr>
+<tr><td data-h="Name on screen">ROAD PERF READOUT</td><td data-h="Meaning">Shows a small number box on the ROAD tab: objects, running motions, FPS.</td><td data-h="Default">OFF</td><td data-h="What you see">Numbers in the corner. Reopen ROAD.</td><td data-h="When to use">To measure speed and to put numbers in bug reports.</td></tr>
+<tr><td data-h="Name on screen">ROAD SURFACE KIT</td><td data-h="Meaning">Draws road pieces from the art kit along the path where art exists.</td><td data-h="Default">OFF</td><td data-h="What you see">A different road surface. Reopen ROAD.</td><td data-h="When to use">To check the road art.</td></tr>
+<tr><td data-h="Name on screen">ROAD MAP MOCK 1</td><td data-h="Meaning">Follows the road map mock: side rails (Daily, Quests, Collect, Event, Offer, Season), glow and sparkles at the hero, Bolt next to the hero.</td><td data-h="Default">OFF</td><td data-h="What you see">Badges on the sides. Reopen ROAD.</td><td data-h="When to use">To see the new road map design.</td></tr>
+<tr><td data-h="Name on screen">ROAD KIT PREVIEW (SHOW)</td><td data-h="Meaning">Opens a test road made of code placeholders. Needs ROAD SURFACE KIT on.</td><td data-h="Default">button</td><td data-h="What you see">A preview screen.</td><td data-h="When to use">To look at kit pieces alone.</td></tr>
+<tr><td data-h="Name on screen">BUDGET LEVELS</td><td data-h="Meaning">Turns on the LAST MERGES levels: no clock, a fixed merge count, stars by merges left.</td><td data-h="Default">OFF</td><td data-h="What you see">Lets you pick a budget level below.</td><td data-h="When to use">To test that mode.</td></tr>
+<tr><td data-h="Name on screen">BUDGET LEVEL PICK</td><td data-h="Meaning">Chips with the level names; tap one to play it. Greyed out until BUDGET LEVELS is on.</td><td data-h="Default">button</td><td data-h="What you see">The level starts.</td><td data-h="When to use">After turning BUDGET LEVELS on.</td></tr>
+<tr><td data-h="Name on screen">POWER TOOLS</td><td data-h="Meaning">Chain of 5+ makes a Row Surge; a sandwich makes a Gear Bomb. Also sets MERGE RULE to +2 AND BONUS.</td><td data-h="Default">OFF</td><td data-h="What you see">Tool pieces on the board. From level 10.</td><td data-h="When to use">To test the tools.</td></tr>
+<tr><td data-h="Name on screen">YARD PRESSURE</td><td data-h="Meaning">Screw Yard gets a countdown and a tap budget. Only in the OBJECT yard.</td><td data-h="Default">OFF</td><td data-h="What you see">A timer from your first tap.</td><td data-h="When to use">To test yard pressure.</td></tr>
+</tbody></table></div>
+<h3>SCREW YARD</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">SCREW YARD (OLD / OBJECT)</td><td data-h="Meaning">OLD = today's plates. OBJECT = a turnable object.</td><td data-h="Default">OLD</td><td data-h="What you see">A different yard. Open EVENTS, then SCREW YARD.</td><td data-h="When to use">To test the new yard.</td></tr>
+<tr><td data-h="Name on screen">YARD BOOK</td><td data-h="Meaning">Stars by tap budget, a unit crate with a cards counter, a Collection Book. OBJECT yard only.</td><td data-h="Default">OFF</td><td data-h="What you see">Book button in the yard.</td><td data-h="When to use">To test the yard rewards.</td></tr>
+</tbody></table></div>
+<h3>DISPLAY</h3>
+<div class="tw"><table><thead><tr><th>Name on screen</th><th>Meaning</th><th>Default</th><th>What you see</th><th>When to use</th></tr></thead><tbody>
+<tr><td data-h="Name on screen">UI KIT V3</td><td data-h="Meaning">The rebuilt level intro popup.</td><td data-h="Default">ON</td><td data-h="What you see">A new-looking level card on open. Next level.</td><td data-h="When to use">To compare with the old card (turn OFF).</td></tr>
+<tr><td data-h="Name on screen">RESOURCE FLY</td><td data-h="Meaning">Reward icons fly to a counter on results, puzzle payout and collection claim.</td><td data-h="Default">ON</td><td data-h="What you see">Icons arc across the screen.</td><td data-h="When to use">To check reward animation.</td></tr>
+<tr><td data-h="Name on screen">UNIT SHOTS</td><td data-h="Meaning">Each shooter family has its own shot; chains take the unit's colour.</td><td data-h="Default">ON</td><td data-h="What you see">Coloured shots and chains. Next chain.</td><td data-h="When to use">To check combat looks.</td></tr>
+<tr><td data-h="Name on screen">UNIT IDLE</td><td data-h="Meaning">Units breathe, blink, hop and wobble.</td><td data-h="Default">ON</td><td data-h="What you see">Little movement on board, tray and units tab.</td><td data-h="When to use">To check life, or to turn off if it feels busy.</td></tr>
+<tr><td data-h="Name on screen">MASCOT MOTION</td><td data-h="Meaning">The mascot Bolt animates: peeks in, hops, points.</td><td data-h="Default">OFF</td><td data-h="What you see">Bolt moves on the level intro.</td><td data-h="When to use">To check Bolt.</td></tr>
+<tr><td data-h="Name on screen">MASCOT DEMO (SHOW)</td><td data-h="Meaning">Shows Bolt in each state. Needs MASCOT MOTION on.</td><td data-h="Default">button</td><td data-h="What you see">A demo screen.</td><td data-h="When to use">To see every Bolt pose.</td></tr>
+<tr><td data-h="Name on screen">MAP BADGES</td><td data-h="Meaning">Feature badge rails on the road.</td><td data-h="Default">OFF</td><td data-h="What you see">Badges at the road edges. Reopen ROAD.</td><td data-h="When to use">To test the badges.</td></tr>
+<tr><td data-h="Name on screen">BADGE STATES</td><td data-h="Meaning">Forces every badge into one state: AUTO, IDLE, READY, TIMER, LOCKED.</td><td data-h="Default">AUTO</td><td data-h="What you see">All badges look the same. Reopen ROAD.</td><td data-h="When to use">To inspect each badge look.</td></tr>
+<tr><td data-h="Name on screen">UI JUICE</td><td data-h="Meaning">Popups pop in, buttons squash, glints and sparkles on rewards and badges.</td><td data-h="Default">OFF</td><td data-h="What you see">More bounce and shine. Reopen a popup.</td><td data-h="When to use">To check the extra shine.</td></tr>
+<tr><td data-h="Name on screen">SCREEN SHAKE</td><td data-h="Meaning">Camera shake on merges and bosses (same as Settings).</td><td data-h="Default">your setting</td><td data-h="What you see">A shake preview when you tap.</td><td data-h="When to use">If shake is too strong or too weak. RESET ALL does not change it.</td></tr>
+</tbody></table></div>
+<p>If you leave motion off (reduced motion on your phone), the motion switches show nothing.</p>
+<h2>Recipes</h2>
+<h3>1. See the new road map</h3>
+<ol>
+<li>Open QA TOOLS (red QA button on the ROAD tab).</li>
+<li>Tap <b>LEVELS AND TESTS</b> to open it, then scroll.</li>
+<li>Make sure <b>LEVEL ROAD V2</b> is ON.</li>
+<li>Turn <b>ROAD MAP MOCK 1</b> ON. A message says to open the road.</li>
+<li>Tap <b>BACK</b>, then tap the <b>ROAD</b> tab (leave and come back if you are already there).</li>
+<li>You see rails on the sides and Bolt near the hero. For Bolt to move, also turn <b>MASCOT MOTION</b> ON (DISPLAY).</li>
+<li>Want the other badge style? Turn it OFF and use <b>MAP BADGES</b> in DISPLAY instead.</li>
+</ol>
+<h3>2. Compare road speed ON and OFF with the ROAD PERF READOUT</h3>
+<ol>
+<li>Open QA TOOLS, then LEVELS AND TESTS.</li>
+<li>Turn <b>ROAD PERF READOUT</b> ON. Tap BACK and open ROAD.</li>
+<li>Scroll the road for 10 seconds. Write down the three numbers in the corner (objects, motions, FPS).</li>
+<li>Go back to QA TOOLS. Turn <b>ROAD PERF</b>, <b>ROAD PERF 2</b> and <b>ROAD PERF 3</b> OFF (3 first).</li>
+<li>Reopen ROAD, scroll the same way for 10 seconds, write the numbers again.</li>
+<li>Turn all three back ON (or tap RESET ALL, which also turns the READOUT off).</li>
+<li>Better = fewer objects and a higher FPS.</li>
+</ol>
+<h3>3. Jump to a level</h3>
+<ol>
+<li>Open QA TOOLS, then QUICK TOOLS.</li>
+<li>On <b>JUMP TO LEVEL</b>, tap -10, -1, +1 or +10 until the big number is the level you want.</li>
+<li>Tap <b>GO</b>. The level card opens.</li>
+<li>Tap play. Earlier levels now count as cleared.</li>
+</ol>
+<h3>4. Try the level intro popup (boss levels too)</h3>
+<ol>
+<li>In DISPLAY, make sure <b>UI KIT V3</b> is ON.</li>
+<li>Jump to a boss level with recipe 3. Boss levels have a boss on the card; I could not find a fixed list in the QA code, so use the road and look for the boss icon.</li>
+<li>Read the new-style card that opens.</li>
+<li>Want to compare? Turn UI KIT V3 OFF, jump again, and look at the old card.</li>
+<li>For Bolt in the popup, also turn <b>MASCOT MOTION</b> ON.</li>
+<li>For bigger bosses, turn <b>EFFORT MODEL</b> ON before you start the level.</li>
+</ol>
+<h3>5. Reset a switch</h3>
+<ul>
+<li>One switch: tap it again (ON goes to OFF), or tap the default word on a choice row.</li>
+<li>Everything: open <b>START HERE</b> and tap <b>RESET ALL</b>. Switches go back to their defaults. SCREEN SHAKE and GIVE buttons are not undone.</li>
+<li>A START on a guided test also resets everything first.</li>
+<li>To clear the whole save: QUICK TOOLS, <b>START OVER</b>, tap twice. This cannot be undone.</li>
+</ul>
+<h3>6. Report a problem</h3>
+<ol>
+<li>Open QA TOOLS. Read the line <b>Which build am I on</b> and write it down.</li>
+<li>Write which switches you changed. If unsure, say "I tapped RESET ALL, then turned X ON".</li>
+<li>Write the steps: which level (use JUMP TO LEVEL numbers), what you tapped.</li>
+<li>Write what you expected, and what happened.</li>
+<li>For slow or choppy: turn ROAD PERF READOUT on and write the three numbers.</li>
+<li>Take a screenshot. Send everything together.</li>
+</ol>
+<h2>Confusing things in the panel, and a fix for each</h2>
+<ol>
+<li><b>The road switches are scattered.</b> Nine ROAD rows and ROAD MAP MOCK 1 sit inside LEVELS AND TESTS, while MAP BADGES, BADGE STATES and MASCOT sit in DISPLAY. <i>Fix:</i> a new ROAD section holding all road, badge and Bolt switches.</li>
+<li><b>Names and "needs" are hidden.</b> ROAD PERF, PERF 2, PERF 3, ROAD POLISH and CRATE OPENING V2 depend on other switches, but nothing shows it when the other one is OFF. <i>Fix:</i> grey out a switch with a short "needs X" line when its parent is OFF, and rename the three to "ROAD SPEED 1/2/3 (hide off-screen / cached sky / fewer updates)".</li>
+<li><b>Short codes mean nothing.</b> A2, A3, A3+TIRE, B0, B1, ROSTER B, "Sandwich merge", "rank 4". <i>Fix:</i> a one-line plain meaning under each choice when selected, or put the words in the label.</li>
+<li><b>You cannot see what you changed.</b> Defaults are mixed (some ON, some OFF) and no row shows "changed from default". <i>Fix:</i> a dot or tint on any row that is not at its default, plus a count in the header ("3 changed").</li>
+<li><b>Overlapping and dangerous rows.</b> ALL NEW UNITS, UNIT BATCHES, BATCHES + PLAN and ROSTER MODE all change the unit roster; SCREW YARD is both a section and a row; START OVER (wipes save) sits beside harmless GIVE buttons; POWER TOOLS silently changes MERGE RULE; a guided START silently resets your own switches. <i>Fix:</i> merge the unit rows into one group with one intro line, move START OVER to the bottom in its own red "DANGER" block, and warn on the card when a START will reset.</li>
+</ol>
+</body></html>
