@@ -14,6 +14,7 @@ import {
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
+const INK_CSS = '#2b1d2e';
 const R = 46; // medallion radius, design px (52 pt wireframe)
 const RING: Record<BadgeState, number> = { idle: 0xc9962b, ready: 0xffcf33, timer: 0xc9962b, locked: 0x8d9bb5 };
 const DOME: Record<BadgeState, number> = { idle: 0xf3e3c8, ready: 0xfff0b8, timer: 0xf3e3c8, locked: 0xb9c3d6 };
@@ -102,7 +103,6 @@ function drawBadge(scene: GameScene, p: PlacedBadge, x: number, y: number, isNew
   else if (state === 'idle' || state === 'timer') floatBob(scene, med);
   return c;
 }
-const INK_CSS = '#2b1d2e';
 
 /** Adds the rails, the overflow counts and the floating claim chip to the ROAD container. Returns the number of badges drawn. */
 export function addMapBadges(scene: GameScene, parent: Phaser.GameObjects.Container, ctx: BadgeCtx): number {
