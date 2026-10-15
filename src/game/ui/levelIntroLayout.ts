@@ -18,8 +18,13 @@ export const INTRO_CFG = {
   ribbonW: 440,
   ribbonH: 140,
   ribbonOverlap: 80,
-  /** The hero picture takes at least this share of the panel height. */
-  heroFrac: 0.4,
+  /** The hero picture takes at least this share of the panel height (the readable headings and 30 px text cost room on a 360x640 phone). */
+  heroFrac: 0.25,
+  /** Smallest text anywhere in the popup: 16 pt on a 390 pt phone = 16 * 720 / 390 design px. */
+  minFont: 30,
+  /** Row headings and the one-line hint under the tool row (height of each line). */
+  headH: 38,
+  hintH: 36,
   heroMax: 520,
   /** Name + clock row. */
   nameH: 54,
@@ -29,19 +34,23 @@ export const INTRO_CFG = {
   minionGap: 14,
   maxMinions: 4,
   /** Two lines of explanation (font px, line height px, chars that fit one line). */
-  textFont: 26,
-  textLine: 34,
-  textChars: 44,
+  textFont: 30,
+  textLine: 38,
+  textChars: 36,
   textLines: 2,
-  /** Tool chips: icon + 1-word label. */
+  /** Tool chips: a picture on top and the name on its own plate below (width is shared out over the row, at most toolChip). */
   toolChip: 96,
-  toolGap: 14,
+  toolH: 132,
+  toolPlateH: 40,
+  toolGap: 8,
   maxTools: 5,
+  /** Longest tool name on a plate, in characters, at minFont. */
+  toolLabelChars: 7,
   /** Star goals strip and the optional pill, both inside the hero picture. */
   tagW: 200,
   tagH: 46,
   closeSize: 88,
-  starsH: 56,
+  starsH: 64,
   extraH: 58,
   /** PLAY (the kit's green). 112 design px = 56 pt on a 360 pt phone. */
   playH: 112,
@@ -78,6 +87,9 @@ export interface IntroLayout {
   clock: Rect;
   minions: Rect[];
   text: Rect | null;
+  minionHead: Rect | null;
+  toolHead: Rect | null;
+  toolHint: Rect | null;
   tools: Rect[];
   play: Rect;
   jump: Rect | null;
@@ -102,7 +114,7 @@ export function layoutIntro(inp: IntroInput): IntroLayout {
   const avail = inp.H - 2 * C.margin - above - jumpSpace;
   // everything in the panel except the hero
   const fixed =
-    C.padTop + C.nameH + C.gap + (minions ? C.minionChip + C.gap : 0) + (inp.hasText ? C.textLine * C.textLines + C.gap : 0) + (tools ? C.toolChip + C.gap : 0) + C.playH + C.padBottom;
+    C.padTop + C.nameH + C.gap + (minions ? C.headH + C.minionChip + C.gap : 0) + (inp.hasText ? C.textLine * C.textLines + C.gap : 0) + (tools ? C.headH + C.toolH + C.hintH + C.gap : 0) + C.playH + C.padBottom;
   const panelH = Math.min(avail, fixed + C.heroMax);
   const heroH = panelH - fixed;
   // tall phones: centre the whole stack
@@ -118,12 +130,19 @@ export function layoutIntro(inp: IntroInput): IntroLayout {
   const name: Rect = { x: innerX, y, w: innerW - C.clockW - C.gap, h: C.nameH };
   const clock: Rect = { x: innerX + innerW - C.clockW, y, w: C.clockW, h: C.nameH };
   y += C.nameH + C.gap;
+  const minionHead: Rect | null = minions ? { x: innerX, y, w: innerW, h: C.headH } : null;
+  if (minions) y += C.headH;
   const minionRects = minions ? row(minions, C.minionChip, C.minionGap, y) : [];
   if (minions) y += C.minionChip + C.gap;
   const text: Rect | null = inp.hasText ? { x: innerX, y, w: innerW, h: C.textLine * C.textLines } : null;
   if (inp.hasText) y += C.textLine * C.textLines + C.gap;
-  const toolRects = tools ? row(tools, C.toolChip, C.toolGap, y) : [];
-  if (tools) y += C.toolChip + C.gap;
+  const toolHead: Rect | null = tools ? { x: innerX, y, w: innerW, h: C.headH } : null;
+  if (tools) y += C.headH;
+  const toolW = tools ? Math.min(C.toolChip + 20, Math.floor((innerW - (tools - 1) * C.toolGap) / tools)) : 0;
+  const toolRects = tools ? Array.from({ length: tools }, (_, i) => ({ x: W / 2 - (tools * toolW + (tools - 1) * C.toolGap) / 2 + i * (toolW + C.toolGap), y, w: toolW, h: C.toolH })) : [];
+  if (tools) y += C.toolH;
+  const toolHint: Rect | null = tools ? { x: innerX, y, w: innerW, h: C.hintH } : null;
+  if (tools) y += C.hintH + C.gap;
   const play: Rect = { x: W / 2 - C.playW / 2, y, w: C.playW, h: C.playH };
   const jumpY = panelY + panelH + C.jumpGap;
   const jump: Rect | null = inp.hasJump ? { x: C.side, y: jumpY, w: W - 2 * C.side, h: C.jumpH } : null;
@@ -139,6 +158,9 @@ export function layoutIntro(inp: IntroInput): IntroLayout {
     clock,
     minions: minionRects,
     text,
+    minionHead,
+    toolHead,
+    toolHint,
     tools: toolRects,
     play,
     jump,
@@ -177,6 +199,33 @@ export function clampLines(t: string, chars: number, lines: number): string[] {
     out[lines - 1] = `${last}…`;
   }
   return out.slice(0, lines);
+}
+
+/** Plain-words copy of the two unit rows. Row 1 = the level's own machine waves (shown in the order they come); row 2 = the "GOOD HERE" tips:
+ *  owned units that suit this level. Row 2 is advice only: nothing is picked for the player and nothing has to be used. */
+export const INTRO_COPY = {
+  minions: "Machines you'll break, in order",
+  tools: 'Good here: your units that help',
+  toolsHint: 'Tips only. Use any units you like.',
+} as const;
+
+const SHORT_TOOL: Record<string, string> = { BLOWTORCH: 'TORCH', WRECKING: 'WRECK', HYDRAULIC: 'PRESS', 'ARC WELDER': 'WELDER', 'FUSE BOX': 'FUSE' };
+
+/** A tool name that fits its plate (max chars at the minimum font): a known short form, else the last or first word that fits, else cut. */
+export function shortToolLabel(name: string, max: number = C.toolLabelChars): string {
+  const up = name.trim().toUpperCase();
+  if (up.length <= max) return up;
+  if (SHORT_TOOL[up]) return SHORT_TOOL[up];
+  const words = up.split(' ');
+  const first = words[0];
+  if (SHORT_TOOL[first]) return SHORT_TOOL[first];
+  if (first.length <= max) return first;
+  return first.slice(0, max);
+}
+
+/** The three star goals as the strip shows them: 'Clear', then two clock times (the drawing puts a stopwatch glyph before them). */
+export function starGoalLabels(g2: number, g3: number, fmt: (sec: number) => string): { text: string; clock: boolean }[] {
+  return [{ text: 'Clear', clock: false }, { text: fmt(g2), clock: true }, { text: fmt(g3), clock: true }];
 }
 
 /** Parse a "GOOD HERE: WRENCH (why), BLAST PLATE (why)" line into tool chips: a name, a 1-word label and the full line for the tap. */
