@@ -12,7 +12,7 @@ import { store } from '../meta';
 import { META_KEY } from '../../platform/backup';
 import { H, W, mmss } from '../sceneKit';
 import type { GameScene } from '../GameScene';
-import { clampLines, firstSentence, INTRO_CFG as C, layoutIntro, parseTools, type IntroKind } from './levelIntroLayout';
+import { clampLines, firstSentence, INTRO_CFG as C, INTRO_COPY, layoutIntro, parseTools, shortToolLabel, starGoalLabels, type IntroKind } from './levelIntroLayout';
 import type { Rect } from './qaLayout';
 
 const FONT = 'Lilita One, Arial Black';
@@ -63,6 +63,14 @@ function starIcon(g: Phaser.GameObjects.Graphics, x: number, y: number, r: numbe
   }
   g.fillStyle(filled ? 0xffcf33 : 0x8a7d8c, 1).fillPoints(pts, true);
   g.lineStyle(4, filled ? 0x2b1d2e : 0xd9ccdb, 1).strokePoints(pts, true);
+}
+
+/** A small stopwatch: ring, top nub and one hand. */
+function stopwatchIcon(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, lit: boolean) {
+  const col = lit ? 0xffcf33 : 0xffffff;
+  g.fillStyle(col, 1).fillRect(x - 4, y - r - 7, 8, 5);
+  g.lineStyle(4, col, 1).strokeCircle(x, y + 2, r);
+  g.lineStyle(3, col, 1).lineBetween(x, y + 2, x + 5, y - 4);
 }
 
 export function openLevelIntroV3(scene: GameScene, n: number) {
@@ -123,14 +131,14 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
   // tag + extra pill (inside the hero's top edge)
   if (g.tag) {
     pill(scene, c, g.tag, KIND_TAG[kind]);
-    label(scene, c, g.tag.x + g.tag.w / 2, g.tag.y + g.tag.h / 2, tagText, 28, '#ffffff', g.tag.w - 24, false);
+    label(scene, c, g.tag.x + g.tag.w / 2, g.tag.y + g.tag.h / 2, tagText, C.minFont, '#ffffff', g.tag.w - 24);
   }
   if (g.extra) {
     const ex = g.extra;
     const nm = trial ? FAMILY_INFO[trial.unit as 'cannon'].name.toUpperCase() : '';
-    const txt = sc ? `NEW: RANK ${sc}  ·  try it first ›` : trial!.on ? `✓ ${nm} TRIAL ON  ·  ${trial!.left} left` : `TRY ${nm} LV 5  ·  ${trial!.left} free today`;
+    const txt = sc ? `NEW: RANK ${sc} · try it ›` : trial!.on ? `✓ ${nm} TRIAL · ${trial!.left} left` : `TRY ${nm} LV 5 · ${trial!.left} free`;
     pill(scene, c, ex, sc || trial!.on ? 0x5fbf4a : 0x8e58c9);
-    label(scene, c, ex.x + ex.w / 2, ex.y + ex.h / 2, txt, 24, '#ffffff', ex.w - 30, false);
+    label(scene, c, ex.x + ex.w / 2, ex.y + ex.h / 2, txt, C.minFont, '#ffffff', ex.w - 30);
     const z = scene.add.zone(ex.x + ex.w / 2, ex.y + ex.h / 2, ex.w, Math.max(ex.h, 88)).setInteractive({ useHandCursor: true });
     z.on('pointerup', () => {
       if (sc) return scene.startShowcase(sc as 7 | 8, n);
@@ -144,20 +152,22 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
   // star goals strip
   const have = (m.levelStars ?? {})[String(n)] ?? 0;
   const [g2, g3] = starGoals(def);
-  const goals = ['Clear', `≤${mmss(g2)}`, `≤${mmss(g3)}`];
+  const goals = starGoalLabels(g2, g3, mmss);
   const sg = scene.add.graphics();
-  sg.fillStyle(0x000000, 0.45).fillRoundedRect(g.stars.x, g.stars.y, g.stars.w, g.stars.h, g.stars.h / 2);
+  sg.fillStyle(0x000000, 0.6).fillRoundedRect(g.stars.x, g.stars.y, g.stars.w, g.stars.h, g.stars.h / 2);
   c.add(sg);
   const sw = g.stars.w / 3;
   goals.forEach((t, k) => {
     const cx = g.stars.x + sw * k + sw / 2;
-    starIcon(sg, cx - 52, g.stars.y + g.stars.h / 2, 18, k < have);
-    label(scene, c, cx + 14, g.stars.y + g.stars.h / 2, t, 26, k < have ? '#ffcf33' : '#ffffff', sw - 90, false);
+    const cy = g.stars.y + g.stars.h / 2;
+    starIcon(sg, cx - 66, cy, 20, k < have);
+    if (t.clock) stopwatchIcon(sg, cx - 28, cy, 13, k < have);
+    label(scene, c, cx + (t.clock ? 36 : 14), cy, t.text, C.minFont, k < have ? '#ffcf33' : '#ffffff', sw - (t.clock ? 100 : 80));
   });
 
   // name and clock chips
   pill(scene, c, g.name, INK);
-  label(scene, c, g.name.x + g.name.w / 2, g.name.y + g.name.h / 2, heroName, 34, '#ffffff', g.name.w - 36, false);
+  label(scene, c, g.name.x + g.name.w / 2, g.name.y + g.name.h / 2, heroName, 34, '#ffffff', g.name.w - 36);
   pill(scene, c, g.clock, INK);
   const clockT = label(scene, c, g.clock.x + g.clock.w / 2 + 18, g.clock.y + g.clock.h / 2, mmss(bossDef && !miniDef && !def.waves ? 90 : def.time_seconds), 32, '#ffcf33', g.clock.w - 80, false);
   if (scene.hasArt('icon_timer')) fitImage(scene, c, 'icon_timer', g.clock.x + 38, g.clock.y + g.clock.h / 2, 36, 36);
@@ -165,12 +175,13 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
   clockT.setOrigin(0.5);
 
   // minion chips with their rank numbers
+  if (g.minionHead) label(scene, c, g.minionHead.x + g.minionHead.w / 2, g.minionHead.y + g.minionHead.h / 2, INTRO_COPY.minions, C.minFont, '#ffffff', g.minionHead.w);
   g.minions.forEach((r, i) => {
     frame(scene, c, 'kit3_panel_well', r, 30, 0x3a2f3c);
     fitImage(scene, c, keyOf(minionVis[i]), r.x + r.w / 2, r.y + r.h / 2 - 4, r.w - 22, r.h - 22);
     const b: Rect = { x: r.x + r.w - 34, y: r.y + r.h - 34, w: 40, h: 40 };
-    c.add(scene.add.graphics().fillStyle(INK, 1).fillCircle(b.x + b.w / 2, b.y + b.h / 2, 22).fillStyle(0xffcf33, 1).fillCircle(b.x + b.w / 2, b.y + b.h / 2, 18));
-    label(scene, c, b.x + b.w / 2, b.y + b.h / 2 + 1, `${i + 1}`, 26, INK_CSS, 0, false);
+    c.add(scene.add.graphics().fillStyle(INK, 1).fillCircle(b.x + b.w / 2, b.y + b.h / 2, 24).fillStyle(0xffcf33, 1).fillCircle(b.x + b.w / 2, b.y + b.h / 2, 20));
+    label(scene, c, b.x + b.w / 2, b.y + b.h / 2 + 1, `${i + 1}`, C.minFont, INK_CSS, 0, false);
   });
 
   // the two lines
@@ -186,13 +197,21 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
 
   // tool chips: icon + 1 word; a tap swaps the two lines for the full line, then back
   let back: Phaser.Time.TimerEvent | null = null;
+  if (g.toolHead) label(scene, c, g.toolHead.x + g.toolHead.w / 2, g.toolHead.y + g.toolHead.h / 2, INTRO_COPY.tools, C.minFont, '#ffffff', g.toolHead.w);
+  if (g.toolHint) label(scene, c, g.toolHint.x + g.toolHint.w / 2, g.toolHint.y + g.toolHint.h / 2, INTRO_COPY.toolsHint, C.minFont, '#ffe9a8', g.toolHint.w);
   g.tools.forEach((r, i) => {
     const t = tools[i];
     frame(scene, c, 'kit3_panel_well', r, 30, 0x3a2f3c);
+    // the whole unit, centred in the picture box above the name plate (rank picture when it exists, else rank 1)
     const id = t.name.toLowerCase().replace(/ /g, '_');
-    const key = unitTex(scene, `${id}_1`);
-    fitImage(scene, c, key, r.x + r.w / 2, r.y + 36, r.w - 44, 50);
-    label(scene, c, r.x + r.w / 2, r.y + r.h - 27, t.label, 19, '#ffffff', r.w - 34, false);
+    const rank = Math.max(1, Math.min(MAX_RANK, def.starting_rank));
+    const ranked = unitTex(scene, `${id}_${rank}`);
+    const key = scene.textures.exists(ranked) ? ranked : unitTex(scene, `${id}_1`);
+    const picH = r.h - C.toolPlateH - 20;
+    fitImage(scene, c, key, r.x + r.w / 2, r.y + 8 + picH / 2, r.w - 20, picH);
+    const plate: Rect = { x: r.x + 6, y: r.y + r.h - C.toolPlateH - 6, w: r.w - 12, h: C.toolPlateH };
+    c.add(scene.add.graphics().fillStyle(INK, 0.92).fillRoundedRect(plate.x, plate.y, plate.w, plate.h, plate.h / 2));
+    label(scene, c, plate.x + plate.w / 2, plate.y + plate.h / 2 + 1, shortToolLabel(t.name), C.minFont, '#ffffff', plate.w - 8);
     const z = scene.add.zone(r.x + r.w / 2, r.y + r.h / 2, r.w, Math.max(r.h, 88)).setInteractive({ useHandCursor: true });
     z.on('pointerup', () => {
       sfx.click();
@@ -246,10 +265,10 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
     const j = g.jump;
     frame(scene, c, 'kit3_panel_popup', j, 40, 0xfbe7c6);
     if (scene.hasArt('booster_jumpstart')) fitImage(scene, c, 'booster_jumpstart', j.x + 76, j.y + j.h / 2 - 6, 84, 84);
-    label(scene, c, j.x + 108, j.y + j.h - 34, `x${kits}`, 26, INK_CSS, 0, false);
+    label(scene, c, j.x + 108, j.y + j.h - 30, `x${kits}`, C.minFont, '#ffffff');
     const tx = j.x + 140;
     const t1 = scene.add.text(tx, j.y + 40, 'Jumpstart Kit', { fontFamily: FONT, fontSize: '32px', color: INK_CSS }).setOrigin(0, 0.5);
-    const t2 = scene.add.text(tx, j.y + 82, `Starting shooters: rank ${def.starting_rank} → ${Math.min(MAX_RANK, def.starting_rank + 1)}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: '22px', color: '#5a4a5a' }).setOrigin(0, 0.5);
+    const t2 = scene.add.text(tx, j.y + 82, `Start rank ${def.starting_rank} → ${Math.min(MAX_RANK, def.starting_rank + 1)}`, { fontFamily: 'Arial', fontStyle: 'bold', fontSize: `${C.minFont}px`, color: '#5a4a5a' }).setOrigin(0, 0.5);
     const room = g.toggle.x - tx - 12;
     for (const t of [t1, t2]) if (t.width > room) t.setScale(room / t.width);
     c.add([t1, t2]);
