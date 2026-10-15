@@ -103,11 +103,11 @@ export const isBadgeForce = (v: unknown): v is BadgeForce => BADGE_FORCE_OPTIONS
 
 /** Which badges show, on which side, in which order. Rules: rails cap at 3, one locked teaser at most and only when 1-2 levels away,
  *  ready first then soonest timer then idle; the teaser is the lowest priority and never pushes a live badge out. */
-export function layoutBadges(ctx: BadgeCtx, force: BadgeForce = 'auto'): BadgeLayout {
+export function layoutBadges(ctx: BadgeCtx, force: BadgeForce = 'auto', sideOf: (d: BadgeDef) => BadgeSide = (d) => d.side): BadgeLayout {
   const out: BadgeLayout = { left: [], right: [], floats: [], overflow: { L: 0, R: 0 } };
   if (force !== 'auto') {
     for (const d of BADGES) {
-      const list = d.side === 'L' ? out.left : d.side === 'R' ? out.right : out.floats;
+      const list = sideOf(d) === 'L' ? out.left : sideOf(d) === 'R' ? out.right : out.floats;
       list.push({ def: d, state: force, slot: list.length });
     }
     return out;
@@ -115,7 +115,7 @@ export function layoutBadges(ctx: BadgeCtx, force: BadgeForce = 'auto'): BadgeLa
   const live: PlacedBadge[] = [];
   let teaser: BadgeDef | null = null;
   for (const d of BADGES) {
-    if (d.side === 'F') {
+    if (sideOf(d) === 'F') {
       if (isUnlocked(d, ctx)) out.floats.push({ def: d, state: badgeState(d, ctx), slot: out.floats.length });
       continue;
     }
@@ -125,7 +125,7 @@ export function layoutBadges(ctx: BadgeCtx, force: BadgeForce = 'auto'): BadgeLa
   if (teaser) live.push({ def: teaser, state: 'locked', slot: 0 });
   const place = (side: 'L' | 'R', list: PlacedBadge[]) => {
     const mine = live
-      .filter((p) => p.def.side === side)
+      .filter((p) => sideOf(p.def) === side)
       .sort((a, b) => rank(a.def, a.state) - rank(b.def, b.state) || (a.def.demoTimer ?? 1e9) - (b.def.demoTimer ?? 1e9) || BADGES.indexOf(a.def) - BADGES.indexOf(b.def));
     mine.slice(0, RAIL_CAP).forEach((p, i) => list.push({ ...p, slot: i }));
     out.overflow[side] = Math.max(0, mine.length - RAIL_CAP);

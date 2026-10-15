@@ -6,6 +6,7 @@ import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/e
 import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../content/experiments';
 import { openMascotDemo } from './mascotDemo';
 import { applyRoadSurfaceKit, storedRoadSurfaceKit, ROAD_SURFACE_KIT_KEY } from '../../content/experiments';
+import { applyRoadMapMock1, storedRoadMapMock1, ROAD_MAP_MOCK1_KEY } from '../../content/experiments';
 import { openRoadKitPreview } from '../road/roadKitFx';
 import { applyRoadPerf2, storedRoadPerf2, ROAD_PERF2_KEY, applyRoadPerf3, storedRoadPerf3, ROAD_PERF3_KEY } from '../../content/experiments';
 import { applyRoadPerf,applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
@@ -127,6 +128,9 @@ applyUnitIdle(qaUnitIdle());
 // QA-only: ROAD SURFACE KIT (stamped road pieces), default OFF, this device only
 export const qaRoadSurfaceKit = () => storedRoadSurfaceKit(() => localStorage.getItem(ROAD_SURFACE_KIT_KEY));
 applyRoadSurfaceKit(qaRoadSurfaceKit());
+// QA-only: ROAD MAP MOCK 1 (hero glow, sparkles, Bolt, mock rails), default OFF, this device only
+export const qaRoadMapMock1 = () => storedRoadMapMock1(() => localStorage.getItem(ROAD_MAP_MOCK1_KEY));
+applyRoadMapMock1(qaRoadMapMock1());
 // QA-only: MASCOT MOTION (animated Bolt), default OFF, this device only
 export const qaMascotMotion = () => storedMascotMotion(() => localStorage.getItem(MASCOT_MOTION_KEY));
 applyMascotMotion(qaMascotMotion());
@@ -680,6 +684,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_road_surface_kit', { on });
         },
         toast: (on) => (on ? 'ROAD KIT ON  ·  OPEN THE ROAD TAB' : 'ROAD KIT OFF'),
+      }),
+      // ROAD MAP MOCK 1: the road map mock (rails Daily/Quests/Collect + Event/Offer/Season, hero glow + sparkles, Bolt with MASCOT MOTION). Visual only, default OFF
+      qaFlag({
+        id: 'roadMapMock1',
+        title: 'ROAD MAP MOCK 1',
+        desc: 'Mock rails, hero glow, Bolt. Reopen ROAD',
+        get: () => !!qaRoadMapMock1(),
+        set: (on) => {
+          store(ROAD_MAP_MOCK1_KEY, on ? 'on' : null);
+          applyRoadMapMock1(on);
+          tlog.log('qa_road_map_mock1', { on });
+        },
+        toast: (on) => (on ? 'ROAD MAP MOCK 1 ON  ·  OPEN THE ROAD TAB' : 'ROAD MAP MOCK 1 OFF'),
       }),
       qaAction({
         id: 'roadKitPreview',

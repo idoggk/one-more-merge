@@ -12,10 +12,11 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { MAP_BADGES, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
+import { MAP_BADGES, ROAD_MAP_MOCK1, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
 import { planRoad } from './roadKit';
 import { addKitStamps } from './roadKitFx';
 import { addMapBadges } from './mapBadges';
+import { addMockHeroFx } from './roadMapMock1';
 import { createRoadPolish } from './roadPolishFx';
 import { addRoadPerfHud, createCuller } from './roadPerf';
 import { createTweenGate, shouldCull, skyRowCount, skyRows } from './roadPerf2';
@@ -460,6 +461,7 @@ export function openRoadV2(scene: GameScene) {
       you.add(scene.add.text(0, 0, 'YOU', { fontFamily: FONT, fontSize: '32px', color: '#2b1d2e' }).setOrigin(0.5));
       nodeLayer.add(you);
       if (!REDUCED_MOTION) loopTween(scene, { targets: you, y: you.y - 9, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, you);
+      addMockHeroFx(scene, nodeLayer, { x: n.x, y: py, boss: n.kind === 'boss' || n.kind === 'mini', centerX: ROAD.centerX, loop }); // ROAD MAP MOCK 1
       kindFront(n, n.x, py + 62, 100, false); // the ribbon hangs under the number plate
     } else {
       kindBack(n, n.x, n.y, size);
@@ -538,7 +540,7 @@ export function openRoadV2(scene: GameScene) {
   c.add(chip);
   const def = LEVELS[cur - 1];
   const ptag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
-  const showSeason = scene.currentLevel() > 3 && !MAP_BADGES.on; // MAP BADGES moves SEASON to the left rail
+  const showSeason = scene.currentLevel() > 3 && !MAP_BADGES.on && !ROAD_MAP_MOCK1.on; // MAP BADGES moves SEASON to the left rail
   const playW = showSeason ? 480 : 620, playX = showSeason ? 40 + playW / 2 : W / 2; // Season is a square button beside PLAY, not a floater on the road
   const play = scene.endlessOpen()
     ? scene.button(c, playX, H - 182, playW, `ENDLESS  ·  FLOOR ${scene.endlessRec().floor}`, 0x8e58c9, () => scene.startEndless(), 1.0)

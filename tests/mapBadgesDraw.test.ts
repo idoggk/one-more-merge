@@ -86,7 +86,7 @@ describe('addMapBadges drawing', () => {
 describe('roadV2 flag-off identity', () => {
   it('showSeason is level > 3 unless the badge flag is on', () => {
     const src = readFileSync('src/game/road/roadV2.ts', 'utf8');
-    expect(src).toContain('const showSeason = scene.currentLevel() > 3 && !MAP_BADGES.on;');
+    expect(src).toContain('const showSeason = scene.currentLevel() > 3 && !MAP_BADGES.on && !ROAD_MAP_MOCK1.on;');
     MAP_BADGES.on = false;
     for (const level of [1, 3, 4, 20]) expect(level > 3 && !MAP_BADGES.on).toBe(level > 3);
   });

@@ -2,7 +2,8 @@
 // Each badge is a code-drawn brass medallion; real textures (badge_base_<state>, badge_glyph_<id>, badge_dot_red, badge_timer_ribbon,
 // badge_new_tag, badge_lock) replace the matching part when they exist. Visual and navigation only: taps open an existing screen or a toast.
 import Phaser from 'phaser';
-import { MAP_BADGES } from '../../content/experiments';
+import { MAP_BADGES, ROAD_MAP_MOCK1 } from '../../content/experiments';
+import { mockSideOf } from './roadMapMock1Model';
 import { sfx } from '../audio';
 import { attentionWiggle, floatBob, popIn } from '../fx/juice';
 import type { GameScene } from '../GameScene';
@@ -106,8 +107,8 @@ function drawBadge(scene: GameScene, p: PlacedBadge, x: number, y: number, isNew
 
 /** Adds the rails, the overflow counts and the floating claim chip to the ROAD container. Returns the number of badges drawn. */
 export function addMapBadges(scene: GameScene, parent: Phaser.GameObjects.Container, ctx: BadgeCtx): number {
-  if (!MAP_BADGES.on) return 0;
-  const lay = layoutBadges(ctx, MAP_BADGES.force);
+  if (!MAP_BADGES.on && !ROAD_MAP_MOCK1.on) return 0;
+  const lay = layoutBadges(ctx, MAP_BADGES.force, ROAD_MAP_MOCK1.on ? mockSideOf : undefined);
   let n = 0;
   for (const side of ['L', 'R'] as const) {
     for (const p of side === 'L' ? lay.left : lay.right) {

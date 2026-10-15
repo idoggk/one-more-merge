@@ -397,6 +397,20 @@ export function storedRoadSurfaceKit(read: () => string | null): boolean {
 export function applyRoadSurfaceKit(on: boolean) {
   ROAD_SURFACE_KIT.on = on;
 }
+/** QA panel ROAD MAP MOCK 1 switch (this device only, not in the save): 'on' = the ROAD tab follows the road map mock (docs/art/mocks/road-map/SPEC.md):
+ *  rails of Daily / Quests / Collect and Event / Offer / Season, glow + sparkles at the hero, Bolt beside the hero. Default OFF, presentation only. */
+export const ROAD_MAP_MOCK1_KEY = 'omm_qa_road_map_mock1';
+export const ROAD_MAP_MOCK1 = { on: false };
+export function storedRoadMapMock1(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyRoadMapMock1(on: boolean) {
+  ROAD_MAP_MOCK1.on = on;
+}
 /** QA panel ROAD PERF READOUT switch: default OFF; 'on' shows objects / active tweens / FPS in the corner of the ROAD tab. */
 export const ROAD_PERF_HUD_KEY = 'omm_qa_road_perf_hud';
 export const ROAD_PERF_HUD = { on: false };
