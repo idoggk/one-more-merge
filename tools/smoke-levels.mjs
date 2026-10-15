@@ -35,6 +35,12 @@ async function openPage() {
   // the network busy past 30 s, and the scene check is what we actually need
   await page.goto(`${server.resolvedUrls.local[0]}?timer&reset`, { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 120000 });
+  // FLAGS=pace2,timeline: switch LEVEL PACE 2 / LEVEL TIMELINE on in the page (same module instances as the game, via the dev server)
+  const flags = (process.env.FLAGS ?? '').split(',');
+  await page.evaluate(async (f) => {
+    if (f.includes('pace2')) (await import('/src/content/levelPace2.ts')).applyLevelPace2(true);
+    if (f.includes('timeline')) (await import('/src/content/levelTimeline.ts')).applyLevelTimeline(true);
+  }, flags);
   return p;
 }
 

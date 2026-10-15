@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY, applyUiJuice, storedUiJuice, UI_JUICE_KEY, applyMapBadges, storedMapBadges, storedMapBadgesForce, MAP_BADGES, MAP_BADGES_KEY, MAP_BADGES_FORCE_KEY } from '../../content/experiments';
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyLevelPace2, storedLevelPace2, LEVEL_PACE2_KEY } from '../../content/levelPace2';
+import { applyLevelTimeline, storedLevelTimeline, LEVEL_TIMELINE_KEY } from '../../content/levelTimeline';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
 import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../content/experiments';
@@ -119,6 +120,9 @@ applyEffortModel(qaEffortModel());
 // QA-only: LEVEL PACE 2 (the 80 levels refitted to a minimum clear time, src/content/levelPace2.json), default OFF, this device only; applied when a level starts
 export const qaLevelPace2 = () => storedLevelPace2(() => localStorage.getItem(LEVEL_PACE2_KEY));
 applyLevelPace2(qaLevelPace2());
+// QA-only: LEVEL TIMELINE (armor opens on a clock sized from the level's floor; only with LEVEL PACE 2), default OFF, this device only
+export const qaLevelTimeline = () => storedLevelTimeline(() => localStorage.getItem(LEVEL_TIMELINE_KEY));
+applyLevelTimeline(qaLevelTimeline());
 // QA-only: UI KIT V3 (rebuilt level intro popup), default OFF, this device only
 export const qaUiKitV3 = () => storedUiKitV3(() => localStorage.getItem(UI_KIT_V3_KEY));
 applyUiKitV3(qaUiKitV3());
@@ -606,6 +610,19 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_level_pace2', { on });
         },
         toast: (on) => (on ? 'LEVEL PACE 2 ON  ·  PLAY ANY LEVEL  ·  ~1-2 MIN' : 'LEVEL PACE 2 OFF (live levels)'),
+      }),
+      // LEVEL TIMELINE: ON (with LEVEL PACE 2) = the machine's armor opens on a clock, so a fast tapper cannot clear in seconds
+      qaFlag({
+        id: 'levelTimeline',
+        title: 'LEVEL TIMELINE',
+        desc: 'Armor opens on a clock. Needs PACE 2',
+        get: () => !!qaLevelTimeline(),
+        set: (on) => {
+          store(LEVEL_TIMELINE_KEY, on ? 'on' : null);
+          applyLevelTimeline(on);
+          tlog.log('qa_level_timeline', { on });
+        },
+        toast: (on) => (on ? 'LEVEL TIMELINE ON  ·  NEEDS LEVEL PACE 2  ·  NEXT LEVEL' : 'LEVEL TIMELINE OFF'),
       }),
       // LEVEL ROAD V2: ON = the ROAD tab is a winding world with chapter scenery, gates, chests and momentum scroll; presentation only
       qaFlag({

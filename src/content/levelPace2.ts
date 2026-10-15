@@ -16,6 +16,8 @@ export interface PaceEntry {
   goal_n?: number;
   /** labelled MANIA level: shorter and intense on purpose */
   mania?: boolean;
+  /** the clear-time floor in seconds (tools/write-floors.ts); LEVEL TIMELINE sizes its armor clock from it */
+  floor_s?: number;
 }
 export const PACE2_DATA = (raw as unknown as { levels: Record<string, PaceEntry> }).levels;
 export const LEVEL_PACE2_KEY = 'omm_qa_level_pace2';
