@@ -16,7 +16,7 @@ const EXPECTED_ROWS = [
   'allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode', // units
   'cratesLook', // crates
   'crateOpenV2',
-  'spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'roadPerfHud', 'roadSurfaceKit', 'roadMapMock1', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
+  'spam', 'varied', 'paceCaps', 'effortModel', 'levelPace2', 'levelTimeline', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'roadPerfHud', 'roadSurfaceKit', 'roadMapMock1', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
   'yardMode', 'yardBook', // screw yard
   'uiKitV3', // display
   'resourceFly', // display
@@ -40,7 +40,7 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('feel')).toEqual(['thinkBank', 'mergeRule', 'mergeAssist', 'pace']);
     expect(ids('units')).toEqual(['allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode']);
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
-    expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'roadPerfHud', 'roadSurfaceKit', 'roadMapMock1', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure']);
+    expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'levelPace2', 'levelTimeline', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerf3', 'roadPerf4', 'roadPerfHud', 'roadSurfaceKit', 'roadMapMock1', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
     expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'mascotMotion', 'mascotDemo', 'mapBadges', 'mapBadgesForce', 'uiJuice', 'shake']);
   });

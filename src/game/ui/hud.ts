@@ -17,6 +17,7 @@ import { store } from '../meta';
 import type { GameScene } from '../GameScene';
 import { W, CELL, BX, CLOCK_X, ITEM_X, BY, TRAY_Y, HP_Y, STAGE_TOP, STAGE_H, SLOT, ITEM_COL, OD_COL, cellXY, fmt, textColor, textBg } from '../sceneKit';
 import { trayEarnText } from '../flow';
+import { drawTimeline } from './timelineHud';
 
 export function drawHud(scene: GameScene, dms: number) {
   const s = scene.s;
@@ -130,6 +131,7 @@ export function drawHud(scene: GameScene, dms: number) {
   scene.hpText.setText(s.showcase ? 'PRACTICE' : s.goal ? (s.goal.kind === 'rank' ? `BEST RANK ${Math.max(1, s.goal.best)} / ${s.goal.n}` : `BEST CHAIN ${s.goal.best} / ${s.goal.n}`) : fmt(Math.max(0, Math.round(scene.shownHp))));
   if (s.goal && scene.hpFill) scene.hpFill.setCrop(0, 0, scene.hpFill.width * (1 - frac), scene.hpFill.height).setTint(0x8ef08a);
   scene.drawPace(bw);
+  drawTimeline(scene, hudA);
   // r23 chain shield chip + bubble on the monster
   if (!scene.shieldChip) {
     scene.shieldChip = scene.add.text(W - 92, STAGE_TOP + 34, '', { fontFamily: 'Lilita One, Arial Black', fontSize: '22px', color: '#9fe8ff', stroke: '#2b1d2e', strokeThickness: 6, align: 'right', lineSpacing: -4 }).setOrigin(1, 0.5).setDepth(22);

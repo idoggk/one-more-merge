@@ -3,6 +3,7 @@ import { rawDamage, resolveCascade, type CascadeOpts } from './cascade';
 import { Rng } from './rng';
 import { levelModifierState, lockedCells, REMIX_OPPONENTS, remixTick, type RemixEvent, type RemixState } from './remix';
 import { bossAfterPlayer, bossBlockCells, bossBlocked, bossPendingCells, bossRansomCheck, bossRelabel, castAttack, chapterBossIdx, RANSOM_COST, bossCascadeMods, bossTick, BOSS_CLOCK, BOSSES, type BossEvent, type BossState } from './boss';
+import { timelineRelease, timelineSpan } from '../content/levelTimeline';
 import { LAYOUTS, layoutFor } from '../content/openings';
 import { effortFor, r50, type EffortEntry } from '../content/effort';
 import { MONSTER_INDEX, STARTING_CELLS, SUPPLY_FRACTIONS, SUPPLY_SECONDS, type LevelDef } from '../content/levels';
@@ -184,6 +185,9 @@ export interface GameState {
   jumpstart?: boolean;
   /** EXPERIMENT optionA2 spam fatigue: when the last player merge was made (elapsed). */
   lastMergeAt?: number;
+  /** LEVEL TIMELINE (only with the flag): seconds until the armor is fully open, the HP it covers, the blows waiting in the bank,
+   *  the damage already released, and where each machine breaks (share of the total, for the HUD). */
+  tl?: { span: number; total: number; bank: number; applied: number; marks?: number[] };
   /** PACE CALM breather: until this elapsed time after a machine breaks, no supply and no new boss warning. */
   breatherUntil?: number;
   /** TUNING.rosterB off-board Support card (src/core/support.ts): the squad helper, its charge (+1 per machine in your
@@ -386,8 +390,17 @@ export function newLevel(def: LevelDef, opts: { toys?: Family[]; shooter?: Famil
     s.goal = { ...def.goal, best: 0 };
     s.hp = s.maxHp = 1e9; // no finite defeat HP: the goal is the win
   }
+  const span = !s.goal ? timelineSpan(def.level) : undefined; // LEVEL TIMELINE (flag, only with LEVEL PACE 2); goal levels use their goal machine as the clock
+  if (span) s.tl = { span, total: s.stage ? s.stage.total : s.maxHp, bank: 0, applied: 0, ...(s.stage ? { marks: cumShares(s.stage.hps) } : {}) };
   s.supplyTimer = supplyPeriod(s);
   return s;
+}
+
+/** LEVEL TIMELINE: the cumulative HP share at which each machine of a stage breaks (0..1), for the HUD ticks. */
+function cumShares(hps: number[]): number[] {
+  const total = hps.reduce((a, b) => a + b, 0);
+  let c = 0;
+  return hps.map((h) => (c += h) / total);
 }
 
 /** r25: grant the level's single item into the tray (prescribed teaching kind, else uniform among unlocked kinds with an eligible machine). */
@@ -1072,12 +1085,19 @@ export function hitCap(s: GameState): number {
   return Math.ceil(s.maxHp * (boss ? s.bossCap! : TUNING.cascadeCap));
 }
 
-export type DmgSource = 'player' | 'passive' | 'kick' | 'carry';
+export type DmgSource = 'player' | 'passive' | 'kick' | 'carry' | 'timeline';
 
 export function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: DmgSource) {
   if (dmg <= 0) return;
-  dmg = Math.round(dmg * shieldMult(s));
+  if (src !== 'timeline') dmg = Math.round(dmg * shieldMult(s));
   if ((src === 'player' || src === 'kick') && s.level !== undefined && !s.goal) dmg = Math.min(dmg, hitCap(s));
+  // LEVEL TIMELINE: new blows join the bank; only what the armor clock has opened lands now (carry and released damage pass)
+  if (s.tl && src !== 'carry' && src !== 'timeline' && !s.goal && s.target >= 0) {
+    s.tl.bank += dmg;
+    dmg = takeTimeline(s);
+    if (dmg <= 0) return;
+    src = 'timeline';
+  }
   s.stats.totalDamage += dmg;
   s.stats.dmgBy[src] = (s.stats.dmgBy[src] ?? 0) + dmg;
   const before = s.hp;
@@ -1123,6 +1143,15 @@ export function applyDamage(s: GameState, dmg: number, ev: GameEvent[], src: Dmg
   s.pendingDamage = over;
   s.phase = 'choice';
   s.offer = makeOffer(s);
+}
+
+/** LEVEL TIMELINE: take what the armor clock has opened out of the bank. */
+function takeTimeline(s: GameState): number {
+  const tl = s.tl!;
+  const d = timelineRelease(tl, s.elapsed);
+  tl.bank -= d;
+  tl.applied += d;
+  return d;
 }
 
 /** r42 Workshop Puzzle definition: a fixed board, the merges allowed and the machine's HP. */
@@ -1296,6 +1325,8 @@ export function tick(s: GameState, reserved: ReadonlySet<number> = new Set()): G
     const d = s.drops.shift()!;
     landDrop(s, reserved, ev, d.fuse, d.plan ?? null);
   }
+  if (s.phase !== 'playing') return ev;
+  if (s.tl && s.tl.bank > 0) applyDamage(s, takeTimeline(s), ev, 'timeline'); // LEVEL TIMELINE: the armor opens a little more
   if (s.phase !== 'playing') return ev;
 
   // Remix attacks (resolve before deliveries; warnings wait for falling Kickback parts)

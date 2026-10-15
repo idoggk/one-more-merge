@@ -1,0 +1,749 @@
+{
+  "balance_status": "FLOOR_FIT_SMART3_SMART1 (tools/sim-levels.ts --pace2)",
+  "levels": {
+    "1": {
+      "hp": 3500,
+      "time_seconds": 85,
+      "star_times": [
+        68,
+        64
+      ],
+      "floor_s": 45
+    },
+    "2": {
+      "hp": 3150,
+      "time_seconds": 85,
+      "star_times": [
+        68,
+        61
+      ],
+      "floor_s": 45
+    },
+    "3": {
+      "hp": 4500,
+      "time_seconds": 85,
+      "star_times": [
+        68,
+        63
+      ],
+      "floor_s": 45
+    },
+    "4": {
+      "hp": 7150,
+      "time_seconds": 110,
+      "star_times": [
+        88,
+        81
+      ],
+      "floor_s": 60
+    },
+    "5": {
+      "hp": 1450,
+      "time_seconds": 60,
+      "mania": true,
+      "star_times": [
+        48,
+        40
+      ],
+      "floor_s": 30
+    },
+    "6": {
+      "hp": 10700,
+      "time_seconds": 110,
+      "star_times": [
+        88,
+        82
+      ],
+      "floor_s": 60
+    },
+    "7": {
+      "hp": 7250,
+      "time_seconds": 110,
+      "star_times": [
+        88,
+        80
+      ],
+      "floor_s": 60
+    },
+    "8": {
+      "hp": 8500,
+      "minion_hp": 8500,
+      "time_seconds": 145,
+      "star_times": [
+        116,
+        112
+      ],
+      "floor_s": 78
+    },
+    "9": {
+      "hp": 5650,
+      "time_seconds": 110,
+      "star_times": [
+        88,
+        81
+      ],
+      "floor_s": 60
+    },
+    "10": {
+      "hp": 5350,
+      "minion_hp": 5350,
+      "time_seconds": 145,
+      "star_times": [
+        116,
+        97
+      ],
+      "floor_s": 78
+    },
+    "11": {
+      "hp": 9150,
+      "time_seconds": 110,
+      "star_times": [
+        87,
+        76
+      ],
+      "floor_s": 60
+    },
+    "12": {
+      "hp": 9800,
+      "time_seconds": 110,
+      "star_times": [
+        76,
+        65
+      ],
+      "floor_s": 60
+    },
+    "13": {
+      "hp": 11850,
+      "time_seconds": 110,
+      "star_times": [
+        83,
+        72
+      ],
+      "floor_s": 60
+    },
+    "14": {
+      "hp": 16550,
+      "time_seconds": 110,
+      "star_times": [
+        88,
+        84
+      ],
+      "floor_s": 60
+    },
+    "15": {
+      "hp": 1300,
+      "time_seconds": 60,
+      "mania": true,
+      "star_times": [
+        48,
+        44
+      ],
+      "floor_s": 30
+    },
+    "16": {
+      "hp": 24000,
+      "time_seconds": 115,
+      "star_times": [
+        92,
+        80
+      ],
+      "floor_s": 62
+    },
+    "17": {
+      "hp": 8600,
+      "time_seconds": 120,
+      "star_times": [
+        87,
+        75
+      ],
+      "floor_s": 64
+    },
+    "18": {
+      "hp": 15650,
+      "minion_hp": 15650,
+      "time_seconds": 155,
+      "star_times": [
+        124,
+        98
+      ],
+      "floor_s": 86
+    },
+    "19": {
+      "hp": 17750,
+      "time_seconds": 125,
+      "star_times": [
+        98,
+        77
+      ],
+      "floor_s": 68
+    },
+    "20": {
+      "hp": 14800,
+      "minion_hp": 14800,
+      "time_seconds": 165,
+      "star_times": [
+        132,
+        96
+      ],
+      "floor_s": 91
+    },
+    "21": {
+      "hp": 19200,
+      "time_seconds": 130,
+      "star_times": [
+        96,
+        83
+      ],
+      "floor_s": 72
+    },
+    "22": {
+      "hp": 18550,
+      "time_seconds": 135,
+      "star_times": [
+        108,
+        96
+      ],
+      "floor_s": 74
+    },
+    "23": {
+      "hp": 6200,
+      "time_seconds": 140,
+      "star_times": [
+        94,
+        80
+      ],
+      "floor_s": 76
+    },
+    "24": {
+      "hp": 36000,
+      "time_seconds": 170,
+      "star_times": [
+        110,
+        93
+      ],
+      "floor_s": 78
+    },
+    "25": {
+      "hp": 3150,
+      "time_seconds": 75,
+      "mania": true,
+      "star_times": [
+        53,
+        45
+      ],
+      "floor_s": 40
+    },
+    "26": {
+      "hp": 40950,
+      "time_seconds": 150,
+      "star_times": [
+        117,
+        84
+      ],
+      "floor_s": 82
+    },
+    "27": {
+      "hp": 13100,
+      "time_seconds": 155,
+      "star_times": [
+        105,
+        89
+      ],
+      "floor_s": 84
+    },
+    "28": {
+      "hp": 30150,
+      "minion_hp": 30150,
+      "time_seconds": 205,
+      "star_times": [
+        154,
+        133
+      ],
+      "floor_s": 112
+    },
+    "29": {
+      "hp": 20600,
+      "time_seconds": 160,
+      "star_times": [
+        114,
+        98
+      ],
+      "floor_s": 88
+    },
+    "30": {
+      "hp": 99800,
+      "minion_hp": 99800,
+      "time_seconds": 215,
+      "star_times": [
+        172,
+        131
+      ],
+      "floor_s": 117
+    },
+    "31": {
+      "hp": 38300,
+      "time_seconds": 170,
+      "star_times": [
+        127,
+        110
+      ],
+      "floor_s": 92
+    },
+    "32": {
+      "hp": 31350,
+      "time_seconds": 170,
+      "star_times": [
+        124,
+        107
+      ],
+      "floor_s": 93
+    },
+    "33": {
+      "hp": 54100,
+      "time_seconds": 175,
+      "star_times": [
+        128,
+        110
+      ],
+      "floor_s": 95
+    },
+    "34": {
+      "hp": 39900,
+      "time_seconds": 175,
+      "star_times": [
+        140,
+        136
+      ],
+      "floor_s": 96
+    },
+    "35": {
+      "hp": 9050,
+      "time_seconds": 90,
+      "mania": true,
+      "star_times": [
+        61,
+        52
+      ],
+      "floor_s": 49
+    },
+    "36": {
+      "hp": 41600,
+      "time_seconds": 180,
+      "star_times": [
+        132,
+        114
+      ],
+      "floor_s": 99
+    },
+    "37": {
+      "hp": 50050,
+      "time_seconds": 185,
+      "star_times": [
+        141,
+        113
+      ],
+      "floor_s": 101
+    },
+    "38": {
+      "hp": 52300,
+      "minion_hp": 52300,
+      "time_seconds": 240,
+      "star_times": [
+        182,
+        158
+      ],
+      "floor_s": 133
+    },
+    "39": {
+      "hp": 33100,
+      "time_seconds": 190,
+      "star_times": [
+        137,
+        118
+      ],
+      "floor_s": 104
+    },
+    "40": {
+      "hp": 60300,
+      "minion_hp": 60300,
+      "time_seconds": 250,
+      "star_times": [
+        190,
+        164
+      ],
+      "floor_s": 137
+    },
+    "41": {
+      "hp": 80500,
+      "time_seconds": 195,
+      "star_times": [
+        137,
+        117
+      ],
+      "floor_s": 107
+    },
+    "42": {
+      "hp": 79550,
+      "time_seconds": 195,
+      "star_times": [
+        144,
+        122
+      ],
+      "floor_s": 108
+    },
+    "43": {
+      "hp": 45550,
+      "time_seconds": 200,
+      "star_times": [
+        151,
+        131
+      ],
+      "floor_s": 110
+    },
+    "44": {
+      "hp": 55050,
+      "time_seconds": 230,
+      "star_times": [
+        144,
+        121
+      ],
+      "floor_s": 111
+    },
+    "45": {
+      "hp": 20400,
+      "time_seconds": 105,
+      "mania": true,
+      "star_times": [
+        68,
+        57
+      ],
+      "floor_s": 56
+    },
+    "46": {
+      "hp": 272250,
+      "time_seconds": 210,
+      "star_times": [
+        168,
+        133
+      ],
+      "floor_s": 114
+    },
+    "47": {
+      "hp": 69000,
+      "time_seconds": 210,
+      "star_times": [
+        154,
+        133
+      ],
+      "floor_s": 116
+    },
+    "48": {
+      "hp": 186300,
+      "minion_hp": 186300,
+      "time_seconds": 275,
+      "star_times": [
+        220,
+        166
+      ],
+      "floor_s": 152
+    },
+    "49": {
+      "hp": 53250,
+      "time_seconds": 215,
+      "star_times": [
+        159,
+        137
+      ],
+      "floor_s": 119
+    },
+    "50": {
+      "hp": 62750,
+      "minion_hp": 62750,
+      "time_seconds": 285,
+      "star_times": [
+        220,
+        191
+      ],
+      "floor_s": 156
+    },
+    "51": {
+      "hp": 223000,
+      "time_seconds": 220,
+      "star_times": [
+        167,
+        123
+      ],
+      "floor_s": 120
+    },
+    "52": {
+      "hp": 48300,
+      "time_seconds": 220,
+      "star_times": [
+        159,
+        137
+      ],
+      "floor_s": 120
+    },
+    "53": {
+      "hp": 208250,
+      "time_seconds": 220,
+      "star_times": [
+        176,
+        139
+      ],
+      "floor_s": 120
+    },
+    "54": {
+      "hp": 38100,
+      "time_seconds": 220,
+      "star_times": [
+        163,
+        141
+      ],
+      "floor_s": 120
+    },
+    "55": {
+      "hp": 14250,
+      "time_seconds": 110,
+      "mania": true,
+      "star_times": [
+        88,
+        81
+      ],
+      "floor_s": 60
+    },
+    "56": {
+      "hp": 77150,
+      "time_seconds": 220,
+      "star_times": [
+        168,
+        146
+      ],
+      "floor_s": 120
+    },
+    "57": {
+      "hp": 216000,
+      "time_seconds": 220,
+      "star_times": [
+        176,
+        164
+      ],
+      "floor_s": 120
+    },
+    "58": {
+      "hp": 134400,
+      "minion_hp": 134400,
+      "time_seconds": 285,
+      "star_times": [
+        228,
+        181
+      ],
+      "floor_s": 156
+    },
+    "59": {
+      "hp": 52100,
+      "time_seconds": 220,
+      "star_times": [
+        155,
+        133
+      ],
+      "floor_s": 120
+    },
+    "60": {
+      "hp": 203350,
+      "minion_hp": 203350,
+      "time_seconds": 285,
+      "star_times": [
+        228,
+        188
+      ],
+      "floor_s": 156
+    },
+    "61": {
+      "hp": 62450,
+      "time_seconds": 220,
+      "star_times": [
+        160,
+        138
+      ],
+      "floor_s": 120
+    },
+    "62": {
+      "hp": 154600,
+      "time_seconds": 220,
+      "star_times": [
+        176,
+        127
+      ],
+      "floor_s": 120
+    },
+    "63": {
+      "hp": 136750,
+      "time_seconds": 220,
+      "star_times": [
+        175,
+        135
+      ],
+      "floor_s": 120
+    },
+    "64": {
+      "hp": 63050,
+      "time_seconds": 220,
+      "star_times": [
+        161,
+        139
+      ],
+      "floor_s": 120
+    },
+    "65": {
+      "hp": 8300,
+      "time_seconds": 110,
+      "mania": true,
+      "star_times": [
+        88,
+        84
+      ],
+      "floor_s": 60
+    },
+    "66": {
+      "hp": 59450,
+      "time_seconds": 220,
+      "star_times": [
+        169,
+        147
+      ],
+      "floor_s": 120
+    },
+    "67": {
+      "hp": 229350,
+      "time_seconds": 220,
+      "star_times": [
+        176,
+        139
+      ],
+      "floor_s": 120
+    },
+    "68": {
+      "hp": 118050,
+      "minion_hp": 118050,
+      "time_seconds": 285,
+      "star_times": [
+        225,
+        176
+      ],
+      "floor_s": 156
+    },
+    "69": {
+      "hp": 93200,
+      "time_seconds": 220,
+      "star_times": [
+        175,
+        138
+      ],
+      "floor_s": 120
+    },
+    "70": {
+      "hp": 88700,
+      "minion_hp": 88700,
+      "time_seconds": 285,
+      "star_times": [
+        221,
+        185
+      ],
+      "floor_s": 156
+    },
+    "71": {
+      "hp": 43500,
+      "time_seconds": 220,
+      "star_times": [
+        155,
+        133
+      ],
+      "floor_s": 120
+    },
+    "72": {
+      "hp": 95000,
+      "time_seconds": 220,
+      "star_times": [
+        167,
+        125
+      ],
+      "floor_s": 120
+    },
+    "73": {
+      "hp": 279300,
+      "time_seconds": 220,
+      "star_times": [
+        176,
+        137
+      ],
+      "floor_s": 120
+    },
+    "74": {
+      "hp": 34400,
+      "time_seconds": 220,
+      "star_times": [
+        167,
+        145
+      ],
+      "floor_s": 120
+    },
+    "75": {
+      "hp": 8600,
+      "time_seconds": 130,
+      "mania": true,
+      "star_times": [
+        89,
+        76
+      ],
+      "floor_s": 60
+    },
+    "76": {
+      "hp": 286900,
+      "time_seconds": 220,
+      "star_times": [
+        176,
+        139
+      ],
+      "floor_s": 120
+    },
+    "77": {
+      "hp": 29950,
+      "time_seconds": 220,
+      "star_times": [
+        160,
+        138
+      ],
+      "floor_s": 120
+    },
+    "78": {
+      "hp": 90600,
+      "minion_hp": 90600,
+      "time_seconds": 285,
+      "star_times": [
+        226,
+        181
+      ],
+      "floor_s": 156
+    },
+    "79": {
+      "hp": 40900,
+      "time_seconds": 220,
+      "star_times": [
+        161,
+        139
+      ],
+      "floor_s": 120
+    },
+    "80": {
+      "hp": 107550,
+      "minion_hp": 107550,
+      "time_seconds": 285,
+      "star_times": [
+        228,
+        202
+      ],
+      "floor_s": 156
+    }
+  }
+}
