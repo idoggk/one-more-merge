@@ -1,0 +1,3 @@
+# NEXT (rank redo 2, t-11f704eb)
+Flow as rank-redo-1 (see ../rank-redo-1/NEXT.md). Chat: https://chatgpt.com/c/6ad02ec5-5254-83eb-849a-26c116be1ebe (spring 7 sheet; condensed prompt, attach ref jpg via file_upload to "Attach photos" input, download via JS blob anchor, import_download, slice with batch V slice.mjs `git show 9105991^:art-candidates/batch-v/_tmp/slice.mjs`, fit with a 250 px box script, score).
+Remaining worst first: capacitor 5-6, belt_drive 6-7, 5-6, blowtorch 7-8, dynamo 7-8, robot_arm 7-8, spring 1-2, 2-3, 4-5, blast_plate 3-4, 4-5, hydraulic_press 7-8; then 30-36 band; piston 4-5 still 27.
