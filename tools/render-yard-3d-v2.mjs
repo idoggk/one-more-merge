@@ -16,8 +16,8 @@ const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application
 const threeSrc = readFileSync('node_modules/three/build/three.cjs', 'utf8');
 const INK = { r: 0x3a, g: 0x22, b: 0x16 }; // warm dark brown, never black
 
-// luma (0-255): Y 185 > R ~161 > G ~91 > U ~68 (measured gray at 70 px: R and G were equal at 147/104 after tone mapping). Red lighter and blue darker than the first pass so they split in grayscale.
-const COLORS = { R: 0xff805c, U: 0x1c45ac, Y: 0xf2b632, G: 0x1f8238 };
+// luma (0-255, measured on 2x heads): Y ~173 > G ~127 > R ~92 > U ~65, four clearly separated greys at 70 px. R is the SATURATED mock red (#cc220d family), not the old salmon; ACES tone mapping at 0.8 exposure washes light hexes toward pink, so keep the hex dark and saturated.
+const COLORS = { R: 0xd01c0c, U: 0x1438a0, Y: 0xf2b632, G: 0x2fa84a };
 const MAXPX = 3000;
 const NOSHADOW = arg('shadow', 'on') === 'off'; // --shadow off: no baked shadow layer on any asset (for use under the game's own shadow)
 

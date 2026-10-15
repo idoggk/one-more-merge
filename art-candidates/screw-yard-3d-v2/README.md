@@ -55,3 +55,31 @@ Chrome path: env `CHROME` (default `C:/Program Files/Google/Chrome/Application/c
 - **Side screws**: darker core for a visible groove between turns, sharper tip.
 - Fill report (`FILL_REPORT.md`): toolbox 85x87%, turntable 85x87%, spin 85x88%, 0 flagged.
 - Re-rendered at 1x and 2x with the manifest ids; contact sheets rebuilt. Toolbox and turntable no longer carry a baked shadow (`shadow: 0` in SPEC); the game draws its own.
+
+## Round 3: saturated red (fix of the salmon-orange heads)
+
+Cause: red was `#ff805c` (lightened in pass 2 to split from green in grayscale); ACES filmic at exposure 0.8 plus the clearcoat/env light then pushed it to pale salmon (mean head colour ~ 240,150,110). The painted mock red is `#cc220d` midtone, `#ae1a07` shade, `#fd5b42` highlight.
+Fix (`COLORS` in `tools/render-yard-3d-v2.mjs`; same rig, same one glint, same ink, tone mapping untouched): R `#d01c0c` (rendered mean 199,47,43, close to the mock), G lightened to `#2fa84a` and U darkened to `#1438a0` so grayscale still splits. Measured mean luma of the 2x heads (`node tools/yard-3d-v2-luma.mjs art-candidates/screw-yard-3d-v2`): Y 173, G 127, R 92, U 64 = four separated greys at 70 px (see `contact-small-*.png`, bottom row). The toolbox also takes R, so its red now matches the saturated mock red. Everything re-rendered at 1x/2x (heads, side screws, slot variants, spin strips, toolbox); sheets and fill report rebuilt (0 flagged).
+
+## Self-check against RENDER_CRITIQUE_V2 (critique 91)
+
+| item | result | note |
+|---|---|---|
+| Seam notch gone (heads, collar, ring) | PASS | unchanged, still smooth on the new sheets |
+| Fill 85-88% and centred | PASS | FILL_REPORT: 0 flagged (collar/ring other axis 73-75%, accepted by the critique) |
+| Plank reads as 5-hole plank | PASS | unchanged |
+| Heads R/U/Y/G: KEEP, grayscale value split | PASS | luma 92/64/173/127; critique asked R darker than Y |
+| Red matches the painted mock | PASS | saturated red, same glint/shadow treatment |
+| Side screws: darker thread groove, sharper tip | PASS (minor) | done in round 2; tip still soft at 70 px, no regression |
+| Collar KEEP / ring KEEP / next box KEEP | PASS | unchanged |
+| Beam: optionally thicker front face | FAIL | not done (optional); slot is only 76 px high |
+| Toolbox: body red like the mock | PASS | now saturated red |
+| Toolbox: no grey sliver at right edge | PASS | baked shadow removed |
+| Toolbox: inner shadow under lid, deeper wells | PARTLY PASS | inner shadow yes; lid is still a flat panel, wells only moderately deeper |
+| Turntable: 4-5 plank seams instead of sunburst | PASS | 5 seams |
+| Turntable: no shadow halo | PASS | |
+| Turntable: honey rim from the mock | PASS | |
+| Spin strip: finer thread, reads as screw not spring | PASS | pitch 0.095; not viewed frame by frame |
+| Spin strip: rim notch removed | PASS | |
+| Spin strip: tilt identical every frame | PASS | not measured per frame |
+| Matches painted mock overall | PARTLY PASS | painted mock is richer (chrome tapered threads, hand-painted highlights); colour now matches |
