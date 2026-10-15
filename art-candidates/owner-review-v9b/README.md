@@ -20,7 +20,7 @@ Files: 193 in this folder (limit: 255 per publish call, 511 per artifact). Total
 - Unit art: you said it is too detailed and hard to identify; being redone in a new simpler style (see the Style test group when ready).
 - 20 other pieces whose latest verdict is REDO and were not redone (named below).
 - The old "Being redone" page (24 FIX pieces) and raw sheets, contact sheets and duplicates.
-- Kept: every older group that is not superseded or decided yet (units, popups, offers, nodes, panels, resources...).
+- Kept: every older group that is not superseded or decided yet (popups, HUD, offers, nodes, panels, resources...).
 - Rank pieces in the v8 Unit ranks page that the fix batch replaced are still inside that page (atlas not re-cut).
 - CRITIQUE_87 as a separate doc is the first 3D render critique (HEAD docs/art/mocks/screw-yard/RENDER_CRITIQUE.md); later verdicts (91) win.
 - Screw Yard backdrop and the win hero pieces from v2 are still open in CRITIQUE_98 (backdrop REDO), no new picture exists.
