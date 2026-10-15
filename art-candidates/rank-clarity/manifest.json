@@ -1,0 +1,1388 @@
+[
+ {
+  "key": "belt_drive_1",
+  "unit": "belt_drive",
+  "rank": 1,
+  "id": "belt_drive_1",
+  "branch": "orch/t-d2e36ce2-chatgpt-art-batch-z-per-rank-pic",
+  "path": "art-candidates/rank-art/belt_drive_v2/belt_drive_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "belt_drive_2",
+  "unit": "belt_drive",
+  "rank": 2,
+  "id": "belt_drive_2",
+  "branch": "orch/t-d2e36ce2-chatgpt-art-batch-z-per-rank-pic",
+  "path": "art-candidates/rank-art/belt_drive_v2/belt_drive_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "belt_drive_3",
+  "unit": "belt_drive",
+  "rank": 3,
+  "id": "belt_drive_3",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/belt_drive_fix_v1/belt_drive_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "belt_drive_4",
+  "unit": "belt_drive",
+  "rank": 4,
+  "id": "belt_drive_4",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/belt_drive_fix_v1/belt_drive_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "belt_drive_5",
+  "unit": "belt_drive",
+  "rank": 5,
+  "id": "belt_drive_5",
+  "branch": "orch/t-d2e36ce2-chatgpt-art-batch-z-per-rank-pic",
+  "path": "art-candidates/rank-art/belt_drive_v2/belt_drive_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "belt_drive_6",
+  "unit": "belt_drive",
+  "rank": 6,
+  "id": "belt_drive_6",
+  "branch": "orch/t-d2e36ce2-chatgpt-art-batch-z-per-rank-pic",
+  "path": "art-candidates/rank-art/belt_drive_v2/belt_drive_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "belt_drive_7",
+  "unit": "belt_drive",
+  "rank": 7,
+  "id": "belt_drive_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl1/belt_drive_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "blast_plate_1",
+  "unit": "blast_plate",
+  "rank": 1,
+  "id": "blast_plate_1",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blast_plate_v2/blast_plate_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blast_plate_2",
+  "unit": "blast_plate",
+  "rank": 2,
+  "id": "blast_plate_2",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blast_plate_v2/blast_plate_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blast_plate_3",
+  "unit": "blast_plate",
+  "rank": 3,
+  "id": "blast_plate_3",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blast_plate_v2/blast_plate_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blast_plate_4",
+  "unit": "blast_plate",
+  "rank": 4,
+  "id": "blast_plate_4",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blast_plate_v2/blast_plate_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blast_plate_5",
+  "unit": "blast_plate",
+  "rank": 5,
+  "id": "blast_plate_5",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blast_plate_v2/blast_plate_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blast_plate_6",
+  "unit": "blast_plate",
+  "rank": 6,
+  "id": "blast_plate_6",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blast_plate_v2/blast_plate_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_1",
+  "unit": "blowtorch",
+  "rank": 1,
+  "id": "blowtorch_1",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blowtorch_v2/blowtorch_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_2",
+  "unit": "blowtorch",
+  "rank": 2,
+  "id": "blowtorch_2",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/fixes_v1/blowtorch_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_3",
+  "unit": "blowtorch",
+  "rank": 3,
+  "id": "blowtorch_3",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blowtorch_v2/blowtorch_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_4",
+  "unit": "blowtorch",
+  "rank": 4,
+  "id": "blowtorch_4",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blowtorch_v2/blowtorch_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_5",
+  "unit": "blowtorch",
+  "rank": 5,
+  "id": "blowtorch_5",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/fix_ac_v1/blowtorch_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_6",
+  "unit": "blowtorch",
+  "rank": 6,
+  "id": "blowtorch_6",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/blowtorch_v2/blowtorch_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blowtorch_7",
+  "unit": "blowtorch",
+  "rank": 7,
+  "id": "blowtorch_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl2/blowtorch_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "blowtorch_8",
+  "unit": "blowtorch",
+  "rank": 8,
+  "id": "blowtorch_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl2/blowtorch_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "blueprint_1",
+  "unit": "blueprint",
+  "rank": 1,
+  "id": "blueprint_1",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/blueprint_v2/blueprint_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blueprint_2",
+  "unit": "blueprint",
+  "rank": 2,
+  "id": "blueprint_2",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/blueprint_v2/blueprint_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blueprint_3",
+  "unit": "blueprint",
+  "rank": 3,
+  "id": "blueprint_3",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/blueprint_v2/blueprint_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blueprint_4",
+  "unit": "blueprint",
+  "rank": 4,
+  "id": "blueprint_4",
+  "branch": "orch/t-da51faeb-chatgpt-art-batch-ah-tilt-lever",
+  "path": "art-candidates/rank-art/fix_ah_green/blueprint_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blueprint_5",
+  "unit": "blueprint",
+  "rank": 5,
+  "id": "blueprint_5",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/blueprint_v2/blueprint_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "blueprint_6",
+  "unit": "blueprint",
+  "rank": 6,
+  "id": "blueprint_6",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/fix_ad_v2/blueprint_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_1",
+  "unit": "capacitor",
+  "rank": 1,
+  "id": "capacitor_1",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/capacitor_v3/capacitor_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_2",
+  "unit": "capacitor",
+  "rank": 2,
+  "id": "capacitor_2",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/capacitor_v3/capacitor_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_3",
+  "unit": "capacitor",
+  "rank": 3,
+  "id": "capacitor_3",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/capacitor_v3/capacitor_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_4",
+  "unit": "capacitor",
+  "rank": 4,
+  "id": "capacitor_4",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/capacitor_v3/capacitor_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_5",
+  "unit": "capacitor",
+  "rank": 5,
+  "id": "capacitor_5",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/retry_ac_v1/capacitor_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_6",
+  "unit": "capacitor",
+  "rank": 6,
+  "id": "capacitor_6",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/capacitor_v3/capacitor_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "capacitor_7",
+  "unit": "capacitor",
+  "rank": 7,
+  "id": "capacitor_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl3/capacitor_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "crane_1",
+  "unit": "crane",
+  "rank": 1,
+  "id": "crane_1",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/crane_v1/crane_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "crane_2",
+  "unit": "crane",
+  "rank": 2,
+  "id": "crane_2",
+  "branch": "orch/t-c0c9e9e0-chatgpt-art-batch-ai-crane-ranks",
+  "path": "art-candidates/rank-art/crane_ai/crane_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "crane_3",
+  "unit": "crane",
+  "rank": 3,
+  "id": "crane_3",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/crane_v2/crane_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "crane_4",
+  "unit": "crane",
+  "rank": 4,
+  "id": "crane_4",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/crane_v2/crane_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "crane_5",
+  "unit": "crane",
+  "rank": 5,
+  "id": "crane_5",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/crane_v2/crane_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "crane_6",
+  "unit": "crane",
+  "rank": 6,
+  "id": "crane_6",
+  "branch": "orch/t-eb187d4f-chatgpt-art-batch-ao-critique-32",
+  "path": "art-candidates/batch-ao/ao1/crane_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "crane_8",
+  "unit": "crane",
+  "rank": 8,
+  "id": "crane_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl3/crane_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "dynamo_1",
+  "unit": "dynamo",
+  "rank": 1,
+  "id": "dynamo_1",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/dynamo_v1/dynamo_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "dynamo_2",
+  "unit": "dynamo",
+  "rank": 2,
+  "id": "dynamo_2",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/dynamo_v1/dynamo_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "dynamo_3",
+  "unit": "dynamo",
+  "rank": 3,
+  "id": "dynamo_3",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/dynamo_v2/dynamo_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "dynamo_4",
+  "unit": "dynamo",
+  "rank": 4,
+  "id": "dynamo_4",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/dynamo_v2/dynamo_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "dynamo_5",
+  "unit": "dynamo",
+  "rank": 5,
+  "id": "dynamo_5",
+  "branch": "orch/t-dd59d896-chatgpt-art-batch-ag-crane-dynam",
+  "path": "art-candidates/rank-art/fix_ag_v1/dynamo_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "dynamo_6",
+  "unit": "dynamo",
+  "rank": 6,
+  "id": "dynamo_6",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/dynamo_v2/dynamo_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "dynamo_7",
+  "unit": "dynamo",
+  "rank": 7,
+  "id": "dynamo_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl4/dynamo_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "dynamo_8",
+  "unit": "dynamo",
+  "rank": 8,
+  "id": "dynamo_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl4/dynamo_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "hydraulic_press_1",
+  "unit": "hydraulic_press",
+  "rank": 1,
+  "id": "hydraulic_press_1",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/hydraulic_press_v2/hydraulic_press_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "hydraulic_press_2",
+  "unit": "hydraulic_press",
+  "rank": 2,
+  "id": "hydraulic_press_2",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/hydraulic_press_v2/hydraulic_press_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "hydraulic_press_3",
+  "unit": "hydraulic_press",
+  "rank": 3,
+  "id": "hydraulic_press_3",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/retry_ac_v1/hydraulic_press_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "hydraulic_press_5",
+  "unit": "hydraulic_press",
+  "rank": 5,
+  "id": "hydraulic_press_5",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/hydraulic_press_v2/hydraulic_press_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "hydraulic_press_6",
+  "unit": "hydraulic_press",
+  "rank": 6,
+  "id": "hydraulic_press_6",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/retry_ac_v1/hydraulic_press_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "hydraulic_press_7",
+  "unit": "hydraulic_press",
+  "rank": 7,
+  "id": "hydraulic_press_7",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl6/hydraulic_press_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "hydraulic_press_8",
+  "unit": "hydraulic_press",
+  "rank": 8,
+  "id": "hydraulic_press_8",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl6/hydraulic_press_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "ladder_1",
+  "unit": "ladder",
+  "rank": 1,
+  "id": "ladder_1",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/ladder_v2/ladder_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "ladder_2",
+  "unit": "ladder",
+  "rank": 2,
+  "id": "ladder_2",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/ladder_v2/ladder_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "ladder_3",
+  "unit": "ladder",
+  "rank": 3,
+  "id": "ladder_3",
+  "branch": "orch/t-b33dbf7e-chatgpt-art-batch-af-tilt-lever",
+  "path": "art-candidates/rank-art/fix_af_v1/ladder_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "ladder_4",
+  "unit": "ladder",
+  "rank": 4,
+  "id": "ladder_4",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/fix_ae_v1/ladder_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "ladder_5",
+  "unit": "ladder",
+  "rank": 5,
+  "id": "ladder_5",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/ladder_v2/ladder_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "ladder_6",
+  "unit": "ladder",
+  "rank": 6,
+  "id": "ladder_6",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/fix_ad_v2/ladder_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "ladder_8",
+  "unit": "ladder",
+  "rank": 8,
+  "id": "ladder_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl3/ladder_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "lathe_1",
+  "unit": "lathe",
+  "rank": 1,
+  "id": "lathe_1",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/lathe_v1/lathe_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "lathe_2",
+  "unit": "lathe",
+  "rank": 2,
+  "id": "lathe_2",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/lathe_v1/lathe_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "lathe_3",
+  "unit": "lathe",
+  "rank": 3,
+  "id": "lathe_3",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/retry_ac_v1/lathe_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "lathe_4",
+  "unit": "lathe",
+  "rank": 4,
+  "id": "lathe_4",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/retry_ac_v1/lathe_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "lathe_5",
+  "unit": "lathe",
+  "rank": 5,
+  "id": "lathe_5",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/fix_ae_v1/lathe_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "lathe_6",
+  "unit": "lathe",
+  "rank": 6,
+  "id": "lathe_6",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/fix_ae_v1/lathe_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_1",
+  "unit": "pipe",
+  "rank": 1,
+  "id": "pipe_1",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/pipe_v1/pipe_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_2",
+  "unit": "pipe",
+  "rank": 2,
+  "id": "pipe_2",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/pipe_v1/pipe_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_3",
+  "unit": "pipe",
+  "rank": 3,
+  "id": "pipe_3",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/pipe_v1/pipe_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_4",
+  "unit": "pipe",
+  "rank": 4,
+  "id": "pipe_4",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/fixes_v1/pipe_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_5",
+  "unit": "pipe",
+  "rank": 5,
+  "id": "pipe_5",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/fixes_v1/pipe_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_6",
+  "unit": "pipe",
+  "rank": 6,
+  "id": "pipe_6",
+  "branch": "orch/t-591f534d-chatgpt-art-batch-y-per-rank-pic",
+  "path": "art-candidates/rank-art/pipe_v1/pipe_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "pipe_7",
+  "unit": "pipe",
+  "rank": 7,
+  "id": "pipe_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl2/pipe_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "piston_1",
+  "unit": "piston",
+  "rank": 1,
+  "id": "piston_1",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/piston_v2/piston_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "piston_2",
+  "unit": "piston",
+  "rank": 2,
+  "id": "piston_2",
+  "branch": "orch/t-5ad5ced6-chatgpt-art-batch-t-piston-2-and",
+  "path": "art-candidates/batch-t/piston_2_v1/piston_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "piston_3",
+  "unit": "piston",
+  "rank": 3,
+  "id": "piston_3",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/piston_v2/piston_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "piston_4",
+  "unit": "piston",
+  "rank": 4,
+  "id": "piston_4",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/piston_v2/piston_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "piston_5",
+  "unit": "piston",
+  "rank": 5,
+  "id": "piston_5",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/piston_v2/piston_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "piston_6",
+  "unit": "piston",
+  "rank": 6,
+  "id": "piston_6",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/piston_v2/piston_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "piston_7",
+  "unit": "piston",
+  "rank": 7,
+  "id": "piston_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl1/piston_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "piston_8",
+  "unit": "piston",
+  "rank": 8,
+  "id": "piston_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl1/piston_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "rewind_crank_1",
+  "unit": "rewind_crank",
+  "rank": 1,
+  "id": "rewind_crank_1",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/rewind_crank_v1/rewind_crank_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rewind_crank_2",
+  "unit": "rewind_crank",
+  "rank": 2,
+  "id": "rewind_crank_2",
+  "branch": "orch/t-da51faeb-chatgpt-art-batch-ah-tilt-lever",
+  "path": "art-candidates/rank-art/fix_ah_green/rewind_crank_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rewind_crank_3",
+  "unit": "rewind_crank",
+  "rank": 3,
+  "id": "rewind_crank_3",
+  "branch": "orch/t-da51faeb-chatgpt-art-batch-ah-tilt-lever",
+  "path": "art-candidates/rank-art/fix_ah_green/rewind_crank_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rewind_crank_4",
+  "unit": "rewind_crank",
+  "rank": 4,
+  "id": "rewind_crank_4",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/rewind_crank_v1/rewind_crank_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rewind_crank_5",
+  "unit": "rewind_crank",
+  "rank": 5,
+  "id": "rewind_crank_5",
+  "branch": "orch/t-9225d1c4-chatgpt-art-batch-ab-belt-drive",
+  "path": "art-candidates/rank-art/rewind_crank_v1/rewind_crank_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rewind_crank_6",
+  "unit": "rewind_crank",
+  "rank": 6,
+  "id": "rewind_crank_6",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/fix_ad_v2/rewind_crank_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_1",
+  "unit": "rivet_gun",
+  "rank": 1,
+  "id": "rivet_gun_v2_1",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/rivet_gun_v2/rivet_gun_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_2",
+  "unit": "rivet_gun",
+  "rank": 2,
+  "id": "rivet_gun_2",
+  "branch": "orch/t-5ad5ced6-chatgpt-art-batch-t-piston-2-and",
+  "path": "art-candidates/batch-t/rivet_gun_2_v1/rivet_gun_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_3",
+  "unit": "rivet_gun",
+  "rank": 3,
+  "id": "rivet_gun_v2_3",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/rivet_gun_v2/rivet_gun_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_4",
+  "unit": "rivet_gun",
+  "rank": 4,
+  "id": "rivet_gun_v2_4",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/rivet_gun_v2/rivet_gun_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_5",
+  "unit": "rivet_gun",
+  "rank": 5,
+  "id": "rivet_gun_v2_5",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/rivet_gun_v2/rivet_gun_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_6",
+  "unit": "rivet_gun",
+  "rank": 6,
+  "id": "rivet_gun_v2_6",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/rivet_gun_v2/rivet_gun_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "rivet_gun_7",
+  "unit": "rivet_gun",
+  "rank": 7,
+  "id": "rivet_gun_7",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl5/rivet_gun_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "rivet_gun_8",
+  "unit": "rivet_gun",
+  "rank": 8,
+  "id": "rivet_gun_8",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl5/rivet_gun_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "robot_arm_1",
+  "unit": "robot_arm",
+  "rank": 1,
+  "id": "robot_arm_1",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/robot_arm_v1/robot_arm_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "robot_arm_2",
+  "unit": "robot_arm",
+  "rank": 2,
+  "id": "robot_arm_2",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/robot_arm_v1/robot_arm_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "robot_arm_3",
+  "unit": "robot_arm",
+  "rank": 3,
+  "id": "robot_arm_3",
+  "branch": "orch/t-dd59d896-chatgpt-art-batch-ag-crane-dynam",
+  "path": "art-candidates/rank-art/fix_ag_v1/robot_arm_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "robot_arm_4",
+  "unit": "robot_arm",
+  "rank": 4,
+  "id": "robot_arm_4",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/robot_arm_v1b/robot_arm_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "robot_arm_5",
+  "unit": "robot_arm",
+  "rank": 5,
+  "id": "robot_arm_5",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/robot_arm_v1b/robot_arm_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "robot_arm_6",
+  "unit": "robot_arm",
+  "rank": 6,
+  "id": "robot_arm_6",
+  "branch": "orch/t-aba17b8c-chatgpt-art-batch-ae-the-last-fo",
+  "path": "art-candidates/rank-art/robot_arm_v1b/robot_arm_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "robot_arm_7",
+  "unit": "robot_arm",
+  "rank": 7,
+  "id": "robot_arm_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl4/robot_arm_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "robot_arm_8",
+  "unit": "robot_arm",
+  "rank": 8,
+  "id": "robot_arm_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl4/robot_arm_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "router_1",
+  "unit": "router",
+  "rank": 1,
+  "id": "router_1",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/fix_ac_v1/router_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "router_2",
+  "unit": "router",
+  "rank": 2,
+  "id": "router_2",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/router_v4/router_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "router_3",
+  "unit": "router",
+  "rank": 3,
+  "id": "router_3",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/router_v4/router_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "router_4",
+  "unit": "router",
+  "rank": 4,
+  "id": "router_4",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/fix_ac_v1/router_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "router_5",
+  "unit": "router",
+  "rank": 5,
+  "id": "router_5",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/router_v4/router_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "router_6",
+  "unit": "router",
+  "rank": 6,
+  "id": "router_6",
+  "branch": "orch/t-519e5208-chatgpt-art-batch-aa-router-and",
+  "path": "art-candidates/rank-art/router_v4/router_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "router_7",
+  "unit": "router",
+  "rank": 7,
+  "id": "router_7",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl5/router_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "router_8",
+  "unit": "router",
+  "rank": 8,
+  "id": "router_8",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl5/router_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "spring_1",
+  "unit": "spring",
+  "rank": 1,
+  "id": "spring_1",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/spring_v2/spring_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "spring_2",
+  "unit": "spring",
+  "rank": 2,
+  "id": "spring_2",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/spring_v2/spring_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "spring_3",
+  "unit": "spring",
+  "rank": 3,
+  "id": "spring_3",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/spring_v2/spring_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "spring_4",
+  "unit": "spring",
+  "rank": 4,
+  "id": "spring_4",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/spring_v2/spring_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "spring_5",
+  "unit": "spring",
+  "rank": 5,
+  "id": "spring_5",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/spring_v2/spring_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "spring_6",
+  "unit": "spring",
+  "rank": 6,
+  "id": "spring_6",
+  "branch": "orch/t-21098921-chatgpt-art-batch-n2-per-rank-pi",
+  "path": "art-candidates/rank-art/spring_v2/spring_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "spring_7",
+  "unit": "spring",
+  "rank": 7,
+  "id": "spring_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl1/spring_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "spring_8",
+  "unit": "spring",
+  "rank": 8,
+  "id": "spring_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl1/spring_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "tesla_tower_1",
+  "unit": "tesla_tower",
+  "rank": 1,
+  "id": "tesla_tower_1",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/tesla_tower_v2/tesla_tower_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tesla_tower_2",
+  "unit": "tesla_tower",
+  "rank": 2,
+  "id": "tesla_tower_2",
+  "branch": "orch/t-b33dbf7e-chatgpt-art-batch-af-tilt-lever",
+  "path": "art-candidates/rank-art/fix_af_v1b/tesla_tower_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tesla_tower_3",
+  "unit": "tesla_tower",
+  "rank": 3,
+  "id": "tesla_tower_3",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/tesla_tower_v2/tesla_tower_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tesla_tower_4",
+  "unit": "tesla_tower",
+  "rank": 4,
+  "id": "tesla_tower_4",
+  "branch": "orch/t-b33dbf7e-chatgpt-art-batch-af-tilt-lever",
+  "path": "art-candidates/rank-art/fix_af_v1b/tesla_tower_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tesla_tower_5",
+  "unit": "tesla_tower",
+  "rank": 5,
+  "id": "tesla_tower_5",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/tesla_tower_v2/tesla_tower_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tesla_tower_6",
+  "unit": "tesla_tower",
+  "rank": 6,
+  "id": "tesla_tower_6",
+  "branch": "orch/t-7be528e4-chatgpt-art-batch-ad-rank-6-fixe",
+  "path": "art-candidates/rank-art/tesla_tower_v2/tesla_tower_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tesla_tower_7",
+  "unit": "tesla_tower",
+  "rank": 7,
+  "id": "tesla_tower_7",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl2/tesla_tower_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "tesla_tower_8",
+  "unit": "tesla_tower",
+  "rank": 8,
+  "id": "tesla_tower_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl2/tesla_tower_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "tilt_lever_1",
+  "unit": "tilt_lever",
+  "rank": 1,
+  "id": "tilt_lever_1",
+  "branch": "orch/t-756eddb0-chatgpt-art-batch-aj-tilt-lever",
+  "path": "art-candidates/rank-art/tilt_lever_aj_v1/tilt_lever_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tilt_lever_2",
+  "unit": "tilt_lever",
+  "rank": 2,
+  "id": "tilt_lever_2",
+  "branch": "orch/t-0257a407-chatgpt-art-batch-ak-crane-rank",
+  "path": "art-candidates/rank-art/ak_v1/tilt_lever_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tilt_lever_3",
+  "unit": "tilt_lever",
+  "rank": 3,
+  "id": "tilt_lever_3",
+  "branch": "orch/t-756eddb0-chatgpt-art-batch-aj-tilt-lever",
+  "path": "art-candidates/rank-art/tilt_lever_aj_v1/tilt_lever_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tilt_lever_4",
+  "unit": "tilt_lever",
+  "rank": 4,
+  "id": "tilt_lever_4",
+  "branch": "orch/t-0257a407-chatgpt-art-batch-ak-crane-rank",
+  "path": "art-candidates/rank-art/ak_v1/tilt_lever_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tilt_lever_5",
+  "unit": "tilt_lever",
+  "rank": 5,
+  "id": "tilt_lever_5",
+  "branch": "orch/t-756eddb0-chatgpt-art-batch-aj-tilt-lever",
+  "path": "art-candidates/rank-art/tilt_lever_aj_v1/tilt_lever_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "tilt_lever_6",
+  "unit": "tilt_lever",
+  "rank": 6,
+  "id": "tilt_lever_6",
+  "branch": "orch/t-756eddb0-chatgpt-art-batch-aj-tilt-lever",
+  "path": "art-candidates/rank-art/tilt_lever_aj_v1/tilt_lever_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_1",
+  "unit": "vice",
+  "rank": 1,
+  "id": "vice_1",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/vice_v1/vice_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_2",
+  "unit": "vice",
+  "rank": 2,
+  "id": "vice_2",
+  "branch": "orch/t-2beee653-chatgpt-art-batch-u-remaining-fi",
+  "path": "art-candidates/batch-u/vice_2_v1/vice_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_3",
+  "unit": "vice",
+  "rank": 3,
+  "id": "vice_3",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/vice_v1/vice_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_4",
+  "unit": "vice",
+  "rank": 4,
+  "id": "vice_4",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/vice_v1/vice_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_5",
+  "unit": "vice",
+  "rank": 5,
+  "id": "vice_5",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/vice_v1/vice_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_6",
+  "unit": "vice",
+  "rank": 6,
+  "id": "vice_6",
+  "branch": "orch/t-1605cc14-chatgpt-art-batch-s-vice-rivet-g",
+  "path": "art-candidates/rank-art/vice_v1/vice_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "vice_7",
+  "unit": "vice",
+  "rank": 7,
+  "id": "vice_7",
+  "branch": "orch/t-f05fb2fd-backlog-bl-part-2-ranks-7-and-8",
+  "path": "art-candidates/batch-bl/bl5/vice_7.png",
+  "group": "units-78"
+ },
+ {
+  "key": "wrecking_ball_1",
+  "unit": "wrecking_ball",
+  "rank": 1,
+  "id": "wrecking_ball_1",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/wrecking_ball_v1/wrecking_ball_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrecking_ball_2",
+  "unit": "wrecking_ball",
+  "rank": 2,
+  "id": "wrecking_ball_2",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/wrecking_ball_v1/wrecking_ball_2.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrecking_ball_3",
+  "unit": "wrecking_ball",
+  "rank": 3,
+  "id": "wrecking_ball_3",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/wrecking_ball_v1/wrecking_ball_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrecking_ball_4",
+  "unit": "wrecking_ball",
+  "rank": 4,
+  "id": "wrecking_ball_4",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/wrecking_ball_v1/wrecking_ball_4.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrecking_ball_5",
+  "unit": "wrecking_ball",
+  "rank": 5,
+  "id": "wrecking_ball_5",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/wrecking_ball_v1/wrecking_ball_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrecking_ball_6",
+  "unit": "wrecking_ball",
+  "rank": 6,
+  "id": "wrecking_ball_6",
+  "branch": "orch/t-862101f7-chatgpt-art-batch-ac-ladder-rank",
+  "path": "art-candidates/rank-art/wrecking_ball_v1/wrecking_ball_6.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrecking_ball_8",
+  "unit": "wrecking_ball",
+  "rank": 8,
+  "id": "wrecking_ball_8",
+  "branch": "orch/t-a5a321d6-backlog-bl-unit-ranks-7-and-8-fo",
+  "path": "art-candidates/batch-bl/bl4/wrecking_ball_8.png",
+  "group": "units-78"
+ },
+ {
+  "key": "wrench_1",
+  "unit": "wrench",
+  "rank": 1,
+  "id": "wrench_1",
+  "branch": "orch/t-06eb1506-chatgpt-art-batch-n-per-rank-pic",
+  "path": "art-candidates/rank-art/wrench_v2/wrench_1.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrench_3",
+  "unit": "wrench",
+  "rank": 3,
+  "id": "wrench_3",
+  "branch": "orch/t-06eb1506-chatgpt-art-batch-n-per-rank-pic",
+  "path": "art-candidates/rank-art/wrench_v2/wrench_3.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrench_5",
+  "unit": "wrench",
+  "rank": 5,
+  "id": "wrench_5",
+  "branch": "orch/t-06eb1506-chatgpt-art-batch-n-per-rank-pic",
+  "path": "art-candidates/rank-art/wrench_v2/wrench_5.png",
+  "group": "ranks"
+ },
+ {
+  "key": "wrench_6",
+  "unit": "wrench",
+  "rank": 6,
+  "id": "wrench_6",
+  "branch": "orch/t-06eb1506-chatgpt-art-batch-n-per-rank-pic",
+  "path": "art-candidates/rank-art/wrench_v2/wrench_6.png",
+  "group": "ranks"
+ }
+]
