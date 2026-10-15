@@ -1,0 +1,410 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-95bddaef\\art-candidates\\road-map-new\\raw\\s1_nodes.png",
+  "grid": "3x2",
+  "key": "magenta",
+  "kind": "sheet",
+  "pass": false,
+  "status": "fail",
+  "cells": [
+    {
+      "name": "node_done_disc",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 0 px in components under 52 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.3274,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.327 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.867,
+          "threshold": ">= 0.7",
+          "detail": "object 222x127 px in a 256x256 canvas: 87% of the width, 50% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 22685,
+          "threshold": "0 < opaque < 65536",
+          "detail": "22685 opaque, 2182 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 22.685,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 7.9%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 423-2819 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "node_done_next",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 0 px in components under 52 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.3246,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.325 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.867,
+          "threshold": ">= 0.7",
+          "detail": "object 222x128 px in a 256x256 canvas: 87% of the width, 50% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 22886,
+          "threshold": "0 < opaque < 65536",
+          "detail": "22886 opaque, 2171 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 22.886,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 426-2842 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "node_you_platform",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 77 px in components under 52 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.4228,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.423 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.859,
+          "threshold": ">= 0.7",
+          "detail": "object 220x156 px in a 256x256 canvas: 86% of the width, 61% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 26256,
+          "threshold": "0 < opaque < 65536",
+          "detail": "26256 opaque, 3585 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 26.256,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 515-3432 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "node_you_ember",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 0 px in components under 52 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.411,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.411 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.867,
+          "threshold": ">= 0.7",
+          "detail": "object 222x151 px in a 256x256 canvas: 87% of the width, 59% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 26491,
+          "threshold": "0 < opaque < 65536",
+          "detail": "26491 opaque, 2486 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 26.491,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.0201,
+          "threshold": 0.04,
+          "detail": "2.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 15.3%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 503-3352 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "node_locked_padlock",
+      "status": "fail",
+      "pass": false,
+      "gates": {
+        "cellBorder": {
+          "status": "fail",
+          "pass": false,
+          "value": 87,
+          "threshold": 0,
+          "detail": "87 opaque px within 3px of cell border; despeckle cleared 0 px in components under 52 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.4328,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.433 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.867,
+          "threshold": ">= 0.7",
+          "detail": "object 222x212 px in a 256x256 canvas: 87% of the width, 83% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 30723,
+          "threshold": "0 < opaque < 65536",
+          "detail": "30723 opaque, 3476 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 30.723,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 9.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 706-4706 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [
+        "cellBorder"
+      ],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "node_locked_ice",
+      "status": "fail",
+      "pass": false,
+      "gates": {
+        "cellBorder": {
+          "status": "fail",
+          "pass": false,
+          "value": 88,
+          "threshold": 0,
+          "detail": "88 opaque px within 3px of cell border; despeckle cleared 0 px in components under 52 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.4304,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.430 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.867,
+          "threshold": ">= 0.7",
+          "detail": "object 222x214 px in a 256x256 canvas: 87% of the width, 84% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 31108,
+          "threshold": "0 < opaque < 65536",
+          "detail": "31108 opaque, 3177 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 31.108,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 6.3%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 713-4751 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [
+        "cellBorder"
+      ],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}
