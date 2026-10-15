@@ -90,14 +90,14 @@ applyRosterUnlocks(qaRosterUnlocks());
 // t-4c676288 QA-only: LAST MERGES merge-budget bench levels (TUNING.mergeBudget), default OFF, this device only
 export const qaMergeBudget = () => storedMergeBudget(() => localStorage.getItem(MERGE_BUDGET_KEY));
 applyMergeBudget(qaMergeBudget());
-// t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
+// t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +2 AND BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
 // t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
 export const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
 applyThinkBank(qaThinkBank());
 
-// t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +1 BONUS (the MERGE RULE row can still change it)
+// t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +2 AND BONUS (the MERGE RULE row can still change it)
 export const qaTools = () => storedTools(() => localStorage.getItem(TOOLS_KEY));
 applyTools(qaTools());
 // QA-only: VARIED OPENINGS (4 seeded start layouts on ordinary levels), default OFF, this device only; applied when a level starts
@@ -348,7 +348,7 @@ export const QA_SECTIONS: QaSection[] = [
         },
         toast: (on) => (on ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL'),
       }),
-      // t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
+      // t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +2 AND BONUS sandwich (this device only; next level)
       qaChoice({
         id: 'mergeRule',
         title: 'MERGE RULE',
@@ -608,11 +608,11 @@ export const QA_SECTIONS: QaSection[] = [
         dim: () => !qaMergeBudget(),
         tap: ({ scene }, i) => (qaMergeBudget() ? scene.startBudget(BUDGET_LEVELS[i]) : scene.showToast('TURN BUDGET LEVELS ON FIRST')),
       }),
-      // t-e2a48327 POWER TOOLS: ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +1 BONUS
+      // t-e2a48327 POWER TOOLS: ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +2 AND BONUS
       qaFlag({
         id: 'tools',
         title: 'POWER TOOLS',
-        desc: 'Row Surge + Gear Bomb. Rule +1 BONUS',
+        desc: 'Row Surge + Gear Bomb. Rule +2 AND BONUS',
         get: () => !!qaTools(),
         set: (on) => {
           store(TOOLS_KEY, on ? 'on' : null);
@@ -623,7 +623,7 @@ export const QA_SECTIONS: QaSection[] = [
           }
           tlog.log('qa_tools', { on });
         },
-        toast: (on) => (on ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
+        toast: (on) => (on ? 'POWER TOOLS ON  ·  MERGE RULE +2 AND BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
       }),
       // YARD PRESSURE: ON = countdown from the first tap + tap budget + stars, OBJECT yard only
       qaFlag({

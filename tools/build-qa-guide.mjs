@@ -216,11 +216,11 @@ const GROUPS = [
     id: 'g-rule', title: 'Merge rule and BACK (bottom of the panel)', where: 'panel_bottom',
     controls: [
       {
-        label: 'MERGE RULE: [TODAY]  +2  +1 BONUS', def: 'TODAY', when: 'Next level started.',
-        does: 'The sandwich: if your merge lands touching two more parts of the same rank and family, it absorbs both. +2: the result gains 2 ranks. +1 BONUS: 1 rank plus a third of the Overdrive meter. Puzzles and kickback never sandwich.',
+        label: 'MERGE RULE: [TODAY]  +2  +2 AND BONUS', def: 'TODAY', when: 'Next level started.',
+        does: 'The sandwich: if your merge lands touching two more parts of the same rank and family, it absorbs both. +2: the result gains 2 ranks. +2 AND BONUS: 2 ranks plus a third of the Overdrive meter. Puzzles and kickback never sandwich.',
         see: 'A SANDWICH! +2 RANK caption and a single, bigger part where three used to be. TODAY only merges the two you dragged.',
         tryit: ['Tap +2, BACK, start a level.', 'Find three same parts in a row (for example two next to a third).', 'Drag the outer one onto the middle: three become one.'],
-        imgs: [['rule_panel', '+2 picked'], ['opt_rule_bonus', '+1 BONUS picked'], ['rule_before', 'Before: 11, 12, 13 and 17 are rank 2 cannons'], ['rule_today_after', 'TODAY: 17 onto 12 = a rank 3 in the middle; the two rank 2 beside it stay'], ['rule_sandwich2_after', '+2: SANDWICH, one rank 4'], ['rule_sandwichBonus_after', '+1 BONUS: SANDWICH! +1 · +3 OVERDRIVE: one rank 3 cannon and two Overdrive boxes lit']],
+        imgs: [['rule_panel', '+2 picked'], ['opt_rule_bonus', '+2 AND BONUS picked'], ['rule_before', 'Before: 11, 12, 13 and 17 are rank 2 cannons'], ['rule_today_after', 'TODAY: 17 onto 12 = a rank 3 in the middle; the two rank 2 beside it stay'], ['rule_sandwich2_after', '+2: SANDWICH, one rank 4'], ['rule_sandwichBonus_after', '+2 AND BONUS: SANDWICH! +2 · +3 OVERDRIVE: one rank 4 cannon and two Overdrive boxes lit']],
       },
       {
         label: 'BACK', def: 'Button', when: 'Right away.',
