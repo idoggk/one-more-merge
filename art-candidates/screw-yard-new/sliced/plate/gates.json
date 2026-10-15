@@ -1,0 +1,76 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-5c263b0f\\art-candidates\\screw-yard-new\\_tmp\\cells\\plate_plum_brass.png",
+  "grid": "1x1",
+  "key": "magenta",
+  "kind": "panel",
+  "pass": true,
+  "status": "pass",
+  "cells": [
+    {
+      "name": "plate_plum_brass",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 2 px in components under 78 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.6225,
+          "threshold": "0.03-0.95 (warn down to 0.015 and up to 1.00)",
+          "detail": "0.622 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.863,
+          "threshold": ">= 0.7",
+          "detail": "object 884x185 px in a 1024x325 canvas: 86% of the width, 57% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 151681,
+          "threshold": "0 < opaque < 332800",
+          "detail": "151681 opaque, 6039 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 151.681,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 2453-16354 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-5c263b0f\\art-candidates\\screw-yard-new\\raw\\sy_coil_stage_blank.png",
+  "grid": "1x1",
+  "key": "magenta",
+  "kind": "sheet",
+  "pass": true,
+  "status": "pass",
+  "cells": [
+    {
+      "name": "coil_stage_blank",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 0 px in components under 315 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.5116,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.512 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.867,
+          "threshold": ">= 0.7",
+          "detail": "object 189x222 px in a 256x256 canvas: 74% of the width, 87% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 26853,
+          "threshold": "0 < opaque < 65536",
+          "detail": "26853 opaque, 3824 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 26.853,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.0029,
+          "threshold": 0.04,
+          "detail": "0.3% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 9.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 629-4196 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}
