@@ -13,3 +13,6 @@ Score = tools/rank-clarity.mjs (higher = more distinct, threshold 30). Pieces: `
 | piston 3-4 | 17.1 | 31.4 | DONE (sheet `raw/piston45_sheet.png` cell 3 = rank 4, V-twin barrels) |
 | piston 4-5 | 18.6 | 27.4 | IMPROVED, still weak (<30): cell 6 = rank 5, triple-barrel block with emerald tank |
 | piston 5-6 | 28 | 51.6 | side effect |
+| piston 7-8 | 17.0 | 38.8 | DONE (sheet `raw/piston8_sheet.png` cell 5) |
+
+Tries used: 1 per piece (all accepted first sheet). Not started: spring 6-7/7-8, capacitor 5-6/6-7, belt_drive 6-7, blowtorch 7-8, dynamo 7-8, robot_arm 7-8, blast_plate 3-4, hydraulic_press 7-8 (see NEXT.md). Pieces here are candidates only; nothing wired into src.

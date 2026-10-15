@@ -1,3 +1,4 @@
-# NEXT (rank redo 1)
-Chat: https://chatgpt.com/c/6ad02a70-1718-83ed-a863-d627477ca6c9 (primer sent, READY). Attach refs with file_upload to the "Attach photos" input (works with worktree paths). Slice: `node _tmp/slice.mjs raw 3 2 magenta outDir c1,..,c6 256`, then `_tmp/place.mjs`.
-Remaining worst-first: vice 3/4/5, rivet_gun 8, piston 8 and 4, spring 7/8, capacitor 6, belt_drive 7, blowtorch 8, dynamo 8, robot_arm 8.
+# NEXT (rank redo 1, t-14819aae)
+Chat: https://chatgpt.com/c/6ad02a70-1718-83ed-a863-d627477ca6c9 (condensed primer sent, READY; file attach works via file_upload to the "Attach photos" input with worktree paths).
+Flow per sheet: ref jpg of lower rank -> prompt (3x2 magenta, six takes, state what must change) -> JS blob download (window.__dl) -> import_download -> slice (batch V slice.mjs: `git show 9105991^:art-candidates/batch-v/_tmp/slice.mjs`) -> fit into 250 px box on 256 canvas -> score with a temporary copy over art-candidates/rank-clarity/pieces/<unit>_<rank>.webp and `node tools/rank-clarity.mjs --units <unit> --no-strips`, then `git restore` that folder.
+Remaining, worst first: spring 6-7, 7-8, 1-2..4-5 (spring redraw 2,3,4,7,8), capacitor 5-6, 6-7, belt_drive 6-7, 5-6, blowtorch 7-8, dynamo 7-8, robot_arm 7-8, blast_plate 3-4, 4-5, hydraulic_press 7-8; piston 4-5 still 27 (weak).
