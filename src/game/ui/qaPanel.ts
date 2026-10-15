@@ -7,7 +7,8 @@ import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../
 import { openMascotDemo } from './mascotDemo';
 import { applyRoadSurfaceKit, storedRoadSurfaceKit, ROAD_SURFACE_KIT_KEY } from '../../content/experiments';
 import { openRoadKitPreview } from '../road/roadKitFx';
-import { applyRoadPerf, applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
+import { applyRoadPerf2, storedRoadPerf2, ROAD_PERF2_KEY } from '../../content/experiments';
+import { applyRoadPerf,applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
@@ -141,6 +142,8 @@ export const qaRoadPolish = () => storedRoadPolish(() => localStorage.getItem(RO
 applyRoadPolish(qaRoadPolish());
 export const qaRoadPerf = () => storedRoadPerf(() => localStorage.getItem(ROAD_PERF_KEY));
 applyRoadPerf(qaRoadPerf());
+export const qaRoadPerf2 = () => storedRoadPerf2(() => localStorage.getItem(ROAD_PERF2_KEY));
+applyRoadPerf2(qaRoadPerf2());
 export const qaRoadPerfHud = () => storedRoadPerfHud(() => localStorage.getItem(ROAD_PERF_HUD_KEY));
 applyRoadPerfHud(qaRoadPerfHud());
 export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
@@ -598,12 +601,11 @@ export const QA_SECTIONS: QaSection[] = [
       // ROAD POLISH: on top of LEVEL ROAD V2: parallax, belt road, ambient life, avatar hop, chest rattle, unlock sequence (visual only)
       qaFlag({
         id: 'roadPolish',
-        defOn: true,
         title: 'ROAD POLISH',
         desc: 'Needs LEVEL ROAD V2. Open ROAD',
         get: () => !!qaRoadPolish(),
         set: (on) => {
-          store(ROAD_POLISH_KEY, on ? null : 'off');
+          store(ROAD_POLISH_KEY, on ? 'on' : null);
           applyRoadPolish(on);
           tlog.log('qa_road_polish', { on });
         },
@@ -622,6 +624,20 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_road_perf', { on });
         },
         toast: (on) => (on ? 'ROAD PERF ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF OFF (old road)'),
+      }),
+      // ROAD PERF 2: no geometry mask, cached sky, paused off-screen tweens, baked fog, fewer redraws (visual only; OFF = first-pass road)
+      qaFlag({
+        id: 'roadPerf2',
+        defOn: true,
+        title: 'ROAD PERF 2',
+        desc: 'No mask, cached sky, paused tweens. Open ROAD',
+        get: () => !!qaRoadPerf2(),
+        set: (on) => {
+          store(ROAD_PERF2_KEY, on ? null : 'off');
+          applyRoadPerf2(on);
+          tlog.log('qa_road_perf2', { on });
+        },
+        toast: (on) => (on ? 'ROAD PERF 2 ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF 2 OFF (first-pass road)'),
       }),
       // ROAD PERF READOUT: objects shown/total, active tweens and FPS in the corner of the ROAD tab, for bug reports
       qaFlag({

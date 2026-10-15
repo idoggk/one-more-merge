@@ -4,6 +4,7 @@ import { computeLayout, GameScene, layoutHeight, setRenderScale, W } from './gam
 import { ScrewScene } from './game/ScrewScene';
 import { ObjectYardScene } from './game/ObjectYardScene';
 import { startMusic, unlockAudio } from './game/audio';
+import { ROAD_PERF2_KEY, storedRoadPerf2 } from './content/experiments';
 
 async function boot() {
   // make sure canvas text uses the real font from the first frame (never block more than 1.5 s)
@@ -42,6 +43,8 @@ async function boot() {
     backgroundColor: '#f3cf9b',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: Math.round(W * (forced > 0 ? forced : RS)), height: Math.round(H * (forced > 0 ? forced : RS)) },
     input: { activePointers: 1 },
+    // ROAD PERF 2: ask the phone for its fast GPU (the render scale is already capped at 2 above, so a 3x screen never renders at 3x)
+    render: storedRoadPerf2(() => localStorage.getItem(ROAD_PERF2_KEY)) ? { powerPreference: 'high-performance' } : undefined,
     // all sound is our own WebAudio synth (game/audio.ts): no second, unused AudioContext from Phaser
     audio: { noAudio: true },
     // dev aid: ?timer keeps the loop running in hidden/background tabs (automated checks)

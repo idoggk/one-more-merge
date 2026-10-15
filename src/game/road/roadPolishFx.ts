@@ -7,7 +7,7 @@ import { REDUCED_MOTION, W } from '../sceneKit';
 import { lerpColor, lookOf } from './roadArt';
 import { hash01, ROAD, type RoadLayout, type RoadNode } from './pathGen';
 import {
-  AMBIENT_CAP, beltOffset, dashSegments, groundStyleOf, hopCount, hopFrame, joinPaths, layerY, nodeVisual, pathLength, PARALLAX, pickAmbient, pointAt, stepProgress,
+  AMBIENT_CAP, AMBIENT_CAP_OLD, beltOffset, dashSegments, groundStyleOf, hopCount, hopFrame, joinPaths, layerY, nodeVisual, pathLength, PARALLAX, pickAmbient, pointAt, stepProgress,
   travelSpan, UNLOCK_TIMELINE, unlockTotal, type AmbientSpot,
 } from './roadPolishModel';
 import type { NodeState } from './roadModel';
@@ -26,6 +26,10 @@ export interface RoadPolishCtx {
   cur: number;
   top: number;
   bottom: number;
+  /** ROAD PERF 2: a looping tween that pauses while the world span [minY, maxY] is off screen (default: plain loopTween) */
+  loop?: (owner: Phaser.GameObjects.GameObject, config: Phaser.Types.Tweens.TweenBuilderConfig, minY: number, maxY: number) => unknown;
+  /** ROAD PERF 2 on: lower ambient cap, belt redrawn every 2nd frame */
+  perf2?: boolean;
 }
 
 export interface RoadPolish {
@@ -52,7 +56,10 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
   const alive = { v: true };
   c.once(Phaser.GameObjects.Events.DESTROY, () => (alive.v = false));
   let ambientLive = 0;
-  const take = () => (ambientLive < AMBIENT_CAP ? (ambientLive++, true) : false);
+  const cap = o.perf2 ? AMBIENT_CAP : AMBIENT_CAP_OLD;
+  const loop = (owner: Phaser.GameObjects.GameObject, config: Phaser.Types.Tweens.TweenBuilderConfig, minY: number, maxY: number) =>
+    o.loop ? o.loop(owner, config, minY, maxY) : loopTween(scene, config, owner);
+  const take = () => (ambientLive < cap ? (ambientLive++, true) : false);
   const give = () => (ambientLive = Math.max(0, ambientLive - 1));
 
   // ---- ground ramp (option B): a faint code-drawn pattern per chapter near the player, on its own parallax layer --------------------
@@ -84,10 +91,11 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
   const beltG = scene.add.graphics();
   // only the last 8 travelled segments (the part near the player) move: keeps the per-frame cost to a few dozen dashes
   const beltPts = joinPaths(lay.segments.filter((s) => s.to <= cur && s.from >= cur - 8).map((s) => s.pts));
-  let beltT = 0;
+  let beltT = 0, beltFrame = 0;
   const beltTick = (_t: number, dt: number) => {
     if (!alive.v) return;
     beltT += dt;
+    if (o.perf2 && beltFrame++ % 2) return; // every 2nd frame is enough for a slow creep (beltT keeps the true time)
     beltG.clear().lineStyle(8, 0xb87a10, 0.55);
     for (const [a, b] of dashSegments(beltPts, beltOffset(beltT, 38, 48), 22, 26)) beltG.lineBetween(a.x, a.y, b.x, b.y);
   };
@@ -102,7 +110,7 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
   const spots: AmbientSpot[] = [];
   lay.nodes.forEach((n) => spots.push({ id: `n${String(n.level).padStart(3, '0')}`, y: n.y }));
   if (!REDUCED_MOTION) {
-    for (const s of pickAmbient(spots, curNode.y, 1100, AMBIENT_CAP - 2)) {
+    for (const s of pickAmbient(spots, curNode.y, 1100, cap - 2)) {
       if (!take()) break;
       const n = lay.nodes[Number(s.id.slice(1)) - 1];
       const look = lookOf(n.chapter);
@@ -115,9 +123,9 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
         : scene.add.circle(x, n.y, prop === 'bubbles' ? 10 : 15, 0xffffff, 0.5).setStrokeStyle(prop === 'bubbles' ? 3 : 0, 0xffffff, 0.8);
       road.add(el);
       const rising = prop !== 'stars';
-      loopTween(scene, rising
+      loop(el, rising
         ? { targets: el, y: n.y - 150, alpha: 0, duration: 3000 + (n.level % 4) * 400, delay: (n.level % 5) * 450, repeat: -1, ease: 'Sine.Out' }
-        : { targets: el, alpha: 0.15, scale: 0.6, duration: 900 + (n.level % 3) * 300, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, el);
+        : { targets: el, alpha: 0.15, scale: 0.6, duration: 900 + (n.level % 3) * 300, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, n.y - 200, n.y + 100);
     }
     // foreground wisps (parallax 1.25): two soft streaks drifting across the screen, never over the nodes' centre column
     for (let i = 0; i < 2; i++) {
@@ -162,7 +170,7 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
       const vis = nodeVisual(state, n.kind, n.ribbon);
       if (REDUCED_MOTION) return;
       const s0 = img.scale;
-      if (vis.motion === 'breathe') loopTween(scene, { targets: img, scaleX: s0 * 1.025, scaleY: s0 * 1.04, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, img);
+      if (vis.motion === 'breathe') loop(img, { targets: img, scaleX: s0 * 1.025, scaleY: s0 * 1.04, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, n.y - 200, n.y + 200);
       if (span && n.level === cur - 1) {
         // the level just won: its stars pop in one after the other once the climb has started
         starImgs.forEach((st, k) => {
@@ -185,7 +193,7 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
         const sp = scene.add.star(img.x + (k ? 26 : -26), img.y - 20, 4, 3, 9, 0xfff3b0, 0.9);
         road.add(sp);
         sp.once('destroy', () => give());
-        loopTween(scene, { targets: sp, y: sp.y - 36, alpha: 0, scale: 1.6, duration: 1100, delay: k * 550, repeat: -1, repeatDelay: 400, ease: 'Sine.Out' }, sp);
+        loop(sp, { targets: sp, y: sp.y - 36, alpha: 0, scale: 1.6, duration: 1100, delay: k * 550, repeat: -1, repeatDelay: 400, ease: 'Sine.Out' }, img.y - 120, img.y + 80);
       }
     },
     hero(hero, dx, dy, plat, onArrive) {

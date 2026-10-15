@@ -16,7 +16,7 @@ const EXPECTED_ROWS = [
   'allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode', // units
   'cratesLook', // crates
   'crateOpenV2',
-  'spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerfHud', 'roadSurfaceKit', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
+  'spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerfHud', 'roadSurfaceKit', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
   'yardMode', 'yardBook', // screw yard
   'uiKitV3', // display
   'resourceFly', // display
@@ -40,21 +40,22 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('feel')).toEqual(['thinkBank', 'mergeRule', 'mergeAssist', 'pace']);
     expect(ids('units')).toEqual(['allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode']);
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
-    expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerfHud', 'roadSurfaceKit', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure']);
+    expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerf2', 'roadPerfHud', 'roadSurfaceKit', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
     expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'mascotMotion', 'mascotDemo', 'mapBadges', 'mapBadgesForce', 'uiJuice', 'shake']);
   });
   it('visual-only switches ship ON, can be turned off, and RESET ALL puts them back ON', async () => {
     const { TUNING } = await import('../src/content/tuning');
-    const { RESOURCE_FLY, UNIT_IDLE, UNIT_SHOTS, ROAD_POLISH } = await import('../src/content/experiments');
-    expect([TUNING.uiKitV3, TUNING.levelRoadV2, TUNING.crateOpenV2, RESOURCE_FLY.on, UNIT_IDLE.on, UNIT_SHOTS.on, ROAD_POLISH.on]).toEqual(Array(7).fill(true));
+    const { RESOURCE_FLY, UNIT_IDLE, UNIT_SHOTS, ROAD_POLISH, ROAD_PERF2 } = await import('../src/content/experiments');
+    expect([TUNING.uiKitV3, TUNING.levelRoadV2, TUNING.crateOpenV2, RESOURCE_FLY.on, UNIT_IDLE.on, UNIT_SHOTS.on, ROAD_PERF2.on]).toEqual(Array(7).fill(true));
+    expect(ROAD_POLISH.on, 'ROAD POLISH ships OFF until the owner confirms smoothness').toBe(false);
     // behaviour flags stay OFF
     expect([TUNING.effortModel, TUNING.paceCaps, TUNING.yardBook]).toEqual([false, false, false]);
     const q = { scene: { showToast() {} }, reopen() {} } as never;
     const mem = new Map<string, string>();
     vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) });
     try {
-      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPolish', 'roadPerf', 'crateOpenV2']) {
+      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPerf', 'roadPerf2', 'crateOpenV2']) {
         const row = QA_ROWS.find((r) => r.spec.id === id)!;
         row.apply!(false, q);
         expect([...mem.values()].pop(), id).toBe('off');
@@ -64,7 +65,8 @@ describe('QA registry: every old row is still there', () => {
     } finally {
       vi.unstubAllGlobals();
     }
-    expect([TUNING.uiKitV3, TUNING.levelRoadV2, TUNING.crateOpenV2, RESOURCE_FLY.on, UNIT_IDLE.on, UNIT_SHOTS.on, ROAD_POLISH.on]).toEqual(Array(7).fill(true));
+    expect([TUNING.uiKitV3, TUNING.levelRoadV2, TUNING.crateOpenV2, RESOURCE_FLY.on, UNIT_IDLE.on, UNIT_SHOTS.on, ROAD_PERF2.on]).toEqual(Array(7).fill(true));
+    expect(ROAD_POLISH.on, 'ROAD POLISH ships OFF until the owner confirms smoothness').toBe(false);
   });
   it('on/off settings are switches, multi-choice settings are segmented controls', () => {
     const kind = (id: string) => QA_ROWS.find((r) => r.spec.id === id)!.spec.kind;

@@ -12,12 +12,13 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { MAP_BADGES, ROAD_PERF, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
+import { MAP_BADGES, ROAD_PERF, ROAD_PERF2, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
 import { planRoad } from './roadKit';
 import { addKitStamps } from './roadKitFx';
 import { addMapBadges } from './mapBadges';
 import { createRoadPolish } from './roadPolishFx';
 import { addRoadPerfHud, createCuller } from './roadPerf';
+import { createTweenGate, shouldCull, skyRowCount, skyRows } from './roadPerf2';
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
@@ -26,6 +27,10 @@ const SIZE: Record<FrameKind, number> = { normal: 150, hard: 160, mega: 168, min
 /** fallback pictures from the existing kit while nodeFrame_* art is missing */
 const FALLBACK_TEX: Record<FrameKind, string> = { normal: 'node_normal', hard: 'node_hard', mega: 'node_mega_hard', mini: 'node_boss', boss: 'node_boss' };
 const LOCKED_TINT = 0x9fb4d6;
+/** ROAD PERF 2: most looping tweens of off-the-hero road pieces that run at once */
+const LIVE_TWEENS = 10;
+/** ROAD PERF 2: one sky sample per this many world px (the texture is smoothed between rows) */
+const SKY_STEP = 8, SKY_MAX_ROWS = 2048;
 
 /** Memoised: the layout depends on the level table only. */
 let LAYOUT: ReturnType<typeof layoutRoad> | null = null;
@@ -59,12 +64,28 @@ export function openRoadV2(scene: GameScene) {
   const cull = (objs: { setVisible(v: boolean): unknown }[], minY: number, maxY: number) => {
     if (ROAD_PERF.on) culler.add(objs, minY, maxY);
   };
+  // ROAD PERF 2: tweens of pieces off screen are paused, and at most LIVE_TWEENS of the road's looping tweens run at once
+  const p2 = ROAD_PERF2.on && ROAD_PERF.on;
+  const tweenGate = createTweenGate(LIVE_TWEENS);
+  let tweenId = 0;
+  const loop = (owner: Phaser.GameObjects.GameObject, config: Phaser.Types.Tweens.TweenBuilderConfig, minY: number, maxY: number) => {
+    const tw = loopTween(scene, config, owner);
+    if (p2) {
+      const id = tweenId++;
+      culler.add([], minY, maxY, (v) => (tweenGate.want(id, v) ? tw.resume() : tw.pause()));
+    }
+    return tw;
+  };
   c.add([backdrop, far, road]);
   c.add(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()); // swallow stray taps below the road
-  const mask = scene.add.graphics().setVisible(false).fillRect(0, 0, W, H - 118);
-  const geo = mask.createGeometryMask();
-  far.setMask(geo);
-  road.setMask(geo);
+  // the road is clipped above the nav: a geometry mask (stencil pass, slow on phones) or, with ROAD PERF 2, an opaque panel drawn over it later
+  const mask = scene.add.graphics().setVisible(false);
+  if (!p2) {
+    mask.fillRect(0, 0, W, H - 118);
+    const geo = mask.createGeometryMask();
+    far.setMask(geo);
+    road.setMask(geo);
+  }
 
   // ---- far layer: scenery art per chapter, or a soft code-drawn skyline band -----------------------------------------------
   const farLayers = lay.chapters.map((ch) => {
@@ -123,7 +144,7 @@ export function openRoadV2(scene: GameScene) {
         const puff = scene.add.circle(x, y - 40, 14, 0xffffff, 0.5);
         road.add(puff);
         chapterObjs.push(puff);
-        loopTween(scene, { targets: puff, y: y - 130, scale: 2.2, alpha: 0, duration: 2600 + (i % 4) * 400, delay: (i % 5) * 500, repeat: -1, ease: 'Sine.Out' }, puff);
+        loop(puff, { targets: puff, y: y - 130, scale: 2.2, alpha: 0, duration: 2600 + (i % 4) * 400, delay: (i % 5) * 500, repeat: -1, ease: 'Sine.Out' }, y - 200, y + 40);
       }
     }
   }
@@ -185,7 +206,7 @@ export function openRoadV2(scene: GameScene) {
   }
 
   // ROAD POLISH (flag, default OFF): parallax, ground ramp, belt stripe, ambient life, avatar hop, unlock sequence; see roadPolishFx.ts
-  const polish = ROAD_POLISH.on ? createRoadPolish({ scene, c, far, road, lay, cur, top, bottom }) : null;
+  const polish = ROAD_POLISH.on ? createRoadPolish({ scene, c, far, road, lay, cur, top, bottom, perf2: p2, loop: p2 ? (owner, cfg, a, b) => loop(owner, cfg, a, b) : undefined }) : null;
 
   // ---- fog over chapters not reached yet; banners; gates -------------------------------------------------------------------
   const fogKey = slotArt(has, 'fog') ?? 'road_fog';
@@ -253,15 +274,32 @@ export function openRoadV2(scene: GameScene) {
       tease.setAlpha(open ? 0.6 : 0.9);
       road.add(tease);
       gateObjs.push(tease);
-      const fog = scene.add.graphics();
-      for (let k = 0; k < 36; k++) fog.fillStyle(lerpColor(0xffffff, nextLook.bottom, 0.15), Math.sin(((k + 0.5) / 36) * Math.PI) * (open ? 0.5 : 0.8)).fillRect(0, gy - 600 + k * 12, W, 13);
+      const fogCol = lerpColor(0xffffff, nextLook.bottom, 0.15), fogK = open ? 0.5 : 0.8;
+      const drawFog = (fog: Phaser.GameObjects.Graphics, oy: number) => {
+        for (let k = 0; k < 36; k++) fog.fillStyle(fogCol, Math.sin(((k + 0.5) / 36) * Math.PI) * fogK).fillRect(0, oy + k * 12, W, 13);
+      };
+      let fog: Phaser.GameObjects.Graphics | Phaser.GameObjects.Image;
+      if (p2) {
+        // 36 alpha rects redrawn every frame become one cached 720 x 444 picture (shared by chapters with the same colour)
+        const fk = `road_fogband_${fogCol.toString(16)}_${open ? 1 : 0}`;
+        if (!scene.textures.exists(fk)) {
+          const fg = scene.make.graphics({ x: 0, y: 0 }, false);
+          drawFog(fg as Phaser.GameObjects.Graphics, 0);
+          fg.generateTexture(fk, W, 36 * 12 + 1);
+          fg.destroy();
+        }
+        fog = scene.add.image(0, gy - 600, fk).setOrigin(0, 0);
+      } else {
+        fog = scene.add.graphics();
+        drawFog(fog, gy - 600);
+      }
       road.add(fog);
       gateObjs.push(fog);
       for (let i = 0; i < 3; i++) {
         const cl = scene.add.image(120 + i * 250 + hash01(ch.chapter * 9 + i) * 40, gy - 250 - (i % 2) * 70, fogKey).setScale(2.4 + hash01(i + 7) * 0.6).setAlpha(open ? 0.5 : 0.85);
         road.add(cl);
         gateObjs.push(cl);
-        if (!REDUCED_MOTION) loopTween(scene, { targets: cl, x: cl.x + (i % 2 ? -30 : 30), duration: 5000 + i * 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, cl);
+        if (!REDUCED_MOTION) loop(cl, { targets: cl, x: cl.x + (i % 2 ? -30 : 30), duration: 5000 + i * 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, gy - 400, gy - 100);
       }
     }
     // entrance banner: a ribbon with scroll ends BESIDE the path, with a chapter icon
@@ -289,7 +327,7 @@ export function openRoadV2(scene: GameScene) {
     if (has(key)) {
       const im = scene.add.image(ch.x, ch.y, key);
       im.setScale(104 / Math.max(im.width, im.height));
-      if (st === 'closed' && cur === ch.afterLevel && !REDUCED_MOTION) loopTween(scene, { targets: im, angle: { from: -5, to: 5 }, duration: 160, yoyo: true, repeat: -1, repeatDelay: 1400 }, im);
+      if (st === 'closed' && cur === ch.afterLevel && !REDUCED_MOTION) loop(im, { targets: im, angle: { from: -5, to: 5 }, duration: 160, yoyo: true, repeat: -1, repeatDelay: 1400 }, ch.y - 200, ch.y + 200);
       road.add(im);
       chestObjs.push(im);
       polish?.chest(im, st === 'closed' && cur === ch.afterLevel);
@@ -460,7 +498,7 @@ export function openRoadV2(scene: GameScene) {
   }
 
   // ---- ambient: drifting clouds (screen space, a little faster than the road) ------------------------------------------------
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < (p2 ? 2 : 4); i++) {
     const img = scene.add.image(0, 0, 'road_cloud').setScale(1.3 + (i % 2) * 0.7).setAlpha(0.3);
     img.x = (i * 211) % W;
     c.addAt(img, 2); // behind the road, in front of the far layer
@@ -469,6 +507,7 @@ export function openRoadV2(scene: GameScene) {
   }
 
   // ---- HUD: scrim, chapter chip, rails, back-to-me, PLAY, nav ------------------------------------------------------------------
+  if (p2) c.add(scene.add.rectangle(W / 2, H - 59, W, 118, 0x4a3b50, 1)); // stands in for the mask: covers the road under the nav
   const scrim = scene.add.graphics();
   for (let i = 0; i < 12; i++) scrim.fillStyle(INK, 0.03).fillRect(0, H - 360 + i * 21, W, 360 - i * 21);
   scrim.fillStyle(INK, 0.45).fillRect(0, H - 108, W, 108);
@@ -531,18 +570,45 @@ export function openRoadV2(scene: GameScene) {
   scene.drawNav(c, 'road');
   if (ROAD_PERF_HUD.on) addRoadPerfHud(scene, c, 190);
 
+  // ROAD PERF 2: the sky is one cached gradient texture (a 4 px wide strip of colours, built once) that scrolls with the road, instead of ~55 filled
+  // bands rebuilt on every scroll step
+  const skyTop = lay.topY - H, skyBot = lay.bottomY + H;
+  let sky: Phaser.GameObjects.Image | null = null;
+  const skyKey = `road_sky_${scene.time.now | 0}`;
+  if (p2) {
+    const colors = skyRows(skyTop, skyBot, skyRowCount(skyBot - skyTop, SKY_STEP, SKY_MAX_ROWS), (wy) => skyColorAt(lay.chapters, chapterAtY(lay.chapters, wy), wy));
+    const tex = scene.textures.createCanvas(skyKey, 4, colors.length);
+    if (tex) {
+      const ctx = tex.getContext();
+      colors.forEach((col, i) => {
+        ctx.fillStyle = `#${col.toString(16).padStart(6, '0')}`;
+        ctx.fillRect(0, i, 4, 1);
+      });
+      tex.refresh();
+      sky = scene.add.image(0, skyTop, skyKey).setOrigin(0, 0).setDisplaySize(W, skyBot - skyTop);
+      c.addAt(sky, 1); // right above the (now empty) backdrop, under the far layer
+    }
+  }
+
   // ---- scroll -----------------------------------------------------------------------------------------------------------------
   const home = snapScroll(curNode.y, top, bottom, lo, hi);
+  let calls = 0, lastCull: number | null = null, lastAbove: boolean | null = null;
   const redraw = (scroll: number) => {
     road.y = scroll;
     placeFar(scroll);
     polish?.place(scroll);
-    culler.update(scroll);
-    backdrop.clear();
-    const bandH = 28;
-    for (let sy = 0; sy < H; sy += bandH) {
-      const wy = sy + bandH / 2 - scroll;
-      backdrop.fillStyle(skyColorAt(lay.chapters, chapterAtY(lay.chapters, wy), wy), 1).fillRect(0, sy, W, bandH + 1);
+    if (!p2 || shouldCull(calls++, scroll, lastCull)) {
+      culler.update(scroll);
+      lastCull = scroll;
+    }
+    if (sky) sky.y = skyTop + scroll;
+    else {
+      backdrop.clear();
+      const bandH = 28;
+      for (let sy = 0; sy < H; sy += bandH) {
+        const wy = sy + bandH / 2 - scroll;
+        backdrop.fillStyle(skyColorAt(lay.chapters, chapterAtY(lay.chapters, wy), wy), 1).fillRect(0, sy, W, bandH + 1);
+      }
     }
     for (const cl of clouds) cl.img.y = ((cl.base + scroll * cl.k) % (H + 300) + (H + 300)) % (H + 300) - 150;
     for (const f of fades) {
@@ -554,9 +620,12 @@ export function openRoadV2(scene: GameScene) {
     if (far_ !== back.visible) back.setVisible(far_);
     if (far_) {
       const above = curNode.y + scroll < top;
-      backArrow.clear().fillStyle(INK, 1);
-      if (above) backArrow.fillTriangle(-14, -16, 14, -16, 0, -34);
-      else backArrow.fillTriangle(-14, -22, 14, -22, 0, -4);
+      if (!p2 || above !== lastAbove) {
+        lastAbove = above;
+        backArrow.clear().fillStyle(INK, 1);
+        if (above) backArrow.fillTriangle(-14, -16, 14, -16, 0, -34);
+        else backArrow.fillTriangle(-14, -22, 14, -22, 0, -4);
+      }
     }
   };
   // with a climb to show (polish), the road opens on the level the player came from and glides up to the new one
@@ -568,7 +637,10 @@ export function openRoadV2(scene: GameScene) {
     onScroll: redraw,
   });
   if (!REDUCED_MOTION && startScroll !== home && (fromNode || home - 360 >= lo)) scroller.to(home, fromNode ? 600 : 650);
-  c.once(Phaser.GameObjects.Events.DESTROY, () => mask.destroy());
+  c.once(Phaser.GameObjects.Events.DESTROY, () => {
+    mask.destroy();
+    if (sky && scene.textures.exists(skyKey)) scene.textures.remove(skyKey);
+  });
 
   // first road visit: lesson 1 (the ring lives in road space so it scrolls with the road)
   if (!(m.lessons ?? {}).road && cur <= 3) {

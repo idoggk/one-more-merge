@@ -133,7 +133,9 @@ export function chestVisual(state: ChestState, afterLevel: number, cur: number):
 
 // ---- ambient life ---------------------------------------------------------------------------------------------------------------
 /** Hard cap of ambient sprites on screen (steam, birds, sparkles, foreground wisps). */
-export const AMBIENT_CAP = 6;
+export const AMBIENT_CAP = 3;
+/** the cap before ROAD PERF 2 (kept for the flag-off comparison) */
+export const AMBIENT_CAP_OLD = 6;
 export interface AmbientSpot {
   id: string;
   /** road-space y */

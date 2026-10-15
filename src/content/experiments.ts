@@ -340,9 +340,13 @@ export function applyMapBadges(on: boolean, force: typeof MAP_BADGES.force = MAP
 /** QA panel ROAD POLISH switch (this device only, not in the save): 'on' = parallax, belt road, ambient life, avatar hop, node and chest motion,
  *  unlock sequence on the ROAD tab. Needs levelRoadV2. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
 export const ROAD_POLISH_KEY = 'omm_qa_road_polish';
-export const ROAD_POLISH = { on: true };
+export const ROAD_POLISH = { on: false }; // SAFER DEFAULT until the owner confirms the road is smooth with it; only a stored 'on' turns it on
 export function storedRoadPolish(read: () => string | null): boolean {
-  return storedDefaultOn(read);
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
 }
 export function applyRoadPolish(on: boolean) {
   ROAD_POLISH.on = on;
@@ -357,6 +361,17 @@ export function storedRoadPerf(read: () => string | null): boolean {
 }
 export function applyRoadPerf(on: boolean) {
   ROAD_PERF.on = on;
+}
+/** QA panel ROAD PERF 2 switch (this device only, not in the save): 'on' (default) = second smoothness pass on the ROAD tab: no geometry mask
+ *  (bottom panel instead), cached sky gradient, tweens paused off screen and capped, baked fog, fewer redraws, fewer clouds, 3 ambient sprites.
+ *  'off' = the first-pass road (mask, per-scroll sky bands) for comparison. Presentation only. */
+export const ROAD_PERF2_KEY = 'omm_qa_road_perf2';
+export const ROAD_PERF2 = { on: true };
+export function storedRoadPerf2(read: () => string | null): boolean {
+  return storedDefaultOn(read);
+}
+export function applyRoadPerf2(on: boolean) {
+  ROAD_PERF2.on = on;
 }
 /** QA panel ROAD SURFACE KIT switch (this device only, not in the save): 'on' = the ROAD tab stamps the kit pieces road_<chapter>_<piece> along the
  *  path where the textures exist (everything else keeps the old road drawing). Default OFF, presentation only. */

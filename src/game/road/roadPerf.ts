@@ -11,21 +11,28 @@ interface Piece {
   minY: number;
   maxY: number;
   shown: boolean;
+  /** ROAD PERF 2: called on the first update and whenever the group flips (pause / resume its tweens) */
+  onChange?: (visible: boolean) => void;
+  told?: boolean;
 }
 
 /** Register groups of objects with the world-y span they cover; `update(scroll)` hides the groups outside the view (only touching changed ones). */
 export function createCuller(viewH: number, margin: number) {
   const pieces: Piece[] = [];
   return {
-    add(objs: { setVisible(v: boolean): unknown }[], minY: number, maxY: number) {
-      pieces.push({ objs, minY, maxY, shown: true });
+    add(objs: { setVisible(v: boolean): unknown }[], minY: number, maxY: number, onChange?: (visible: boolean) => void) {
+      pieces.push({ objs, minY, maxY, shown: true, onChange });
     },
     update(scroll: number) {
       for (const p of pieces) {
         const v = spanVisible(p.minY, p.maxY, scroll, viewH, margin);
-        if (v === p.shown) continue;
-        p.shown = v;
-        for (const o of p.objs) o.setVisible(v);
+        const first = !!p.onChange && !p.told;
+        p.told = true;
+        if (v !== p.shown) {
+          p.shown = v;
+          for (const o of p.objs) o.setVisible(v);
+        } else if (!first) continue;
+        p.onChange?.(v);
       }
     },
     /** pieces currently hidden (for the readout and tests) */

@@ -10,15 +10,18 @@ const lay = layoutRoad(LEVELS);
 const line = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }];
 
 describe('road polish: flag', () => {
-  it('is ON by default and only a stored "off" turns it off', () => {
-    expect(ROAD_POLISH.on).toBe(true);
-    expect(storedRoadPolish(() => 'on')).toBe(true);
-    expect(storedRoadPolish(() => null)).toBe(true);
-    expect(storedRoadPolish(() => 'off')).toBe(false);
-    expect(storedRoadPolish(() => { throw new Error('x'); })).toBe(true);
-    applyRoadPolish(false);
+  it('is OFF by default and only a stored "on" turns it on', () => {
     expect(ROAD_POLISH.on).toBe(false);
+    expect(storedRoadPolish(() => 'on')).toBe(true);
+    expect(storedRoadPolish(() => null)).toBe(false);
+    expect(storedRoadPolish(() => 'off')).toBe(false);
+    expect(storedRoadPolish(() => { throw new Error('x'); })).toBe(false);
     applyRoadPolish(true);
+    expect(ROAD_POLISH.on).toBe(true);
+    applyRoadPolish(false);
+  });
+  it('caps ambient sprites at 3 (6 before ROAD PERF 2)', () => {
+    expect(AMBIENT_CAP).toBe(3);
   });
 });
 
