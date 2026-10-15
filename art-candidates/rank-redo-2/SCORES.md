@@ -6,3 +6,5 @@ Score = tools/rank-clarity.mjs (threshold 30). Scored with redo-1 pieces + redo-
 |---|---|---|---|
 | spring 6-7 | 17.1 | 59.2 | DONE: rank 7 = twin coil towers joined by an arch, ruby crown, blue accents (sheet `raw/spring7_sheet.png` cell 5) |
 | spring 7-8 | 18.5 | 57.0 | side effect of new rank 7 |
+| capacitor 5-6 | 17.6 | 59.5 | DONE: rank 6 = tall single blue tank, two thin coils, teal base, spark (sheet `raw/cap6_sheet.png` cell 1, inset 16 px because the sheet has black grid lines) |
+| capacitor 6-7 | 21.6 | 64.2 | side effect |
