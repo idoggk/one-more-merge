@@ -282,6 +282,21 @@ export function applyUnitIdle(on: boolean) {
   UNIT_IDLE.on = on;
 }
 
+/** QA panel UI JUICE switch (this device only, not in the save): 'on' = pop-ins, press squash, glints and sparkles on popups, buttons, rewards
+ *  and road badges. Default OFF in code (the Lead turns it ON after review). Presentation only, outside TUNING; docs/art/UI_JUICE.md. */
+export const UI_JUICE_KEY = 'omm_qa_ui_juice';
+export const UI_JUICE = { on: false };
+export function storedUiJuice(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUiJuice(on: boolean) {
+  UI_JUICE.on = on;
+}
+
 /** QA panel ROAD POLISH switch (this device only, not in the save): 'on' = parallax, belt road, ambient life, avatar hop, node and chest motion,
  *  unlock sequence on the ROAD tab. Needs levelRoadV2. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
 export const ROAD_POLISH_KEY = 'omm_qa_road_polish';

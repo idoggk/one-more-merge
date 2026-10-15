@@ -12,6 +12,7 @@ import { store } from '../meta';
 import { META_KEY } from '../../platform/backup';
 import { H, W, mmss } from '../sceneKit';
 import type { GameScene } from '../GameScene';
+import { juiceIntroPlay } from '../fx/juiceHooks';
 import { clampLines, firstSentence, INTRO_CFG as C, layoutIntro, parseTools, type IntroKind } from './levelIntroLayout';
 import type { Rect } from './qaLayout';
 
@@ -227,6 +228,7 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
   });
   pc.on('pointerout', () => pc.setScale(1));
   c.add(pc);
+  juiceIntroPlay(scene, pc, g.play.w, g.play.h);
 
   // title ribbon (over the panel's top edge) and the close button
   const rb = g.ribbon;
