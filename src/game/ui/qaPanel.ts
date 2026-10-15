@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY } from '../../content/experiments';
+import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY, applyUiJuice, storedUiJuice, UI_JUICE_KEY } from '../../content/experiments';
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
 import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../content/experiments';
 import { openMascotDemo } from './mascotDemo';
+import { applyRoadPerf, applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
@@ -92,14 +93,14 @@ applyRosterUnlocks(qaRosterUnlocks());
 // t-4c676288 QA-only: LAST MERGES merge-budget bench levels (TUNING.mergeBudget), default OFF, this device only
 export const qaMergeBudget = () => storedMergeBudget(() => localStorage.getItem(MERGE_BUDGET_KEY));
 applyMergeBudget(qaMergeBudget());
-// t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +1 BONUS sandwich), this device only; applied when a level starts
+// t-1effe0bf QA-only: MERGE RULE prototype (TODAY / +2 / +2 AND BONUS sandwich), this device only; applied when a level starts
 export const qaMergeRule = () => storedMergeRule(() => localStorage.getItem(MERGE_RULE_KEY));
 applyMergeRule(qaMergeRule());
 // t-4208f149 QA-only: THINK BANK prototype (a still board pauses the level clock after a grace), applied when a level starts
 export const qaThinkBank = () => storedThinkBank(() => localStorage.getItem(THINK_BANK_KEY));
 applyThinkBank(qaThinkBank());
 
-// t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +1 BONUS (the MERGE RULE row can still change it)
+// t-e2a48327 QA-only: POWER TOOLS (Row Surge / Gear Bomb), default OFF, this device only; ON also sets MERGE RULE to +2 AND BONUS (the MERGE RULE row can still change it)
 export const qaTools = () => storedTools(() => localStorage.getItem(TOOLS_KEY));
 applyTools(qaTools());
 // QA-only: VARIED OPENINGS (4 seeded start layouts on ordinary levels), default OFF, this device only; applied when a level starts
@@ -123,9 +124,16 @@ applyUnitIdle(qaUnitIdle());
 // QA-only: MASCOT MOTION (animated Bolt), default OFF, this device only
 export const qaMascotMotion = () => storedMascotMotion(() => localStorage.getItem(MASCOT_MOTION_KEY));
 applyMascotMotion(qaMascotMotion());
+// QA-only: UI JUICE (pop-ins, press squash, glints, sparkles), default OFF, this device only
+export const qaUiJuice = () => storedUiJuice(() => localStorage.getItem(UI_JUICE_KEY));
+applyUiJuice(qaUiJuice());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
 export const qaRoadPolish = () => storedRoadPolish(() => localStorage.getItem(ROAD_POLISH_KEY));
 applyRoadPolish(qaRoadPolish());
+export const qaRoadPerf = () => storedRoadPerf(() => localStorage.getItem(ROAD_PERF_KEY));
+applyRoadPerf(qaRoadPerf());
+export const qaRoadPerfHud = () => storedRoadPerfHud(() => localStorage.getItem(ROAD_PERF_HUD_KEY));
+applyRoadPerfHud(qaRoadPerfHud());
 export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
 applyLevelRoadV2(qaLevelRoadV2());
 
@@ -353,7 +361,7 @@ export const QA_SECTIONS: QaSection[] = [
         },
         toast: (on) => (on ? `THINK BANK ON  ·  ${TUNING.tb.grace} s still = clock stops  ·  START A LEVEL` : 'THINK BANK OFF (live game)  ·  NEXT LEVEL'),
       }),
-      // t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +1 BONUS sandwich (this device only; next level)
+      // t-1effe0bf MERGE RULE prototype: TODAY / +2 sandwich / +2 AND BONUS sandwich (this device only; next level)
       qaChoice({
         id: 'mergeRule',
         title: 'MERGE RULE',
@@ -592,6 +600,33 @@ export const QA_SECTIONS: QaSection[] = [
         },
         toast: (on) => (on ? 'ROAD POLISH ON  ·  OPEN THE ROAD TAB' : 'ROAD POLISH OFF'),
       }),
+      // ROAD PERF: off-screen road pieces are hidden while scrolling and the path is drawn in small pieces (visual only)
+      qaFlag({
+        id: 'roadPerf',
+        defOn: true,
+        title: 'ROAD PERF',
+        desc: 'Hide off-screen road pieces. Open ROAD',
+        get: () => !!qaRoadPerf(),
+        set: (on) => {
+          store(ROAD_PERF_KEY, on ? null : 'off');
+          applyRoadPerf(on);
+          tlog.log('qa_road_perf', { on });
+        },
+        toast: (on) => (on ? 'ROAD PERF ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF OFF (old road)'),
+      }),
+      // ROAD PERF READOUT: objects shown/total, active tweens and FPS in the corner of the ROAD tab, for bug reports
+      qaFlag({
+        id: 'roadPerfHud',
+        title: 'ROAD PERF READOUT',
+        desc: 'Objects, tweens, FPS on ROAD',
+        get: () => !!qaRoadPerfHud(),
+        set: (on) => {
+          store(ROAD_PERF_HUD_KEY, on ? 'on' : null);
+          applyRoadPerfHud(on);
+          tlog.log('qa_road_perf_hud', { on });
+        },
+        toast: (on) => (on ? 'READOUT ON  ·  OPEN THE ROAD TAB' : 'READOUT OFF'),
+      }),
       // t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left)
       qaFlag({
         id: 'budget',
@@ -613,11 +648,11 @@ export const QA_SECTIONS: QaSection[] = [
         dim: () => !qaMergeBudget(),
         tap: ({ scene }, i) => (qaMergeBudget() ? scene.startBudget(BUDGET_LEVELS[i]) : scene.showToast('TURN BUDGET LEVELS ON FIRST')),
       }),
-      // t-e2a48327 POWER TOOLS: ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +1 BONUS
+      // t-e2a48327 POWER TOOLS: ON = chain 5+ makes a Row Surge, a sandwich makes a Gear Bomb; also sets MERGE RULE +2 AND BONUS
       qaFlag({
         id: 'tools',
         title: 'POWER TOOLS',
-        desc: 'Row Surge + Gear Bomb. Rule +1 BONUS',
+        desc: 'Row Surge + Gear Bomb. Rule +2 AND BONUS',
         get: () => !!qaTools(),
         set: (on) => {
           store(TOOLS_KEY, on ? 'on' : null);
@@ -628,7 +663,7 @@ export const QA_SECTIONS: QaSection[] = [
           }
           tlog.log('qa_tools', { on });
         },
-        toast: (on) => (on ? 'POWER TOOLS ON  ·  MERGE RULE +1 BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
+        toast: (on) => (on ? 'POWER TOOLS ON  ·  MERGE RULE +2 AND BONUS  ·  LEVEL 10+' : 'POWER TOOLS OFF (live game)'),
       }),
       // YARD PRESSURE: ON = countdown from the first tap + tap budget + stars, OBJECT yard only
       qaFlag({
@@ -760,6 +795,19 @@ export const QA_SECTIONS: QaSection[] = [
         tap: ({ scene }) => {
           if (!openMascotDemo(scene)) scene.showToast('TURN ON MASCOT MOTION FIRST');
         },
+      }),
+      // UI JUICE: popups pop in, buttons squash, glints and sparkles on rewards and badges (visual only, default OFF, reduced motion = none)
+      qaFlag({
+        id: 'uiJuice',
+        title: 'UI JUICE',
+        desc: 'Pops, squash, glints, sparkles. Reopen a popup',
+        get: () => !!qaUiJuice(),
+        set: (on) => {
+          store(UI_JUICE_KEY, on ? 'on' : null);
+          applyUiJuice(on);
+          tlog.log('qa_ui_juice', { on });
+        },
+        toast: (on) => (on ? 'UI JUICE ON  ·  OPEN A POPUP' : 'UI JUICE OFF'),
       }),
       // the same phone setting as Settings, SCREEN SHAKE (kept in its own key, not in the save code)
       qaChoice<ShakeLevel>({

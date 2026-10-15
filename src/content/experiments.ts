@@ -297,6 +297,21 @@ export function applyMascotMotion(on: boolean) {
   MASCOT_MOTION.on = on;
 }
 
+/** QA panel UI JUICE switch (this device only, not in the save): 'on' = pop-ins, press squash, glints and sparkles on popups, buttons, rewards
+ *  and road badges. Default OFF in code (the Lead turns it ON after review). Presentation only, outside TUNING; docs/art/UI_JUICE.md. */
+export const UI_JUICE_KEY = 'omm_qa_ui_juice';
+export const UI_JUICE = { on: false };
+export function storedUiJuice(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyUiJuice(on: boolean) {
+  UI_JUICE.on = on;
+}
+
 /** QA panel ROAD POLISH switch (this device only, not in the save): 'on' = parallax, belt road, ambient life, avatar hop, node and chest motion,
  *  unlock sequence on the ROAD tab. Needs levelRoadV2. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
 export const ROAD_POLISH_KEY = 'omm_qa_road_polish';
@@ -306,6 +321,30 @@ export function storedRoadPolish(read: () => string | null): boolean {
 }
 export function applyRoadPolish(on: boolean) {
   ROAD_POLISH.on = on;
+}
+
+/** QA panel ROAD PERF switch (this device only, not in the save): 'on' = off-screen road pieces are hidden while scrolling (culling) and the
+ *  heavy path graphics are split into small per-segment pieces. 'off' = the old single-piece road. Presentation only. */
+export const ROAD_PERF_KEY = 'omm_qa_road_perf';
+export const ROAD_PERF = { on: true };
+export function storedRoadPerf(read: () => string | null): boolean {
+  return storedDefaultOn(read);
+}
+export function applyRoadPerf(on: boolean) {
+  ROAD_PERF.on = on;
+}
+/** QA panel ROAD PERF READOUT switch: default OFF; 'on' shows objects / active tweens / FPS in the corner of the ROAD tab. */
+export const ROAD_PERF_HUD_KEY = 'omm_qa_road_perf_hud';
+export const ROAD_PERF_HUD = { on: false };
+export function storedRoadPerfHud(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyRoadPerfHud(on: boolean) {
+  ROAD_PERF_HUD.on = on;
 }
 
 /** QA panel LEVEL ROAD V2 switch (TUNING.levelRoadV2; this device only, not in the save): 'on' = the new ROAD tab, anything else = OFF. */

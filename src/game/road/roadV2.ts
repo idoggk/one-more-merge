@@ -12,8 +12,9 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { ROAD_POLISH } from '../../content/experiments';
+import { ROAD_PERF, ROAD_PERF_HUD, ROAD_POLISH } from '../../content/experiments';
 import { createRoadPolish } from './roadPolishFx';
+import { addRoadPerfHud, createCuller } from './roadPerf';
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
@@ -50,6 +51,11 @@ export function openRoadV2(scene: GameScene) {
   const far = scene.add.container(0, 0);
   const road = scene.add.container(0, 0);
   const clouds: { img: Phaser.GameObjects.Image; base: number; k: number }[] = [];
+  // ROAD PERF: pieces register a world-y span and are hidden while off screen (flag off = no registration, old behaviour)
+  const culler = createCuller(H, 260);
+  const cull = (objs: { setVisible(v: boolean): unknown }[], minY: number, maxY: number) => {
+    if (ROAD_PERF.on) culler.add(objs, minY, maxY);
+  };
   c.add([backdrop, far, road]);
   c.add(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.001).setInteractive()); // swallow stray taps below the road
   const mask = scene.add.graphics().setVisible(false).fillRect(0, 0, W, H - 118);
@@ -63,10 +69,12 @@ export function openRoadV2(scene: GameScene) {
     const cy = (ch.topY + ch.bottomY) / 2;
     const fc = scene.add.container(0, 0);
     const art = slotArt(has, `chapterScenery_${ch.chapter}`);
+    let half = (ch.bottomY - ch.topY) / 2 + 200; // half the height the layer covers (for culling)
     if (art) {
       // 3 stacked tiles, the middle one flipped, so a single picture still reads continuous
       const tex = scene.textures.get(art).getSourceImage() as { width: number; height: number };
       const th = (tex.height / tex.width) * W;
+      half = 2.5 * th;
       for (let i = -2; i <= 2; i++) {
         const im = scene.add.image(W / 2, cy + i * th, art).setDisplaySize(W, th + 2);
         if (i % 2 !== 0) im.setFlipY(true);
@@ -78,20 +86,30 @@ export function openRoadV2(scene: GameScene) {
       fc.add(g);
     }
     far.add(fc);
-    return { fc, cy };
+    return { fc, cy, half };
   });
   const placeFar = (scroll: number) => {
     const mid = (top + bottom) / 2;
-    for (const f of farLayers) f.fc.y = mid + (scroll + f.cy - mid) * (polish?.farK ?? 0.8) - f.cy;
+    for (const f of farLayers) {
+      f.fc.y = mid + (scroll + f.cy - mid) * (polish?.farK ?? 0.8) - f.cy;
+      if (ROAD_PERF.on) f.fc.setVisible(Math.abs(f.cy + f.fc.y - H / 2) < H / 2 + f.half + 260);
+    }
   };
 
   // ---- verge props + steam ------------------------------------------------------------------------------------------------
-  const props = scene.add.graphics();
+  // one props graphics per chapter (was one for the whole world), so a chapter off screen costs nothing
+  let props = scene.add.graphics();
   road.add(props);
   const nodeXAt = (y: number) => lay.nodes.reduce((best, n) => (Math.abs(n.y - y) < Math.abs(best.y - y) ? n : best)).x;
   for (const ch of lay.chapters) {
     const look = lookOf(ch.chapter);
     let i = 0;
+    if (ROAD_PERF.on) {
+      props = scene.add.graphics();
+      road.add(props);
+    }
+    const chapterObjs: Phaser.GameObjects.GameObject[] = [props];
+    cull(chapterObjs as never, ch.topY - 300, ch.bottomY + 300);
     for (let y = ch.bottomY - 140; y > ch.topY + 120; y -= 205, i++) {
       const left = nodeXAt(y) > ROAD.centerX;
       const x = left ? 52 + hash01(ch.chapter * 100 + i) * 56 : W - 52 - hash01(ch.chapter * 100 + i) * 56;
@@ -101,6 +119,7 @@ export function openRoadV2(scene: GameScene) {
       if (!REDUCED_MOTION && Math.abs(ch.chapter - curChapter) <= 1 && i % 3 === 0) {
         const puff = scene.add.circle(x, y - 40, 14, 0xffffff, 0.5);
         road.add(puff);
+        chapterObjs.push(puff);
         loopTween(scene, { targets: puff, y: y - 130, scale: 2.2, alpha: 0, duration: 2600 + (i % 4) * 400, delay: (i % 5) * 500, repeat: -1, ease: 'Sine.Out' }, puff);
       }
     }
@@ -110,23 +129,48 @@ export function openRoadV2(scene: GameScene) {
   const pg = scene.add.graphics();
   road.add(pg);
   const pathTile = slotArt(has, 'pathTile');
+  // ROAD PERF: one small Graphics per segment and layer (ground, then surface) instead of one for the whole world, so segments off screen are
+  // hidden; the draw order (all ground, then all surfaces, then tile images) is unchanged
+  const segPieces = new Map<unknown, { setVisible(v: boolean): unknown }[]>();
+  const gfxFor = (seg: (typeof lay.segments)[number]) => {
+    if (!ROAD_PERF.on) return pg;
+    let list = segPieces.get(seg);
+    if (!list) {
+      list = [];
+      segPieces.set(seg, list);
+      const ys = seg.pts.map((p) => p.y);
+      cull(list, Math.min(...ys) - 160, Math.max(...ys) + 160);
+    }
+    const g = scene.add.graphics();
+    road.add(g);
+    list.push(g);
+    return g;
+  };
   for (const seg of lay.segments) {
     // themed ground under the path and a soft shadow, so the nodes pop off the scenery
     const gc = lookOf(Math.ceil(seg.from / ROAD.levelsPerChapter));
+    const pg = gfxFor(seg);
     pg.lineStyle(250, lerpColor(gc.bottom, gc.accent, 0.35), 0.4).strokePoints(seg.pts);
     pg.lineStyle(100, 0x000000, 0.22).strokePoints(seg.pts.map((p) => ({ x: p.x, y: p.y + 12 })));
   }
+  const tileImgs: { seg: (typeof lay.segments)[number]; img: Phaser.GameObjects.Image }[] = [];
   for (const seg of lay.segments) {
     const ch = Math.ceil(seg.from / ROAD.levelsPerChapter);
     const surface = lerpColor(0xf3e3c8, lookOf(ch).accent, 0.12);
+    const pg = gfxFor(seg);
     pg.lineStyle(78, INK, 0.9).strokePoints(seg.pts);
-    if (pathTile) seg.pts.forEach((p) => road.add(scene.add.image(p.x, p.y, pathTile).setDisplaySize(64, 64)));
+    if (pathTile) seg.pts.forEach((p) => tileImgs.push({ seg, img: scene.add.image(p.x, p.y, pathTile).setDisplaySize(64, 64) }));
     else pg.lineStyle(58, surface, 1).strokePoints(seg.pts);
     if (seg.to <= cur) pg.lineStyle(20, 0xffcf33, 1).strokePoints(seg.pts);
     else {
       pg.lineStyle(7, 0xffffff, 0.55);
       for (let i = 0; i + 1 < seg.pts.length; i += 2) pg.lineBetween(seg.pts[i].x, seg.pts[i].y, seg.pts[i + 1].x, seg.pts[i + 1].y);
     }
+  }
+
+  for (const t of tileImgs) {
+    road.add(t.img);
+    segPieces.get(t.seg)?.push(t.img);
   }
 
   // ROAD POLISH (flag, default OFF): parallax, ground ramp, belt stripe, ambient life, avatar hop, unlock sequence; see roadPolishFx.ts
@@ -138,12 +182,19 @@ export function openRoadV2(scene: GameScene) {
   for (const ch of lay.chapters) {
     const look = lookOf(ch.chapter);
     const reached = ch.chapter <= curChapter;
-    if (!reached) road.add(scene.add.rectangle(W / 2, (ch.topY + ch.bottomY) / 2, W, ch.bottomY - ch.topY, 0xdfe8f5, 0.28));
+    if (!reached) {
+      const veil = scene.add.rectangle(W / 2, (ch.topY + ch.bottomY) / 2, W, ch.bottomY - ch.topY, 0xdfe8f5, 0.28);
+      road.add(veil);
+      cull([veil], ch.topY, ch.bottomY);
+    }
+    const gateObjs: { setVisible(v: boolean): unknown }[] = [];
+    cull(gateObjs, ch.gateY - 700, ch.gateY + 200);
     // gate
     const open = gateOpen(ch.chapter, cur);
     const gy = ch.gateY;
     const gg = scene.add.graphics();
     road.add(gg);
+    gateObjs.push(gg);
     const cx = ROAD.centerX;
     const stone = lerpColor(look.accent, 0xd8d0c0, 0.55), stoneDk = lerpColor(look.accent, INK, 0.3);
     // stone pillars with block lines
@@ -180,7 +231,9 @@ export function openRoadV2(scene: GameScene) {
       gg.fillStyle(INK, 1).fillRoundedRect(cx - 34, gy - 8, 68, 56, 12).fillStyle(0xffcf33, 1).fillRoundedRect(cx - 28, gy - 2, 56, 44, 9);
       gg.fillStyle(INK, 1).fillCircle(cx, gy + 16, 7).fillRect(cx - 3, gy + 16, 6, 14);
     }
-    road.add(scene.add.text(cx, gy + 66, open ? `CHAPTER ${ch.chapter} CLEARED` : ch.chapter === lay.chapters.length ? 'FINAL GATE' : `CHAPTER ${ch.chapter} GATE`, { fontFamily: FONT, fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5));
+    const gateLabel = scene.add.text(cx, gy + 66, open ? `CHAPTER ${ch.chapter} CLEARED` : ch.chapter === lay.chapters.length ? 'FINAL GATE' : `CHAPTER ${ch.chapter} GATE`, { fontFamily: FONT, fontSize: '30px', color: '#fff0cf', stroke: '#2b1d2e', strokeThickness: 6 }).setOrigin(0.5);
+    road.add(gateLabel);
+    gateObjs.push(gateLabel);
     // fog + a desaturated silhouette of the next chapter above the gate: the world goes on
     if (ch.chapter < lay.chapters.length) {
       const nextLook = lookOf(ch.chapter + 1);
@@ -188,12 +241,15 @@ export function openRoadV2(scene: GameScene) {
       drawFarBand(tease, W, gy - 640, 400, 0x8a94a8, ch.chapter * 11, FAR_STYLE[ch.chapter % FAR_STYLE.length]);
       tease.setAlpha(open ? 0.6 : 0.9);
       road.add(tease);
+      gateObjs.push(tease);
       const fog = scene.add.graphics();
       for (let k = 0; k < 36; k++) fog.fillStyle(lerpColor(0xffffff, nextLook.bottom, 0.15), Math.sin(((k + 0.5) / 36) * Math.PI) * (open ? 0.5 : 0.8)).fillRect(0, gy - 600 + k * 12, W, 13);
       road.add(fog);
+      gateObjs.push(fog);
       for (let i = 0; i < 3; i++) {
         const cl = scene.add.image(120 + i * 250 + hash01(ch.chapter * 9 + i) * 40, gy - 250 - (i % 2) * 70, fogKey).setScale(2.4 + hash01(i + 7) * 0.6).setAlpha(open ? 0.5 : 0.85);
         road.add(cl);
+        gateObjs.push(cl);
         if (!REDUCED_MOTION) loopTween(scene, { targets: cl, x: cl.x + (i % 2 ? -30 : 30), duration: 5000 + i * 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, cl);
       }
     }
@@ -210,17 +266,21 @@ export function openRoadV2(scene: GameScene) {
     if (bt.width > bw - 120) bt.setScale((bw - 120) / bt.width);
     road.add([bg, bn, bt]);
     fades.push({ y: by, objs: [bg, bn, bt] });
+    cull([bg, bn, bt], by - 130, by + 130);
   }
 
   // ---- milestone chests on the verge ---------------------------------------------------------------------------------------
   for (const ch of lay.chests) {
     const st = chestState(ch, cur);
+    const chestObjs: { setVisible(v: boolean): unknown }[] = [];
+    cull(chestObjs, ch.y - 200, ch.y + 200);
     const key = st === 'open' && has('chest_open') ? 'chest_open' : 'chest_closed';
     if (has(key)) {
       const im = scene.add.image(ch.x, ch.y, key);
       im.setScale(104 / Math.max(im.width, im.height));
       if (st === 'closed' && cur === ch.afterLevel && !REDUCED_MOTION) loopTween(scene, { targets: im, angle: { from: -5, to: 5 }, duration: 160, yoyo: true, repeat: -1, repeatDelay: 1400 }, im);
       road.add(im);
+      chestObjs.push(im);
       polish?.chest(im, st === 'closed' && cur === ch.afterLevel);
     }
     const plate = scene.add.graphics();
@@ -228,7 +288,9 @@ export function openRoadV2(scene: GameScene) {
     // (and BELOW it when the player stands on the level just above the chest, so it never meets that node's plate and ribbon)
     const py2 = cur === ch.afterLevel + 1 ? 52 : -90;
     plate.fillStyle(INK, 1).fillRoundedRect(ch.x - 56, ch.y + py2, 112, 34, 14).fillStyle(st === 'open' ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(ch.x - 52, ch.y + py2 + 4, 104, 26, 11);
-    road.add([plate, scene.add.text(ch.x, ch.y + py2 + 17, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5)]);
+    const plateText = scene.add.text(ch.x, ch.y + py2 + 17, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5);
+    road.add([plate, plateText]);
+    chestObjs.push(plate, plateText);
     const hit = scene.add.zone(ch.x, ch.y + 10, 130, 130).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
       if (scroller.moved()) return;
@@ -269,6 +331,7 @@ export function openRoadV2(scene: GameScene) {
   const nodeLayer = scene.add.container(0, 0);
   road.add(nodeLayer);
   for (const n of lay.nodes) {
+    const firstObj = nodeLayer.length; // everything this node adds from here is culled together
     const info = LEVELS[n.level - 1];
     const state: NodeState = nodeState(n.level, cur, stars);
     const fk = frameKind(n.kind, n.ribbon);
@@ -382,6 +445,7 @@ export function openRoadV2(scene: GameScene) {
       scene.openLevelSheet(n.level);
     });
     nodeLayer.add(hit);
+    cull(nodeLayer.list.slice(firstObj) as unknown as { setVisible(v: boolean): unknown }[], n.y - 440, n.y + 320);
   }
 
   // ---- ambient: drifting clouds (screen space, a little faster than the road) ------------------------------------------------
@@ -453,6 +517,7 @@ export function openRoadV2(scene: GameScene) {
   back.setVisible(false);
   c.add(back);
   scene.drawNav(c, 'road');
+  if (ROAD_PERF_HUD.on) addRoadPerfHud(scene, c, 190);
 
   // ---- scroll -----------------------------------------------------------------------------------------------------------------
   const home = snapScroll(curNode.y, top, bottom, lo, hi);
@@ -460,6 +525,7 @@ export function openRoadV2(scene: GameScene) {
     road.y = scroll;
     placeFar(scroll);
     polish?.place(scroll);
+    culler.update(scroll);
     backdrop.clear();
     const bandH = 28;
     for (let sy = 0; sy < H; sy += bandH) {

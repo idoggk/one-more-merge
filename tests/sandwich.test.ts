@@ -116,18 +116,51 @@ describe('t-1effe0bf merge rule prototype (sandwich)', () => {
     expect(fired).not.toContain(17);
   });
 
-  it('sandwichBonus: +1 as today, both neighbours absorbed, a third of the Overdrive meter paid', () => {
+  it('sandwichBonus: 4 x rank 1 = rank 3 (+2), both neighbours absorbed, a third of the Overdrive meter paid', () => {
     const s = state([...pair(), [7, g('cannon')], [17, g('cannon')]], 'sandwichBonus');
     const od0 = s.odCharge;
     const need = odNeeded(s);
     const bonus = Math.ceil(need / 3);
     const r = play(s);
-    expect(sandwichEv(r.events)).toMatchObject({ rank: 2, plus: 1, od: bonus });
-    expect(s.grid[12]!.rank).toBe(2);
+    expect(sandwichEv(r.events)).toMatchObject({ rank: 3, plus: 2, od: bonus });
+    expect(s.grid[12]!.rank).toBe(3);
     expect(s.grid[7]).toBeNull();
     expect(s.grid[17]).toBeNull();
     // merge-count Overdrive: the merge's +1 plus the bonus (or Overdrive started and the meter reset)
     expect(s.odLeft > 0 || s.odCharge === od0 + 1 + bonus).toBe(true);
+  });
+
+  it('sandwichBonus at the rank cap: clipped like sandwich2, bonus still paid; a pair already at the cap is no sandwich', () => {
+    const s = state([...pair(5), [7, g('cannon', 5)], [17, g('cannon', 5)]], 'sandwichBonus');
+    s.rankCap = 6;
+    expect(sandwichEv(play(s).events)).toMatchObject({ rank: 6, plus: 1, od: Math.ceil(odNeeded(s) / 3) });
+    const c = state([...pair(6), [7, g('cannon', 6)], [17, g('cannon', 6)]], 'sandwichBonus');
+    c.rankCap = 6;
+    expect(sandwichEv(play(c).events)).toBeUndefined();
+  });
+
+  it('table: for every rank 1..max-1 the sandwich result is never below normal play nor below sandwich2', () => {
+    // normal play = the player keeps merging the four parts by hand (today rule: 1 + 1, 1 + 1, then the two r+1)
+    const best = (rule: MergeRule, r: number, cap: number) => {
+      const s = state([...pair(r), [7, g('cannon', r)], [17, g('cannon', r)]], rule);
+      s.rankCap = cap;
+      play(s);
+      for (let guard = 0; guard < 4; guard++) {
+        const p = legalPairs(s).find(([a, b]) => s.grid[a]!.family === 'cannon' && s.grid[b]!.family === 'cannon' && s.grid[a]!.rank === s.grid[b]!.rank && s.grid[a]!.rank < cap);
+        if (!p) break;
+        drop(s, p[0], p[1], s.grid[p[0]]!.id);
+      }
+      return Math.max(...s.grid.map((x) => x?.rank ?? 0));
+    };
+    for (const cap of [4, 6, 8]) {
+      for (let r = 1; r < cap; r++) {
+        const today = best('today', r, cap), two = best('sandwich2', r, cap), bonus = best('sandwichBonus', r, cap);
+        expect(bonus).toBe(Math.min(r + 2, cap));
+        expect(bonus).toBeGreaterThanOrEqual(today);
+        expect(bonus).toBeGreaterThanOrEqual(two);
+      }
+    }
+    expect(best('today', 1, 8)).toBe(3); // normal play of four rank 1 reaches rank 3 too
   });
 
   it('the preview predicts the sandwich (ghost rank, chips) and never mutates the state', () => {

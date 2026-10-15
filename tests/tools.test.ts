@@ -63,7 +63,7 @@ describe('t-e2a48327 power tools: creation', () => {
     const s = state([...pair(), ...cannons(7, 17)]);
     const r = play(s);
     expect(made(r.events).map((e) => e.kind)).toEqual(['bomb']);
-    expect(s.grid[12]!.rank).toBe(2);
+    expect(s.grid[12]!.rank).toBe(3);
     expect(s.grid[17]).toBeNull(); // the absorbed neighbour's cell is free again
     expect(toolsOn(s)).toEqual([{ i: 7, kind: 'bomb' }]); // the tool takes the nearest free cell (the other absorbed one)
   });

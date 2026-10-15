@@ -33,6 +33,7 @@ import { W, REDUCED_MOTION, TROPHY_AT, TROPHY_SHELF, YARD_UNLOCK, H, fmt, PUZZLE
 import { fitLine, soCloseText } from '../fx/soClose';
 import { goalDoneText, chapterChestText } from '../../content/sceneCopy';
 import { rewardRows } from '../flow';
+import { juiceRewards } from '../fx/juiceHooks';
 
 export function openResult(scene: GameScene, won: boolean) {
   if (scene.modal) scene.closeModal();
@@ -425,6 +426,8 @@ export function openLevelResult(scene: GameScene, won: boolean) {
     c.add(o);
     rx0 += wOf(o);
   });
+  const lineTexts: Phaser.GameObjects.Text[] = [];
+  const boltsTx = bolts > 0 ? rowObjs[rowObjs.length - 1] : null;
   if (bolts > 0) scene.time.delayedCall(250 + got * 220, () => sfx.boltRoll(Math.ceil(bolts / 6)));
   if (bolts > 0 && RESOURCE_FLY.on) scene.time.delayedCall(450 + got * 220, () => flyToChip(scene, c, 'bolt', bolts, m.bolts ?? 0, { x: W / 2, y: top + 410 }, { x: W - 95, y: top + 30 }));
   if (parts.length) c.add(scene.add.text(W / 2, top + 452, parts.join('  \u00b7  '), { fontFamily: 'Lilita One, Arial Black', fontSize: '24px', color: '#7a5a4a' }).setOrigin(0.5));
@@ -438,8 +441,10 @@ export function openLevelResult(scene: GameScene, won: boolean) {
       const t = scene.add.text(W / 2, top + 503 + i * lh, r, { fontFamily: 'Lilita One, Arial Black', fontSize: more ? '20px' : '24px', color: more ? '#8a6a4a' : '#b06a1a', align: 'center' }).setOrigin(0.5);
       if (t.width > W - 170) t.setScale((W - 170) / t.width);
       c.add(t);
+      lineTexts.push(t);
     });
   }
+  juiceRewards(scene, c, rowObjs, boltsTx instanceof Phaser.GameObjects.Text ? boltsTx : null, bolts, lineTexts, top + 410);
   // F6: CHAPTER COMPLETE and BACK UP wait until the player leaves this screen, then show one at a time (each its
   // own tap); the button's action runs after them, so a tap on NEXT LEVEL is never eaten by a popup
   scene.endQueue.clear();

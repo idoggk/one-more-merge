@@ -6,6 +6,7 @@ import { SEASON_TIERS, seasonTier } from '../../core/season';
 import type { GameScene } from '../GameScene';
 import { W, REDUCED_MOTION, H } from '../sceneKit';
 import { loopTween } from '../loopTween';
+import { juiceChest, juiceRoadNode } from '../fx/juiceHooks';
 import { TUNING } from '../../content/tuning';
 import { openRoadV2 } from '../road/roadV2';
 
@@ -74,6 +75,7 @@ export function openRoadTab(scene: GameScene) {
     if (n === cur) {
       const ring = scene.add.circle(x, y, size * 0.6, 0xffcf33, 0.2).setStrokeStyle(5, 0xffcf33, 0.9);
       road.add(ring);
+      juiceRoadNode(scene, road, node);
       if (!REDUCED_MOTION) loopTween(scene, { targets: ring, scale: 1.12, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, ring);
     }
     const hit = scene.add.zone(x, y, size + 20, size + 20).setInteractive({ useHandCursor: true });
@@ -155,6 +157,7 @@ export function openRoadTab(scene: GameScene) {
     const ch = scene.add.image((W - 60) / 2 - 40, -4, 'chest_closed');
     ch.setScale(64 / Math.max(ch.width, ch.height));
     strip.add(ch);
+    juiceChest(scene, strip, ch, doneInCh >= 10);
   }
   strip.setSize(W - 60, 60).setInteractive({ useHandCursor: true });
   strip.on('pointerup', () => scene.showToast(`CLEAR LEVEL ${chapter * 10} FOR THE CHAPTER ${chapter} MEDAL`));

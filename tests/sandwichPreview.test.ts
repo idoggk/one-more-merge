@@ -58,7 +58,7 @@ describe('sandwich preview condition', () => {
     const a = board([[0, g('cannon')], [12, g('cannon')], [7, g('cannon')], [17, g('cannon')]], 'sandwich2');
     expect(sandwichBadge(sandwichFor(a, 0, 12)!)).toBe('SANDWICH +2');
     const b = board([[0, g('cannon')], [12, g('cannon')], [7, g('cannon')], [17, g('cannon')]], 'sandwichBonus');
-    expect(sandwichBadge(sandwichFor(b, 0, 12)!)).toBe('SANDWICH +1 BONUS');
+    expect(sandwichBadge(sandwichFor(b, 0, 12)!)).toBe('SANDWICH +2 BONUS');
   });
 
   it('the impact shake follows the SCREEN SHAKE setting (off = none)', () => {

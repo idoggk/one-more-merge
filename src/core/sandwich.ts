@@ -3,8 +3,8 @@
 // OTHER parts of the same family and rank r, it is a SANDWICH:
 //   'sandwich2'     : both neighbours are absorbed and the result is rank r+2 (capped at the level's max rank).
 //                     Four rank-r parts = exactly one rank r+2 part, so rank mass is kept (except at the cap).
-//   'sandwichBonus' : the result is r+1 as today, both neighbours are absorbed anyway (3 cells freed instead of 1),
-//                     and the merge pays a third of the Overdrive meter on top.
+//   'sandwichBonus' : same r+2 result as sandwich2 (so never worse than merging the four parts normally, which gives r+2),
+//                     and the merge also pays a third of the Overdrive meter on top.
 // 3 or 4 matching neighbours: only 2 are taken (an opposite pair first, the real "sandwich"; vertical before
 // horizontal; else the first two up/right/down/left). 4 parts make r+2 exactly; taking 3 or 4 neighbours would
 // destroy mass (5-6 parts still only make r+2) or invent it (r+3 needs 8), and the ones left stay as merge partners.
@@ -16,7 +16,7 @@ export type MergeRule = typeof TUNING.mergeRule;
 export const MERGE_RULES: { id: MergeRule; label: string }[] = [
   { id: 'today', label: 'TODAY' },
   { id: 'sandwich2', label: '+2' },
-  { id: 'sandwichBonus', label: '+1 BONUS' },
+  { id: 'sandwichBonus', label: '+2 AND BONUS' },
 ];
 
 /** QA panel MERGE RULE row (this device only, not in the save); missing / unknown / unreadable = TODAY. */
@@ -38,7 +38,7 @@ export interface SandwichPlan {
   cells: [number, number];
   /** Rank of the merged part. */
   rank: number;
-  /** Ranks gained over the merging pair (2, or 1 when sandwichBonus or the cap clips it). */
+  /** Ranks gained over the merging pair (2, or 1 when the cap clips it). */
   plus: number;
   /** sandwichBonus: the merge also pays Overdrive charge. */
   bonus: boolean;
@@ -77,12 +77,12 @@ export function planSandwich(grid: Grid, from: number, to: number, cap: number, 
   if (!a || !b || a.family !== b.family || a.rank !== b.rank || a.rank >= cap) return null; // cap compaction stays as today
   const cands = sandwichNeighbours(grid, a, from, to, blocked);
   if (cands.length < 2) return null;
-  const rank = Math.min(a.rank + (rule === 'sandwich2' ? 2 : 1), cap);
+  const rank = Math.min(a.rank + 2, cap); // both modes give r+2 (4 parts of rank r = one r+2); sandwichBonus adds the Overdrive on top
   return { cells: pickPair(cands, to), rank, plus: rank - a.rank, bonus: rule === 'sandwichBonus' };
 }
 
 /** sandwichBonus: Overdrive charge paid by one sandwich (a third of the meter, at least 1). */
 export const sandwichOd = (needed: number) => Math.max(1, Math.ceil(needed * TUNING.sandwichOdShare));
 
-/** Preview badge text for a planned sandwich: 'SANDWICH +2', 'SANDWICH +1' (clipped by the cap) or 'SANDWICH +1 BONUS'. */
+/** Preview badge text for a planned sandwich: 'SANDWICH +2', 'SANDWICH +1' (clipped by the cap) or 'SANDWICH +2 BONUS'. */
 export const sandwichBadge = (p: SandwichPlan) => `SANDWICH +${p.plus}${p.bonus ? ' BONUS' : ''}`;

@@ -3,6 +3,7 @@ import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { applyPace, applyThinkBank, applyUnits, UNIT_SHOTS } from '../content/experiments';
 import { playStyledShot } from './fx/shotFx';
+import { juiceButton, juicePanelIn } from './fx/juiceHooks';
 import { hasShotStyle, linkStyle } from './fx/shotStyles';
 import {
   canMerge,
@@ -3357,6 +3358,7 @@ Now beat the real level.`, this.coachY());
     const g = this.add.graphics().fillStyle(0x2b1d2e, 1).fillRoundedRect(40, H / 2 - h / 2 - 6, W - 80, h + 12, 36).fillStyle(0xfbe7c6, 1).fillRoundedRect(46, H / 2 - h / 2, W - 92, h, 32);
     c.add([dim, g]);
     this.modal = c;
+    if (juicePanelIn(this, c)) return c;
     c.setAlpha(0).setY(40);
     this.tweens.add({ targets: c, alpha: 1, y: 0, duration: 220, ease: 'Quad.Out' });
     return c;
@@ -3392,6 +3394,7 @@ Now beat the real level.`, this.coachY());
       cb();
     });
     c.add(b);
+    juiceButton(this, b, w, size);
     return b;
   }
 
