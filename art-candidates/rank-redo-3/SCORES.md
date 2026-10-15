@@ -20,7 +20,7 @@ Score = `tools/rank-clarity.mjs` (threshold 30), with pieces overlaid in order r
 | piston_5 (FIX redo-1: tall upright triple barrel) | 4-5 / 5-6 | 27.4 | 53.5 / 37.2 | sil |
 | belt_drive_3 (three-gear staircase, red/cream) | 2-3 / 3-4 | 28.3 | 45.3 / 72.0 | sil, size / sil, size, edges |
 
-Every pair that was below 30 after redo 2 is now at or above 30; the lowest of the redrawn pairs is vice 4-5 (36.3).
+Pairs still below 30 in the whole set: router 4-5 (28.3), hydraulic_press 1-2 (29.3), wrecking_ball 1-2 (29.6), hydraulic_press 5-6 (29.7). The lowest of the redrawn pairs is vice 4-5 (36.3).
 
 Not done (no browser lease left): router 4-5 (28.3), hydraulic_press 1-2 (29.3), 5-6 (29.7), wrecking_ball 1-2 (29.6). See NEXT.md.
 
