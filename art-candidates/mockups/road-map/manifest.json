@@ -1,0 +1,3688 @@
+{
+  "screen": "road-map",
+  "source": "docs/art/mocks/road-map/SPEC.md + PIXEL_CHECK.md + art-candidates/mockups/road-map/index.html",
+  "generatedBy": "Asset Breaker t-791f2b99, 2026-10-15",
+  "grid": {
+    "unit": 8,
+    "phones": [
+      "360x780",
+      "390x844",
+      "430x932"
+    ],
+    "column": "C = floor(W/8)*8, X0 = (W-C)/2",
+    "safeArea": {
+      "top": 48,
+      "bottom": 32
+    }
+  },
+  "statuses": {
+    "EXISTS": "file is in src/assets/art or an approved (KEEP) candidate file on a sibling branch",
+    "NEEDS-SLICE": "raw sheet exists, cut with tools/slice-sheet.mjs (none found)",
+    "NEEDS-ART": "must be generated or fixed in ChatGPT; brief included",
+    "CODE-DRAWN": "shapes, gradients or text drawn by the game, no art"
+  },
+  "counts": {
+    "total": 88,
+    "EXISTS": 56,
+    "NEEDS-SLICE": 0,
+    "NEEDS-ART": 27,
+    "CODE-DRAWN": 5
+  },
+  "countsByGroup": {
+    "Road nodes": {
+      "EXISTS": 6,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 2,
+      "CODE-DRAWN": 0
+    },
+    "Current-level hero": {
+      "EXISTS": 2,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 2,
+      "CODE-DRAWN": 1
+    },
+    "Road surface kit": {
+      "EXISTS": 1,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 7,
+      "CODE-DRAWN": 0
+    },
+    "Scenery (one panel per chapter, no tiling, CRITIQUE_17)": {
+      "EXISTS": 1,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 5,
+      "CODE-DRAWN": 1
+    },
+    "Props (ch4 landmarks)": {
+      "EXISTS": 14,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 4,
+      "CODE-DRAWN": 0
+    },
+    "Gate, banners, chests": {
+      "EXISTS": 9,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 0,
+      "CODE-DRAWN": 0
+    },
+    "HUD, buttons, panels": {
+      "EXISTS": 6,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 1,
+      "CODE-DRAWN": 2
+    },
+    "Rail badges (6)": {
+      "EXISTS": 12,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 6,
+      "CODE-DRAWN": 1
+    },
+    "Mascot Bolt": {
+      "EXISTS": 5,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 0,
+      "CODE-DRAWN": 0
+    }
+  },
+  "styleRules": "STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+  "assets": [
+    {
+      "id": "node_completed",
+      "group": "Road nodes",
+      "role": "Done level node",
+      "size": {
+        "1x": [
+          80,
+          96
+        ],
+        "2x": [
+          160,
+          192
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (done)",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        },
+        {
+          "name": "unlockPop",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "when it becomes done: pop, road draws gold toward the next node"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_node_<n>",
+      "anchor": "centre on path point; sprite top at y-52 (number at y-14)",
+      "placement": "On the road for every level below the current one; number 28 px on it, three stars under it",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/node_completed.webp",
+      "branch": null,
+      "reviewPiece": "live game asset (level road v2)",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "star_pip",
+      "group": "Road nodes",
+      "role": "Star pip (earned/unearned) and sparkle around the hero",
+      "size": {
+        "1x": [
+          16,
+          16
+        ],
+        "2x": [
+          32,
+          32
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "earned",
+        "unearned (code grayscale 50%)"
+      ],
+      "animation": [
+        {
+          "name": "starFlyIn",
+          "type": "pop",
+          "durationMs": 450,
+          "easing": "Cubic.easeOut",
+          "detail": "stars fly in staggered 80 ms after unlock"
+        },
+        {
+          "name": "twinkle",
+          "type": "sparkle",
+          "durationMs": 1400,
+          "easing": "Sine.easeInOut",
+          "detail": "scale 0.2 to 1 with 45 degree turn, alpha 0-1-0, staggered; cap 6 live"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_node_<n> stars, L60_sparkle",
+      "anchor": "under done node at x -28/-8/+12, y +22 (pip); sparkles 16-24 px around hero",
+      "placement": "Done nodes (3 pips) and 6 twinkles around the current hero",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/star.webp",
+      "branch": null,
+      "reviewPiece": "live game asset",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "node_locked",
+      "group": "Road nodes",
+      "role": "Locked level node",
+      "size": {
+        "1x": [
+          88,
+          88
+        ],
+        "2x": [
+          176,
+          176
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "locked"
+      ],
+      "animation": [
+        {
+          "name": "lockedShake",
+          "type": "wiggle",
+          "durationMs": 300,
+          "easing": "Sine.easeInOut",
+          "detail": "x +-4 px, 3 swings on tap, toast pops in"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_node_<n>",
+      "anchor": "centre on path point",
+      "placement": "Ahead of the current level; number 28 px #4f5d82",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/node_locked.webp",
+      "branch": null,
+      "reviewPiece": "live game asset",
+      "crop": null,
+      "brief": null,
+      "notes": "Mock tints it cool blue with CSS hue-rotate; see node_locked_cool."
+    },
+    {
+      "id": "node_locked_cool",
+      "group": "Road nodes",
+      "role": "Locked node, cool blue-grey variant",
+      "size": {
+        "1x": [
+          88,
+          88
+        ],
+        "2x": [
+          176,
+          176
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "locked"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_node_<n>",
+      "anchor": "same as node_locked",
+      "placement": "Replaces the hue-rotated node_locked",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Same shape and padlock as node_locked, body recoloured cool blue-grey (#9fb0d0 / #5d6d92), no warm tones, flat plain face where a 28 px number is drawn in code. Must differ from the done node in colour, size (88 vs 80x96) and pips (none). Fallback: keep the code tint (needs no art). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Low priority: code tint is acceptable."
+    },
+    {
+      "id": "node_boss",
+      "group": "Road nodes",
+      "role": "Boss level node (arena medallion)",
+      "size": {
+        "1x": [
+          96,
+          104
+        ],
+        "2x": [
+          192,
+          208
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "locked (code tint)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "bossBreath",
+          "type": "loop",
+          "durationMs": 1800,
+          "easing": "Sine.easeInOut",
+          "detail": "scale 1 to 1.03"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_node_<n> / L60_node_boss",
+      "anchor": "centre on path point; as hero: y+24",
+      "placement": "Level 40; locked-dimmed when ahead, under the boss figure when current",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/node_boss.webp",
+      "branch": null,
+      "reviewPiece": "live game asset",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "node_boss_locked_cool",
+      "group": "Road nodes",
+      "role": "Locked boss node, cool variant",
+      "size": {
+        "1x": [
+          96,
+          104
+        ],
+        "2x": [
+          192,
+          208
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "locked"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_node_40",
+      "anchor": "same as node_boss",
+      "placement": "Boss level while locked",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "node_boss silhouette in desaturated cool blue-grey with a small padlock plate; the gear crown stays so it still reads as the boss. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Low priority: code tint fallback exists."
+    },
+    {
+      "id": "ribbon_hard",
+      "group": "Road nodes",
+      "role": "HARD ribbon (purple)",
+      "size": {
+        "1x": [
+          80,
+          40
+        ],
+        "2x": [
+          160,
+          80
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "locked (code saturate 50%)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_ribbon_<n> / L60_difficulty_ribbon",
+      "anchor": "under node at y+32 (done) / y+20 (locked); on hero platform front-right 96x32 rotated 6 degrees",
+      "placement": "Hard levels (label HARD 14 px white, ink outline, drawn in code)",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_ribbon_purple.webp",
+      "branch": null,
+      "reviewPiece": "ui kit v3 ribbon",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "ribbon_mega",
+      "group": "Road nodes",
+      "role": "MEGA hard ribbon (red)",
+      "size": {
+        "1x": [
+          80,
+          40
+        ],
+        "2x": [
+          160,
+          80
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "locked (code)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_ribbon_<n>",
+      "anchor": "same as ribbon_hard",
+      "placement": "Mega hard levels (label MEGA)",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_ribbon_red.webp",
+      "branch": null,
+      "reviewPiece": "ui kit v3 ribbon",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "hero_cannon_4",
+      "group": "Current-level hero",
+      "role": "Player avatar on the current normal/hard node",
+      "size": {
+        "1x": [
+          96,
+          96
+        ],
+        "2x": [
+          192,
+          192
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "heroBob",
+          "type": "loop",
+          "durationMs": 1200,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 4 px up/down"
+        }
+      ],
+      "z": 60,
+      "layer": "L60_avatar_cannon",
+      "anchor": "bottom-centre on platform; sprite at x-48, y-64",
+      "placement": "Current node when it is not a boss",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/cannon_4.webp",
+      "branch": null,
+      "reviewPiece": "unit art, live game",
+      "crop": null,
+      "brief": null,
+      "notes": "Mock stand-in; the real avatar follows the player unit."
+    },
+    {
+      "id": "boss_junkzilla_intact",
+      "group": "Current-level hero",
+      "role": "Boss figure when the boss is the current level",
+      "size": {
+        "1x": [
+          144,
+          144
+        ],
+        "2x": [
+          288,
+          288
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "intact"
+      ],
+      "animation": [
+        {
+          "name": "heroBob",
+          "type": "loop",
+          "durationMs": 1200,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 4 px up/down"
+        }
+      ],
+      "z": 60,
+      "layer": "L60_boss_figure",
+      "anchor": "bottom-centre on the boss platform; sprite x-72, y-136",
+      "placement": "Level 40 when current (FIGHT BOSS)",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/boss_junkzilla_intact.webp",
+      "branch": null,
+      "reviewPiece": "live game boss art",
+      "crop": null,
+      "brief": null,
+      "notes": "Stand-in; use the real ch4 boss intact art at 144 px at implementation."
+    },
+    {
+      "id": "avatar_platform_normal",
+      "group": "Current-level hero",
+      "role": "Gold hero platform (normal)",
+      "size": {
+        "1x": [
+          176,
+          56
+        ],
+        "2x": [
+          352,
+          112
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "platformGlow",
+          "type": "loop",
+          "durationMs": 1600,
+          "easing": "Sine.easeInOut",
+          "detail": "glow scale 0.92 to 1.08, alpha 0.55 to 1 (code glow behind)"
+        }
+      ],
+      "z": 60,
+      "layer": "L60_platform",
+      "anchor": "centre, y+24 under the hero",
+      "placement": "Under the current node",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Top-down-ish gold disc platform 176x56 (3.1:1), cream-yellow top, thick warm-brown rim, 3-4 bolts on the rim, soft shadow under. Reads clearly against any scenery. Fallback: code-drawn ellipse (current live look). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Optional polish."
+    },
+    {
+      "id": "avatar_platform_boss",
+      "group": "Current-level hero",
+      "role": "Gold hero platform (boss arena)",
+      "size": {
+        "1x": [
+          224,
+          72
+        ],
+        "2x": [
+          448,
+          144
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 60,
+      "layer": "L60_platform",
+      "anchor": "centre, y+16",
+      "placement": "Under the boss figure",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Same family as avatar_platform_normal but wider 224x72 with a double rim and 6 bolts so the boss platform differs in size and part count. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Optional polish."
+    },
+    {
+      "id": "hero_glow_ring_you",
+      "group": "Current-level hero",
+      "role": "Glow, pulsing ring, number plate, YOU tag",
+      "size": {
+        "1x": [
+          64,
+          32
+        ],
+        "2x": [
+          128,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "glowPulse",
+          "type": "loop",
+          "durationMs": 1600,
+          "easing": "Sine.easeInOut",
+          "detail": "glow scale 0.92-1.08, alpha 0.55-1"
+        },
+        {
+          "name": "ringPulse",
+          "type": "loop",
+          "durationMs": 1600,
+          "easing": "Quad.easeOut",
+          "detail": "scale 1-1.14, alpha 0.9-0.25"
+        },
+        {
+          "name": "youBob",
+          "type": "loop",
+          "durationMs": 1200,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 8 px up/down"
+        }
+      ],
+      "z": 60,
+      "layer": "L60_glow, L60_ring, L60_number_plate, L60_you_tag",
+      "anchor": "YOU tag y-92 (boss y-176); plate y+56; glow 272, ring 224x88",
+      "placement": "Around the current hero",
+      "status": "CODE-DRAWN",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": null,
+      "notes": "Pure shapes (radial gradient, 4 px ring, gold rounded rect, cream plate). No art needed."
+    },
+    {
+      "id": "road_kit_ch4",
+      "group": "Road surface kit",
+      "role": "Road kit, chapter 4 (ARCADE), 12 pieces",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_70: 4 KEEP / 8 FIX)",
+      "file": "art-candidates/road-surface-kit-b2/ch4/road_ch4_<piece>.webp",
+      "branch": "orch/t-f807c19c-road-surface-kit-batch-2-chapter",
+      "reviewPiece": "CRITIQUE_70 ch4 row, sheet_ch4.png",
+      "crop": null,
+      "brief": "Re-derive straights and curves with the kit-v3 loop: straights must repeat on themselves (edge diff under 8/255, now 57-65/255) and each curve must match the straight at both ends (now 48-83/255). Keep s_curve_a/b, dead_end, shoulder_edge (KEEP). Plank colours must not collapse to one grey in grayscale. Flat plan view, no perspective. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Pieces: straight_h, straight_v, curve_ne, curve_nw, curve_se, curve_sw, t_junction, cross, dead_end, s_curve_a, s_curve_b, shoulder_edge"
+    },
+    {
+      "id": "road_kit_ch5_teaser",
+      "group": "Road surface kit",
+      "role": "Road kit, chapter 5 (MUSIC ATTIC), shown tinted above the gate",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_70: 0 KEEP / 12 FIX)",
+      "file": "art-candidates/road-surface-kit-b3/ch5/road_ch5_<piece>.webp",
+      "branch": "orch/t-bf956f7c-road-surface-kit-batch-3-rebuild",
+      "reviewPiece": "CRITIQUE_70 ch5 row",
+      "crop": null,
+      "brief": "Recommended new strip: stop the rust/primer clash, drop the saturated orange, remove the L-plate repeat, curve join steps under 8/255. Teaser is shown grayscale 70% so only 4-5 pieces are needed first (straight_v, curve_ne/nw, dead_end, shoulder_edge). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Low priority: only visible above the closed gate."
+    },
+    {
+      "id": "road_kit_ch1",
+      "group": "Road surface kit",
+      "role": "Road kit, ch1, 12 pieces (other chapters, same screen when the road scrolls there)",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "FIX (6 KEEP / 6 FIX: curves, T, cross)",
+      "file": "art-candidates/road-surface-kit-b3/ch1/road_ch1_<piece>.webp",
+      "branch": "orch/t-bf956f7c-road-surface-kit-batch-3-rebuild",
+      "reviewPiece": "CRITIQUE_70 ch1 row",
+      "crop": null,
+      "brief": "curves: offset u by one chevron period, 40 px blend; T and cross: flat centre strip, no mirrored zigzag. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Not drawn in the ch4 mock; needed when the road shows other chapters. Priority after ch4."
+    },
+    {
+      "id": "road_kit_ch2",
+      "group": "Road surface kit",
+      "role": "Road kit, ch2, 12 pieces (other chapters, same screen when the road scrolls there)",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "FIX (6 KEEP / 6 FIX)",
+      "file": "art-candidates/road-surface-kit-b3/ch2/road_ch2_<piece>.webp",
+      "branch": "orch/t-bf956f7c-road-surface-kit-batch-3-rebuild",
+      "reviewPiece": "CRITIQUE_70 ch2 row",
+      "crop": null,
+      "brief": "curves: whole squares per quarter turn; T and cross: centre on the same 2x2 grid as the arms. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Not drawn in the ch4 mock; needed when the road shows other chapters. Priority after ch4."
+    },
+    {
+      "id": "road_kit_ch3",
+      "group": "Road surface kit",
+      "role": "Road kit, ch3, 12 pieces (other chapters, same screen when the road scrolls there)",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "EXISTS",
+      "approval": "KEEP (12 of 12)",
+      "file": "art-candidates/road-surface-kit-b3/ch3/road_ch3_<piece>.webp",
+      "branch": "orch/t-bf956f7c-road-surface-kit-batch-3-rebuild",
+      "reviewPiece": "CRITIQUE_70 ch3 row",
+      "crop": null,
+      "brief": null,
+      "notes": "Not drawn in the ch4 mock; needed when the road shows other chapters. Priority after ch4."
+    },
+    {
+      "id": "road_kit_ch6",
+      "group": "Road surface kit",
+      "role": "Road kit, ch6, 12 pieces (other chapters, same screen when the road scrolls there)",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "FIX (6 KEEP / 4 FIX / 2 REDO: T and cross)",
+      "file": "art-candidates/road-surface-kit-b2/ch6/road_ch6_<piece>.webp",
+      "branch": "orch/t-f807c19c-road-surface-kit-batch-2-chapter",
+      "reviewPiece": "CRITIQUE_70 ch6 row",
+      "crop": null,
+      "brief": "redo T and cross (dark band hole), curve steps under 8/255. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Not drawn in the ch4 mock; needed when the road shows other chapters. Priority after ch4."
+    },
+    {
+      "id": "road_kit_ch7",
+      "group": "Road surface kit",
+      "role": "Road kit, ch7, 12 pieces (other chapters, same screen when the road scrolls there)",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "KEEP except straights (10 KEEP / 2 FIX)",
+      "file": "art-candidates/road-surface-kit-b3/ch7/road_ch7_<piece>.webp",
+      "branch": "orch/t-bf956f7c-road-surface-kit-batch-3-rebuild",
+      "reviewPiece": "CRITIQUE_70 ch7 row",
+      "crop": null,
+      "brief": "straights: remove the ghost constellation patch at the loop seam. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Not drawn in the ch4 mock; needed when the road shows other chapters. Priority after ch4."
+    },
+    {
+      "id": "road_kit_ch8",
+      "group": "Road surface kit",
+      "role": "Road kit, ch8, 12 pieces (other chapters, same screen when the road scrolls there)",
+      "size": {
+        "1x": [
+          70,
+          70
+        ],
+        "2x": [
+          140,
+          140
+        ],
+        "sourceNote": "source cell 256 px, road band 205 px wide; scale to 56 px outline at 1x, so cell about 70 px (2x 140)"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal (travelled gold overlay and ahead-cool tint are code)"
+      ],
+      "animation": [
+        {
+          "name": "goldDraw",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "travelled gold centre line draws to the unlocked node"
+        }
+      ],
+      "z": 20,
+      "layer": "L20_road_surface",
+      "anchor": "cell centre on the path tile centre; 90 degree rotations in code",
+      "placement": "The road itself under the nodes, 12 pieces per chapter, path tiles snapped to the cell grid",
+      "status": "NEEDS-ART",
+      "approval": "FIX (6 KEEP / 6 FIX)",
+      "file": "art-candidates/road-surface-kit-b3/ch8/road_ch8_<piece>.webp",
+      "branch": "orch/t-bf956f7c-road-surface-kit-batch-3-rebuild",
+      "reviewPiece": "CRITIQUE_70 ch8 row",
+      "crop": null,
+      "brief": "curves sheared diamonds; T and cross busy gold zigzag. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Not drawn in the ch4 mock; needed when the road shows other chapters. Priority after ch4."
+    },
+    {
+      "id": "scenery_ch4_gate",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Chapter 4 background, upper part (gate end)",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ],
+        "sourceNote": "size of the delivered webp not measured here; must cover full width W, scale cover"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 0,
+      "layer": "L00_scenery_ch4",
+      "anchor": "world layer, top-left at x0; scrolls with the road (parallax 0.6 optional)",
+      "placement": "Behind the road around levels 36-40 and the gate",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_64, join 7.0)",
+      "file": "art-candidates/road-art-4/road_panel_ch4_gate.webp",
+      "branch": "orch/t-d179438f-road-art-4-chapters-4-and-5-pane",
+      "reviewPiece": "CRITIQUE_64 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Flat top-down floor panel; drum kit near the left edge but acceptable."
+    },
+    {
+      "id": "scenery_ch4_entrance",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Chapter 4 background, entrance end",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 0,
+      "layer": "L00_scenery_ch4",
+      "anchor": "world layer",
+      "placement": "Behind levels 30-33",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_64)",
+      "file": "art-candidates/road-art-4/road_panel_ch4_entrance.webp",
+      "branch": "orch/t-d179438f-road-art-4-chapters-4-and-5-pane",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Move the grand piano and stool at least 6% in from the left edge, keep plank rows continuous across the top, join to the gate panel under 8/255. Pure plan view. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "scenery_ch4_body",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Chapter 4 background, middle (levels 34-39)",
+      "size": {
+        "1x": [
+          390,
+          1200
+        ],
+        "2x": [
+          780,
+          2400
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 0,
+      "layer": "L00_scenery_ch4",
+      "anchor": "world layer, between entrance and gate panels",
+      "placement": "Fills the gap between the two delivered panels; mock uses a violet gradient",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Plain arcade carpet/floor continuing the ch4 gate panel, top and bottom 120 px match the two neighbours exactly (reference both). Flat plan view, no vanishing point, no props within 10% of the sides. Fallback: code gradient plus props. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Height is an estimate: 9 nodes x 160 pitch."
+    },
+    {
+      "id": "scenery_ch5_gate",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Chapter 5 teaser background above the gate (tinted grayscale 70% in mock)",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "locked (code tint + fog)"
+      ],
+      "animation": [],
+      "z": 0,
+      "layer": "L00_scenery_ch5_teaser",
+      "anchor": "world layer above the gate",
+      "placement": "Above the closed gate",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_64, join 11.8)",
+      "file": "art-candidates/road-art-4/road_panel_ch5_gate.webp",
+      "branch": "orch/t-d179438f-road-art-4-chapters-4-and-5-pane",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Cover the seam in code (80-120 px band) or re-roll with the entrance top rows as reference; pull the grey slabs off the left and right edges. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Teaser is dimmed, so a code band is an acceptable fix."
+    },
+    {
+      "id": "scenery_ch5_entrance",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Chapter 5 entrance background",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 0,
+      "layer": "L00_scenery_ch5_teaser",
+      "anchor": "world layer",
+      "placement": "Under the gate on the next chapter",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_64, join 11.8)",
+      "file": "art-candidates/road-art-4/road_panel_ch5_entrance.webp",
+      "branch": "orch/t-d179438f-road-art-4-chapters-4-and-5-pane",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Calmer gravel (larger, fewer stones), lane lines at the same x as the gate bottom. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "scenery_ch5_card",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Entrance popup picture (CHAPTER 5 MUSIC ATTIC)",
+      "size": {
+        "1x": [
+          272,
+          120
+        ],
+        "2x": [
+          544,
+          240
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "cardKenBurns",
+          "type": "loop",
+          "durationMs": 6000,
+          "easing": "Sine.easeInOut",
+          "detail": "optional scale 1 to 1.04, visual only"
+        }
+      ],
+      "z": 95,
+      "layer": "L95_panel_scene",
+      "anchor": "inside popup, x24, y136, 16 px radius clip",
+      "placement": "Chapter entrance panel scene card",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Painted music-attic interior (piano, records, dusty light), 272x120 (2.27:1), full-bleed rectangle with no outline or key (it is clipped by the frame). Stand-in is stage_ch5.webp. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: none, opaque rectangle. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "skyline_clouds_fog",
+      "group": "Scenery (one panel per chapter, no tiling, CRITIQUE_17)",
+      "role": "Skyline silhouette, drifting clouds, fog banks above the gate, bottom scrim",
+      "size": {
+        "1x": [
+          390,
+          96
+        ],
+        "2x": [
+          780,
+          192
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "cloudDrift",
+          "type": "loop",
+          "durationMs": 38000,
+          "easing": "Linear",
+          "detail": "drift 80 px"
+        }
+      ],
+      "z": 70,
+      "layer": "L00_skyline, L10_cloud, L70_fog, L70_fog_puffs, L70_bottom_scrim",
+      "anchor": "full width; fog top at gate y-40",
+      "placement": "Atmosphere layers",
+      "status": "CODE-DRAWN",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": null,
+      "notes": "Soft translucent gradients cannot be keyed out of a flat background; keep code gradients (rgba(233,225,244, .35 to .82)). No fog_banks art needed."
+    },
+    {
+      "id": "road_landmark_ch4_a_1",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_a_1.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_a_2",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_a_2.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_a_3",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_a_3.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_a_4",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_a_4.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_a_5",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_a_5.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_a_6",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_a_6.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_b_1",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_b_1.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_b_3",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_b_3.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_b_5",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_b_5.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_c_1",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_c_1.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_c_2",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_c_2.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_c_3",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_c_3.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_c_4",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_c_4.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_c_5",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop (arcade cabinet / blocks / instrument)",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": "target size, tune at implementation (props 56-112 px); alpha 16-55% in the mock for low saturation"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre, placed 8 px grid at the road shoulder, outside x 72 / C-72 above y 432",
+      "placement": "Beside the road in chapter 4",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_c_5.png (webp beside it)",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": "CRITIQUE_65 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_b_2",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre at the road shoulder",
+      "placement": "Beside the road in chapter 4",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_b_2.png",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Fix only: remove green patches between drums (a re-key with #00FF00 green background is the likely cure, or hand-clean). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_b_4",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre at the road shoulder",
+      "placement": "Beside the road in chapter 4",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_b_4.png",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Fix only: remove olive green inside loop (a re-key with #00FF00 green background is the likely cure, or hand-clean). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_b_6",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre at the road shoulder",
+      "placement": "Beside the road in chapter 4",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_b_6.png",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Fix only: remove green by legs (a re-key with #00FF00 green background is the likely cure, or hand-clean). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "road_landmark_ch4_c_6",
+      "group": "Props (ch4 landmarks)",
+      "role": "Chapter 4 side prop",
+      "size": {
+        "1x": [
+          80,
+          80
+        ],
+        "2x": [
+          160,
+          160
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 10,
+      "layer": "L10_prop_<n>",
+      "anchor": "bottom-centre at the road shoulder",
+      "placement": "Beside the road in chapter 4",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_65)",
+      "file": "art-candidates/road-art-4c/road_landmark_ch4_c_6.png",
+      "branch": "orch/t-e82cdeb2-critic-pass-on-road-art-4c-and-f",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Fix only: remove green at top-right and left of frame (a re-key with #00FF00 green background is the likely cure, or hand-clean). STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "road_gate_closed",
+      "group": "Gate, banners, chests",
+      "role": "Closed chapter gate arch",
+      "size": {
+        "1x": [
+          224,
+          128
+        ],
+        "2x": [
+          448,
+          256
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "closed",
+        "open (see road_gate_open)"
+      ],
+      "animation": [
+        {
+          "name": "gateShake",
+          "type": "wiggle",
+          "durationMs": 350,
+          "easing": "Sine.easeInOut",
+          "detail": "on tap while locked"
+        }
+      ],
+      "z": 40,
+      "layer": "L40_gate_arch",
+      "anchor": "centre-bottom on the path, 352 px gap after the boss",
+      "placement": "Between the boss (L40) and the next chapter",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_36)",
+      "file": "art-candidates/road-art-1/s1/road_gate_closed.webp",
+      "branch": "orch/t-b0e816ef-road-art-1-gates-banners-chests",
+      "reviewPiece": "CRITIQUE_36 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_gate_open",
+      "group": "Gate, banners, chests",
+      "role": "Open chapter gate arch",
+      "size": {
+        "1x": [
+          224,
+          128
+        ],
+        "2x": [
+          448,
+          256
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "open"
+      ],
+      "animation": [
+        {
+          "name": "gateOpen",
+          "type": "pop",
+          "durationMs": 500,
+          "easing": "Back.easeOut",
+          "detail": "crossfade closed to open plus 6 sparkles"
+        }
+      ],
+      "z": 40,
+      "layer": "L40_gate_arch",
+      "anchor": "same as closed",
+      "placement": "After the boss is cleared and the star target met",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_36)",
+      "file": "art-candidates/road-art-1/s1/road_gate_open.webp",
+      "branch": "orch/t-b0e816ef-road-art-1-gates-banners-chests",
+      "reviewPiece": "CRITIQUE_36 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_gate_lock",
+      "group": "Gate, banners, chests",
+      "role": "Padlock on the closed gate",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "locked"
+      ],
+      "animation": [
+        {
+          "name": "lockJiggle",
+          "type": "wiggle",
+          "durationMs": 400,
+          "easing": "Sine.easeInOut",
+          "detail": "on tap"
+        }
+      ],
+      "z": 41,
+      "layer": "L40_gate_plate",
+      "anchor": "centre of the gate door",
+      "placement": "On the closed gate",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_36)",
+      "file": "art-candidates/road-art-1/s1/road_gate_lock.webp",
+      "branch": "orch/t-b0e816ef-road-art-1-gates-banners-chests",
+      "reviewPiece": "CRITIQUE_36 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "gate_need_plate",
+      "group": "Gate, banners, chests",
+      "role": "NEED 20 star plate below the gate",
+      "size": {
+        "1x": [
+          144,
+          32
+        ],
+        "2x": [
+          288,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": {
+        "source": "kit3_panel_card.webp",
+        "insetPx": 30,
+        "note": "inset as used by levelIntro.ts frame(); verify on the file"
+      },
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        }
+      ],
+      "z": 40,
+      "layer": "L40_gate_plate",
+      "anchor": "centre, under the gate",
+      "placement": "Below the closed gate",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_panel_card.webp",
+      "branch": null,
+      "reviewPiece": "ui kit v3 card, nine-slice",
+      "crop": null,
+      "brief": null,
+      "notes": "Text 24 px drawn in code."
+    },
+    {
+      "id": "banner_entry",
+      "group": "Gate, banners, chests",
+      "role": "CH 4 entry banner (purple)",
+      "size": {
+        "1x": [
+          240,
+          112
+        ],
+        "2x": [
+          480,
+          224
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        }
+      ],
+      "z": 40,
+      "layer": "L40_banner_entry",
+      "anchor": "centre on path at the chapter start",
+      "placement": "Above level 31",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_ribbon_purple.webp",
+      "branch": null,
+      "reviewPiece": "ui kit v3 ribbon",
+      "crop": null,
+      "brief": null,
+      "notes": "Candidates road_banner_blank / road_banner_done (KEEP, CRITIQUE_38, art-3 sA, about 2.4:1) can replace it; scale in code."
+    },
+    {
+      "id": "banner_next",
+      "group": "Gate, banners, chests",
+      "role": "Next chapter banner (blue)",
+      "size": {
+        "1x": [
+          240,
+          112
+        ],
+        "2x": [
+          480,
+          224
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "locked (code tint)"
+      ],
+      "animation": [],
+      "z": 40,
+      "layer": "L40_banner_next",
+      "anchor": "centre above the gate",
+      "placement": "Chapter 5 teaser",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_ribbon_blue.webp",
+      "branch": null,
+      "reviewPiece": "ui kit v3 ribbon",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "road_chest_wood",
+      "group": "Gate, banners, chests",
+      "role": "Milestone chest on the road shoulder (wood)",
+      "size": {
+        "1x": [
+          64,
+          64
+        ],
+        "2x": [
+          128,
+          128
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "closed",
+        "open",
+        "glow (ready, art + code pulse)"
+      ],
+      "animation": [
+        {
+          "name": "chestRattle",
+          "type": "wiggle",
+          "durationMs": 500,
+          "easing": "Sine.easeInOut",
+          "detail": "every 3 s when claimable"
+        },
+        {
+          "name": "chestOpen",
+          "type": "pop",
+          "durationMs": 400,
+          "easing": "Back.easeOut",
+          "detail": "closed to open swap plus sparkle burst"
+        }
+      ],
+      "z": 55,
+      "layer": "L55_chest_<n>",
+      "anchor": "centre, 88 px left or right of the path midpoint; label pill 64x16 below",
+      "placement": "After levels 33 and 36 (mock uses chest_closed / chest_open)",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_38, closed/open/ready)",
+      "file": "art-candidates/road-art-3/sB/road_chest_wood_closed.webp, sC/road_chest_wood_open.webp, sD/road_chest_wood_ready.webp",
+      "branch": "orch/t-67dcb282-road-art-3-fixes-for-gates-chest",
+      "reviewPiece": "CRITIQUE_38 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Ready glow is subtle; add a code pulse. Live fallback: chest_closed / chest_open in src/assets/art."
+    },
+    {
+      "id": "road_chest_iron",
+      "group": "Gate, banners, chests",
+      "role": "Milestone chest on the road shoulder (iron)",
+      "size": {
+        "1x": [
+          64,
+          64
+        ],
+        "2x": [
+          128,
+          128
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "closed",
+        "open",
+        "glow (ready, art + code pulse)"
+      ],
+      "animation": [
+        {
+          "name": "chestRattle",
+          "type": "wiggle",
+          "durationMs": 500,
+          "easing": "Sine.easeInOut",
+          "detail": "every 3 s when claimable"
+        },
+        {
+          "name": "chestOpen",
+          "type": "pop",
+          "durationMs": 400,
+          "easing": "Back.easeOut",
+          "detail": "closed to open swap plus sparkle burst"
+        }
+      ],
+      "z": 55,
+      "layer": "L55_chest_<n>",
+      "anchor": "centre, 88 px left or right of the path midpoint; label pill 64x16 below",
+      "placement": "After levels 33 and 36 (mock uses chest_closed / chest_open)",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_38, closed/open/ready)",
+      "file": "art-candidates/road-art-3/sB/road_chest_iron_closed.webp, sC/road_chest_iron_open.webp, sD/road_chest_iron_ready.webp",
+      "branch": "orch/t-67dcb282-road-art-3-fixes-for-gates-chest",
+      "reviewPiece": "CRITIQUE_38 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Ready glow is subtle; add a code pulse. Live fallback: chest_closed / chest_open in src/assets/art."
+    },
+    {
+      "id": "road_chest_gold",
+      "group": "Gate, banners, chests",
+      "role": "Milestone chest on the road shoulder (gold)",
+      "size": {
+        "1x": [
+          64,
+          64
+        ],
+        "2x": [
+          128,
+          128
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "closed",
+        "open",
+        "glow (ready, art + code pulse)"
+      ],
+      "animation": [
+        {
+          "name": "chestRattle",
+          "type": "wiggle",
+          "durationMs": 500,
+          "easing": "Sine.easeInOut",
+          "detail": "every 3 s when claimable"
+        },
+        {
+          "name": "chestOpen",
+          "type": "pop",
+          "durationMs": 400,
+          "easing": "Back.easeOut",
+          "detail": "closed to open swap plus sparkle burst"
+        }
+      ],
+      "z": 55,
+      "layer": "L55_chest_<n>",
+      "anchor": "centre, 88 px left or right of the path midpoint; label pill 64x16 below",
+      "placement": "After levels 33 and 36 (mock uses chest_closed / chest_open)",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_38, closed/open/ready)",
+      "file": "art-candidates/road-art-3/sB/road_chest_gold_closed.webp, sC/road_chest_gold_open.webp, sD/road_chest_gold_ready.webp",
+      "branch": "orch/t-67dcb282-road-art-3-fixes-for-gates-chest",
+      "reviewPiece": "CRITIQUE_38 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Ready glow is subtle; add a code pulse. Live fallback: chest_closed / chest_open in src/assets/art."
+    },
+    {
+      "id": "wallet_pill",
+      "group": "HUD, buttons, panels",
+      "role": "Bolts and gems pill (2x) plus icon",
+      "size": {
+        "1x": [
+          128,
+          48
+        ],
+        "2x": [
+          256,
+          96
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": {
+        "source": "kit3_panel_well.webp",
+        "insetPx": 30,
+        "note": "as levelIntro.ts frame(); icons icon_bolt / icon_gem 32 px at left, number 22 px"
+      },
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        },
+        {
+          "name": "countUp",
+          "type": "loop",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "number counts up on gain; icon pops 1.15"
+        }
+      ],
+      "z": 82,
+      "layer": "L82_wallet_hud",
+      "anchor": "x X0+16 and X0+152, y 56",
+      "placement": "Top HUD",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_panel_well.webp + icon_bolt.webp + icon_gem.webp",
+      "branch": null,
+      "reviewPiece": "ui kit v3",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "icon_settings_gear",
+      "group": "HUD, buttons, panels",
+      "role": "Settings gear icon in the 48x48 button",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        },
+        {
+          "name": "gearTurn",
+          "type": "press",
+          "durationMs": 300,
+          "easing": "Cubic.easeOut",
+          "detail": "rotates 45 degrees on tap"
+        }
+      ],
+      "z": 82,
+      "layer": "L82_wallet_hud",
+      "anchor": "centre of button at X0+C-64, y 56",
+      "placement": "Top right HUD",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Chunky brass gear, 8 teeth, centre hole, same glossy toy-metal language as the gear_1..8 units but plainer; must be readable at 32 px and in grayscale (clear hole, thick teeth). Button base reuses btn_brass nine-slice. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Mock uses a unicode glyph."
+    },
+    {
+      "id": "chapter_plate",
+      "group": "HUD, buttons, panels",
+      "role": "Chapter title plate with progress and chest",
+      "size": {
+        "1x": [
+          358,
+          56
+        ],
+        "2x": [
+          716,
+          112
+        ],
+        "sourceNote": "width = C-32 (352 / 320 / 392); 358 shown for the 390 phone"
+      },
+      "nineSlice": {
+        "source": "kit3_panel_card.webp",
+        "insetPx": 30,
+        "note": "verify on the file"
+      },
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "chestWiggle",
+          "type": "wiggle",
+          "durationMs": 600,
+          "easing": "Sine.easeInOut",
+          "detail": "when the chapter is cleared, every 3 s"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_chapter_plate",
+      "anchor": "x X0+16, y 112",
+      "placement": "Under the wallet row",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_panel_card.webp + chest_closed.webp (48 px) + hp_frame/hp_fill (progress)",
+      "branch": null,
+      "reviewPiece": "ui kit v3",
+      "crop": null,
+      "brief": null,
+      "notes": "Progress bar: confirm hp_frame/hp_fill fit, else code-draw (green #3fbf5f)."
+    },
+    {
+      "id": "play_button",
+      "group": "HUD, buttons, panels",
+      "role": "PLAY / FIGHT BOSS button",
+      "size": {
+        "1x": [
+          272,
+          64
+        ],
+        "2x": [
+          544,
+          128
+        ],
+        "sourceNote": "width = C-112"
+      },
+      "nineSlice": {
+        "source": "btn_green.webp",
+        "insetPx": 24,
+        "note": "verify on the file"
+      },
+      "states": [
+        "normal (btn_green)",
+        "pressed (btn_green_pressed)",
+        "boss (btn_red)",
+        "locked (code gray)"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        },
+        {
+          "name": "glintSweep",
+          "type": "sparkle",
+          "durationMs": 3400,
+          "easing": "Linear",
+          "detail": "white diagonal band crosses the button, once per cycle"
+        }
+      ],
+      "z": 86,
+      "layer": "L86_play_button",
+      "anchor": "x X0+96, y HB-184",
+      "placement": "Bottom row",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/btn_green.webp, btn_green_pressed.webp, btn_red.webp, btn_red_pressed.webp",
+      "branch": null,
+      "reviewPiece": "live game buttons",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "chapter_chip",
+      "group": "HUD, buttons, panels",
+      "role": "Chapter chip: progress ring with chest",
+      "size": {
+        "1x": [
+          64,
+          64
+        ],
+        "2x": [
+          128,
+          128
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "ready (chapter cleared, chest wiggles)"
+      ],
+      "animation": [
+        {
+          "name": "chestWiggle",
+          "type": "wiggle",
+          "durationMs": 600,
+          "easing": "Sine.easeInOut",
+          "detail": "every 3 s when ready"
+        }
+      ],
+      "z": 86,
+      "layer": "L86_chapter_chip",
+      "anchor": "x X0+16, y HB-184",
+      "placement": "Bottom row left of PLAY",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/chest_closed.webp (+ code ring)",
+      "branch": null,
+      "reviewPiece": "live game asset",
+      "crop": null,
+      "brief": null,
+      "notes": "Ring is code-drawn."
+    },
+    {
+      "id": "back_to_me_pill",
+      "group": "HUD, buttons, panels",
+      "role": "BACK TO ME pill",
+      "size": {
+        "1x": [
+          176,
+          32
+        ],
+        "2x": [
+          352,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 87,
+      "layer": "L87_back_to_me",
+      "anchor": "centre, y HB-224; hit area 48 high",
+      "placement": "Appears after scrolling half a screen away",
+      "status": "CODE-DRAWN",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": null,
+      "notes": "Rounded rect fill #5d6d92 with ink outline, 14 px text. Optionally kit3_ribbon_blue."
+    },
+    {
+      "id": "nav_bar",
+      "group": "HUD, buttons, panels",
+      "role": "Bottom nav bar with 4 text tabs",
+      "size": {
+        "1x": [
+          368,
+          72
+        ],
+        "2x": [
+          736,
+          144
+        ],
+        "sourceNote": "width = C-16"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "tab active (gold)"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 88,
+      "layer": "L88_nav_bar",
+      "anchor": "x X0+8, y HB-104; tabs 80/88/96 wide",
+      "placement": "Bottom",
+      "status": "CODE-DRAWN",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": null,
+      "notes": "Ink rounded bar plus 16 px text tabs; the NEW tag can reuse badge_new. No nav icons in this mock."
+    },
+    {
+      "id": "locked_toast_and_tooltip",
+      "group": "HUD, buttons, panels",
+      "role": "Locked toast and badge tooltip",
+      "size": {
+        "1x": [
+          240,
+          64
+        ],
+        "2x": [
+          480,
+          128
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": {
+        "source": "ui_bubble.webp",
+        "insetPx": 24,
+        "note": "verify on the file"
+      },
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "autoHide",
+          "type": "pop",
+          "durationMs": 200,
+          "easing": "Quad.easeIn",
+          "detail": "fade and scale 0.9 after 2200 ms"
+        }
+      ],
+      "z": 62,
+      "layer": "L62_locked_toast, L92_badge_tooltip",
+      "anchor": "toast above the back pill; tooltip between the rails",
+      "placement": "On tap of a locked node / long press on a badge",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/ui_bubble.webp",
+      "branch": null,
+      "reviewPiece": "live game asset",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "chapter_panel",
+      "group": "HUD, buttons, panels",
+      "role": "Chapter entrance popup frame, scene frame, reward cards, ribbon, LET'S GO",
+      "size": {
+        "1x": [
+          340,
+          480
+        ],
+        "2x": [
+          680,
+          960
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": {
+        "source": "kit3_panel_popup.webp",
+        "insetPx": 44,
+        "note": "levelIntro.ts uses inset 44; scene well kit3_panel_well inset 30-40"
+      },
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "panelPop",
+          "type": "pop",
+          "durationMs": 550,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "rewardPop",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "reward cards staggered 100 ms from 350 ms"
+        },
+        {
+          "name": "glintSweep",
+          "type": "sparkle",
+          "durationMs": 3400,
+          "easing": "Linear",
+          "detail": "white diagonal band crosses the button, once per cycle"
+        },
+        {
+          "name": "confettiTwinkle",
+          "type": "sparkle",
+          "durationMs": 1400,
+          "easing": "Sine.easeInOut",
+          "detail": "star confetti, cap 12"
+        }
+      ],
+      "z": 95,
+      "layer": "L95_chapter_panel, _panel_ribbon, _reward_row, _go_button",
+      "anchor": "centred, y = round8(H/2 - 232)",
+      "placement": "Popup on entering a new chapter",
+      "status": "EXISTS",
+      "approval": null,
+      "file": "src/assets/art/kit3_panel_popup.webp, kit3_panel_well.webp, kit3_panel_card.webp, kit3_ribbon_purple.webp, btn_green.webp, star.webp",
+      "branch": null,
+      "reviewPiece": "level intro v3 popup",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_base_brass",
+      "group": "Rail badges (6)",
+      "role": "Medallion coin, brass family (idle and locked)",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ],
+        "sourceNote": "source slices 256-286 px; coin 56x56 at (4,0) inside the 64x80 badge box"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed",
+        "locked",
+        "glow (ready)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "floatBob",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 3 px up/down"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name>",
+      "anchor": "badge box top-left; rails at X0+8 (left) / X0+C-72 (right), y 176 + 88 i",
+      "placement": "Left rail and right rail (3 per side)",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/bases/badge_base_brass.png + badge_base_brass_locked.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Mock uses one family for all six; teal is best in grayscale (19/20)."
+    },
+    {
+      "id": "badge_base_brass_ready",
+      "group": "Rail badges (6)",
+      "role": "Medallion coin, brass family, ready (glow) state",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ],
+        "sourceNote": "source slices 256-286 px; coin 56x56 at (4,0) inside the 64x80 badge box"
+      },
+      "nineSlice": null,
+      "states": [
+        "glow (ready)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "floatBob",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 3 px up/down"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name>",
+      "anchor": "badge box top-left; rails at X0+8 (left) / X0+C-72 (right), y 176 + 88 i",
+      "placement": "Left rail and right rail (3 per side)",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/bases/badge_base_brass_ready.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "re-key glow (no pink), warm gold-white glow, brighter top so ready differs from idle in grayscale; use green #00FF00 key so the glow is not contaminated. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Cheaper alternative from the critic: draw the glow in code on the idle base and skip this art."
+    },
+    {
+      "id": "badge_base_copper",
+      "group": "Rail badges (6)",
+      "role": "Medallion coin, copper family (idle and locked)",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ],
+        "sourceNote": "source slices 256-286 px; coin 56x56 at (4,0) inside the 64x80 badge box"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed",
+        "locked",
+        "glow (ready)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "floatBob",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 3 px up/down"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name>",
+      "anchor": "badge box top-left; rails at X0+8 (left) / X0+C-72 (right), y 176 + 88 i",
+      "placement": "Left rail and right rail (3 per side)",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/bases/badge_base_copper.png + badge_base_copper_locked.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Use only if the road mixes families."
+    },
+    {
+      "id": "badge_base_copper_ready",
+      "group": "Rail badges (6)",
+      "role": "Medallion coin, copper family, ready (glow) state",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ],
+        "sourceNote": "source slices 256-286 px; coin 56x56 at (4,0) inside the 64x80 badge box"
+      },
+      "nineSlice": null,
+      "states": [
+        "glow (ready)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "floatBob",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 3 px up/down"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name>",
+      "anchor": "badge box top-left; rails at X0+8 (left) / X0+C-72 (right), y 176 + 88 i",
+      "placement": "Left rail and right rail (3 per side)",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/bases/badge_base_copper_ready.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "re-key glow (no pink), warm gold-white glow, brighter top so ready differs from idle in grayscale; use green #00FF00 key so the glow is not contaminated. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Cheaper alternative from the critic: draw the glow in code on the idle base and skip this art."
+    },
+    {
+      "id": "badge_base_teal",
+      "group": "Rail badges (6)",
+      "role": "Medallion coin, teal family (idle and locked)",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ],
+        "sourceNote": "source slices 256-286 px; coin 56x56 at (4,0) inside the 64x80 badge box"
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed",
+        "locked",
+        "glow (ready)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "floatBob",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 3 px up/down"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name>",
+      "anchor": "badge box top-left; rails at X0+8 (left) / X0+C-72 (right), y 176 + 88 i",
+      "placement": "Left rail and right rail (3 per side)",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/bases/badge_base_teal.png + badge_base_teal_locked.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "Use only if the road mixes families."
+    },
+    {
+      "id": "badge_base_teal_ready",
+      "group": "Rail badges (6)",
+      "role": "Medallion coin, teal family, ready (glow) state",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ],
+        "sourceNote": "source slices 256-286 px; coin 56x56 at (4,0) inside the 64x80 badge box"
+      },
+      "nineSlice": null,
+      "states": [
+        "glow (ready)"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        },
+        {
+          "name": "floatBob",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "yoyo 3 px up/down"
+        },
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "easing": "Quad.easeOut",
+          "detail": "scale 0.94 then overshoot 1.06 then 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name>",
+      "anchor": "badge box top-left; rails at X0+8 (left) / X0+C-72 (right), y 176 + 88 i",
+      "placement": "Left rail and right rail (3 per side)",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/bases/badge_base_teal_ready.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "white-mint glow, no pink; use green #00FF00 key so the glow is not contaminated. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Cheaper alternative from the critic: draw the glow in code on the idle base and skip this art."
+    },
+    {
+      "id": "badge_glyph_daily",
+      "group": "Rail badges (6)",
+      "role": "Badge face icon for DAILY",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "ready (code wiggle)",
+        "opened"
+      ],
+      "animation": [
+        {
+          "name": "attentionWiggle",
+          "type": "wiggle",
+          "durationMs": 700,
+          "easing": "Sine.easeInOut",
+          "detail": "damped +-8 degrees every 3 s when a gift is ready"
+        },
+        {
+          "name": "sparkleBurst",
+          "type": "sparkle",
+          "durationMs": 600,
+          "easing": "Quad.easeOut",
+          "detail": "4 stars on claim"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_daily",
+      "anchor": "icon box 32x32 at (12, 12), or (12, 4) when a chip is present",
+      "placement": "DAILY badge",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/glyphs/badge_glyph_daily.png + badge_glyph_daily_open.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_glyph_quests",
+      "group": "Rail badges (6)",
+      "role": "Badge face icon for QUESTS",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_quests",
+      "anchor": "icon box 32x32 at (12, 12), or (12, 4) when a chip is present",
+      "placement": "QUESTS badge",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/glyphs/badge_glyph_quests.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_glyph_album",
+      "group": "Rail badges (6)",
+      "role": "Badge face icon for COLLECT",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_collect",
+      "anchor": "icon box 32x32 at (12, 12), or (12, 4) when a chip is present",
+      "placement": "COLLECT badge",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/glyphs/badge_glyph_album.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_glyph_offers",
+      "group": "Rail badges (6)",
+      "role": "Badge face icon for OFFER",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_offer",
+      "anchor": "icon box 32x32 at (12, 12), or (12, 4) when a chip is present",
+      "placement": "OFFER badge",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69); weak on copper, crate is semantically weak, coin or price tag would read better",
+      "file": "art-candidates/map-badge-1/glyphs/badge_glyph_offers.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_glyph_season",
+      "group": "Rail badges (6)",
+      "role": "Badge face icon for SEASON",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_season",
+      "anchor": "icon box 32x32 at (12, 12), or (12, 4) when a chip is present",
+      "placement": "SEASON badge",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/glyphs/badge_glyph_season.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_glyph_events",
+      "group": "Rail badges (6)",
+      "role": "Badge face icon for EVENT",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_event",
+      "anchor": "icon box 32x32 at (12, 4) (chip present)",
+      "placement": "EVENT badge, right rail",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/glyphs/badge_glyph_events.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Bold yellow pennant with a thick pole (about 2x thicker than now), no blue; must stay readable at 32 px and in grayscale. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": null
+    },
+    {
+      "id": "badge_ribbon_timer",
+      "group": "Rail badges (6)",
+      "role": "Timer chip (cream, urgent red, expired grey) 48x16",
+      "size": {
+        "1x": [
+          48,
+          16
+        ],
+        "2x": [
+          96,
+          32
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "urgent",
+        "expired"
+      ],
+      "animation": [
+        {
+          "name": "urgentPulse",
+          "type": "loop",
+          "durationMs": 800,
+          "easing": "Sine.easeInOut",
+          "detail": "scale 1 to 1.06 when under 1 h"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name> chip",
+      "anchor": "badge box (8, 36)-(56, 52): chip centred at y 40; label at y 64",
+      "placement": "EVENT (2D 4H) and OFFER (05:12) badges",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/parts/badge_ribbon_timer.png, _urgent, _expired",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": "A gear-clock cap is baked in; the number is code text and the ribbon cannot be shortened."
+    },
+    {
+      "id": "badge_ribbon_count",
+      "group": "Rail badges (6)",
+      "role": "Count chip (2/5, 7/30) 48x16",
+      "size": {
+        "1x": [
+          48,
+          16
+        ],
+        "2x": [
+          96,
+          32
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_<name> chip",
+      "anchor": "same as timer chip",
+      "placement": "QUESTS and SEASON badges",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/parts/badge_ribbon_count.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_dot",
+      "group": "Rail badges (6)",
+      "role": "Red notification dot (and green variant)",
+      "size": {
+        "1x": [
+          16,
+          16
+        ],
+        "2x": [
+          32,
+          32
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "red",
+        "green"
+      ],
+      "animation": [
+        {
+          "name": "dotPop",
+          "type": "pop",
+          "durationMs": 250,
+          "easing": "Back.easeOut",
+          "detail": "pops 0 to 1.2 to 1 when it appears"
+        },
+        {
+          "name": "dotPulse",
+          "type": "loop",
+          "durationMs": 1200,
+          "easing": "Sine.easeInOut",
+          "detail": "scale 1 to 1.12"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name> dot",
+      "anchor": "coin's top-right (x 44, y 0)",
+      "placement": "DAILY, COLLECT (red); green when claimed",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/parts/badge_dot.png, badge_dot_green.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_new_lock",
+      "group": "Rail badges (6)",
+      "role": "NEW tag and padlock overlay",
+      "size": {
+        "1x": [
+          32,
+          20
+        ],
+        "2x": [
+          64,
+          40
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "new",
+        "lock"
+      ],
+      "animation": [
+        {
+          "name": "newWobble",
+          "type": "wiggle",
+          "durationMs": 600,
+          "easing": "Sine.easeInOut",
+          "detail": "every 4 s"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name> / L88 nav NEW tag",
+      "anchor": "coin corner; padlock centred on the coin when locked",
+      "placement": "Locked badges, NEW label on a tab or badge",
+      "status": "EXISTS",
+      "approval": "KEEP (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/parts/badge_new.png, badge_lock.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": "CRITIQUE_69 keep-list",
+      "crop": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "badge_count_bubble",
+      "group": "Rail badges (6)",
+      "role": "Round count bubble (alternative to the chip)",
+      "size": {
+        "1x": [
+          20,
+          20
+        ],
+        "2x": [
+          40,
+          40
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "easing": "Back.easeOut",
+          "detail": "scale 0 to 1.12 to 1"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_<name> count",
+      "anchor": "coin's top-right",
+      "placement": "Optional count on any badge",
+      "status": "NEEDS-ART",
+      "approval": "FIX (CRITIQUE_69)",
+      "file": "art-candidates/map-badge-1/parts/badge_count_bubble.png",
+      "branch": "orch/t-7a7ea2eb-map-badge-art-batch-1-retry-the",
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Red or cream-rimmed bubble like the dots; gold on gold vanishes on brass. Empty, number drawn in code. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Optional: chips cover the mock."
+    },
+    {
+      "id": "badge_tag_percent",
+      "group": "Rail badges (6)",
+      "role": "-50% sale tag",
+      "size": {
+        "1x": [
+          40,
+          24
+        ],
+        "2x": [
+          80,
+          48
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "tagWobble",
+          "type": "wiggle",
+          "durationMs": 900,
+          "easing": "Sine.easeInOut",
+          "detail": "rotation 8 to 12 degrees, every 3 s"
+        }
+      ],
+      "z": 84,
+      "layer": "L84_badge_offer tag",
+      "anchor": "coin top-right, rotated 8 degrees",
+      "placement": "OFFER badge",
+      "status": "NEEDS-ART",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": "Empty red tag with a notched left edge and a cream rim, 40x24 (5:3), no baked text (code draws -50% at 12 px white with 2 px ink outline). Use green #00FF00 key because the art is red. STYLE LOCK: warm dark-brown outline (not black) 3-4% of sprite height, light from top-left, thin rim light bottom-right, soft contact shadow, 3-4 value steps, glossy toy-metal look like the accepted medallion/popup kit. KEY: one sprite per grid cell on flat #FF00FF magenta; if the art contains pink, magenta, red-purple or a pink glow use flat #00FF00 green instead; never a gradient or shadow on the key; no baked text or numbers; 6-10% padding inside the cell; nothing within 3 px of the cell edge. RANK CLARITY: states/tiers in one family must differ in at least two of silhouette, size, part count, accent colour, pips, and still read apart at 70 px in grayscale.",
+      "notes": "Mock draws it in CSS; code fallback works."
+    },
+    {
+      "id": "badge_label_pill",
+      "group": "Rail badges (6)",
+      "role": "Badge label pill 64x16 (ink, white 12 px text)",
+      "size": {
+        "1x": [
+          64,
+          16
+        ],
+        "2x": [
+          128,
+          32
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 84,
+      "layer": "L84_badge_<name> label",
+      "anchor": "badge box (0, 64)",
+      "placement": "Under each badge",
+      "status": "CODE-DRAWN",
+      "approval": null,
+      "file": null,
+      "branch": null,
+      "reviewPiece": null,
+      "crop": null,
+      "brief": null,
+      "notes": "Ink rounded rect with 12 px Lilita One text; width fits COLLECT / SEASON at 0 tracking."
+    },
+    {
+      "id": "bolt_idle",
+      "group": "Mascot Bolt",
+      "role": "Bolt: idle beside the hero (L65)",
+      "size": {
+        "1x": [
+          64,
+          72
+        ],
+        "2x": [
+          128,
+          144
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "breatheBlink",
+          "type": "loop",
+          "durationMs": 2400,
+          "easing": "Sine.easeInOut",
+          "detail": "scale 1 to 1.03; blink every 4 s (120 ms)"
+        }
+      ],
+      "z": 65,
+      "layer": "L65_bolt_mascot",
+      "anchor": "bottom-centre, 56 px beside the hero platform",
+      "placement": "Beside the current hero / chapter panel",
+      "status": "EXISTS",
+      "approval": "UNREVIEWED (batch AT, no critic pass found in this checkout)",
+      "file": "art-candidates/batch-at/at1/bolt_idle.png (+ .webp)",
+      "branch": "orch/t-3d9a6523-backlog-at-mascot-bolt-and-tutor",
+      "reviewPiece": "batch-at/at1/contact-dark.png; the review page may not list it yet",
+      "crop": null,
+      "brief": null,
+      "notes": "Candidate only: a critic pass (art-director rubric) is still needed before import. Mock stand-in is a CSS robot head."
+    },
+    {
+      "id": "bolt_happy",
+      "group": "Mascot Bolt",
+      "role": "Bolt: happy hop (loop on the road, cheer on reward)",
+      "size": {
+        "1x": [
+          64,
+          72
+        ],
+        "2x": [
+          128,
+          144
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "boltHop",
+          "type": "loop",
+          "durationMs": 2200,
+          "easing": "Quad.easeOut",
+          "detail": "rise 16 px, squash 8% on landing"
+        }
+      ],
+      "z": 65,
+      "layer": "L65_bolt_mascot",
+      "anchor": "same as idle",
+      "placement": "Beside the current hero / chapter panel",
+      "status": "EXISTS",
+      "approval": "UNREVIEWED (batch AT, no critic pass found in this checkout)",
+      "file": "art-candidates/batch-at/at1/bolt_happy.png (+ .webp)",
+      "branch": "orch/t-3d9a6523-backlog-at-mascot-bolt-and-tutor",
+      "reviewPiece": "batch-at/at1/contact-dark.png; the review page may not list it yet",
+      "crop": null,
+      "brief": null,
+      "notes": "Candidate only: a critic pass (art-director rubric) is still needed before import. Mock stand-in is a CSS robot head."
+    },
+    {
+      "id": "bolt_point",
+      "group": "Mascot Bolt",
+      "role": "Bolt: point at the next node",
+      "size": {
+        "1x": [
+          64,
+          72
+        ],
+        "2x": [
+          128,
+          144
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 65,
+      "layer": "L65_bolt_mascot",
+      "anchor": "same as idle, hand toward the next node",
+      "placement": "Beside the current hero / chapter panel",
+      "status": "EXISTS",
+      "approval": "UNREVIEWED (batch AT, no critic pass found in this checkout)",
+      "file": "art-candidates/batch-at/at1/bolt_point.png (+ .webp)",
+      "branch": "orch/t-3d9a6523-backlog-at-mascot-bolt-and-tutor",
+      "reviewPiece": "batch-at/at1/contact-dark.png; the review page may not list it yet",
+      "crop": null,
+      "brief": null,
+      "notes": "Candidate only: a critic pass (art-director rubric) is still needed before import. Mock stand-in is a CSS robot head."
+    },
+    {
+      "id": "bolt_peek_side",
+      "group": "Mascot Bolt",
+      "role": "Bolt: peek in from the side of the entrance panel",
+      "size": {
+        "1x": [
+          64,
+          72
+        ],
+        "2x": [
+          128,
+          144
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "peekIn",
+          "type": "pop",
+          "durationMs": 450,
+          "easing": "Back.easeOut",
+          "detail": "slides in from the panel edge, holds 1.5 s, slides out 300 ms Quad.easeIn"
+        }
+      ],
+      "z": 96,
+      "layer": "L96_bolt_peek",
+      "anchor": "panel edge, half visible",
+      "placement": "Beside the current hero / chapter panel",
+      "status": "EXISTS",
+      "approval": "UNREVIEWED (batch AT, no critic pass found in this checkout)",
+      "file": "art-candidates/batch-at/at1/bolt_peek_side.png (+ .webp)",
+      "branch": "orch/t-3d9a6523-backlog-at-mascot-bolt-and-tutor",
+      "reviewPiece": "batch-at/at1/contact-dark.png; the review page may not list it yet",
+      "crop": null,
+      "brief": null,
+      "notes": "Candidate only: a critic pass (art-director rubric) is still needed before import. Mock stand-in is a CSS robot head."
+    },
+    {
+      "id": "bolt_worried",
+      "group": "Mascot Bolt",
+      "role": "Bolt: worried at locked nodes",
+      "size": {
+        "1x": [
+          64,
+          72
+        ],
+        "2x": [
+          128,
+          144
+        ],
+        "sourceNote": null
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 65,
+      "layer": "L65_bolt_mascot",
+      "anchor": "same as idle",
+      "placement": "Beside the current hero / chapter panel",
+      "status": "EXISTS",
+      "approval": "UNREVIEWED (batch AT, no critic pass found in this checkout)",
+      "file": "art-candidates/batch-at/at1/bolt_worried.png (+ .webp)",
+      "branch": "orch/t-3d9a6523-backlog-at-mascot-bolt-and-tutor",
+      "reviewPiece": "batch-at/at1/contact-dark.png; the review page may not list it yet",
+      "crop": null,
+      "brief": null,
+      "notes": "Candidate only: a critic pass (art-director rubric) is still needed before import. Mock stand-in is a CSS robot head."
+    }
+  ]
+}
