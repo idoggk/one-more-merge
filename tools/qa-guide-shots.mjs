@@ -428,7 +428,7 @@ for (const [name, key, val, view, hl] of [
   ['opt_pace_calm', 'x', 'x', 'top', ['PACE', 'CALM']],
   ['opt_units_b0', K.units, 'on', 'top', ['UNITS (next', 'B0']],
   ['opt_units_b1', K.units, 'b1', 'top', ['UNITS (next', 'B1']],
-  ['opt_rule_bonus', K.rule, 'sandwichBonus', 'bottom', ['MERGE RULE', '+1 BONUS']],
+  ['opt_rule_bonus', K.rule, 'sandwichBonus', 'bottom', ['MERGE RULE', '+2 AND BONUS']],
   ['opt_yard_old', 'x', 'x', 'top', ['SCREW YARD', 'OLD']],
 ]) {
   await scenario(name, { [key]: val }, async (a) => { await panelShot(a, name, { view, hl }); });

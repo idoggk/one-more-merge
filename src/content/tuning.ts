@@ -144,7 +144,7 @@ export const TUNING = {
   unitsB1: false,
   b1: { toyBag: 1, helperPass: true, battery: 2, amp: 1.6, beacon: 1.3, fanPush: true, fuseReach: 2, hornSides: true, orderBase: 0.85, orderStep: 0.12 },
   /** PROTOTYPE (t-1effe0bf, src/core/sandwich.ts), default 'today': a player merge whose landing cell touches 2+ more
-   *  same-rank parts of its family absorbs two of them. 'sandwich2' = rank +2 (capped); 'sandwichBonus' = +1 as today
+   *  same-rank parts of its family absorbs two of them. 'sandwich2' = rank +2 (capped); 'sandwichBonus' = rank +2 too
    *  plus sandwichOdShare of the Overdrive meter. Puzzles and kickback fuses never sandwich. */
   /** EXPERIMENT (t-e91097cd, roster Direction B step 1), default OFF; replaces the B0 / B1 rules while on. One job per unit,
    *  collection levels 3 / 6 / 9 change the job (src/core/cascade.ts rbRouteCells + resolveCascade):
@@ -168,7 +168,7 @@ export const TUNING = {
    *  a sandwich merge also makes a GEAR BOMB (a board part, tapped once; no randomness: first free cell nearest the merge, else the tray). At most `maxBoard`
    *  tools on the board + tray, `perLevel` made on a capped-merge level (state.toolCap), none before level `fromLevel` and never in puzzles / drills / daily /
    *  bounties / boss rush. Surge wakes a row; Bomb wakes the 4 touching parts and each machine it wakes hits as if +`effectRank` rank (hit calc only).
-   *  Combos: Surge+Surge 3 rows, Bomb+Surge a row with +1 rank, Bomb+Bomb a 3x3 block with +1 rank. Turning the flag on in the QA panel also sets MERGE RULE to +1 BONUS. */
+   *  Combos: Surge+Surge 3 rows, Bomb+Surge a row with +1 rank, Bomb+Bomb a 3x3 block with +1 rank. Turning the flag on in the QA panel also sets MERGE RULE to +2 AND BONUS. */
   tools: false,
   /** VARIED OPENINGS (docs/OPENING_VARIETY.md, src/content/openings.ts), default OFF (QA row VARIED OPENINGS): ordinary saga levels start on one of 4 layouts of the
    *  same 8 starter parts (same rank mass) from a seeded no-repeat deal. Teach, boss, mini-boss, puzzle, daily and bounty starts stay scripted. HP / star lines were
