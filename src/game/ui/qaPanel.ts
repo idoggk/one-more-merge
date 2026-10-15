@@ -10,7 +10,7 @@ import { openMascotDemo } from './mascotDemo';
 import { applyRoadSurfaceKit, storedRoadSurfaceKit, ROAD_SURFACE_KIT_KEY } from '../../content/experiments';
 import { applyRoadMapMock1, storedRoadMapMock1, ROAD_MAP_MOCK1_KEY } from '../../content/experiments';
 import { openRoadKitPreview } from '../road/roadKitFx';
-import { applyRoadPerf2, storedRoadPerf2, ROAD_PERF2_KEY, applyRoadPerf3, storedRoadPerf3, ROAD_PERF3_KEY, applyRoadPerf4, storedRoadPerf4, ROAD_PERF4_KEY } from '../../content/experiments';
+import { applyRoadPerf2, storedRoadPerf2, ROAD_PERF2_KEY, applyRoadPerf3, storedRoadPerf3, ROAD_PERF3_KEY, applyRoadPerf4, storedRoadPerf4, ROAD_PERF4_KEY, applyRoadStable, storedRoadStable, ROAD_STABLE_KEY } from '../../content/experiments';
 import { applyRoadPerf,applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
@@ -160,6 +160,8 @@ export const qaRoadPerf3 = () => storedRoadPerf3(() => localStorage.getItem(ROAD
 applyRoadPerf3(qaRoadPerf3());
 export const qaRoadPerf4 = () => storedRoadPerf4(() => localStorage.getItem(ROAD_PERF4_KEY));
 applyRoadPerf4(qaRoadPerf4());
+export const qaRoadStable = () => storedRoadStable(() => localStorage.getItem(ROAD_STABLE_KEY));
+applyRoadStable(qaRoadStable());
 export const qaRoadPerfHud = () => storedRoadPerfHud(() => localStorage.getItem(ROAD_PERF_HUD_KEY));
 applyRoadPerfHud(qaRoadPerfHud());
 export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
@@ -708,6 +710,20 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_road_perf4', { on });
         },
         toast: (on) => (on ? 'ROAD PERF 4 ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF 4 OFF (pass-3 road)'),
+      }),
+      // ROAD STABLE: all road layers snapped to whole device pixels from one scroll value (less shimmer while dragging; visual only)
+      qaFlag({
+        id: 'roadStable',
+        defOn: true,
+        title: 'ROAD STABLE',
+        desc: 'Less shimmer when dragging. Open ROAD',
+        get: () => !!qaRoadStable(),
+        set: (on) => {
+          store(ROAD_STABLE_KEY, on ? null : 'off');
+          applyRoadStable(on);
+          tlog.log('qa_road_stable', { on });
+        },
+        toast: (on) => (on ? 'ROAD STABLE ON  ·  OPEN THE ROAD TAB' : 'ROAD STABLE OFF (old placement)'),
       }),
       // ROAD PERF READOUT: objects shown/total, active tweens and FPS in the corner of the ROAD tab, for bug reports
       qaFlag({
