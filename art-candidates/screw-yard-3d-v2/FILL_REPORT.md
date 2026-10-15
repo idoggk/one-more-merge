@@ -23,7 +23,7 @@ The renderer fits every asset to its slot (union bbox over all frames, same crop
 | screw_spin_frames_U | 48x48 | 41x42 | 85% | 88% | 4 / 3 / 3 / 3 | ok |
 | screw_spin_frames_Y | 48x48 | 41x42 | 85% | 88% | 4 / 3 / 3 / 3 | ok |
 | screw_washer_collar | 56x56 | 49x41 | 88% | 73% | 4 / 3 / 8 / 7 | ok |
-| toolbox_wide_open_3d | 340x108 | 292x94 | 86% | 87% | 24 / 24 / 7 / 7 | ok |
+| toolbox_wide_open_3d | 340x108 | 289x94 | 85% | 87% | 26 / 25 / 7 / 7 | ok |
 | turntable_disc | 390x150 | 333x131 | 85% | 87% | 29 / 28 / 10 / 9 | ok |
 
 0 asset(s) flagged "check".

@@ -32,10 +32,10 @@ const SPEC = [
   ...['U', 'Y', 'G'].map((k) => ({ id: `screw_spin_frames_${k}`, w: 48, h: 48, kind: 'spin', hex: COLORS[k], pitch: 38, yaw: 0, shadow: 0, frames: 12 })),
   { id: 'hole_ring_brass', w: 48, h: 48, kind: 'holering', pitch: 52, yaw: 0, shadow: 0 },
   { id: 'plank_5hole_3d', w: 160, h: 48, kind: 'plank', pitch: 52, yaw: 0, shadow: 0.35 },
-  { id: 'toolbox_wide_open_3d', w: 340, h: 108, kind: 'toolbox', hex: 0xd22a22, pitch: 50, yaw: 0, shadow: 0.35 },
+  { id: 'toolbox_wide_open_3d', w: 340, h: 108, kind: 'toolbox', hex: 0xd22a22, pitch: 50, yaw: 0, shadow: 0 },
   { id: 'holding_row_beam_3d', w: 358, h: 76, kind: 'beam', pitch: 60, yaw: 0, shadow: 0.35 },
   { id: 'next_box_steel', w: 72, h: 56, kind: 'nextbox', pitch: 50, yaw: 0, shadow: 0.35 },
-  { id: 'turntable_disc', w: 390, h: 150, kind: 'turntable', pitch: 20, yaw: 0, shadow: 0.4 },
+  { id: 'turntable_disc', w: 390, h: 150, kind: 'turntable', pitch: 20, yaw: 0, shadow: 0 },
 ].filter((s) => !ONLY || ONLY.includes(s.id));
 
 // Slotted-head variants (owner wants both head types readable); same rig, ids get _slot.
@@ -190,9 +190,9 @@ function pageMain(spec, W, H) {
   // Light steel shank tinted by the head colour (so the head/shank break reads at 70 px), finer helix thread.
   const shank = (hex, parent, turns = 8, pitch = 0.108, tube = 0.04) => {
     const steel = new T.Color(0xd5dae2).lerp(new T.Color(hex), 0.28);
-    const core = metal(steel.multiplyScalar(0.62), 0.4);
+    const core = metal(steel.multiplyScalar(0.42), 0.45); // darker core = visible groove between thread turns
     add(new T.CylinderGeometry(0.2, 0.2, 0.98, 32), core, 0, -0.47, 0, parent);
-    add(new T.CylinderGeometry(0.2, 0.04, 0.22, 32), core, 0, -1.05, 0, parent);
+    add(new T.CylinderGeometry(0.2, 0.02, 0.22, 32), core, 0, -1.05, 0, parent);
     const th = new T.MeshStandardMaterial({ color: new T.Color(0xe6eaf0).lerp(new T.Color(hex), 0.22), metalness: 0.8, roughness: 0.25 });
     add(new T.TubeGeometry(new Helix(0.212, pitch, turns), Math.round(turns * 48), tube, 10, false), th, 0, -0.03, 0, parent);
   };
@@ -209,9 +209,8 @@ function pageMain(spec, W, H) {
       const tilt = new T.Group(); group.add(tilt);
       tilt.rotation.z = -0.5; tilt.rotation.x = 0.3;
       const s = new T.Group(); tilt.add(s);
-      screwHead(spec.hex, false, s, false); shank(spec.hex, s, 4.5, 0.2, 0.062);
-      // asymmetric knurl notch on the cap rim so the 4-fold cross cannot hide the rotation
-      add(new T.BoxGeometry(0.11, 0.07, 0.11), paint(shade(spec.hex, 0.45), 0.4), 0.41, 0.25, 0, s);
+      screwHead(spec.hex, false, s, false); shank(spec.hex, s, 10, 0.095, 0.03);
+      // no rim notch (read as a glitch); the finer helix carries the rotation
       group.userData.spin = s;
       tilt.position.y = 0.9;
     },
@@ -245,20 +244,19 @@ function pageMain(spec, W, H) {
       const red = paint(spec.hex, 0.3);
       const redDark = paint(shade(spec.hex, 0.62), 0.4);
       const L = 9.6, D = 2.2, H = 0.6;
-      const bodyWood = wood(0xd9954a, [L, D], { seed: 21 });
       const outer = rrect(L, D, 0.24);
-      outer.holes.push(rrectPath(0, 0, L - 0.6, D - 0.6, 0.16)); // open cavity, wood walls
-      add(slab(outer, H, 0.06), [bodyWood, plain(0xa8672a, 0.6)]);
-      add(slab(rrect(L - 0.2, D - 0.2, 0.22), 0.14, 0.02), wood(0x8a5222, [L, D], { seed: 8 })); // cavity floor, dark wood
-      // red trim strip on the rim all round the cavity
-      const rim = rrect(L - 0.5, D - 0.5, 0.18); rim.holes.push(rrectPath(0, 0, L - 0.78, D - 0.78, 0.14));
-      
+      outer.holes.push(rrectPath(0, 0, L - 0.6, D - 0.6, 0.16)); // open cavity, red walls (the mock's body is red like the lid)
+      add(slab(outer, H, 0.06), [red, redDark]);
+      add(slab(rrect(L - 0.2, D - 0.2, 0.22), 0.14, 0.02), plain(shade(spec.hex, 0.3), 0.8)); // cavity floor, deep dark red
+      // dark inner-shadow strip under the lid (back wall of the cavity)
+      add(new T.BoxGeometry(L - 0.7, 0.05, 0.34), plain(shade(spec.hex, 0.16), 0.9), 0, 0.16, -D / 2 + 0.5);
+
       // cream tray with 3 deep wells (left)
       const cw = 5.3, cx = -1.8, th = 1.55;
       const cream = rrect(cw, th, 0.14);
       [-1.75, 0, 1.75].forEach((x) => cream.holes.push(rrectPath(x, 0, 1.55, th - 0.4, 0.22)));
       add(slab(cream, 0.5, 0.05, 0.16), plain(0xf3e4bc, 0.5), cx, 0, 0);
-      add(slab(rrect(cw - 0.02, th - 0.02, 0.14), 0.05, 0.02, 0.16), plain(0xb89d6c, 0.75), cx, 0, 0); // well floors, darker = depth
+      add(slab(rrect(cw - 0.02, th - 0.02, 0.14), 0.05, 0.02, 0.16), plain(0x7d6440, 0.85), cx, 0, 0); // well floors, darker = depth
       // steel pair with 2 square wells (right)
       const sw = 3.0, sx = 2.9;
       const steel = rrect(sw, th, 0.14);
@@ -301,32 +299,31 @@ function pageMain(spec, W, H) {
       const c = document.createElement('canvas'); c.width = c.height = 1024;
       const g2 = c.getContext('2d');
       let seed = 13; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      const PL = 8, tones = [1.0, 0.72, 1.14, 0.62, 0.92, 1.22, 0.7, 1.06];
+      // honey wood, 5 horizontal planks (seams parallel, like the mock), grain along x, gentle tone steps
+      const PL = 5, tones = [1.0, 0.93, 1.06, 0.96, 1.03], ph = 1024 / PL;
       g2.fillStyle = '#7a4a1e'; g2.fillRect(0, 0, 1024, 1024);
       for (let p = 0; p < PL; p++) {
-        const a0 = (p / PL) * Math.PI * 2 + 0.012, a1 = ((p + 1) / PL) * Math.PI * 2 - 0.012;
-        const f = tones[p];
-        g2.save(); g2.beginPath(); g2.moveTo(512, 512); g2.arc(512, 512, 520, a0, a1); g2.closePath(); g2.clip();
-        g2.fillStyle = `rgb(${Math.min(255, 238 * f) | 0},${Math.min(255, 168 * f) | 0},${Math.min(255, 92 * f) | 0})`; g2.fillRect(0, 0, 1024, 1024);
-        const am = (a0 + a1) / 2; g2.translate(512, 512); g2.rotate(am); // grain runs along the plank (radially)
-        for (let i = 0; i < 90; i++) {
-          const w = (rnd() - 0.5) * 2 * 512 * Math.sin((a1 - a0) / 2) * 1.05, x0 = 20 + rnd() * 300, len = 120 + rnd() * 380;
-          g2.strokeStyle = rnd() < 0.5 ? 'rgba(90,50,18,0.30)' : 'rgba(255,225,170,0.26)'; g2.lineWidth = 1 + rnd() * 3;
-          g2.beginPath(); g2.moveTo(x0, w); g2.bezierCurveTo(x0 + len / 3, w + (rnd() - 0.5) * 8, x0 + len * 0.66, w + (rnd() - 0.5) * 8, x0 + len, w + (rnd() - 0.5) * 6); g2.stroke();
+        const y0 = p * ph, f = tones[p];
+        g2.save(); g2.beginPath(); g2.rect(0, y0, 1024, ph); g2.clip();
+        g2.fillStyle = `rgb(${Math.min(255, 226 * f) | 0},${Math.min(255, 150 * f) | 0},${Math.min(255, 84 * f) | 0})`; g2.fillRect(0, y0, 1024, ph);
+        for (let i = 0; i < 70; i++) {
+          const y = y0 + rnd() * ph, x = rnd() * 1024, len = 160 + rnd() * 460;
+          g2.strokeStyle = rnd() < 0.5 ? 'rgba(110,64,24,0.28)' : 'rgba(255,220,160,0.24)'; g2.lineWidth = 1 + rnd() * 2.6;
+          g2.beginPath(); g2.moveTo(x, y); g2.bezierCurveTo(x + len / 3, y + (rnd() - 0.5) * 8, x + len * 0.66, y + (rnd() - 0.5) * 8, x + len, y + (rnd() - 0.5) * 5); g2.stroke();
         }
         g2.restore();
-        g2.strokeStyle = 'rgba(60,30,10,0.85)'; g2.lineWidth = 5; // dark seam between planks
-        g2.beginPath(); g2.moveTo(512, 512); g2.lineTo(512 + Math.cos(a0 - 0.012) * 520, 512 + Math.sin(a0 - 0.012) * 520); g2.stroke();
+        if (p > 0) { g2.fillStyle = 'rgba(70,36,12,0.8)'; g2.fillRect(0, y0 - 3, 1024, 6); g2.fillStyle = 'rgba(255,225,170,0.35)'; g2.fillRect(0, y0 + 3, 1024, 3); } // seam + bevel highlight
+        for (let j = 0; j < 2; j++) { const bx = 120 + rnd() * 780; g2.fillStyle = 'rgba(70,36,12,0.7)'; g2.fillRect(bx, y0 + 3, 4, ph - 6); } // short butt joints, staggered
       }
       const grad = g2.createRadialGradient(512, 512, 330, 512, 512, 512); // worn, darker outer ring under the bevel
-      grad.addColorStop(0, 'rgba(70,35,10,0)'); grad.addColorStop(1, 'rgba(70,35,10,0.35)'); g2.fillStyle = grad; g2.fillRect(0, 0, 1024, 1024);
+      grad.addColorStop(0, 'rgba(70,35,10,0)'); grad.addColorStop(1, 'rgba(70,35,10,0.18)'); g2.fillStyle = grad; g2.fillRect(0, 0, 1024, 1024);
       const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 8;
       tex.repeat.set(1 / span[0], 1 / span[1]); tex.offset.set(0.5, 0.5);
       const top = new T.MeshPhysicalMaterial({ map: tex, roughness: 0.5, clearcoat: 0.5, clearcoatRoughness: 0.35 });
       const sh = circShape(0, 0, R);
       const g = new T.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: true, bevelSize: 0.16, bevelThickness: 0.16, bevelSegments: 6, curveSegments: 128 });
       g.rotateX(-Math.PI / 2); g.translate(0, 0.2, 0);
-      add(g, [top, wood(0xb9772f, [3, 1], { seed: 4 })]);
+      add(g, [top, wood(0xf2c27a, [3, 1], { seed: 4 })]);
     },
   };
   builders[spec.kind]();

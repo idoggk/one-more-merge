@@ -46,3 +46,12 @@ Chrome path: env `CHROME` (default `C:/Program Files/Google/Chrome/Application/c
 - Head-glyph / shape coding for the four colours is still an open owner question; slotted vs Phillips is not a colour code.
 - The baked shadows (collar, plank, toolbox, row, next box, turntable) fall to the right; the game may want them off, then set `shadow: 0` in `SPEC`.
 - Spin frames spin about the shank axis of a tilted screw; the cross is 4-fold symmetric, the thread is what makes the spin read.
+
+## Round 2 (after CRITIQUE 91: FIX toolbox, turntable, spin strip; side screws minor)
+
+- **Toolbox**: body and walls now red like the painted mock (lid, body, trim one red family); dark-red cavity floor, dark inner-shadow strip under the lid, deeper tray wells. Baked shadow removed (it caused the grey sliver on the right edge); clean alpha.
+- **Turntable**: 12-wedge sunburst replaced by 5 horizontal plank seams with staggered butt joints and wood grain; honey rim (the mock's wood, no red-brown); baked shadow removed, no halo.
+- **Spin strip** (all four colours): thread pitch 0.2 -> 0.095 with 10 turns and a thinner tube, so it reads as a screw not a spring; rim notch removed; tilt identical in every frame; loop stays seamless (a full turn of a helix is the same shape).
+- **Side screws**: darker core for a visible groove between turns, sharper tip.
+- Fill report (`FILL_REPORT.md`): toolbox 85x87%, turntable 85x87%, spin 85x88%, 0 flagged.
+- Re-rendered at 1x and 2x with the manifest ids; contact sheets rebuilt. Toolbox and turntable no longer carry a baked shadow (`shadow: 0` in SPEC); the game draws its own.
