@@ -171,7 +171,7 @@ img('icon_pause',48,48,{position:'absolute',left:'-4px',top:'-4px',width:'48px',
 
 // HUD row 2: taps / bonus clock / star meter
 const r2=el('div',null,{left:L+'px',top:'112px',width:(C-32)+'px',height:'48px',zIndex:80,display:'flex',gap:'8px'},phone,'L80_stats_row');
-const tapsP=el('div','plate',{width:'120px',height:'48px',position:'relative',flex:'none'},r2);tapsP.dataset.layer='L80_taps_plate';
+const tapsP=el('div','plate',{width:'104px',height:'48px',position:'relative',flex:'none'},r2);tapsP.dataset.layer='L80_taps_plate';
 const over=S.taps>=S.budget*.8;
 txt('TAPS',12,'#e8c98a',{position:'absolute',left:0,right:0,top:'2px',textAlign:'center',lineHeight:'14px'},tapsP);
 txt(`${S.taps}/${S.budget}`,22,over?'#ff8a70':'#fff',{position:'absolute',left:0,right:0,top:'14px',textAlign:'center',lineHeight:'26px',textShadow:'0 2px 0 #000'},tapsP);
@@ -218,8 +218,9 @@ if(S.danger)rowChip.classList.add('a-danger');
 
 // stage (3D object)
 const STY=384, STH=HB-176-STY;
+const BUB=Q.get('nobub')==='1'?0:STATE==='start'?56:STATE==='danger'?40:0;   // coach / warning bubble sits at the stage bottom: the object is fitted above it
 const ob=objectSVG(S.obj,S.removed);
-const stage=el('div',STATE==='danger'?'a-shake':'',{left:X0+'px',top:(STATE==='screws'?STY+72:STY)+'px',width:C+'px',height:(STATE==='screws'?STH-72:STH)+'px',zIndex:50},phone,'L50_object_stage');
+const stage=el('div',STATE==='danger'?'a-shake':'',{left:X0+'px',top:(STATE==='screws'?STY+72:STY)+'px',width:C+'px',height:(STATE==='screws'?STH-72:STH-BUB)+'px',zIndex:50},phone,'L50_object_stage');
 stage.innerHTML=ob.svg;
 if(STATE==='start'){const tp=stage.querySelector('.tapme');}
 
@@ -253,7 +254,7 @@ if(STATE==='mid'){
  el('div',null,{position:'absolute',left:'-18px',top:'-18px',width:'36px',height:'36px',transform:'rotate(40deg)'},f).innerHTML=screwSVG('Y',36);
  for(let i=1;i<=3;i++)el('div',null,{position:'absolute',left:(-18-i*14)+'px',top:(-4+i*10)+'px',width:(14-i*2)+'px',height:(14-i*2)+'px',borderRadius:'50%',background:'rgba(255,230,120,'+(.6-i*.15)+')'},f);
  [[-70,260],[-30,300],[58,256]].forEach(([dx,dy],i)=>{const s=el('div','a-tw',{left:(X0+C/2+dx)+'px',top:dy+'px',width:'16px',height:'16px',zIndex:66,animationDelay:(i*.4)+'s'},phone,'L66_sparkle');s.innerHTML='<svg viewBox="0 0 16 16" width="16" height="16"><path d="M8 0l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="#fff6b0"/></svg>'});
- const cb=el('div','plate ctr',{left:(X0+C/2+72)+'px',top:'312px',width:'96px',height:'32px',zIndex:66,borderRadius:'16px',borderColor:'#7a4fd0'},phone,'L66_popup_plus_one');txt('+1 SCREW',14,'#fff',{lineHeight:'18px'},cb);
+ const cb=el('div','plate ctr',{left:(R_-96)+'px',top:'376px',width:'96px',height:'32px',zIndex:66,borderRadius:'16px',borderColor:'#7a4fd0'},phone,'L66_popup_plus_one');txt('+1 SCREW',14,'#fff',{lineHeight:'18px'},cb);
 }
 if(STATE==='danger'){
  el('div','a-danger',{left:0,top:0,width:W+'px',height:H+'px',zIndex:70,pointerEvents:'none',boxShadow:'inset 0 0 90px 18px rgba(255,30,10,.55)'},phone,'L70_danger_vignette');
@@ -267,7 +268,7 @@ if(STATE==='screws'){
 }
 if(S.modal){
  el('div',null,{left:0,top:0,width:W+'px',height:H+'px',zIndex:90,background:'rgba(43,29,46,.58)'},phone,'L90_dim');
- const PW=C-48,PX=X0+24,PY=144,PH=528;
+ const PW=C-48,PX=X0+24,PY=176,PH=528;
  const pn=el('div',null,{left:PX+'px',top:PY+'px',width:PW+'px',height:PH+'px',zIndex:92,borderStyle:'solid',borderWidth:'28px',borderImage:`url(${A}kit3_panel_popup.webp) 56 fill / 28px stretch`,filter:'drop-shadow(0 8px 0 rgba(0,0,0,.35))'},phone,'L92_result_panel');
  const pc=el('div',null,{position:'absolute',left:'-28px',top:'-28px',width:PW+'px',height:PH+'px'},pn);
  const win=S.modal==='win';
@@ -277,7 +278,7 @@ if(S.modal){
  txt(win?'TAKEN APART!':'ROW FULL!',20,'#fff',{position:'absolute',left:0,right:0,top:'22px',textAlign:'center',lineHeight:'28px'},rb,'outl');
  // hero object on rays
  const hero=el('div',null,{position:'absolute',left:((PW-96)/2)+'px',top:'56px',width:'96px',height:'96px'},pc);hero.dataset.layer='L93_object_hero';
- if(win){const ry=el('div','a-rays',{position:'absolute',left:'48px',top:'48px',width:'176px',height:'176px'},hero);ry.style.transform='translate(-50%,-50%)';ry.style.animation='rays 14s linear infinite';ry.innerHTML='';img('starburst',176,176,{opacity:.8},ry)}
+ if(win){const ry=el('div','a-rays',{position:'absolute',left:'48px',top:'48px',width:'144px',height:'144px'},hero);ry.style.transform='translate(-50%,-50%)';ry.style.animation='rays 14s linear infinite';ry.innerHTML='';img('starburst',144,144,{opacity:.8},ry)}
  img('cannon_5',96,96,{position:'relative',filter:win?'':'grayscale(.85) brightness(.75)',transform:win?'':'rotate(-6deg)'},hero);
  // stars
  const row=el('div',null,{position:'absolute',left:((PW-216)/2)+'px',top:'160px',width:'216px',height:'64px',display:'flex',justifyContent:'space-between'},pc);row.dataset.layer='L93_stars';
@@ -306,7 +307,7 @@ if(S.modal){
 
 /* MISSING art, one sticker row inside the bottom safe area (the art itself is hatched magenta where it sits) */
 {const M=STATE==='screws'?['screw_head_R/U/Y/G (glossy)']:[];M.push('tool_icon_broom/hammer/drill','tool_tile_green');if(['danger','fail'].includes(STATE))M.push('star_empty');
- if(STATE!=='screws')M.push('screw_head_R/U/Y/G (glossy)');let x=8,row=0;M.forEach(m=>{const w=m.length*5.6+22;if(x+w>W-8){x=8;row++}sticker(m,x,H-30+row*15,phone);x+=w;})}
+ if(STATE!=='screws')M.push('screw_head_R/U/Y/G (glossy)');let x=8,row=0;M.forEach(m=>{const w=(m.length+8)*6+8;if(x+w>W-8){x=8;row++}sticker(m,x,H-30+row*15,phone);x+=w;})}
 /* ---------- debug overlays ---------- */
 function debug(){
   if(GRID){const g=el('div',null,null,phone);g.id='gridlay';
@@ -329,8 +330,19 @@ function audit(){
   for(let i=0;i<taps.length;i++)for(let j=i+1;j<taps.length;j++){const a=R(taps[i]),b=R(taps[j]);const ox=Math.min(a.right,b.right)-Math.max(a.left,b.left),oy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);if(ox>2&&oy>2)out.push(`OVERLAP ${taps[i].dataset.layer} x ${taps[j].dataset.layer}`)}
   document.querySelectorAll('.txt').forEach(e=>{if(e.closest('.sticker,.lname'))return;const fs=parseFloat(getComputedStyle(e).fontSize);if(fs<12)out.push(`FONT<12 "${e.textContent.slice(0,14)}" ${fs}`);
     const par=e.parentElement,pr=R(par),rg=document.createRange();rg.selectNodeContents(e);const tr=rg.getBoundingClientRect();
-    if(tr.width>0&&par!==phone&&par.dataset&&(tr.left<pr.left-1||tr.right>pr.right+1))out.push(`TEXT-OVER "${e.textContent.slice(0,18)}" ${tr.left.toFixed(0)}-${tr.right.toFixed(0)} in ${pr.left.toFixed(0)}-${pr.right.toFixed(0)}`)});
-  const pre=document.createElement('pre');pre.id='audit';pre.textContent=`AUDIT ${STATE} ${W}x${H} C=${C} X0=${X0}\n`+(out.length?out.join('\n'):'CLEAN');document.body.appendChild(pre);
+    const inset=par.classList.contains('plate')||par.classList.contains('cream')||par.classList.contains('gbtn')||par.classList.contains('bbtn')?5:1;   // plates have a 4 px border: text must clear it
+    if(tr.width>0&&par!==phone&&(tr.left<pr.left+inset-2||tr.right>pr.right-inset+2))out.push(`TEXT-OVER "${e.textContent.slice(0,18)}" ${tr.left.toFixed(0)}-${tr.right.toFixed(0)} in ${pr.left.toFixed(0)}-${pr.right.toFixed(0)}`)});
+  // layer overlaps (not only taps): HUD / bubbles / chips / popups against each other; intentional pairs are whitelisted
+  if(!modal){const ls=[...document.querySelectorAll('[data-layer]')].filter(e=>/^L(60|62|64|65|66|70|80)_/.test(e.dataset.layer)&&!e.parentElement.closest('[data-layer]'));
+    const okPair=/L62_.*L60_|L60_.*L62_|L66_|L65_|L70_danger|L80_turn_label.*L80_turn_|L80_stats_row.*L80_(taps|bonus|star)|L80_(taps|bonus|star).*L80_stats_row/;
+    for(let i=0;i<ls.length;i++)for(let j=i+1;j<ls.length;j++){const a=R(ls[i]),b=R(ls[j]),n=ls[i].dataset.layer+' '+ls[j].dataset.layer;if(okPair.test(n))continue;
+      const ox=Math.min(a.right,b.right)-Math.max(a.left,b.left),oy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);if(ox>2&&oy>2)out.push(`LAYER-OVERLAP ${n} ${ox.toFixed(0)}x${oy.toFixed(0)}`)}
+    // object drawn area vs bubbles / legend
+    const st=document.querySelector('[data-layer="L50_object_stage"]'),sv=st.querySelector('svg'),vb=sv.viewBox.baseVal,sr=R(st),k=Math.min(sr.width/vb.width,sr.height/vb.height),dw=vb.width*k,dh=vb.height*k;
+    const dr={left:sr.left+(sr.width-dw)/2,right:sr.left+(sr.width+dw)/2,top:sr.top+(sr.height-dh)/2,bottom:sr.top+(sr.height+dh)/2};
+    document.querySelectorAll('[data-layer="L64_coach_bubble"],[data-layer="L64_warning_bubble"],[data-layer="L70_screw_legend"],[data-layer="L80_turn_label"]').forEach(e=>{const b=R(e);const ox=Math.min(dr.right,b.right)-Math.max(dr.left,b.left),oy=Math.min(dr.bottom-20,b.bottom)-Math.max(dr.top,b.top);if(ox>2&&oy>2)out.push(`OBJECT-COVERED by ${e.dataset.layer} ${oy.toFixed(0)}px`)});
+    out.push(`INFO object ${dw.toFixed(0)}x${dh.toFixed(0)}`)}
+  const pre=document.createElement('pre');pre.id='audit';pre.textContent=`AUDIT ${STATE} ${W}x${H} C=${C} X0=${X0}\n`+(out.filter(s=>!s.startsWith('INFO')).length?out.join('\n'):'CLEAN\n'+out.join('\n'));document.body.appendChild(pre);
 }
 const finish=()=>{document.getAnimations().forEach(a=>{try{a.pause();a.currentTime=T}catch(e){}});debug();if(Q.get('audit')==='1')audit();document.title='READY'};
 setTimeout(finish,Q.get('audit')==='1'?300:60);
