@@ -487,7 +487,7 @@ describe('QA panel V2: list, groups, search, help', () => {
     expect(s.map((x) => x.id)).toEqual(['presets', 'find', 'g_road', 'g_levels', 'g_units', 'g_yard', 'g_ui', 'g_debug']);
     expect(s[0].rows.map((r) => r.spec.id)).toEqual(['presetStatus', 'preset_player', 'preset_features', 'preset_road', 'preset_length', 'preset_reset', 'jump']);
     expect([...v2InitialCollapsed()]).toEqual(['g_road', 'g_levels', 'g_units', 'g_yard', 'g_ui', 'g_debug']);
-    expect(s.map((x) => x.title).slice(2)).toEqual(['ROAD (12)', 'LEVELS (13)', 'UNITS (9)', 'SCREW YARD (3)', 'UI (6)', expect.stringMatching(/^DEBUG/)]);
+    expect(s.map((x) => x.title).slice(2)).toEqual(['ROAD (13)', 'LEVELS (13)', 'UNITS (9)', 'SCREW YARD (3)', 'UI (6)', expect.stringMatching(/^DEBUG/)]);
   });
   it('every registry row is reachable somewhere in V2 (nothing lost), once', () => {
     const ids = buildV2Sections(v2env().env, v2env().st).flatMap((s) => s.rows.map((r) => r.spec.id)).filter((id) => !id.startsWith('preset') && id !== 'search');

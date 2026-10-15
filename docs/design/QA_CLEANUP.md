@@ -17,7 +17,7 @@ How to read it
 |---|---|---|
 | PLAYER VIEW | Every switch at its default. | Play normally; odd things are real bugs. |
 | NEW FEATURES | `levelPace2`, `levelTimeline`, `roadMapMock1`, `mascotMotion`, `mapBadges`, `roadSurfaceKit`, `roadPolish`, `uiJuice`, `cratesLook`=toolbox | ROAD tab, a level intro, a popup, a level. |
-| ROAD TEST | `roadPolish`, `roadSurfaceKit`, `roadMapMock1`, `mapBadges`, `roadPerfHud` | Drag ROAD; read FPS. |
+| ROAD TEST | `roadStable` (already ON by default), `roadPolish`, `roadSurfaceKit`, `roadMapMock1`, `mapBadges`, `roadPerfHud` | Drag ROAD; read FPS. |
 | LEVEL LENGTH TEST | `levelPace2`, `levelTimeline` (+ JUMP TO LEVEL below the presets) | Time a clear. |
 | RESET ALL | Every switch back to default; forgets the last preset. | Same as PLAYER VIEW. |
 
@@ -33,6 +33,7 @@ Prototype switches (roster batches, merge rules, think bank, yard pressure...) a
 | `roadPerf2` | Road perf 2 (old) | ON | obsolete | retire after owner confirms | The pass-1 road path goes away; players see no change. |
 | `roadPerf3` | Road perf 3 (old) | ON | obsolete | retire after owner confirms | The pass-2 road path goes away; players see no change. |
 | `roadPerf4` | Road perf 4 (old) | ON | shipped | retire after owner confirms | The pass-3 road path goes away; players see no change. |
+| `roadStable` | Road stable | ON | shipped | retire after owner confirms | The previous (unsnapped) road placement goes away; players see no change. |
 | `roadPerfHud` | Perf readout | OFF | tool | merge into preset | QA loses the on-screen FPS readout; the game is unchanged. |
 | `roadSurfaceKit` | Road surface kit | OFF | finished-off | merge into preset | Becomes always-on (after art approval) or the stamping code is deleted. |
 | `roadMapMock1` | Road map mock | OFF | finished-off | merge into preset | Becomes the real road map screen after the owner approves it, or is deleted. |

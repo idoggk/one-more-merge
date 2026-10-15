@@ -26,7 +26,7 @@ export const QA_PRESETS: readonly QaPreset[] = [
     id: 'road', title: 'ROAD TEST',
     what: 'All road switches ON plus the FPS readout.',
     look: 'Open ROAD and drag it: smooth and steady? Read the FPS.',
-    flags: [['roadPolish', true], ['roadSurfaceKit', true], ['roadMapMock1', true], ['mapBadges', true], ['roadPerfHud', true]],
+    flags: [['roadStable', true], ['roadPolish', true], ['roadSurfaceKit', true], ['roadMapMock1', true], ['mapBadges', true], ['roadPerfHud', true]],
   },
   {
     id: 'length', title: 'LEVEL LENGTH TEST',
