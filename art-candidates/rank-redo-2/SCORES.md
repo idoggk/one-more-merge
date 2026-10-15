@@ -16,3 +16,5 @@ Score = tools/rank-clarity.mjs (threshold 30). Scored with redo-1 pieces + redo-
 | hydraulic_press 7-8 | 22.6 | 66.4 (sil, size, colour) | DONE: rank 8 = compact dark-steel press, one massive piston, gold anvil head, hot orange seams, crown (sheet `raw/hyd8_sheet.png` cell 2) |
 | blast_plate 3-4 | 21.5 | 58.1 (sil, colour, edges) | DONE: rank 4 = wide low olive-green bunker plate, three gold spikes, hazard stripes, side wings (sheet `raw/blast4_sheet.png` cell 2) |
 | blast_plate 4-5 | 23.1 | 59.5 (sil, colour) | side effect |
+| spring 1-2 | 20.7 | 58.1 (silhouette) | DONE: rank 2 = wide low horizontal silver coil on a cream base, red button (sheet `raw/spring2_sheet.png` cell 5) |
+| spring 2-3 | 23.1 | 49.4 (silhouette) | side effect. Only silhouette differs (grey vs gold coil though); still 1 channel, flagged by the 2-of rule |
