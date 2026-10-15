@@ -6,6 +6,7 @@ import { LEVELS } from '../src/content/levels';
 import { COLS, MAX_RANK, ROWS } from '../src/content/tuning';
 import { newLevel } from '../src/core/game';
 import { Rng } from '../src/core/rng';
+import { writeBoardCases } from './export-parity-board';
 
 const STEPS = 32;
 const RNG_SEEDS = [0, 1, 42, 150001, 0x6d2b79f5, 0x7fffffff, 0x80000000, 0xffffffff];
@@ -52,3 +53,4 @@ const out = {
 mkdirSync(new URL('../unity/parity/', import.meta.url), { recursive: true });
 writeFileSync(new URL('../unity/parity/cases.json', import.meta.url), JSON.stringify(out, null, 1) + '\n');
 console.log(`wrote unity/parity/cases.json: ${rngCases.length} rng seeds, ${levelCases.length} level-init cases, ${Object.keys(golden).length} golden entries`);
+writeBoardCases(); // step 2: unity/parity/cases2.json

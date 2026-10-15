@@ -23,7 +23,11 @@ dotnet test                                   # 4 tests: rng next, rng int/shuff
 
 The first `dotnet test` restores xUnit from nuget.org (free). Re-run the export whenever `src/core/rng.ts` or the level data changes, then `dotnet test`.
 
-## What is covered / not yet
+## Step 2: board slice
+
+`Content.cs` (family / role / unit tables, rank caps) and `Board.cs` (start boards, drop = merge / move / swap, sandwich rule). `BoardParityTests.cs` replays `parity/cases2.json` (written by `tools/export-parity-board.ts`, which `export-parity-cases.ts` calls). Boundary and the remaining port order: `PORT_ORDER.md`. `dotnet test` now runs 8 tests.
+
+## What is covered / not yet (step 1)
 
 Covered: Rng outputs, int, shuffle, final state; for the 40 "plain" levels (no modifier, boss, mini-boss, extra pieces, shooter override) the init scalars and the 30-cell start grid as a hash (HP is the level file value; stage and goal HP rules are not ported yet).
 
