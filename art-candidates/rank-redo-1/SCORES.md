@@ -9,3 +9,4 @@ Score = tools/rank-clarity.mjs (higher = more distinct, threshold 30). Pieces: `
 | vice 3-4 | 15.7 | 32.7 | DONE (cell 6 = rank 4, double jaw, 242 px box) |
 | vice 4-5 | 18.1 | 34.6 (silhouette differs) | DONE (cell 4 = rank 5, tower + dial, 252 px box) |
 | vice 5-6 | 26.7 | 34.5 | side effect of new rank 5 |
+| rivet_gun 7-8 | 15.3 | 42.2 (silhouette + edges differ) | DONE: brass wings, red dial, emerald tank (sheet `raw/rivet8_sheet.png` cell 3) |
