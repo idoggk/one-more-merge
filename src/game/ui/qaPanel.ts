@@ -3,6 +3,8 @@ import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedRes
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
+import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../content/experiments';
+import { openMascotDemo } from './mascotDemo';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
@@ -118,6 +120,9 @@ export const qaUnitShots = () => storedUnitShots(() => localStorage.getItem(UNIT
 applyUnitShots(qaUnitShots());
 export const qaUnitIdle = () => storedUnitIdle(() => localStorage.getItem(UNIT_IDLE_KEY));
 applyUnitIdle(qaUnitIdle());
+// QA-only: MASCOT MOTION (animated Bolt), default OFF, this device only
+export const qaMascotMotion = () => storedMascotMotion(() => localStorage.getItem(MASCOT_MOTION_KEY));
+applyMascotMotion(qaMascotMotion());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
 export const qaRoadPolish = () => storedRoadPolish(() => localStorage.getItem(ROAD_POLISH_KEY));
 applyRoadPolish(qaRoadPolish());
@@ -732,6 +737,29 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_unit_idle', { on });
         },
         toast: (on) => (on ? 'UNIT IDLE ON  ·  WATCH THE BOARD' : 'UNIT IDLE OFF'),
+      }),
+      // MASCOT MOTION: the mascot Bolt animates (level intro peek, demo). Default OFF, visual only
+      qaFlag({
+        id: 'mascotMotion',
+        title: 'MASCOT MOTION',
+        desc: 'Bolt peeks, hops, points. Next level intro',
+        get: () => !!qaMascotMotion(),
+        set: (on) => {
+          store(MASCOT_MOTION_KEY, on ? 'on' : null);
+          applyMascotMotion(on);
+          tlog.log('qa_mascot_motion', { on });
+        },
+        toast: (on) => (on ? 'MASCOT MOTION ON  ·  OPEN A LEVEL OR THE DEMO' : 'MASCOT MOTION OFF'),
+      }),
+      qaAction({
+        id: 'mascotDemo',
+        title: 'MASCOT DEMO',
+        desc: 'Bolt in each state. Needs MASCOT MOTION',
+        label: 'SHOW',
+        color: 0x8e58c9,
+        tap: ({ scene }) => {
+          if (!openMascotDemo(scene)) scene.showToast('TURN ON MASCOT MOTION FIRST');
+        },
       }),
       // the same phone setting as Settings, SCREEN SHAKE (kept in its own key, not in the save code)
       qaChoice<ShakeLevel>({

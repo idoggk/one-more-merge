@@ -14,6 +14,7 @@ import { H, W, mmss } from '../sceneKit';
 import type { GameScene } from '../GameScene';
 import { clampLines, firstSentence, INTRO_CFG as C, INTRO_COPY, layoutIntro, parseTools, shortToolLabel, starGoalLabels, type IntroKind } from './levelIntroLayout';
 import type { Rect } from './qaLayout';
+import { addIntroBolt } from './levelIntroBolt';
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
@@ -258,6 +259,7 @@ export function openLevelIntroV3(scene: GameScene, n: number) {
   const cz = scene.add.zone(cl.x + cl.w / 2, cl.y + cl.h / 2, cl.w, cl.h).setInteractive({ useHandCursor: true });
   cz.on('pointerup', () => scene.openTitle());
   c.add(cz);
+  addIntroBolt(scene, c, g.panel);
 
   // Jumpstart Kit: its own card below the panel, switch OFF by default every attempt
   if (g.jump && g.toggle) {

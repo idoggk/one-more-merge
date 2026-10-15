@@ -282,6 +282,21 @@ export function applyUnitIdle(on: boolean) {
   UNIT_IDLE.on = on;
 }
 
+/** QA panel MASCOT MOTION switch (this device only, not in the save): 'on' = the mascot Bolt animates (level intro peek, MASCOT DEMO).
+ *  Default OFF. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
+export const MASCOT_MOTION_KEY = 'omm_qa_mascot_motion';
+export const MASCOT_MOTION = { on: false };
+export function storedMascotMotion(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyMascotMotion(on: boolean) {
+  MASCOT_MOTION.on = on;
+}
+
 /** QA panel ROAD POLISH switch (this device only, not in the save): 'on' = parallax, belt road, ambient life, avatar hop, node and chest motion,
  *  unlock sequence on the ROAD tab. Needs levelRoadV2. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
 export const ROAD_POLISH_KEY = 'omm_qa_road_polish';
