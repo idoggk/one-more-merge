@@ -12,7 +12,9 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { ROAD_PERF, ROAD_PERF_HUD, ROAD_POLISH } from '../../content/experiments';
+import { ROAD_PERF, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
+import { planRoad } from './roadKit';
+import { addKitStamps } from './roadKitFx';
 import { createRoadPolish } from './roadPolishFx';
 import { addRoadPerfHud, createCuller } from './roadPerf';
 
@@ -154,13 +156,21 @@ export function openRoadV2(scene: GameScene) {
     pg.lineStyle(100, 0x000000, 0.22).strokePoints(seg.pts.map((p) => ({ x: p.x, y: p.y + 12 })));
   }
   const tileImgs: { seg: (typeof lay.segments)[number]; img: Phaser.GameObjects.Image }[] = [];
+  // ROAD SURFACE KIT (flag, default OFF): segments the kit covers get stamped pieces; the rest keep the old drawing (see roadKit.ts)
+  const kitPlans = ROAD_SURFACE_KIT.on ? planRoad(lay.segments, (s) => Math.ceil(s.from / ROAD.levelsPerChapter), (k) => has(k)) : null;
   for (const seg of lay.segments) {
     const ch = Math.ceil(seg.from / ROAD.levelsPerChapter);
     const surface = lerpColor(0xf3e3c8, lookOf(ch).accent, 0.12);
     const pg = gfxFor(seg);
-    pg.lineStyle(78, INK, 0.9).strokePoints(seg.pts);
-    if (pathTile) seg.pts.forEach((p) => tileImgs.push({ seg, img: scene.add.image(p.x, p.y, pathTile).setDisplaySize(64, 64) }));
-    else pg.lineStyle(58, surface, 1).strokePoints(seg.pts);
+    const kit = kitPlans?.get(seg);
+    if (kit?.covered) {
+      const { imgs, minY, maxY } = addKitStamps(scene, road, kit.stamps);
+      if (ROAD_PERF.on) cull(imgs, minY, maxY);
+    } else {
+      pg.lineStyle(78, INK, 0.9).strokePoints(seg.pts);
+      if (pathTile) seg.pts.forEach((p) => tileImgs.push({ seg, img: scene.add.image(p.x, p.y, pathTile).setDisplaySize(64, 64) }));
+      else pg.lineStyle(58, surface, 1).strokePoints(seg.pts);
+    }
     if (seg.to <= cur) pg.lineStyle(20, 0xffcf33, 1).strokePoints(seg.pts);
     else {
       pg.lineStyle(7, 0xffffff, 0.55);

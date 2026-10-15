@@ -333,6 +333,20 @@ export function storedRoadPerf(read: () => string | null): boolean {
 export function applyRoadPerf(on: boolean) {
   ROAD_PERF.on = on;
 }
+/** QA panel ROAD SURFACE KIT switch (this device only, not in the save): 'on' = the ROAD tab stamps the kit pieces road_<chapter>_<piece> along the
+ *  path where the textures exist (everything else keeps the old road drawing). Default OFF, presentation only. */
+export const ROAD_SURFACE_KIT_KEY = 'omm_qa_road_surface_kit';
+export const ROAD_SURFACE_KIT = { on: false };
+export function storedRoadSurfaceKit(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function applyRoadSurfaceKit(on: boolean) {
+  ROAD_SURFACE_KIT.on = on;
+}
 /** QA panel ROAD PERF READOUT switch: default OFF; 'on' shows objects / active tweens / FPS in the corner of the ROAD tab. */
 export const ROAD_PERF_HUD_KEY = 'omm_qa_road_perf_hud';
 export const ROAD_PERF_HUD = { on: false };

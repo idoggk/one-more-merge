@@ -5,6 +5,8 @@ import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpen
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
 import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../content/experiments';
 import { openMascotDemo } from './mascotDemo';
+import { applyRoadSurfaceKit, storedRoadSurfaceKit, ROAD_SURFACE_KIT_KEY } from '../../content/experiments';
+import { openRoadKitPreview } from '../road/roadKitFx';
 import { applyRoadPerf, applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
@@ -121,6 +123,9 @@ export const qaUnitShots = () => storedUnitShots(() => localStorage.getItem(UNIT
 applyUnitShots(qaUnitShots());
 export const qaUnitIdle = () => storedUnitIdle(() => localStorage.getItem(UNIT_IDLE_KEY));
 applyUnitIdle(qaUnitIdle());
+// QA-only: ROAD SURFACE KIT (stamped road pieces), default OFF, this device only
+export const qaRoadSurfaceKit = () => storedRoadSurfaceKit(() => localStorage.getItem(ROAD_SURFACE_KIT_KEY));
+applyRoadSurfaceKit(qaRoadSurfaceKit());
 // QA-only: MASCOT MOTION (animated Bolt), default OFF, this device only
 export const qaMascotMotion = () => storedMascotMotion(() => localStorage.getItem(MASCOT_MOTION_KEY));
 applyMascotMotion(qaMascotMotion());
@@ -626,6 +631,29 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_road_perf_hud', { on });
         },
         toast: (on) => (on ? 'READOUT ON  ·  OPEN THE ROAD TAB' : 'READOUT OFF'),
+      }),
+      // ROAD SURFACE KIT: stamps road_<chapter>_<piece> along the path where textures exist, old road elsewhere (visual only, default OFF)
+      qaFlag({
+        id: 'roadSurfaceKit',
+        title: 'ROAD SURFACE KIT',
+        desc: 'Kit pieces on the path. Open ROAD',
+        get: () => !!qaRoadSurfaceKit(),
+        set: (on) => {
+          store(ROAD_SURFACE_KIT_KEY, on ? 'on' : null);
+          applyRoadSurfaceKit(on);
+          tlog.log('qa_road_surface_kit', { on });
+        },
+        toast: (on) => (on ? 'ROAD KIT ON  ·  OPEN THE ROAD TAB' : 'ROAD KIT OFF'),
+      }),
+      qaAction({
+        id: 'roadKitPreview',
+        title: 'ROAD KIT PREVIEW',
+        desc: 'Test road, code placeholders. Needs ROAD SURFACE KIT',
+        label: 'SHOW',
+        color: 0x8e58c9,
+        tap: ({ scene }) => {
+          if (!openRoadKitPreview(scene)) scene.showToast('TURN ON ROAD SURFACE KIT FIRST');
+        },
       }),
       // t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left)
       qaFlag({
