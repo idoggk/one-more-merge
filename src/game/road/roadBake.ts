@@ -33,6 +33,8 @@ interface Piece {
   offY: number;
   /** screen-fixed (HUD): baked once, always shown, never dropped */
   fixed: boolean;
+  /** the scroll that places this piece on screen when its parent moves on its own (the far layer); default: the road scroll */
+  scrollOf?: () => number;
   alpha: number;
   cmds: unknown[];
   chunks: Map<number, Chunk>;
@@ -74,10 +76,10 @@ export function createRoadBaker(scene: Phaser.Scene, opts: { viewH: number; k: n
 
   return {
     /** Register a finished Graphics (its commands are taken over on the first update, so draw everything first). Must be inside a Container. */
-    add(g: Phaser.GameObjects.Graphics, minY: number, maxY: number, o: { minX?: number; maxX?: number; offY?: number; fixed?: boolean } = {}) {
+    add(g: Phaser.GameObjects.Graphics, minY: number, maxY: number, o: { minX?: number; maxX?: number; offY?: number; fixed?: boolean; scrollOf?: () => number } = {}) {
       const parent = g.parentContainer;
       if (!parent || maxY <= minY) return;
-      pieces.push({ g, parent, minY, maxY, minX: o.minX ?? 0, maxX: o.maxX ?? W, offY: o.offY ?? 0, fixed: !!o.fixed, alpha: g.alpha, cmds: [], chunks: new Map() });
+      pieces.push({ g, parent, minY, maxY, minX: o.minX ?? 0, maxX: o.maxX ?? W, offY: o.offY ?? 0, fixed: !!o.fixed, scrollOf: o.scrollOf, alpha: g.alpha, cmds: [], chunks: new Map() });
     },
     update(scroll: number) {
       if (!started) {
@@ -93,7 +95,7 @@ export function createRoadBaker(scene: Phaser.Scene, opts: { viewH: number; k: n
         for (let ci = 0; ci < n; ci++) {
           const have = p.chunks.get(ci);
           const [s0, s1] = chunkSpan(p.minY, p.maxY, chunkH, ci);
-          const want: ChunkWant = p.fixed ? 'show' : wantChunk([s0 + p.offY, s1 + p.offY], !!have, scroll, opts.viewH, showM, bakeM, dropM);
+          const want: ChunkWant = p.fixed ? 'show' : wantChunk([s0 + p.offY, s1 + p.offY], !!have, p.scrollOf ? p.scrollOf() : scroll, opts.viewH, showM, bakeM, dropM);
           if (want === 'drop') {
             if (have) (drop(have), p.chunks.delete(ci));
             continue;

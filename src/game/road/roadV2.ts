@@ -114,6 +114,7 @@ export function openRoadV2(scene: GameScene) {
       const g = scene.add.graphics();
       for (let y = ch.bottomY - 300; y > ch.topY; y -= 430) drawFarBand(g, W, y - 80, 360, look.accent, Math.round(hash01(ch.chapter * 31 + Math.round(y)) * 20), FAR_STYLE[(ch.chapter - 1) % FAR_STYLE.length]);
       fc.add(g);
+      baker?.add(g, ch.topY - 120, ch.bottomY + 40, { scrollOf: () => fc.y }); // the parallax layer moves on its own: the picture follows fc
     }
     far.add(fc);
     return { fc, cy, half };

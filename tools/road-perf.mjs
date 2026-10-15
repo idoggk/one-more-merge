@@ -66,7 +66,7 @@ async function once() {
   await page.evaluateOnNewDocument((flags, stars) => {
     try {
       if (!localStorage.getItem('omm.meta.v1.seeded')) {
-        localStorage.setItem('omm.meta.v1', JSON.stringify({ levelStars: stars, tutorialDone: true }));
+        localStorage.setItem('omm.meta.v1', JSON.stringify({ levelStars: stars, tutorialDone: true, lessons: { road: true } }));
         localStorage.setItem('omm.meta.v1.seeded', '1');
       }
       for (const [k, v] of Object.entries(flags)) localStorage.setItem(k, v);
@@ -95,7 +95,7 @@ async function once() {
   const t0 = Date.now();
   await page.goto(url, { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.__omm?.game?.scene?.getScene('game')?.s, { timeout: 60000 });
-  await wait(3000);
+  await wait(Number(arg('settle', 3000)));
   // --fakeart: the road-kit art is NOT in this repo yet, so stand in for it with same-sized canvases (8 chapter scenery pictures 1024x1536, 15 node frames 512x512)
   const fake = process.argv.includes('--fakeart');
   await page.evaluate((fake) => {
@@ -136,7 +136,7 @@ async function once() {
   await page.evaluate(() => { window.__frames.length = 0; window.__rec = true; window.__longTasks = []; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__longTasks.push(e.duration); }).observe({ entryTypes: ['longtask'] }); } catch {} });
   // gesture driver: alternating drags (up/down) of 520 px over ~250 ms, each released as a fling, 10 s total
   const tEnd = Date.now() + SECS * 1000;
-  let dir = -1, n = 0;
+  let dir = LEVEL <= 3 ? 1 : -1, n = 0; // at level 1 the road rests at its lower end: first swipe pulls it up the map
   const x = 195;
   while (Date.now() < tEnd) {
     const y0 = dir < 0 ? 650 : 250, y1 = y0 + dir * 400;
