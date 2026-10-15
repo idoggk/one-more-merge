@@ -7,12 +7,13 @@ import { SEASON_TIERS, seasonTier } from '../../core/season';
 import { sfx } from '../audio';
 import type { GameScene } from '../GameScene';
 import { loopTween } from '../loopTween';
-import { H, REDUCED_MOTION, W } from '../sceneKit';
+import { H, REDUCED_MOTION, RS, W } from '../sceneKit';
 import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, frameKind, lerpColor, lookOf, skyColorAt, slotArt, type FrameKind } from './roadArt';
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { MAP_BADGES, ROAD_MAP_MOCK1, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
+import { createRoadBaker } from './roadBake';
+import { MAP_BADGES, ROAD_MAP_MOCK1, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF4, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
 import { planRoad } from './roadKit';
 import { addKitStamps } from './roadKitFx';
 import { addMapBadges } from './mapBadges';
@@ -69,6 +70,8 @@ export function openRoadV2(scene: GameScene) {
   // ROAD PERF 2: tweens of pieces off screen are paused, and at most LIVE_TWEENS of the road's looping tweens run at once
   const p2 = ROAD_PERF2.on && ROAD_PERF.on;
   const p3 = p2 && ROAD_PERF3.on; // ROAD PERF 3 (needs pass 2): fewer per-scroll writes, resting belt, one wisp listener
+  // ROAD PERF 4: static Graphics (path, props, gates) are baked into picture chunks near the view (roadBake.ts); off = they are redrawn every frame
+  const baker = ROAD_PERF4.on && ROAD_PERF.on ? createRoadBaker(scene, { viewH: H, k: RS }) : null;
   const tweenGate = createTweenGate(LIVE_TWEENS);
   let tweenId = 0;
   const loop = (owner: Phaser.GameObjects.GameObject, config: Phaser.Types.Tweens.TweenBuilderConfig, minY: number, maxY: number) => {
@@ -137,6 +140,7 @@ export function openRoadV2(scene: GameScene) {
     }
     const chapterObjs: Phaser.GameObjects.GameObject[] = [props];
     cull(chapterObjs as never, ch.topY - 300, ch.bottomY + 300);
+    baker?.add(props, ch.topY - 300, ch.bottomY + 300);
     for (let y = ch.bottomY - 140; y > ch.topY + 120; y -= 205, i++) {
       const left = nodeXAt(y) > ROAD.centerX;
       const x = left ? 52 + hash01(ch.chapter * 100 + i) * 56 : W - 52 - hash01(ch.chapter * 100 + i) * 56;
@@ -171,6 +175,10 @@ export function openRoadV2(scene: GameScene) {
     const g = scene.add.graphics();
     road.add(g);
     list.push(g);
+    if (baker) {
+      const ys = seg.pts.map((p) => p.y);
+      baker.add(g, Math.min(...ys) - 160, Math.max(...ys) + 160);
+    }
     return g;
   };
   for (const seg of lay.segments) {
@@ -230,6 +238,7 @@ export function openRoadV2(scene: GameScene) {
     const gg = scene.add.graphics();
     road.add(gg);
     gateObjs.push(gg);
+    baker?.add(gg, gy - 270, gy + 130);
     const cx = ROAD.centerX;
     const stone = lerpColor(look.accent, 0xd8d0c0, 0.55), stoneDk = lerpColor(look.accent, INK, 0.3);
     // stone pillars with block lines
@@ -277,6 +286,7 @@ export function openRoadV2(scene: GameScene) {
       tease.setAlpha(open ? 0.6 : 0.9);
       road.add(tease);
       gateObjs.push(tease);
+      baker?.add(tease, gy - 660, gy - 220);
       const fogCol = lerpColor(0xffffff, nextLook.bottom, 0.15), fogK = open ? 0.5 : 0.8;
       const drawFog = (fog: Phaser.GameObjects.Graphics, oy: number) => {
         for (let k = 0; k < 36; k++) fog.fillStyle(fogCol, Math.sin(((k + 0.5) / 36) * Math.PI) * fogK).fillRect(0, oy + k * 12, W, 13);
@@ -342,6 +352,7 @@ export function openRoadV2(scene: GameScene) {
     plate.fillStyle(INK, 1).fillRoundedRect(ch.x - 56, ch.y + py2, 112, 34, 14).fillStyle(st === 'open' ? 0x5fbf4a : 0xe0a020, 1).fillRoundedRect(ch.x - 52, ch.y + py2 + 4, 104, 26, 11);
     const plateText = scene.add.text(ch.x, ch.y + py2 + 17, st === 'open' ? 'REACHED' : `LEVEL ${ch.afterLevel + 1}`, { fontFamily: FONT, fontSize: '20px', color: '#2b1d2e' }).setOrigin(0.5);
     road.add([plate, plateText]);
+    baker?.add(plate, ch.y + py2 - 4, ch.y + py2 + 40, { minX: ch.x - 62, maxX: ch.x + 62 });
     chestObjs.push(plate, plateText);
     const hit = scene.add.zone(ch.x, ch.y + 10, 130, 130).setInteractive({ useHandCursor: true });
     hit.on('pointerup', () => {
@@ -361,6 +372,7 @@ export function openRoadV2(scene: GameScene) {
     g.fillStyle(INK, 1).fillPoints(pts, true);
     g.fillStyle(0x2b8f9a, 1).fillPoints(pts.map((p) => ({ x: x + (p.x - x) * 0.93, y: y + (p.y - y) * 0.93 })), true);
     nodeLayer.add(g);
+    baker?.add(g, y - r * 0.75, y + r * 1.1, { minX: x - r - 6, maxX: x + r + 6 });
   };
   const kindFront = (n: RoadNode, x: number, y: number, size: number, horns = true) => {
     if (n.kind === 'normal' && n.ribbon === 'none') return;
@@ -379,6 +391,7 @@ export function openRoadV2(scene: GameScene) {
     g.fillStyle(INK, 1).fillRoundedRect(x - w / 2, ry - h / 2 - 3, w, h + 6, 10).fillStyle(col, 1).fillRoundedRect(x - w / 2 + 4, ry - h / 2 + 1, w - 8, h - 2, 7).fillStyle(0xffffff, 0.22).fillRoundedRect(x - w / 2 + 8, ry - h / 2 + 4, w - 16, 10, 5);
     if (boss) g.lineStyle(3, 0xffcf33, 1).strokeRoundedRect(x - w / 2 + 4, ry - h / 2 + 1, w - 8, h - 2, 7);
     nodeLayer.add([g, t]);
+    baker?.add(g, y - size * 0.82, y + size * 0.5 + 50, { minX: x - Math.max(size * 0.5, w / 2 + 34), maxX: x + Math.max(size * 0.5, w / 2 + 34) });
   };
   const nodeLayer = scene.add.container(0, 0);
   road.add(nodeLayer);
@@ -421,6 +434,7 @@ export function openRoadV2(scene: GameScene) {
         plat.add(pgx);
       }
       nodeLayer.add(plat);
+      if (baker && !platKey) baker.add(plat.list[0] as Phaser.GameObjects.Graphics, -34, 80, { minX: -140, maxX: 140, offY: py });
       const ring = scene.add.ellipse(n.x, py, 300, 120, 0xffcf33, 0.16).setStrokeStyle(5, 0xffcf33, 0.9);
       nodeLayer.add(ring);
       if (!REDUCED_MOTION) loopTween(scene, { targets: ring, scaleX: 1.14, scaleY: 1.14, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.InOut' }, ring);
@@ -439,6 +453,7 @@ export function openRoadV2(scene: GameScene) {
         const sp = scene.add.graphics();
         sp.fillStyle(0x000000, 0.25).fillEllipse(n.x + avX, py + 36, 150, 54).fillStyle(INK, 1).fillEllipse(n.x + avX, py + 28, 140, 50).fillStyle(0xffcf33, 1).fillEllipse(n.x + avX, py + 20, 128, 40).fillStyle(0xfff0b8, 1).fillEllipse(n.x + avX, py + 18, 86, 22);
         nodeLayer.add(sp);
+        baker?.add(sp, py + 6, py + 66, { minX: n.x + avX - 84, maxX: n.x + avX + 84 });
       }
       if (has('cannon_4')) {
         const av = scene.add.image(avX, -62, 'cannon_4');
@@ -456,6 +471,7 @@ export function openRoadV2(scene: GameScene) {
       const np = scene.add.graphics();
       np.fillStyle(INK, 1).fillRoundedRect(n.x - 52, py + 22, 104, 62, 20).fillStyle(0xfbe7c6, 1).fillRoundedRect(n.x - 47, py + 27, 94, 52, 16);
       nodeLayer.add([np, scene.add.text(n.x, py + 54, String(n.level), { fontFamily: FONT, fontSize: n.level >= 10 ? '42px' : '48px', color: '#3b2533' }).setOrigin(0.5)]);
+      baker?.add(np, py + 18, py + 90, { minX: n.x - 58, maxX: n.x + 58 }); 
       const you = scene.add.container(n.x + avX, py - (withBoss ? 110 : 178));
       you.add(scene.add.graphics().fillStyle(INK, 1).fillRoundedRect(-62, -26, 124, 52, 18).fillTriangle(-14, 24, 14, 24, 0, 42).fillStyle(0xffcf33, 1).fillRoundedRect(-57, -21, 114, 42, 14));
       you.add(scene.add.text(0, 0, 'YOU', { fontFamily: FONT, fontSize: '32px', color: '#2b1d2e' }).setOrigin(0.5));
@@ -516,6 +532,7 @@ export function openRoadV2(scene: GameScene) {
   for (let i = 0; i < 12; i++) scrim.fillStyle(INK, 0.03).fillRect(0, H - 360 + i * 21, W, 360 - i * 21);
   scrim.fillStyle(INK, 0.45).fillRect(0, H - 108, W, 108);
   c.add(scrim);
+  baker?.add(scrim, H - 360, H, { fixed: true });
   scene.drawWallet(c);
   const chip = scene.add.container(W / 2, 140);
   const chipBg = scene.add.graphics();
@@ -571,7 +588,9 @@ export function openRoadV2(scene: GameScene) {
   back.setVisible(false);
   c.add(back);
   addMapBadges(scene, c, { level: scene.currentLevel(), seasonClaimable: scene.seasonClaimable() });
+  const navFrom = c.length;
   scene.drawNav(c, 'road');
+  if (baker) for (const o of c.list.slice(navFrom)) if (o.type === 'Graphics') baker.add(o as Phaser.GameObjects.Graphics, H - 130, H, { fixed: true });
   const meter = ROAD_PERF_HUD.on ? createRedrawMeter() : null;
   if (ROAD_PERF_HUD.on) addRoadPerfHud(scene, c, 190, meter ?? undefined);
 
@@ -607,6 +626,7 @@ export function openRoadV2(scene: GameScene) {
     polish?.place(scroll);
     if (!p2 || shouldCull(calls++, scroll, lastCull)) {
       culler.update(scroll);
+      baker?.update(scroll);
       lastCull = scroll;
     }
     if (sky) sky.y = skyTop + scroll;
@@ -660,6 +680,7 @@ export function openRoadV2(scene: GameScene) {
   if (!REDUCED_MOTION && startScroll !== home && (fromNode || home - 360 >= lo)) scroller.to(home, fromNode ? 600 : 650);
   c.once(Phaser.GameObjects.Events.DESTROY, () => {
     mask.destroy();
+    baker?.destroy();
     if (sky && scene.textures.exists(skyKey)) scene.textures.remove(skyKey);
   });
 

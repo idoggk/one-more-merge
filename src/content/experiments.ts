@@ -383,6 +383,17 @@ export function storedRoadPerf3(read: () => string | null): boolean {
 export function applyRoadPerf3(on: boolean) {
   ROAD_PERF3.on = on;
 }
+/** QA panel ROAD PERF 4 switch (this device only, not in the save): 'on' (default) = the road's static Graphics (path ground + surface, verge props,
+ *  gates) are baked into picture chunks near the view and drawn as images, so Phaser no longer re-triangulates them every frame (it was ~70 % of the
+ *  scroll CPU, docs/design/ROAD_PERF_MEASURED.md). 'off' = pass-3 road. Presentation only. */
+export const ROAD_PERF4_KEY = 'omm_qa_road_perf4';
+export const ROAD_PERF4 = { on: true };
+export function storedRoadPerf4(read: () => string | null): boolean {
+  return storedDefaultOn(read);
+}
+export function applyRoadPerf4(on: boolean) {
+  ROAD_PERF4.on = on;
+}
 /** QA panel ROAD SURFACE KIT switch (this device only, not in the save): 'on' = the ROAD tab stamps the kit pieces road_<chapter>_<piece> along the
  *  path where the textures exist (everything else keeps the old road drawing). Default OFF, presentation only. */
 export const ROAD_SURFACE_KIT_KEY = 'omm_qa_road_surface_kit';

@@ -4,6 +4,8 @@ import Phaser from 'phaser';
 import type { GameScene } from '../GameScene';
 import { H } from '../sceneKit';
 import { releaseVelocity, rubberBand, stepFling, clamp, type Fling } from './roadModel';
+import { ROAD_PERF4 } from '../../content/experiments';
+import { eventTime, realDt } from './roadPerf4';
 
 const DRAG_SLOP = 12;
 
@@ -30,6 +32,17 @@ export function attachRoadScroll(
     scroll = v;
     opts.onScroll(v);
   };
+  // ROAD PERF 4: finger samples use the browser's event time, coasting uses the real frame time (not Phaser's smoothed delta capped at 50 ms),
+  // and a drag applies its newest position once per frame (a 120 Hz touch screen fires 2 moves a frame)
+  const p4 = ROAD_PERF4.on;
+  let lastFrameMs: number | null = null, pending: number | null = null;
+  const clock = (p: Phaser.Input.Pointer) => (p4 ? eventTime(p.event, performance.now()) : scene.time.now);
+  const flush = () => {
+    if (pending === null) return;
+    const v = pending;
+    pending = null;
+    apply(v);
+  };
   const live = () => scene.homeC === c && c.active;
   const onDown = (p: Phaser.Input.Pointer) => {
     if (!live()) return;
@@ -39,7 +52,7 @@ export function attachRoadScroll(
     fling = null;
     glide = null;
     dragging = p.worldY >= opts.startY && p.worldY <= opts.endY;
-    samples = [{ t: scene.time.now, y: p.worldY }];
+    samples = [{ t: clock(p), y: p.worldY }];
   };
   const onMove = (p: Phaser.Input.Pointer) => {
     if (!p.isDown || !live() || !dragging) return;
@@ -49,14 +62,17 @@ export function attachRoadScroll(
       // a drag that ends over the wallet must not press it (the BOLTS popup bug): the shield takes the release instead
       shield = scene.add.zone(360, H / 2, 720, H).setInteractive().setDepth(1000);
     }
-    samples.push({ t: scene.time.now, y: p.worldY });
+    samples.push({ t: clock(p), y: p.worldY });
     if (samples.length > 12) samples.shift();
-    apply(rubberBand(startScroll + (p.worldY - downY), opts.lo, opts.hi));
+    const next = rubberBand(startScroll + (p.worldY - downY), opts.lo, opts.hi);
+    if (p4) pending = next;
+    else apply(next);
   };
-  const onUp = () => {
+  const onUp = (p?: Phaser.Input.Pointer) => {
     if (!dragging) return;
     dragging = false;
-    const v = travelled < DRAG_SLOP ? 0 : releaseVelocity(samples, scene.time.now);
+    flush();
+    const v = travelled < DRAG_SLOP ? 0 : releaseVelocity(samples, p4 && p ? clock(p) : scene.time.now);
     fling = v !== 0 || scroll < opts.lo || scroll > opts.hi ? { pos: scroll, vel: v } : null;
     scene.time.delayedCall(60, () => {
       shield?.destroy();
@@ -68,8 +84,12 @@ export function attachRoadScroll(
     fling = null;
     apply(clamp(scroll - dy, opts.lo, opts.hi));
   };
-  const onUpdate = (_t: number, dt: number) => {
+  const onUpdate = (_t: number, dtPhaser: number) => {
     if (!live()) return;
+    const now = performance.now();
+    const dt = p4 ? realDt(now, lastFrameMs) : dtPhaser;
+    lastFrameMs = now;
+    flush();
     if (glide) {
       glide.t += dt;
       const k = Math.min(1, glide.t / glide.ms);
@@ -78,7 +98,7 @@ export function attachRoadScroll(
       return;
     }
     if (!fling || dragging) return;
-    const s = stepFling(fling, Math.min(dt, 50), opts.lo, opts.hi);
+    const s = stepFling(fling, p4 ? dt : Math.min(dt, 50), opts.lo, opts.hi);
     fling = s.rest ? null : { pos: s.pos, vel: s.vel };
     apply(s.pos);
   };
