@@ -33,20 +33,20 @@ Chapter content is CH 4 ARCADE (levels 31 to 40, boss at 40); the entrance panel
 - Side margin 16 for HUD, plate, bottom row; rail badges sit at margin 8 (they are decoration-weight, 64 wide).
 - Text line boxes are font size + 4 px (the only non-8 values besides strokes and 4 px borders).
 
-### Screen anchors (y from top unless marked; B = from bottom)
+### Screen anchors (y from top unless marked; HB = floor(H/8)*8 = 840 / 776 / 928 for bottom-anchored rows; at 360 wide C = 360 and X0 = 0; updated by the Pixel Checker, see PIXEL_CHECK.md)
 
 | Element | x | y | w x h |
 |---|---|---|---|
-| Wallet: bolts pill | X0+16 | 56 | 128x40 |
-| Wallet: gems pill | X0+152 | 56 | 128x40 |
-| Wallet: settings gear | X0+C-56 | 56 | 40x40 |
-| Chapter plate | X0+16 | 104 | (C-32)x48 |
-| Rail left badge i (0..2) | X0+8 | 168 + 88 i | 64x80 |
-| Rail right badge i (0..2) | X0+C-72 | 168 + 88 i | 64x80 |
-| Chapter chip (ring + chest) | X0+16 | H-184 | 64x64 |
-| PLAY / FIGHT button | X0+96 | H-184 | (C-112)x64 |
-| BACK TO ME pill (only when scrolled away) | centred | H-232 | 144x32 |
-| Nav bar | X0+8 | H-104 | (C-16)x72 |
+| Wallet: bolts pill | X0+16 | 56 | 128x48 |
+| Wallet: gems pill | X0+152 | 56 | 128x48 |
+| Wallet: settings gear | X0+C-64 | 56 | 48x48 |
+| Chapter plate | X0+16 | 112 | (C-32)x56 |
+| Rail left badge i (0..2) | X0+8 | 176 + 88 i | 64x80 (icon y 4 with chip else 12, chip 48x16 at y 40, label y 64) |
+| Rail right badge i (0..2) | X0+C-72 | 176 + 88 i | 64x80 |
+| Chapter chip (ring + chest) | X0+16 | HB-184 | 64x64 |
+| PLAY / FIGHT button | X0+96 | HB-184 | (C-112)x64 |
+| BACK TO ME pill (only when scrolled away) | centred | HB-224 | 176x32 (hit area 48) |
+| Nav bar | X0+8 | HB-104 | (C-16)x72, tabs 80 / 88 / 96 wide, centred |
 | Bottom scrim | 0 | B 0 | W x 240 |
 
 Road viewport = y 152 to H-184 (about 4 to 5 nodes). The current node sits at 50 to 52 percent of H (56 percent for the boss, 55 for the locked look-ahead). The path stays inside `centre ± min(C/2-136, 56)` so the hero platform (176 wide) never touches the rails (x ≤ 72 and ≥ C-72).
