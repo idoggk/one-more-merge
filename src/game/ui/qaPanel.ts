@@ -7,7 +7,7 @@ import { applyMascotMotion, storedMascotMotion, MASCOT_MOTION_KEY } from '../../
 import { openMascotDemo } from './mascotDemo';
 import { applyRoadSurfaceKit, storedRoadSurfaceKit, ROAD_SURFACE_KIT_KEY } from '../../content/experiments';
 import { openRoadKitPreview } from '../road/roadKitFx';
-import { applyRoadPerf2, storedRoadPerf2, ROAD_PERF2_KEY } from '../../content/experiments';
+import { applyRoadPerf2, storedRoadPerf2, ROAD_PERF2_KEY, applyRoadPerf3, storedRoadPerf3, ROAD_PERF3_KEY } from '../../content/experiments';
 import { applyRoadPerf,applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
@@ -144,6 +144,8 @@ export const qaRoadPerf = () => storedRoadPerf(() => localStorage.getItem(ROAD_P
 applyRoadPerf(qaRoadPerf());
 export const qaRoadPerf2 = () => storedRoadPerf2(() => localStorage.getItem(ROAD_PERF2_KEY));
 applyRoadPerf2(qaRoadPerf2());
+export const qaRoadPerf3 = () => storedRoadPerf3(() => localStorage.getItem(ROAD_PERF3_KEY));
+applyRoadPerf3(qaRoadPerf3());
 export const qaRoadPerfHud = () => storedRoadPerfHud(() => localStorage.getItem(ROAD_PERF_HUD_KEY));
 applyRoadPerfHud(qaRoadPerfHud());
 export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
@@ -638,6 +640,20 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_road_perf2', { on });
         },
         toast: (on) => (on ? 'ROAD PERF 2 ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF 2 OFF (first-pass road)'),
+      }),
+      // ROAD PERF 3: cached chapter lookup, writes only on change, resting belt, one wisp listener (visual only; OFF = pass-2 road)
+      qaFlag({
+        id: 'roadPerf3',
+        defOn: true,
+        title: 'ROAD PERF 3',
+        desc: 'Fewer per-scroll writes, resting belt. Open ROAD',
+        get: () => !!qaRoadPerf3(),
+        set: (on) => {
+          store(ROAD_PERF3_KEY, on ? null : 'off');
+          applyRoadPerf3(on);
+          tlog.log('qa_road_perf3', { on });
+        },
+        toast: (on) => (on ? 'ROAD PERF 3 ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF 3 OFF (pass-2 road)'),
       }),
       // ROAD PERF READOUT: objects shown/total, active tweens and FPS in the corner of the ROAD tab, for bug reports
       qaFlag({

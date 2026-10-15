@@ -3,7 +3,9 @@
 // Caps: at most AMBIENT_CAP ambient sprites alive (steam, sparkles, wisps, bird). Everything is off under REDUCED_MOTION except the static ground.
 import Phaser from 'phaser';
 import { loopTween } from '../loopTween';
-import { REDUCED_MOTION, W } from '../sceneKit';
+import { H, REDUCED_MOTION, W } from '../sceneKit';
+import { spanVisible } from './roadPerf';
+import { beltShouldDraw, createWispPass } from './roadPerf3';
 import { lerpColor, lookOf } from './roadArt';
 import { hash01, ROAD, type RoadLayout, type RoadNode } from './pathGen';
 import {
@@ -30,6 +32,8 @@ export interface RoadPolishCtx {
   loop?: (owner: Phaser.GameObjects.GameObject, config: Phaser.Types.Tweens.TweenBuilderConfig, minY: number, maxY: number) => unknown;
   /** ROAD PERF 2 on: lower ambient cap, belt redrawn every 2nd frame */
   perf2?: boolean;
+  /** ROAD PERF 3 on: belt rests while culled / moving (15 Hz cap), wisps share one update listener */
+  perf3?: boolean;
 }
 
 export interface RoadPolish {
@@ -92,18 +96,38 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
   // only the last 8 travelled segments (the part near the player) move: keeps the per-frame cost to a few dozen dashes
   const beltPts = joinPaths(lay.segments.filter((s) => s.to <= cur && s.from >= cur - 8).map((s) => s.pts));
   let beltT = 0, beltFrame = 0;
-  const beltTick = (_t: number, dt: number) => {
-    if (!alive.v) return;
-    beltT += dt;
-    if (o.perf2 && beltFrame++ % 2) return; // every 2nd frame is enough for a slow creep (beltT keeps the true time)
+  // ROAD PERF 3: the belt rests while its span is off screen or the road is being moved (drag / glide), and redraws at most ~15 Hz
+  const beltYs = beltPts.map((p) => p.y);
+  const beltMin = Math.min(...beltYs) - 40, beltMax = Math.max(...beltYs) + 40;
+  let lastMoveMs = -1e9, lastDrawMs = -1e9, lastScroll: number | null = null;
+  const drawBelt = () => {
     beltG.clear().lineStyle(8, 0xb87a10, 0.55);
     for (const [a, b] of dashSegments(beltPts, beltOffset(beltT, 38, 48), 22, 26)) beltG.lineBetween(a.x, a.y, b.x, b.y);
   };
+  const beltTick = (_t: number, dt: number) => {
+    if (!alive.v) return;
+    beltT += dt;
+    if (o.perf3) {
+      const now = scene.time.now;
+      if (!beltShouldDraw(now, lastDrawMs, lastMoveMs, spanVisible(beltMin, beltMax, road.y, H, 260))) return;
+      lastDrawMs = now;
+      return drawBelt();
+    }
+    if (o.perf2 && beltFrame++ % 2) return; // every 2nd frame is enough for a slow creep (beltT keeps the true time)
+    drawBelt();
+  };
   road.add(beltG);
-  if (!REDUCED_MOTION && beltPts.length > 1) {
-    scene.events.on('update', beltTick);
-    c.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off('update', beltTick));
-  }
+  // ROAD PERF 3: the wisps' per-frame y updates share the belt's single update listener (and skip frames where the road did not move)
+  const wisps: { wisp: Phaser.GameObjects.Ellipse; baseY: number }[] = [];
+  const placeWisp = (w: { wisp: Phaser.GameObjects.Ellipse; baseY: number }, roadY: number) => {
+    if (w.wisp.active) w.wisp.y = ((layerY(w.baseY, 0, 0, 1) + roadY * PARALLAX.foreground) % 1500 + 1500) % 1500 - 100;
+  };
+  const wispPass = createWispPass(wisps, placeWisp);
+  const tick3 = (t: number, dt: number) => {
+    if (!alive.v) return;
+    wispPass(road.y);
+    if (beltPts.length > 1) beltTick(t, dt);
+  };
 
   // ---- ambient life ----------------------------------------------------------------------------------------------------------------
   const curNode = lay.nodes[Math.min(cur, lay.nodes.length) - 1];
@@ -133,11 +157,14 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
       const wisp = scene.add.ellipse(i ? W + 200 : -200, 0, 360, 46, 0xffffff, 0.14);
       c.addAt(wisp, 3);
       const baseY = 300 + i * 520;
-      const upd = () => {
-        if (alive.v && wisp.active) wisp.y = ((layerY(baseY, 0, 0, 1) + road.y * PARALLAX.foreground) % 1500 + 1500) % 1500 - 100;
-      };
-      scene.events.on('update', upd);
-      c.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off('update', upd));
+      if (o.perf3) wisps.push({ wisp, baseY });
+      else {
+        const upd = () => {
+          if (alive.v && wisp.active) wisp.y = ((layerY(baseY, 0, 0, 1) + road.y * PARALLAX.foreground) % 1500 + 1500) % 1500 - 100;
+        };
+        scene.events.on('update', upd);
+        c.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off('update', upd));
+      }
       loopTween(scene, { targets: wisp, x: i ? -200 : W + 200, duration: 30000 + i * 11000, repeat: -1, ease: 'Linear' }, wisp);
     }
     // a bird crossing every 20-40 s (a tiny dark V), counted against the cap while it flies
@@ -152,6 +179,12 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
     const birdTimer = scene.time.addEvent({ delay: 20000 + hash01(cur) * 20000, loop: true, callback: flyBird });
     c.once(Phaser.GameObjects.Events.DESTROY, () => birdTimer.remove());
   }
+  // the belt's update listener (pass 3: one listener for belt + wisps; before: belt only, each wisp had its own)
+  const tick = o.perf3 ? tick3 : beltTick;
+  if (!REDUCED_MOTION && (o.perf3 || beltPts.length > 1)) {
+    scene.events.on('update', tick);
+    c.once(Phaser.GameObjects.Events.DESTROY, () => scene.events.off('update', tick));
+  }
 
   // ---- unlock sequence + avatar travel ---------------------------------------------------------------------------------------------
   const travelPts = span
@@ -162,6 +195,10 @@ export function createRoadPolish(o: RoadPolishCtx): RoadPolish {
     farK: PARALLAX.far,
     span,
     place(scroll) {
+      if (scroll !== lastScroll) {
+        lastScroll = scroll;
+        lastMoveMs = scene.time.now;
+      }
       const mid = (o.top + o.bottom) / 2;
       for (const g of ground) g.fc.y = layerY(g.cy, scroll, mid, PARALLAX.ground) - g.cy;
     },

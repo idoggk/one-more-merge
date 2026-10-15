@@ -12,13 +12,14 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { MAP_BADGES, ROAD_PERF, ROAD_PERF2, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
+import { MAP_BADGES, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
 import { planRoad } from './roadKit';
 import { addKitStamps } from './roadKitFx';
 import { addMapBadges } from './mapBadges';
 import { createRoadPolish } from './roadPolishFx';
 import { addRoadPerfHud, createCuller } from './roadPerf';
 import { createTweenGate, shouldCull, skyRowCount, skyRows } from './roadPerf2';
+import { createChangeMemo, createChapterLookup, createRedrawMeter, fadeAlpha } from './roadPerf3';
 
 const FONT = 'Lilita One, Arial Black';
 const INK = 0x2b1d2e;
@@ -66,6 +67,7 @@ export function openRoadV2(scene: GameScene) {
   };
   // ROAD PERF 2: tweens of pieces off screen are paused, and at most LIVE_TWEENS of the road's looping tweens run at once
   const p2 = ROAD_PERF2.on && ROAD_PERF.on;
+  const p3 = p2 && ROAD_PERF3.on; // ROAD PERF 3 (needs pass 2): fewer per-scroll writes, resting belt, one wisp listener
   const tweenGate = createTweenGate(LIVE_TWEENS);
   let tweenId = 0;
   const loop = (owner: Phaser.GameObjects.GameObject, config: Phaser.Types.Tweens.TweenBuilderConfig, minY: number, maxY: number) => {
@@ -206,7 +208,7 @@ export function openRoadV2(scene: GameScene) {
   }
 
   // ROAD POLISH (flag, default OFF): parallax, ground ramp, belt stripe, ambient life, avatar hop, unlock sequence; see roadPolishFx.ts
-  const polish = ROAD_POLISH.on ? createRoadPolish({ scene, c, far, road, lay, cur, top, bottom, perf2: p2, loop: p2 ? (owner, cfg, a, b) => loop(owner, cfg, a, b) : undefined }) : null;
+  const polish = ROAD_POLISH.on ? createRoadPolish({ scene, c, far, road, lay, cur, top, bottom, perf2: p2, perf3: p3, loop: p2 ? (owner, cfg, a, b) => loop(owner, cfg, a, b) : undefined }) : null;
 
   // ---- fog over chapters not reached yet; banners; gates -------------------------------------------------------------------
   const fogKey = slotArt(has, 'fog') ?? 'road_fog';
@@ -568,7 +570,8 @@ export function openRoadV2(scene: GameScene) {
   c.add(back);
   addMapBadges(scene, c, { level: scene.currentLevel(), seasonClaimable: scene.seasonClaimable() });
   scene.drawNav(c, 'road');
-  if (ROAD_PERF_HUD.on) addRoadPerfHud(scene, c, 190);
+  const meter = ROAD_PERF_HUD.on ? createRedrawMeter() : null;
+  if (ROAD_PERF_HUD.on) addRoadPerfHud(scene, c, 190, meter ?? undefined);
 
   // ROAD PERF 2: the sky is one cached gradient texture (a 4 px wide strip of colours, built once) that scrolls with the road, instead of ~55 filled
   // bands rebuilt on every scroll step
@@ -593,7 +596,10 @@ export function openRoadV2(scene: GameScene) {
   // ---- scroll -----------------------------------------------------------------------------------------------------------------
   const home = snapScroll(curNode.y, top, bottom, lo, hi);
   let calls = 0, lastCull: number | null = null, lastAbove: boolean | null = null;
-  const redraw = (scroll: number) => {
+  // ROAD PERF 3: chapters sorted once + remembered range, alpha / cloud writes only when the value changed
+  const chapterAt = p3 ? createChapterLookup(lay.chapters) : (y: number) => chapterAtY(lay.chapters, y);
+  const written = createChangeMemo();
+  const redrawBody = (scroll: number) => {
     road.y = scroll;
     placeFar(scroll);
     polish?.place(scroll);
@@ -610,12 +616,17 @@ export function openRoadV2(scene: GameScene) {
         backdrop.fillStyle(skyColorAt(lay.chapters, chapterAtY(lay.chapters, wy), wy), 1).fillRect(0, sy, W, bandH + 1);
       }
     }
-    for (const cl of clouds) cl.img.y = ((cl.base + scroll * cl.k) % (H + 300) + (H + 300)) % (H + 300) - 150;
-    for (const f of fades) {
-      const a = Math.min(1, Math.max(0, (f.y + scroll - 170) / 110));
+    clouds.forEach((cl, i) => {
+      const y = ((cl.base + scroll * cl.k) % (H + 300) + (H + 300)) % (H + 300) - 150;
+      if (!p3) cl.img.y = y;
+      else if (written.changed(i, Math.round(y))) cl.img.y = Math.round(y);
+    });
+    fades.forEach((f, i) => {
+      const a = fadeAlpha(f.y, scroll);
+      if (p3 && !written.changed(1000 + i, a)) return;
       for (const o of f.objs) o.setAlpha(a);
-    }
-    setChip(chapterAtY(lay.chapters, (top + bottom) / 2 - scroll));
+    });
+    setChip(chapterAt((top + bottom) / 2 - scroll));
     const far_ = farFromCurrent(curNode.y, scroll, top, bottom);
     if (far_ !== back.visible) back.setVisible(far_);
     if (far_) {
@@ -628,6 +639,14 @@ export function openRoadV2(scene: GameScene) {
       }
     }
   };
+  // the readout (flag ROAD PERF READOUT) times every redraw call; otherwise the body runs as is
+  const redraw = meter
+    ? (scroll: number) => {
+        const t0 = performance.now();
+        redrawBody(scroll);
+        meter.record(performance.now() - t0);
+      }
+    : redrawBody;
   // with a climb to show (polish), the road opens on the level the player came from and glides up to the new one
   const fromNode = polish?.span ? byLevel.get(polish.span.from) : undefined;
   const startScroll = fromNode ? snapScroll(fromNode.y, top, bottom, lo, hi) : Math.max(lo, home - 360);

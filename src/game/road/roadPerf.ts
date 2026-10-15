@@ -58,14 +58,16 @@ export function countObjects(root: Phaser.GameObjects.Container): { total: numbe
 }
 
 /** Readout text for the corner of the ROAD tab: objects (visible/total), active tweens, FPS. Refreshes twice a second, stops with the container. */
-export function addRoadPerfHud(scene: Phaser.Scene, c: Phaser.GameObjects.Container, y: number) {
+export function addRoadPerfHud(scene: Phaser.Scene, c: Phaser.GameObjects.Container, y: number, meter?: { sample(nowMs: number): { callsPerSec: number; msPerSec: number } }) {
   const t = scene.add.text(10, y, '', { fontFamily: 'Arial Black', fontSize: '18px', color: '#ffffff', backgroundColor: '#000000aa', padding: { x: 6, y: 3 } }).setDepth(900);
   c.add(t);
   const refresh = () => {
     if (!t.active) return;
     const o = countObjects(c);
     const tw = scene.tweens.getTweens().length;
-    t.setText(`ROAD PERF  obj ${o.shown}/${o.total}  tweens ${tw}  fps ${Math.round(scene.game.loop.actualFps)}`);
+    const r = meter?.sample(performance.now());
+    const redraws = r ? `\nredraw ${r.callsPerSec}/s  ${r.msPerSec} ms/s` : '';
+    t.setText(`ROAD PERF  obj ${o.shown}/${o.total}  tweens ${tw}  fps ${Math.round(scene.game.loop.actualFps)}${redraws}`);
   };
   refresh();
   const ev = scene.time.addEvent({ delay: 500, loop: true, callback: refresh });
