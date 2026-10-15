@@ -1,0 +1,146 @@
+{
+ "threshold": 30,
+ "pairs": [
+  {
+   "unit": "router",
+   "from": 4,
+   "to": 5,
+   "iou": 0.827,
+   "sizeRatio": 0.993,
+   "colDist": 22,
+   "edgeDiff": 0.115,
+   "ch": {
+    "sil": 0.35,
+    "size": 0.03,
+    "colour": 0.37,
+    "edges": 0.33
+   },
+   "score": 28.3,
+   "differs": [],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 3,
+   "to": 4,
+   "iou": 0.802,
+   "sizeRatio": 0.979,
+   "colDist": 41.2,
+   "edgeDiff": 0.072,
+   "ch": {
+    "sil": 0.4,
+    "size": 0.08,
+    "colour": 0.69,
+    "edges": 0.21
+   },
+   "score": 35.4,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 7,
+   "to": 8,
+   "iou": 0.758,
+   "sizeRatio": 0.94,
+   "colDist": 5.3,
+   "edgeDiff": 0.196,
+   "ch": {
+    "sil": 0.48,
+    "size": 0.24,
+    "colour": 0.09,
+    "edges": 0.56
+   },
+   "score": 37.1,
+   "differs": [
+    "edges"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 6,
+   "to": 7,
+   "iou": 0.8,
+   "sizeRatio": 0.937,
+   "colDist": 27.4,
+   "edgeDiff": 0.187,
+   "ch": {
+    "sil": 0.4,
+    "size": 0.25,
+    "colour": 0.46,
+    "edges": 0.53
+   },
+   "score": 40.9,
+   "differs": [
+    "edges"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 5,
+   "to": 6,
+   "iou": 0.79,
+   "sizeRatio": 0.941,
+   "colDist": 39.4,
+   "edgeDiff": 0.115,
+   "ch": {
+    "sil": 0.42,
+    "size": 0.24,
+    "colour": 0.66,
+    "edges": 0.33
+   },
+   "score": 41.2,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 1,
+   "to": 2,
+   "iou": 0.776,
+   "sizeRatio": 1,
+   "colDist": 43.4,
+   "edgeDiff": 0.164,
+   "ch": {
+    "sil": 0.45,
+    "size": 0,
+    "colour": 0.72,
+    "edges": 0.47
+   },
+   "score": 41.8,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  },
+  {
+   "unit": "router",
+   "from": 2,
+   "to": 3,
+   "iou": 0.754,
+   "sizeRatio": 0.933,
+   "colDist": 72.7,
+   "edgeDiff": 0.086,
+   "ch": {
+    "sil": 0.49,
+    "size": 0.27,
+    "colour": 1,
+    "edges": 0.25
+   },
+   "score": 49.9,
+   "differs": [
+    "colour"
+   ],
+   "rule2": false
+  }
+ ],
+ "missing": {
+  "router": []
+ }
+}
