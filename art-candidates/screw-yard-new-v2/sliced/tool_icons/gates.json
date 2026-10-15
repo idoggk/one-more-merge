@@ -1,0 +1,208 @@
+{
+  "sheet": "C:\\Users\\idogg\\.orchestrator\\worktrees\\one-more-merge\\t-6ff267bd\\art-candidates\\screw-yard-new-v2\\raw\\sy_tool_icons_sheet.png",
+  "grid": "3x1",
+  "key": "magenta",
+  "kind": "icon",
+  "pass": true,
+  "status": "pass",
+  "cells": [
+    {
+      "name": "tool_icon_broom",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 1 px in components under 105 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.2814,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.281 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.865,
+          "threshold": ">= 0.7",
+          "detail": "object 140x166 px in a 192x192 canvas: 73% of the width, 86% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 10484,
+          "threshold": "0 < opaque < 36864",
+          "detail": "10484 opaque, 1652 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 10.484,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 349-2324 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "tool_icon_hammer",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 2 px in components under 105 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.2692,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.269 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.865,
+          "threshold": ">= 0.7",
+          "detail": "object 166x163 px in a 192x192 canvas: 86% of the width, 85% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 13124,
+          "threshold": "0 < opaque < 36864",
+          "detail": "13124 opaque, 1957 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 13.124,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 0.0%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 406-2706 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    },
+    {
+      "name": "tool_icon_drill",
+      "status": "pass",
+      "pass": true,
+      "gates": {
+        "cellBorder": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque px within 3px of cell border; despeckle cleared 0 px in components under 105 px"
+        },
+        "coverage": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.334,
+          "threshold": "0.02-0.85 (warn down to 0.01 and up to 0.95)",
+          "detail": "0.334 of the cell"
+        },
+        "corners": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 opaque corner px"
+        },
+        "fill": {
+          "status": "pass",
+          "pass": true,
+          "value": 0.865,
+          "threshold": ">= 0.7",
+          "detail": "object 166x135 px in a 192x192 canvas: 86% of the width, 70% of the height (larger side must be at least 70%)"
+        },
+        "alpha": {
+          "status": "pass",
+          "pass": true,
+          "value": 12126,
+          "threshold": "0 < opaque < 36864",
+          "detail": "12126 opaque, 1822 partial"
+        },
+        "keyLeft": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 12.126,
+          "detail": "0 magenta-ish px"
+        },
+        "halo": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0.04,
+          "detail": "0.0% of outermost edge px much lighter than body (warn above 4%, fail above 8%); depth 1-3 ring: 2.3%"
+        },
+        "whiteInHoles": {
+          "status": "pass",
+          "pass": true,
+          "value": 0,
+          "threshold": 0,
+          "detail": "0 small enclosed near-white region(s) (size 336-2241 px, each side under 40% of the object); 0 large region(s) ignored as content"
+        }
+      },
+      "failed": [],
+      "warned": [],
+      "flags": []
+    }
+  ]
+}
