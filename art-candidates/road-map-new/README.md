@@ -45,3 +45,17 @@ Status now: 15 of 22 ids covered (part 1: 11, part 2 adds prop_arcade_cabinet, p
 Raw sheets in raw/sheet5..7. Sheet 5 was collected from chat c/6ad0d7c0-... (not regenerated); sheets 6-7 were sent in the same chat.
 
 Still to do (7 ids): road_gate_closed_frost (closed + open, ref locked_try1.png), road_kit_ch4 (12 pieces, 2 sheets), road_kit_ch4_ice (12 + transition, 2 sheets), bg_sky_purple (single 390x844), scenery_ch4_body (single 390x1200); plus the neon-cube redo on green key. Need about 2 more browser leases.
+
+## Part 3 (task t-91628e3e): sheets 8-9
+
+Sent in the same chat as sheets 5-7 (style by description, no reference upload), green key, sliced with `slice-sheet-gaps.mjs --tol 115 --feather 70`. Native resolution, not approved, needs the critic.
+
+| manifest id | file(s) | notes |
+|---|---|---|
+| road_gate_closed_frost | s8/gate_closed_frost, s8/gate_closed_small | iron double gate, snow caps, icicles, chain, gold padlock |
+| road_gate_closed_frost (open) | s8/gate_open_left, s8/gate_open_right | open state came out as two separate door+post halves, not one sprite: game would place them left and right of the road |
+| prop_island_blocks (cubes, redo) | s8/neon_cube_pink, neon_cube_mix, neon_cube_pink_small | pink kept on green key: redo done, replaces s6 pink/mix cubes |
+| road_kit_ch4 | s9/road_ch4_v, _h, _curve_br, _curve_bl, _curve_tr, _curve_tl, _t_up, _t_down, _t_right, _t_left, _cross, _cap | 12 pieces. Curve names by the road connections seen in the sheet (br = bottom+right, etc.; t_up = open top+left+right). Pieces are 306-362 px and not on a common tile size or identical edge widths: they need a resize/pad to a 140 px grid and a join check before use |
+
+Still to do (3 ids): road_kit_ch4_ice (12 pieces plus a cream-to-ice transition piece), bg_sky_purple (single 390x844), scenery_ch4_body (single 390x1200).
+Total coverage: 19 of 22 manifest ids (the ice kit and the two singles remain). Raw sheets in raw/sheet8, raw/sheet9.
