@@ -24,6 +24,7 @@ const EXPECTED_ROWS = [
   'unitIdle', // display
   'mascotMotion', 'mascotDemo', // display
   'uiJuice', // display
+  'mapBadges', 'mapBadgesForce', // display
   'shake', // display
 ];
 
@@ -41,7 +42,7 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
     expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerfHud', 'roadSurfaceKit', 'roadKitPreview', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
-    expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'mascotMotion', 'mascotDemo', 'uiJuice', 'shake']);
+    expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'mascotMotion', 'mascotDemo', 'mapBadges', 'mapBadgesForce', 'uiJuice', 'shake']);
   });
   it('visual-only switches ship ON, can be turned off, and RESET ALL puts them back ON', async () => {
     const { TUNING } = await import('../src/content/tuning');

@@ -312,6 +312,31 @@ export function applyUiJuice(on: boolean) {
   UI_JUICE.on = on;
 }
 
+/** QA panel MAP BADGES switch (this device only, not in the save): 'on' = feature badge rails on the ROAD tab (daily, quests, season, events, offers,
+ *  album, mail, settings). Default OFF. FORCE shows every badge in one state for inspection. Visual and navigation only; docs/art/ROADMAP_LAYOUT.md. */
+export const MAP_BADGES_KEY = 'omm_qa_map_badges';
+export const MAP_BADGES_FORCE_KEY = 'omm_qa_map_badges_force';
+export const MAP_BADGES: { on: boolean; force: 'auto' | 'idle' | 'ready' | 'timer' | 'locked' } = { on: false, force: 'auto' };
+export function storedMapBadges(read: () => string | null): boolean {
+  try {
+    return read() === 'on';
+  } catch {
+    return false;
+  }
+}
+export function storedMapBadgesForce(read: () => string | null): typeof MAP_BADGES.force {
+  try {
+    const v = read();
+    return v === 'idle' || v === 'ready' || v === 'timer' || v === 'locked' ? v : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+export function applyMapBadges(on: boolean, force: typeof MAP_BADGES.force = MAP_BADGES.force) {
+  MAP_BADGES.on = on;
+  MAP_BADGES.force = force;
+}
+
 /** QA panel ROAD POLISH switch (this device only, not in the save): 'on' = parallax, belt road, ambient life, avatar hop, node and chest motion,
  *  unlock sequence on the ROAD tab. Needs levelRoadV2. Presentation only, so it lives outside TUNING like UNIT_IDLE. */
 export const ROAD_POLISH_KEY = 'omm_qa_road_polish';
