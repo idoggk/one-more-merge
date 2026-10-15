@@ -24,7 +24,8 @@ async function sheet(name, bg, list, cell, cols) {
   await sharp({ create: { width: cell * cols, height: cell * rows, channels: 4, background: bg } }).composite(comps).png().toFile(join(DIR, name));
 }
 
-const main = ids.filter((x) => x !== spin);
+const spins = ids.filter((x) => x.startsWith(spin)); // red strip + _U/_Y/_G recolours
+const main = ids.filter((x) => !x.startsWith(spin));
 const all = [...main, ...slots];
 await sheet('contact-dark.png', '#2b2230', all, 360, 5);
 await sheet('contact-light.png', '#f3e3c3', all, 360, 5);
@@ -43,12 +44,13 @@ for (const [name, bg] of [['contact-small-dark.png', '#2b2230'], ['contact-small
   }
   await sharp({ create: { width: W, height: rowsH.reduce((a, b) => a + b, 0), channels: 4, background: bg } }).composite(comps).png().toFile(join(DIR, name));
 }
-// spin strip
-if (ids.includes(spin)) {
-  const m = await sharp(path(spin)).metadata();
+// spin strips: every colour stacked, 2x enlarged, frames side by side
+if (spins.length) {
+  const m = await sharp(path(spins[0])).metadata();
+  const rows = await Promise.all(spins.map((id) => sharp(path(id)).resize(m.width * 2, m.height * 2, { kernel: 'lanczos3' }).toBuffer()));
   for (const [name, bg] of [['contact-spin-dark.png', '#2b2230'], ['contact-spin-light.png', '#f3e3c3']]) {
-    const big = await sharp(path(spin)).resize(m.width * 2, m.height * 2, { kernel: 'lanczos3' }).toBuffer();
-    await sharp({ create: { width: m.width * 2, height: m.height * 2, channels: 4, background: bg } }).composite([{ input: big }]).png().toFile(join(DIR, name));
+    await sharp({ create: { width: m.width * 2, height: m.height * 2 * rows.length, channels: 4, background: bg } })
+      .composite(rows.map((input, k) => ({ input, left: 0, top: k * m.height * 2 }))).png().toFile(join(DIR, name));
   }
 }
 console.log('sheets written');
