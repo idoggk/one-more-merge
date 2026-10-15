@@ -394,6 +394,17 @@ export function storedRoadPerf4(read: () => string | null): boolean {
 export function applyRoadPerf4(on: boolean) {
   ROAD_PERF4.on = on;
 }
+/** QA panel ROAD STABLE switch (this device only, not in the save): 'on' (default) = every road layer (road, sky, far scenery, clouds) is placed from the
+ *  one scroll value of the frame, rounded to whole canvas (device) pixels, so layers no longer shimmer at different sub-pixel phases while dragging.
+ *  'off' = previous placement. Presentation only (docs/design/ROAD_STABLE.md). */
+export const ROAD_STABLE_KEY = 'omm_qa_road_stable';
+export const ROAD_STABLE = { on: true };
+export function storedRoadStable(read: () => string | null): boolean {
+  return storedDefaultOn(read);
+}
+export function applyRoadStable(on: boolean) {
+  ROAD_STABLE.on = on;
+}
 /** QA panel ROAD SURFACE KIT switch (this device only, not in the save): 'on' = the ROAD tab stamps the kit pieces road_<chapter>_<piece> along the
  *  path where the textures exist (everything else keeps the old road drawing). Default OFF, presentation only. */
 export const ROAD_SURFACE_KIT_KEY = 'omm_qa_road_surface_kit';

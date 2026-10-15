@@ -13,7 +13,7 @@ import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimi
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
 import { createRoadBaker } from './roadBake';
-import { MAP_BADGES, ROAD_MAP_MOCK1, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF4, ROAD_PERF_HUD, ROAD_POLISH, ROAD_SURFACE_KIT } from '../../content/experiments';
+import { MAP_BADGES, ROAD_MAP_MOCK1, ROAD_PERF, ROAD_PERF2, ROAD_PERF3, ROAD_PERF4, ROAD_PERF_HUD, ROAD_POLISH, ROAD_STABLE, ROAD_SURFACE_KIT } from '../../content/experiments';
 import { planRoad } from './roadKit';
 import { addKitStamps } from './roadKitFx';
 import { addMapBadges } from './mapBadges';
@@ -21,6 +21,7 @@ import { addMockHeroFx } from './roadMapMock1';
 import { createRoadPolish } from './roadPolishFx';
 import { addRoadPerfHud, createCuller } from './roadPerf';
 import { createTweenGate, shouldCull, skyRowCount, skyRows } from './roadPerf2';
+import { snapDev } from './roadStable';
 import { createChangeMemo, createChapterLookup, createRedrawMeter, fadeAlpha } from './roadPerf3';
 
 const FONT = 'Lilita One, Arial Black';
@@ -122,7 +123,8 @@ export function openRoadV2(scene: GameScene) {
   const placeFar = (scroll: number) => {
     const mid = (top + bottom) / 2;
     for (const f of farLayers) {
-      f.fc.y = mid + (scroll + f.cy - mid) * (polish?.farK ?? 0.8) - f.cy;
+      const fy = mid + (scroll + f.cy - mid) * (polish?.farK ?? 0.8) - f.cy;
+      f.fc.y = ROAD_STABLE.on ? snapDev(fy, RS) : fy;
       if (ROAD_PERF.on) f.fc.setVisible(Math.abs(f.cy + f.fc.y - H / 2) < H / 2 + f.half + 260);
     }
   };
@@ -630,7 +632,7 @@ export function openRoadV2(scene: GameScene) {
       baker?.update(scroll);
       lastCull = scroll;
     }
-    if (sky) sky.y = skyTop + scroll;
+    if (sky) sky.y = ROAD_STABLE.on ? snapDev(skyTop + scroll, RS) : skyTop + scroll;
     else {
       backdrop.clear();
       const bandH = 28;
@@ -641,7 +643,10 @@ export function openRoadV2(scene: GameScene) {
     }
     clouds.forEach((cl, i) => {
       const y = ((cl.base + scroll * cl.k) % (H + 300) + (H + 300)) % (H + 300) - 150;
-      if (!p3) cl.img.y = y;
+      if (ROAD_STABLE.on) {
+        const sy = snapDev(y, RS);
+        if (written.changed(i, sy)) cl.img.y = sy;
+      } else if (!p3) cl.img.y = y;
       else if (written.changed(i, Math.round(y))) cl.img.y = Math.round(y);
     });
     fades.forEach((f, i) => {
@@ -676,7 +681,7 @@ export function openRoadV2(scene: GameScene) {
   const scroller = attachRoadScroll(scene, c, {
     startY: 110, endY: bottom, lo, hi,
     start: REDUCED_MOTION ? home : startScroll,
-    onScroll: redraw,
+    onScroll: (v) => redraw(ROAD_STABLE.on ? snapDev(v, RS) : v), // ROAD STABLE: one device-pixel-snapped value feeds every layer
   });
   if (!REDUCED_MOTION && startScroll !== home && (fromNode || home - 360 >= lo)) scroller.to(home, fromNode ? 600 : 650);
   c.once(Phaser.GameObjects.Events.DESTROY, () => {

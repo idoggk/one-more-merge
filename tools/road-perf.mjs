@@ -15,6 +15,7 @@ const CFGS = {
   build8: { omm_qa_road_perf3: 'off', omm_qa_road_perf4: 'off' }, // roadV2 + perf1+2 ON, polish OFF, perf3 OFF
   master: { omm_qa_road_perf4: 'off' }, // current master before this task: perf3 ON
   perf4off: { omm_qa_road_perf4: 'off' },
+  stableoff: { omm_qa_road_stable: 'off' }, // ROAD STABLE off, everything else default
   perf4: {}, // default (ROAD PERF 4 ON)
   allperfoff: { omm_qa_road_perf: 'off', omm_qa_road_perf2: 'off', omm_qa_road_perf3: 'off', omm_qa_road_perf4: 'off' },
 };
