@@ -3,6 +3,7 @@ import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedRes
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
+import { applyRoadPerf, applyRoadPerfHud, storedRoadPerf, storedRoadPerfHud, ROAD_PERF_KEY, ROAD_PERF_HUD_KEY } from '../../content/experiments';
 import { applyRoadPolish, storedRoadPolish, ROAD_POLISH_KEY, applyLevelRoadV2, storedLevelRoadV2, LEVEL_ROAD_V2_KEY } from '../../content/experiments';
 import { TUNING } from '../../content/tuning';
 import { applyMergeRule, MERGE_RULE_KEY, MERGE_RULES, storedMergeRule } from '../../core/sandwich';
@@ -124,6 +125,10 @@ applyUiJuice(qaUiJuice());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
 export const qaRoadPolish = () => storedRoadPolish(() => localStorage.getItem(ROAD_POLISH_KEY));
 applyRoadPolish(qaRoadPolish());
+export const qaRoadPerf = () => storedRoadPerf(() => localStorage.getItem(ROAD_PERF_KEY));
+applyRoadPerf(qaRoadPerf());
+export const qaRoadPerfHud = () => storedRoadPerfHud(() => localStorage.getItem(ROAD_PERF_HUD_KEY));
+applyRoadPerfHud(qaRoadPerfHud());
 export const qaLevelRoadV2 =() => storedLevelRoadV2(() => localStorage.getItem(LEVEL_ROAD_V2_KEY));
 applyLevelRoadV2(qaLevelRoadV2());
 
@@ -589,6 +594,33 @@ export const QA_SECTIONS: QaSection[] = [
           tlog.log('qa_road_polish', { on });
         },
         toast: (on) => (on ? 'ROAD POLISH ON  ·  OPEN THE ROAD TAB' : 'ROAD POLISH OFF'),
+      }),
+      // ROAD PERF: off-screen road pieces are hidden while scrolling and the path is drawn in small pieces (visual only)
+      qaFlag({
+        id: 'roadPerf',
+        defOn: true,
+        title: 'ROAD PERF',
+        desc: 'Hide off-screen road pieces. Open ROAD',
+        get: () => !!qaRoadPerf(),
+        set: (on) => {
+          store(ROAD_PERF_KEY, on ? null : 'off');
+          applyRoadPerf(on);
+          tlog.log('qa_road_perf', { on });
+        },
+        toast: (on) => (on ? 'ROAD PERF ON  ·  OPEN THE ROAD TAB' : 'ROAD PERF OFF (old road)'),
+      }),
+      // ROAD PERF READOUT: objects shown/total, active tweens and FPS in the corner of the ROAD tab, for bug reports
+      qaFlag({
+        id: 'roadPerfHud',
+        title: 'ROAD PERF READOUT',
+        desc: 'Objects, tweens, FPS on ROAD',
+        get: () => !!qaRoadPerfHud(),
+        set: (on) => {
+          store(ROAD_PERF_HUD_KEY, on ? 'on' : null);
+          applyRoadPerfHud(on);
+          tlog.log('qa_road_perf_hud', { on });
+        },
+        toast: (on) => (on ? 'READOUT ON  ·  OPEN THE ROAD TAB' : 'READOUT OFF'),
       }),
       // t-4c676288 BUDGET LEVELS: the LAST MERGES bench levels (no clock, a merge budget, stars by merges left)
       qaFlag({

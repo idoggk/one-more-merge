@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampLines, firstSentence, INTRO_CFG, layoutIntro, parseTools, type IntroInput } from '../src/game/ui/levelIntroLayout';
+import { clampLines, firstSentence, INTRO_CFG, layoutIntro, parseTools, INTRO_COPY, shortToolLabel, starGoalLabels, type IntroInput } from '../src/game/ui/levelIntroLayout';
 import { FAMILY_INFO } from '../src/content/perks';
 import { LEVELS, BEHAVIOUR_TEXT, MODIFIER_TEXT, goalText } from '../src/content/levels';
 import { BOSSES } from '../src/core/boss';
@@ -29,7 +29,7 @@ describe('level intro layout (UI kit v3)', () => {
       it(`${pn} ${cn}: nothing overlaps, everything fits, sizes meet the brief`, () => {
         const g = layoutIntro({ H, ...c });
         // panel children stay inside the panel and apart
-        const kids: [string, Rect | null][] = [['hero', g.hero], ['name', g.name], ['clock', g.clock], ['text', g.text], ['play', g.play], ...g.minions.map((r, i) => [`minion${i}`, r] as [string, Rect]), ...g.tools.map((r, i) => [`tool${i}`, r] as [string, Rect])];
+        const kids: [string, Rect | null][] = [['hero', g.hero], ['name', g.name], ['clock', g.clock], ['text', g.text], ['minionHead', g.minionHead], ['toolHead', g.toolHead], ['toolHint', g.toolHint], ['play', g.play], ...g.minions.map((r, i) => [`minion${i}`, r] as [string, Rect]), ...g.tools.map((r, i) => [`tool${i}`, r] as [string, Rect])];
         const real = kids.filter((k): k is [string, Rect] => !!k[1]);
         for (const [n, r] of real) expect(inside(r, g.panel), `${n} inside panel`).toBe(true);
         for (let i = 0; i < real.length; i++) for (let j = i + 1; j < real.length; j++) expect(inter(real[i][1], real[j][1]), `${real[i][0]} x ${real[j][0]}`).toBe(false);
@@ -86,6 +86,21 @@ describe('level intro copy', () => {
     expect(t.map((x) => x.label)).toEqual(['WRENCH', 'BLOWTORCH', 'BLAST', 'REWIND', 'WRECKING']);
     expect(t[2].full).toBe('BLAST PLATE: it blocks a boss attack');
     expect(parseTools('')).toEqual([]);
+  });
+  it('every text size is at least 16 pt on a 390 pt phone, and the rows have headings', () => {
+    expect(INTRO_CFG.minFont).toBeGreaterThanOrEqual((16 * 720) / 390 - 0.5);
+    expect(INTRO_CFG.textFont).toBeGreaterThanOrEqual(INTRO_CFG.minFont);
+    const g = layoutIntro({ H: 1558, ...CASES.boss });
+    expect(g.minionHead && g.toolHead && g.toolHint).toBeTruthy();
+    expect(layoutIntro({ H: 1558, ...CASES.normal }).toolHead).toBeNull();
+    expect(INTRO_COPY.toolsHint.length).toBeLessThanOrEqual(40);
+  });
+  it('shortToolLabel fits a plate and keeps short names', () => {
+    expect(['WRENCH', 'BLOWTORCH', 'BLAST PLATE', 'REWIND CRANK', 'WRECKING BALL', 'HYDRAULIC PRESS', 'ARC WELDER'].map((n) => shortToolLabel(n))).toEqual(['WRENCH', 'TORCH', 'BLAST', 'REWIND', 'WRECK', 'PRESS', 'WELDER']);
+    for (const n of ['SUPERCALIFRAGILISTIC', 'A B C']) expect(shortToolLabel(n).length).toBeLessThanOrEqual(INTRO_CFG.toolLabelChars);
+  });
+  it('starGoalLabels: Clear then two clock times', () => {
+    expect(starGoalLabels(132, 128, (s) => `${Math.floor(s / 60)}:${s % 60}`)).toEqual([{ text: 'Clear', clock: false }, { text: '2:12', clock: true }, { text: '2:8', clock: true }]);
   });
   it('the flag defaults to OFF', () => expect(TUNING.uiKitV3).toBe(false));
 });
