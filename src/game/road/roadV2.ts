@@ -12,7 +12,8 @@ import { drawBigProp, drawFarBand, FAR_STYLE, drawProp, ensureRoadTextures, fram
 import { chapterAtY, chestState, farFromCurrent, gateOpen, nodeState, scrollLimits, snapScroll, starsOf, type NodeState } from './roadModel';
 import { hash01, layoutRoad, ROAD, type RoadNode } from './pathGen';
 import { attachRoadScroll } from './roadScroll';
-import { ROAD_PERF, ROAD_PERF_HUD, ROAD_POLISH } from '../../content/experiments';
+import { MAP_BADGES, ROAD_PERF, ROAD_PERF_HUD, ROAD_POLISH } from '../../content/experiments';
+import { addMapBadges } from './mapBadges';
 import { createRoadPolish } from './roadPolishFx';
 import { addRoadPerfHud, createCuller } from './roadPerf';
 
@@ -486,7 +487,7 @@ export function openRoadV2(scene: GameScene) {
   c.add(chip);
   const def = LEVELS[cur - 1];
   const ptag = cur % 10 === 0 ? '  ·  BOSS' : def.mini_boss ? '  ·  MINI-BOSS' : def.difficulty === 'NORMAL' ? '' : def.difficulty === 'HARD' ? '  ·  HARD' : '  ·  MEGA HARD';
-  const showSeason = scene.currentLevel() > 3;
+  const showSeason = scene.currentLevel() > 3 && !MAP_BADGES.on; // MAP BADGES moves SEASON to the left rail
   const playW = showSeason ? 480 : 620, playX = showSeason ? 40 + playW / 2 : W / 2; // Season is a square button beside PLAY, not a floater on the road
   const play = scene.endlessOpen()
     ? scene.button(c, playX, H - 182, playW, `ENDLESS  ·  FLOOR ${scene.endlessRec().floor}`, 0x8e58c9, () => scene.startEndless(), 1.0)
@@ -516,6 +517,7 @@ export function openRoadV2(scene: GameScene) {
   }));
   back.setVisible(false);
   c.add(back);
+  addMapBadges(scene, c, { level: scene.currentLevel(), seasonClaimable: scene.seasonClaimable() });
   scene.drawNav(c, 'road');
   if (ROAD_PERF_HUD.on) addRoadPerfHud(scene, c, 190);
 

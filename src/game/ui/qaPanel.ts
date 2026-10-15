@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY, applyUiJuice, storedUiJuice, UI_JUICE_KEY } from '../../content/experiments';
+import { applyUiKitV3, storedUiKitV3, UI_KIT_V3_KEY, applyResourceFly, storedResourceFly, RESOURCE_FLY_KEY, applyUnitIdle, storedUnitIdle, UNIT_IDLE_KEY, applyUiJuice, storedUiJuice, UI_JUICE_KEY, applyMapBadges, storedMapBadges, storedMapBadgesForce, MAP_BADGES, MAP_BADGES_KEY, MAP_BADGES_FORCE_KEY } from '../../content/experiments';
 import { applyPaceCaps, storedPaceCaps, PACE_CAPS_KEY, applyEffortModel, storedEffortModel, EFFORT_MODEL_KEY } from '../../content/experiments';
 import { applyCrateOpenV2, storedCrateOpenV2, CRATE_OPEN_V2_KEY, applyVariedOpenings, storedVariedOpenings, VARIED_OPENINGS_KEY, applyYardPressure, storedYardPressure, YARD_PRESSURE_KEY, applyYardBook, storedYardBook, YARD_BOOK_KEY, applyTools, storedTools, TOOLS_KEY, allNewState, applyMergeBudget, MERGE_BUDGET_KEY, storedMergeBudget, applyPace, applyRosterUnlocks, applySpamVariant, applyThinkBank, applyUnits, ROSTER_UNLOCKS_KEY, storedRosterUnlocks, DEFAULT_PACE, PACE_KEY, PACES, ROSTER1_KEY, ROSTER2_KEY, ROSTER3_KEY, ROSTER4_KEY, ROSTER5_KEY, ROSTER6_KEY, ROSTER7_KEY, storedPace, storedRoster1, storedRoster2, storedRoster3, storedRoster4, storedRoster5, storedRoster6, storedRoster7, storedThinkBank, storedUnits, THINK_BANK_KEY, UNITS_B0_KEY, UNITS_VARIANTS, unitsStoreValue, SPAM_VARIANTS, type SpamVariant } from '../../content/experiments';
 import { applyUnitShots, storedUnitShots, UNIT_SHOTS_KEY } from '../../content/experiments';
@@ -127,6 +127,10 @@ applyMascotMotion(qaMascotMotion());
 // QA-only: UI JUICE (pop-ins, press squash, glints, sparkles), default OFF, this device only
 export const qaUiJuice = () => storedUiJuice(() => localStorage.getItem(UI_JUICE_KEY));
 applyUiJuice(qaUiJuice());
+// QA-only: MAP BADGES (feature rails on the ROAD tab) + forced state, default OFF / auto, this device only; read when the ROAD tab opens
+export const qaMapBadges = () => storedMapBadges(() => localStorage.getItem(MAP_BADGES_KEY));
+export const qaMapBadgesForce = () => storedMapBadgesForce(() => localStorage.getItem(MAP_BADGES_FORCE_KEY));
+applyMapBadges(qaMapBadges(), qaMapBadgesForce());
 // QA-only: LEVEL ROAD V2 (the new ROAD tab), default OFF, this device only; read when the ROAD tab opens
 export const qaRoadPolish = () => storedRoadPolish(() => localStorage.getItem(ROAD_POLISH_KEY));
 applyRoadPolish(qaRoadPolish());
@@ -795,6 +799,33 @@ export const QA_SECTIONS: QaSection[] = [
         tap: ({ scene }) => {
           if (!openMascotDemo(scene)) scene.showToast('TURN ON MASCOT MOTION FIRST');
         },
+      }),
+      // MAP BADGES: feature badge rails on the ROAD tab. Default OFF, visual and navigation only
+      qaFlag({
+        id: 'mapBadges',
+        title: 'MAP BADGES',
+        desc: 'Badge rails on the road. Reopen ROAD',
+        get: () => !!qaMapBadges(),
+        set: (on) => {
+          store(MAP_BADGES_KEY, on ? 'on' : null);
+          applyMapBadges(on, qaMapBadgesForce());
+          tlog.log('qa_map_badges', { on });
+        },
+        toast: (on) => (on ? 'MAP BADGES ON  ·  OPEN THE ROAD TAB' : 'MAP BADGES OFF'),
+      }),
+      qaChoice<string>({
+        id: 'mapBadgesForce',
+        title: 'BADGE STATES',
+        desc: 'Force every badge into one state',
+        options: [{ id: 'auto', label: 'AUTO' }, { id: 'idle', label: 'IDLE' }, { id: 'ready', label: 'READY' }, { id: 'timer', label: 'TIMER' }, { id: 'locked', label: 'LOCKED' }],
+        def: 'auto',
+        current: () => qaMapBadgesForce(),
+        pick: (id) => {
+          store(MAP_BADGES_FORCE_KEY, id === 'auto' ? null : id);
+          applyMapBadges(MAP_BADGES.on, qaMapBadgesForce());
+          tlog.log('qa_map_badges_force', { force: id });
+        },
+        toast: (id, label) => (id === 'auto' ? 'BADGE STATES AUTO' : `ALL BADGES ${label}  ·  REOPEN ROAD`),
       }),
       // UI JUICE: popups pop in, buttons squash, glints and sparkles on rewards and badges (visual only, default OFF, reduced motion = none)
       qaFlag({
