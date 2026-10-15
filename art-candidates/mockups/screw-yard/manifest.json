@@ -1,0 +1,1850 @@
+{
+  "screen": "screw-yard",
+  "source": "docs/art/mocks/screw-yard/SPEC.md + PIXEL_CHECK.md + art-candidates/mockups/screw-yard/index.html + docs/design/SCREW_YARD_3D_ASSETS.md",
+  "generatedBy": "Asset Breaker t-454597ec, 2026-10-15",
+  "grid": {
+    "unit": 8,
+    "phones": [
+      "360x780",
+      "390x844",
+      "430x932"
+    ],
+    "column": "C = floor(W/8)*8, X0 = (W-C)/2, HB = floor(H/8)*8",
+    "safeArea": {
+      "top": 48,
+      "bottom": 32
+    }
+  },
+  "statuses": {
+    "EXISTS": "file in src/assets/art (or a proof sprite in art-candidates)",
+    "NEEDS-SLICE": "raw sheet exists, cut with tools/slice-sheet.mjs (none found)",
+    "NEEDS-ART": "must be made; field `approach` = GPT-image or CODE-3D-RENDER",
+    "CODE-DRAWN": "shapes, gradients or text drawn by the game, no art"
+  },
+  "approaches": {
+    "GPT-image": "ChatGPT sheet on magenta/green key, sliced with tools/slice-sheet.mjs",
+    "CODE-3D-RENDER": "tools/render-yard-3d.mjs (three.js, approach B of SCREW_YARD_3D_ASSETS.md, recommended there)"
+  },
+  "counts": {
+    "total": 49,
+    "EXISTS": 16,
+    "NEEDS-SLICE": 0,
+    "NEEDS-ART": 11,
+    "CODE-DRAWN": 22
+  },
+  "countsByGroup": {
+    "Background and light": {
+      "EXISTS": 1,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 0,
+      "CODE-DRAWN": 4
+    },
+    "HUD": {
+      "EXISTS": 2,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 1,
+      "CODE-DRAWN": 8
+    },
+    "Boxes and holding row": {
+      "EXISTS": 2,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 1,
+      "CODE-DRAWN": 1
+    },
+    "Object stage and screws": {
+      "EXISTS": 1,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 5,
+      "CODE-DRAWN": 3
+    },
+    "Tools": {
+      "EXISTS": 0,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 4,
+      "CODE-DRAWN": 0
+    },
+    "Coach and effects": {
+      "EXISTS": 3,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 0,
+      "CODE-DRAWN": 3
+    },
+    "Result panel (win and fail)": {
+      "EXISTS": 7,
+      "NEEDS-SLICE": 0,
+      "NEEDS-ART": 0,
+      "CODE-DRAWN": 3
+    }
+  },
+  "styleRules": "STYLE LOCK + KEY + RANK CLARITY, see ASSETS.md \"Common rules\"",
+  "assets": [
+    {
+      "id": "sy_background",
+      "group": "Background and light",
+      "role": "Wooden workbench background",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 0,
+      "layer": "L00_bench_background",
+      "anchor": "full bleed, cover-fit, centred",
+      "placement": "Behind everything, all states",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/sy_background.webp",
+      "brief": null,
+      "notes": "Keep warm and lower contrast than the screws."
+    },
+    {
+      "id": "key_light_vignette",
+      "group": "Background and light",
+      "role": "Soft top-left key light and edge vignette",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 2,
+      "layer": "L02_key_light_and_vignette",
+      "anchor": "full bleed",
+      "placement": "Over the bench",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Radial gradient, no art."
+    },
+    {
+      "id": "object_spotlight",
+      "group": "Background and light",
+      "role": "Warm bloom behind the object",
+      "size": {
+        "1x": [
+          320,
+          320
+        ],
+        "2x": [
+          640,
+          640
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "breathe",
+          "type": "loop",
+          "durationMs": 3200,
+          "detail": "alpha 0.8 to 1, still under reduced motion"
+        }
+      ],
+      "z": 40,
+      "layer": "L40_object_spotlight",
+      "anchor": "centre of the object stage",
+      "placement": "Behind the object",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "danger_vignette",
+      "group": "Background and light",
+      "role": "Red edge vignette at 1 slot left",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "pulse",
+          "type": "loop",
+          "durationMs": 600,
+          "detail": "alpha 0.35 to 0.6; steady under reduced motion"
+        }
+      ],
+      "z": 70,
+      "layer": "L70_danger_vignette",
+      "anchor": "full bleed",
+      "placement": "Danger state (row 4/5)",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "dim_overlay",
+      "group": "Background and light",
+      "role": "Modal dim, 58 percent ink",
+      "size": {
+        "1x": [
+          390,
+          844
+        ],
+        "2x": [
+          780,
+          1688
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 90,
+      "layer": "L90_dim",
+      "anchor": "full bleed",
+      "placement": "Win and fail",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "hud_back_button",
+      "group": "HUD",
+      "role": "Back (X) round brass button",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "detail": "scale 0.94, overshoot 1.06, 1"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_back_button",
+      "anchor": "X0+16, y 56",
+      "placement": "Top left",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Round gradient + ink ring, X glyph. Hit area 48."
+    },
+    {
+      "id": "hud_title_plate",
+      "group": "HUD",
+      "role": "Title plate: SCREW YARD / object name",
+      "size": {
+        "1x": [
+          264,
+          48
+        ],
+        "2x": [
+          528,
+          96
+        ]
+      },
+      "nineSlice": [
+        20,
+        20,
+        20,
+        20
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 80,
+      "layer": "L80_title_plate",
+      "anchor": "X0+72, y 56, width C-144",
+      "placement": "Top centre",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Dark plum plate #5a4a66 to #2b1d2e, text Lilita One 22/12."
+    },
+    {
+      "id": "hud_pause_button",
+      "group": "HUD",
+      "role": "Pause button",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "detail": "scale 0.94, overshoot 1.06, 1"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_pause_button",
+      "anchor": "X0+C-64, y 56",
+      "placement": "Top right",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/icon_pause.webp",
+      "brief": null,
+      "notes": "Icon on a code round plate."
+    },
+    {
+      "id": "hud_taps_plate",
+      "group": "HUD",
+      "role": "TAPS n/budget plate",
+      "size": {
+        "1x": [
+          120,
+          48
+        ],
+        "2x": [
+          240,
+          96
+        ]
+      },
+      "nineSlice": [
+        20,
+        20,
+        20,
+        20
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "countUp",
+          "type": "number",
+          "durationMs": 200,
+          "detail": "value ticks on each tap; pop 1.1 on change"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_taps_plate",
+      "anchor": "X0+16, y 112",
+      "placement": "Stats row, left",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Value 22, caption 12."
+    },
+    {
+      "id": "hud_bonus_clock",
+      "group": "HUD",
+      "role": "BONUS clock pill (bonus only, never ends the yard)",
+      "size": {
+        "1x": [
+          96,
+          48
+        ],
+        "2x": [
+          192,
+          96
+        ]
+      },
+      "nineSlice": [
+        20,
+        20,
+        20,
+        20
+      ],
+      "states": [
+        "idle (grey)",
+        "running",
+        "amber (25%)",
+        "red (10%)",
+        "out"
+      ],
+      "animation": [
+        {
+          "name": "clockPulse",
+          "type": "loop",
+          "durationMs": 600,
+          "detail": "at red; no shake on timeout"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_bonus_clock",
+      "anchor": "after TAPS plate, flex width C-288",
+      "placement": "Stats row, centre",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": "src/assets/art/icon_timer.webp",
+      "brief": null,
+      "notes": "Pill is code, the clock glyph is EXISTS `icon_timer`."
+    },
+    {
+      "id": "star_meter_star",
+      "group": "HUD",
+      "role": "Star (lit) in the 3-star meter and the result panel",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "lit"
+      ],
+      "animation": [
+        {
+          "name": "starPop",
+          "type": "pop",
+          "durationMs": 600,
+          "detail": "scale 0 to 1.4 to 0.9 to 1, 8 degree wobble, 250 ms apart from 300 ms"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_star_meter / L93_stars",
+      "anchor": "meter x X0+C-128, 3 x 32 with 8 gap; panel 3 x 64",
+      "placement": "HUD meter and result panel",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/star.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "star_empty",
+      "group": "HUD",
+      "role": "Star (unlit)",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "unlit"
+      ],
+      "animation": [],
+      "z": 80,
+      "layer": "L80_star_meter / L93_stars",
+      "anchor": "same slots as star_meter_star",
+      "placement": "Star meter after a star is lost, fail panel",
+      "status": "NEEDS-ART",
+      "approach": "GPT-image",
+      "file": null,
+      "brief": "Same star silhouette, size and outline as star.webp, body recoloured flat dull grey-brown (#8a7a72 / #5c4f4a), no gold, no sparkle, inner hollow so it reads as an empty slot. Distinct from the lit star by value (grayscale gap at least 40 percent) and by colour.",
+      "notes": "Mock greys `star.webp`; code grayscale 50 percent is an acceptable fallback (no art needed)."
+    },
+    {
+      "id": "turn_arrow",
+      "group": "HUD",
+      "role": "Rotate view arrows (left, right)",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "detail": "scale 0.94, overshoot 1.06, 1"
+        },
+        {
+          "name": "turn",
+          "type": "spin",
+          "durationMs": 250,
+          "detail": "object rotates 90 degrees, view label updates"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_turn_left / L80_turn_right",
+      "anchor": "X0+16 / X0+C-72, y HB-168",
+      "placement": "Below the object stage",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Brass circle with an arrow glyph, mirrored for the right."
+    },
+    {
+      "id": "turn_label_chip",
+      "group": "HUD",
+      "role": "FRONT 1/4 chip + hint line",
+      "size": {
+        "1x": [
+          160,
+          32
+        ],
+        "2x": [
+          320,
+          64
+        ]
+      },
+      "nineSlice": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 80,
+      "layer": "L80_turn_label",
+      "anchor": "centre, y HB-168, block 208x56",
+      "placement": "Between the arrows",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "chip_boxes_to_go",
+      "group": "HUD",
+      "role": "N BOXES TO GO chip",
+      "size": {
+        "1x": [
+          152,
+          24
+        ],
+        "2x": [
+          304,
+          48
+        ]
+      },
+      "nineSlice": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 62,
+      "layer": "L62_boxes_to_go_chip",
+      "anchor": "X0+16, y 248",
+      "placement": "Under the active toolbox",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "chip_holding_row",
+      "group": "HUD",
+      "role": "HOLDING ROW n/5 chip (red \"1 SLOT LEFT!\" in danger)",
+      "size": {
+        "1x": [
+          176,
+          24
+        ],
+        "2x": [
+          352,
+          48
+        ]
+      },
+      "nineSlice": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "states": [
+        "normal",
+        "danger (red)"
+      ],
+      "animation": [
+        {
+          "name": "chipPop",
+          "type": "pop",
+          "durationMs": 240,
+          "detail": "scale 1.15 to 1 on change"
+        }
+      ],
+      "z": 62,
+      "layer": "L62_holding_row_chip",
+      "anchor": "centre, y 352",
+      "placement": "Under the holding row",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "sy_toolbox_open",
+      "group": "Boxes and holding row",
+      "role": "Active toolbox (3 wells), also small NEXT boxes",
+      "size": {
+        "1x": [
+          152,
+          88
+        ],
+        "2x": [
+          304,
+          176
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "0/3",
+        "1/3",
+        "2/3",
+        "full",
+        "brass variant `sy_toolbox_open_brass`"
+      ],
+      "animation": [
+        {
+          "name": "boxMoment",
+          "type": "burst",
+          "durationMs": 620,
+          "detail": "lid slam, latch flash, ring, 8 sparks (existing)"
+        },
+        {
+          "name": "slideIn",
+          "type": "slide",
+          "durationMs": 300,
+          "detail": "next box slides in from the right"
+        }
+      ],
+      "z": 60,
+      "layer": "L60_active_toolbox / L60_next_boxes",
+      "anchor": "active X0+16, y 168; next boxes 72x40 at X0+C-168, y 192",
+      "placement": "Under the stats row",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/sy_toolbox_open.webp",
+      "brief": null,
+      "notes": "Per-colour tint is a lossy tint today; see `box_open_3d`."
+    },
+    {
+      "id": "box_open_3d",
+      "group": "Boxes and holding row",
+      "role": "Open toolbox, 3 holes, rendered per colour (upgrade)",
+      "size": {
+        "1x": [
+          152,
+          88
+        ],
+        "2x": [
+          304,
+          176
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 60,
+      "layer": "L60_active_toolbox",
+      "anchor": "same as sy_toolbox_open",
+      "placement": "Replaces sy_toolbox_open behind the Object Yard art flag",
+      "status": "NEEDS-ART",
+      "approach": "CODE-3D-RENDER",
+      "file": null,
+      "brief": "Code brief, no GPT prompt: three.js toolbox, open top, 3 round wells, same camera and rig as the screw heads, warm brown outline 3-4 percent, 512 px source, per-colour body hex.",
+      "notes": "Optional. First-batch item 4 of SCREW_YARD_3D_ASSETS.md; recolour by hex, not by tint."
+    },
+    {
+      "id": "sy_tray",
+      "group": "Boxes and holding row",
+      "role": "Holding row, 5 wells (5th well red)",
+      "size": {
+        "1x": [
+          320,
+          80
+        ],
+        "2x": [
+          640,
+          160
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "0..5 filled",
+        "danger (code glow + ring)"
+      ],
+      "animation": [
+        {
+          "name": "landPop",
+          "type": "pop",
+          "durationMs": 240,
+          "detail": "screw lands: scale 1.2, 0.92, 1"
+        }
+      ],
+      "z": 60,
+      "layer": "L60_holding_row",
+      "anchor": "centred, y 280; wells at 11/30/49/68/87 percent",
+      "placement": "Centre of the screen",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/sy_tray.webp",
+      "brief": null,
+      "notes": "Red 5th well may need a tinted overlay in code; if it is baked into the webp nothing to do."
+    },
+    {
+      "id": "row_danger_glow",
+      "group": "Boxes and holding row",
+      "role": "Red glow under the row and pulsing ring on the last well",
+      "size": {
+        "1x": [
+          336,
+          96
+        ],
+        "2x": [
+          672,
+          192
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "pulse",
+          "type": "loop",
+          "durationMs": 600,
+          "detail": "glow and ring; row, stage and chip shake 4 px per 400 ms; steady glow under reduced motion"
+        }
+      ],
+      "z": 61,
+      "layer": "L61_danger_glow / L61_last_well_ring",
+      "anchor": "behind the row; ring on well 5",
+      "placement": "Row at 4/5 and 5/5",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "object_blocks",
+      "group": "Object stage and screws",
+      "role": "The Taken Apart object (Cannon, Coil, Bell), isometric blocks with holes",
+      "size": {
+        "1x": [
+          384,
+          280
+        ],
+        "2x": [
+          768,
+          560
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "intact",
+        "screws removed (holes)",
+        "grey tilted -6 degrees on fail"
+      ],
+      "animation": [
+        {
+          "name": "fail tilt",
+          "type": "tilt",
+          "durationMs": 400,
+          "detail": "greys and tilts -6 degrees"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "centred in the stage (y 384, height HB-176-384)",
+      "placement": "Centre",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Code-drawn today and in the mock. A `block_wood` render exists in the 3D plan; keep code until the owner picks the 3D look."
+    },
+    {
+      "id": "screw_head_R",
+      "group": "Object stage and screws",
+      "role": "Screw head ROUND, red (Cannon)",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "seated",
+        "lifted (scale 1.25)"
+      ],
+      "animation": [
+        {
+          "name": "spinOut",
+          "type": "spin",
+          "durationMs": 320,
+          "detail": "2 turns, lift 10 px, scale 1.25"
+        },
+        {
+          "name": "fly",
+          "type": "arc",
+          "durationMs": 380,
+          "detail": "arc to next free well, trail dots"
+        },
+        {
+          "name": "landPop",
+          "type": "pop",
+          "durationMs": 240,
+          "detail": "1.2, 0.92, 1"
+        }
+      ],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "on a screw hole, centre",
+      "placement": "Object, flying screw, row wells, legend",
+      "status": "NEEDS-ART",
+      "approach": "CODE-3D-RENDER",
+      "file": "art-candidates/screw-yard-3d/screw_red.png",
+      "brief": "Code brief: three.js, round dome with slot, tight to the game camera, light top-left, ink ring 3-4 percent. Fix proof flaws: dome inset, thread hint, metal env map.",
+      "notes": "Proof sprite exists (with known flaws). 96x96 at 2x. #e8452c."
+    },
+    {
+      "id": "screw_head_U",
+      "group": "Object stage and screws",
+      "role": "Screw head DIAMOND, blue (Coil)",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "seated",
+        "lifted"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "as screw_head_R",
+      "placement": "as screw_head_R",
+      "status": "NEEDS-ART",
+      "approach": "CODE-3D-RENDER",
+      "file": "art-candidates/screw-yard-3d/screw_blue.png",
+      "brief": "Code brief: diamond-shaped head, same rig as screw_head_R.",
+      "notes": "#3a8bf0. Diamond (rotated-square) head, not a round one."
+    },
+    {
+      "id": "screw_head_Y",
+      "group": "Object stage and screws",
+      "role": "Screw head TRIANGLE, gold (Bell)",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "seated",
+        "lifted"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "as screw_head_R",
+      "placement": "as screw_head_R",
+      "status": "NEEDS-ART",
+      "approach": "CODE-3D-RENDER",
+      "file": "art-candidates/screw-yard-3d/screw_gold.png",
+      "brief": "Code brief: triangle head with rounded corners, same rig.",
+      "notes": "#ffc933. Triangle head."
+    },
+    {
+      "id": "screw_head_G",
+      "group": "Object stage and screws",
+      "role": "Screw head PLUS, green (Support)",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "seated",
+        "lifted"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "as screw_head_R",
+      "placement": "as screw_head_R",
+      "status": "NEEDS-ART",
+      "approach": "CODE-3D-RENDER",
+      "file": null,
+      "brief": "Code brief: plus/cross head, same rig, cross inset not proud of the dome.",
+      "notes": "#3fbf5f. Plus-shaped head. No proof sprite yet."
+    },
+    {
+      "id": "screw_spin_frames",
+      "group": "Object stage and screws",
+      "role": "Screw spin sheet, 12 frames (one colour, recoloured by hex)",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 66,
+      "layer": "L66_flying_screw",
+      "anchor": "centre on the flying screw",
+      "placement": "Tapped screw spin-out",
+      "status": "NEEDS-ART",
+      "approach": "CODE-3D-RENDER",
+      "file": null,
+      "brief": "Code brief: rotate Y 0-360 in 12 steps, transparent, same rig.",
+      "notes": "Optional: code rotation of the static head is the fallback. Needs `--frames` in tools/render-yard-3d.mjs."
+    },
+    {
+      "id": "sy_screw",
+      "group": "Object stage and screws",
+      "role": "Current baked screw (tinted per colour)",
+      "size": {
+        "1x": [
+          48,
+          48
+        ],
+        "2x": [
+          96,
+          96
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "screw hole",
+      "placement": "Live game today",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/sy_screw.webp",
+      "brief": null,
+      "notes": "Fallback until the four heads land. Owner: \"screw looks weird\" (tint shifts shading)."
+    },
+    {
+      "id": "screw_hole",
+      "group": "Object stage and screws",
+      "role": "Empty screw hole",
+      "size": {
+        "1x": [
+          16,
+          16
+        ],
+        "2x": [
+          32,
+          32
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 50,
+      "layer": "L50_object_stage",
+      "anchor": "screw position",
+      "placement": "After a screw leaves",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "screw_legend_strip",
+      "group": "Object stage and screws",
+      "role": "Legend strip: ROUND red Cannon, DIAMOND blue Coil, TRIANGLE gold Bell, PLUS green Support",
+      "size": {
+        "1x": [
+          360,
+          72
+        ],
+        "2x": [
+          720,
+          144
+        ]
+      },
+      "nineSlice": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 70,
+      "layer": "L70_screw_legend",
+      "anchor": "under the object, 72 px tall",
+      "placement": "Teaching state only",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Uses the four screw heads at 32 px; shape plus colour (colour-blind safe)."
+    },
+    {
+      "id": "tool_icon_broom",
+      "group": "Tools",
+      "role": "BROOM tool icon",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "disabled (code gray)"
+      ],
+      "animation": [
+        {
+          "name": "idleWiggle",
+          "type": "loop",
+          "durationMs": 2400,
+          "detail": "tilt 4 degrees, one sparkle"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_tool_broom",
+      "anchor": "centre of the tool tile, x-16 y-18",
+      "placement": "Tool tile and the fail hint row",
+      "status": "NEEDS-ART",
+      "approach": "GPT-image",
+      "file": null,
+      "brief": "Single chunky toy broom, bristles pointing down-left, light-wood handle, orange-yellow bristle block, glossy.",
+      "notes": null
+    },
+    {
+      "id": "tool_icon_hammer",
+      "group": "Tools",
+      "role": "HAMMER tool icon",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "disabled"
+      ],
+      "animation": [
+        {
+          "name": "idleWiggle",
+          "type": "loop",
+          "durationMs": 2400,
+          "detail": "tilt 4 degrees"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_tool_hammer",
+      "anchor": "as broom",
+      "placement": "as broom",
+      "status": "NEEDS-ART",
+      "approach": "GPT-image",
+      "file": null,
+      "brief": "Single chunky claw hammer, steel head with a red-orange grip, head on the upper right, glossy.",
+      "notes": null
+    },
+    {
+      "id": "tool_icon_drill",
+      "group": "Tools",
+      "role": "DRILL tool icon",
+      "size": {
+        "1x": [
+          32,
+          32
+        ],
+        "2x": [
+          64,
+          64
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal",
+        "disabled"
+      ],
+      "animation": [
+        {
+          "name": "idleWiggle",
+          "type": "loop",
+          "durationMs": 2400,
+          "detail": "tilt 4 degrees"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_tool_drill",
+      "anchor": "as broom",
+      "placement": "as broom",
+      "status": "NEEDS-ART",
+      "approach": "GPT-image",
+      "file": null,
+      "brief": "Single chunky cordless drill, blue body with a steel chuck, pointing right, glossy.",
+      "notes": null
+    },
+    {
+      "id": "tool_tile_green",
+      "group": "Tools",
+      "role": "Glossy rounded tile behind each tool",
+      "size": {
+        "1x": [
+          112,
+          64
+        ],
+        "2x": [
+          224,
+          128
+        ]
+      },
+      "nineSlice": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "states": [
+        "normal",
+        "pressed",
+        "disabled (code gray)"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "detail": "scale 0.94, overshoot 1.06, 1"
+        },
+        {
+          "name": "glint",
+          "type": "sweep",
+          "durationMs": 600,
+          "detail": "every 4 s on ready"
+        }
+      ],
+      "z": 80,
+      "layer": "L80_tool_*",
+      "anchor": "centred row at y HB-96; tw 112/104/120, gap 8-16",
+      "placement": "Bottom row, 3 tiles",
+      "status": "NEEDS-ART",
+      "approach": "GPT-image",
+      "file": null,
+      "brief": "Empty glossy rounded-rectangle button tile, green (#3fbf5f), same bevel, rim and outline as btn_green. Centre flat so a 32 px icon and a 14 px label sit on it. Label is drawn in code.",
+      "notes": "Fallback: nine-slice of `btn_green.webp` (EXISTS, with `btn_green_pressed`). Needs no tool name or label baked in."
+    },
+    {
+      "id": "coach_bubble",
+      "group": "Coach and effects",
+      "role": "Coach bubble: TAP A SCREW",
+      "size": {
+        "1x": [
+          208,
+          48
+        ],
+        "2x": [
+          416,
+          96
+        ]
+      },
+      "nineSlice": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "detail": "scale 0 to 1.12 to 1, Back.easeOut"
+        }
+      ],
+      "z": 64,
+      "layer": "L64_coach_bubble",
+      "anchor": "above the object, never blocks a tap",
+      "placement": "Start state",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/ui_coach_compact.webp",
+      "brief": null,
+      "notes": "Fallback `ui_bubble`."
+    },
+    {
+      "id": "warning_bubble",
+      "group": "Coach and effects",
+      "role": "Warning bubble (1 slot left)",
+      "size": {
+        "1x": [
+          208,
+          48
+        ],
+        "2x": [
+          416,
+          96
+        ]
+      },
+      "nineSlice": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "popIn",
+          "type": "pop",
+          "durationMs": 350,
+          "detail": "scale 0 to 1.12 to 1, Back.easeOut"
+        }
+      ],
+      "z": 64,
+      "layer": "L64_warning_bubble",
+      "anchor": "above the object",
+      "placement": "Danger state",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/ui_bubble.webp",
+      "brief": null,
+      "notes": "Red tint in code."
+    },
+    {
+      "id": "tutorial_hand",
+      "group": "Coach and effects",
+      "role": "Pointing hand",
+      "size": {
+        "1x": [
+          56,
+          56
+        ],
+        "2x": [
+          112,
+          112
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "tapHint",
+          "type": "loop",
+          "durationMs": 1200,
+          "detail": "taps 6 px toward the screw"
+        }
+      ],
+      "z": 65,
+      "layer": "L65_tutorial_hand",
+      "anchor": "fingertip on a screw",
+      "placement": "Start state",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/ui_hand.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "popup_plus_one",
+      "group": "Coach and effects",
+      "role": "+1 SCREW chip",
+      "size": {
+        "1x": [
+          80,
+          24
+        ],
+        "2x": [
+          160,
+          48
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "riseFade",
+          "type": "rise",
+          "durationMs": 600,
+          "detail": "rises 24 px and fades"
+        }
+      ],
+      "z": 66,
+      "layer": "L66_popup_plus_one",
+      "anchor": "above the landing well",
+      "placement": "On landing",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "fx_sparkle",
+      "group": "Coach and effects",
+      "role": "Gold sparkles / twinkles",
+      "size": {
+        "1x": [
+          16,
+          16
+        ],
+        "2x": [
+          32,
+          32
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "twinkle",
+          "type": "loop",
+          "durationMs": 800,
+          "detail": "scale 0 to 1 to 0"
+        }
+      ],
+      "z": 66,
+      "layer": "L66_sparkle / L93_sparkle",
+      "anchor": "around screws, stars",
+      "placement": "Mid state, star pop",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "fx_screw_trail",
+      "group": "Coach and effects",
+      "role": "Trail dots behind the flying screw",
+      "size": {
+        "1x": [
+          8,
+          8
+        ],
+        "2x": [
+          16,
+          16
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "trailFade",
+          "type": "fade",
+          "durationMs": 380,
+          "detail": "dots fade by distance"
+        }
+      ],
+      "z": 66,
+      "layer": "L66_flying_screw",
+      "anchor": "behind the screw, 6 dots",
+      "placement": "During flight",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "result_panel",
+      "group": "Result panel (win and fail)",
+      "role": "Result panel TAKEN APART! / ROW FULL!",
+      "size": {
+        "1x": [
+          336,
+          528
+        ],
+        "2x": [
+          672,
+          1056
+        ]
+      },
+      "nineSlice": [
+        48,
+        48,
+        48,
+        48
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "panelPop",
+          "type": "pop",
+          "durationMs": 400,
+          "detail": "Back.easeOut; fail panel after the object greys"
+        }
+      ],
+      "z": 92,
+      "layer": "L92_result_panel",
+      "anchor": "X0+24, y 144, (C-48)x528",
+      "placement": "Win and fail",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/kit3_panel_popup.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "result_ribbon",
+      "group": "Result panel (win and fail)",
+      "role": "Title ribbon (red win, blue/grey fail)",
+      "size": {
+        "1x": [
+          272,
+          80
+        ],
+        "2x": [
+          544,
+          160
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "win (red/blue)",
+        "fail (grey-blue tint in code)"
+      ],
+      "animation": [],
+      "z": 93,
+      "layer": "L93_ribbon_title",
+      "anchor": "panel y -32",
+      "placement": "Top of the panel",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/kit3_ribbon_red.webp",
+      "brief": null,
+      "notes": "Also `kit3_ribbon_blue`."
+    },
+    {
+      "id": "result_rays",
+      "group": "Result panel (win and fail)",
+      "role": "Rays behind the hero object",
+      "size": {
+        "1x": [
+          256,
+          256
+        ],
+        "2x": [
+          512,
+          512
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "spin",
+          "type": "loop",
+          "durationMs": 14000,
+          "detail": "one turn per 14 s"
+        }
+      ],
+      "z": 93,
+      "layer": "L93_object_hero",
+      "anchor": "centre behind the hero, y 56",
+      "placement": "Win",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/starburst.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "result_hero_object",
+      "group": "Result panel (win and fail)",
+      "role": "Hero object (Cannon) on the panel",
+      "size": {
+        "1x": [
+          96,
+          96
+        ],
+        "2x": [
+          192,
+          192
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 93,
+      "layer": "L93_object_hero",
+      "anchor": "panel y 56, centred",
+      "placement": "Win; grey in fail",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/cannon_5.webp",
+      "brief": null,
+      "notes": "Coil/Bell use `coil_5`, `bell_5`."
+    },
+    {
+      "id": "result_efficiency_chips",
+      "group": "Result panel (win and fail)",
+      "role": "TAPS n/budget and ROW PEAK n/5 chips",
+      "size": {
+        "1x": [
+          136,
+          32
+        ],
+        "2x": [
+          272,
+          64
+        ]
+      },
+      "nineSlice": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "states": [
+        "good",
+        "bad (red)"
+      ],
+      "animation": [],
+      "z": 93,
+      "layer": "L93_efficiency_chips",
+      "anchor": "panel y 232",
+      "placement": "Win and fail (red)",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "result_bonus_chip",
+      "group": "Result panel (win and fail)",
+      "role": "TIME BONUS chip",
+      "size": {
+        "1x": [
+          160,
+          32
+        ],
+        "2x": [
+          320,
+          64
+        ]
+      },
+      "nineSlice": [
+        16,
+        16,
+        16,
+        16
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 93,
+      "layer": "L93_bonus_chip",
+      "anchor": "panel y 272",
+      "placement": "Win",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Gold #ffcf33."
+    },
+    {
+      "id": "result_reward_card",
+      "group": "Result panel (win and fail)",
+      "role": "Reward row: +6 CANNON CARDS (x2 at 3 stars)",
+      "size": {
+        "1x": [
+          288,
+          64
+        ],
+        "2x": [
+          576,
+          128
+        ]
+      },
+      "nineSlice": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "states": [
+        "normal"
+      ],
+      "animation": [
+        {
+          "name": "flyToCollection",
+          "type": "fly",
+          "durationMs": 600,
+          "detail": "cards fly out on claim (resourceFly)"
+        }
+      ],
+      "z": 93,
+      "layer": "L93_reward_row",
+      "anchor": "panel y 312",
+      "placement": "Win",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/kit3_panel_card.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "btn_primary",
+      "group": "Result panel (win and fail)",
+      "role": "PLAY AGAIN / TRY AGAIN primary button",
+      "size": {
+        "1x": [
+          208,
+          64
+        ],
+        "2x": [
+          416,
+          128
+        ]
+      },
+      "nineSlice": [
+        32,
+        32,
+        32,
+        32
+      ],
+      "states": [
+        "normal",
+        "pressed (`btn_green_pressed`)"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "detail": "scale 0.94, overshoot 1.06, 1"
+        },
+        {
+          "name": "glint",
+          "type": "sweep",
+          "durationMs": 600,
+          "detail": "white sweep every 2.6 s"
+        }
+      ],
+      "z": 93,
+      "layer": "L93_primary_button",
+      "anchor": "panel y 392",
+      "placement": "Win and fail",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/btn_green.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "btn_secondary",
+      "group": "Result panel (win and fail)",
+      "role": "NEXT: COIL / BACK TO EVENT secondary button",
+      "size": {
+        "1x": [
+          208,
+          48
+        ],
+        "2x": [
+          416,
+          96
+        ]
+      },
+      "nineSlice": [
+        24,
+        24,
+        24,
+        24
+      ],
+      "states": [
+        "normal",
+        "pressed"
+      ],
+      "animation": [
+        {
+          "name": "pressSquash",
+          "type": "press",
+          "durationMs": 120,
+          "detail": "scale 0.94, overshoot 1.06, 1"
+        }
+      ],
+      "z": 93,
+      "layer": "L93_secondary_button",
+      "anchor": "panel y 472",
+      "placement": "Win and fail",
+      "status": "EXISTS",
+      "approach": null,
+      "file": "src/assets/art/btn_brass.webp",
+      "brief": null,
+      "notes": null
+    },
+    {
+      "id": "fail_hint_row",
+      "group": "Result panel (win and fail)",
+      "role": "Hint: DRILL / BROOM",
+      "size": {
+        "1x": [
+          208,
+          40
+        ],
+        "2x": [
+          416,
+          80
+        ]
+      },
+      "nineSlice": null,
+      "states": [
+        "normal"
+      ],
+      "animation": [],
+      "z": 93,
+      "layer": "L93_efficiency_chips",
+      "anchor": "under the chips on fail",
+      "placement": "Fail",
+      "status": "CODE-DRAWN",
+      "approach": null,
+      "file": null,
+      "brief": null,
+      "notes": "Uses the tool icons at 32 px."
+    }
+  ]
+}
