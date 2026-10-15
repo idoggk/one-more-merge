@@ -16,7 +16,7 @@ const EXPECTED_ROWS = [
   'allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode', // units
   'cratesLook', // crates
   'crateOpenV2',
-  'spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
+  'spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerfHud', 'budget', 'budgetPick', 'tools', 'yardPressure', // levels and tests
   'yardMode', 'yardBook', // screw yard
   'uiKitV3', // display
   'resourceFly', // display
@@ -37,7 +37,7 @@ describe('QA registry: every old row is still there', () => {
     expect(ids('feel')).toEqual(['thinkBank', 'mergeRule', 'mergeAssist', 'pace']);
     expect(ids('units')).toEqual(['allNew', 'batches', 'unlockPlan', 'batchesAndPlan', 'rosterMode']);
     expect(ids('crates')).toEqual(['cratesLook', 'crateOpenV2']);
-    expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'budget', 'budgetPick', 'tools', 'yardPressure']);
+    expect(ids('tests')).toEqual(['spam', 'varied', 'paceCaps', 'effortModel', 'roadv2', 'roadPolish', 'roadPerf', 'roadPerfHud', 'budget', 'budgetPick', 'tools', 'yardPressure']);
     expect(ids('yard')).toEqual(['yardMode', 'yardBook']);
     expect(ids('display')).toEqual(['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'shake']);
   });
@@ -51,7 +51,7 @@ describe('QA registry: every old row is still there', () => {
     const mem = new Map<string, string>();
     vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) });
     try {
-      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPolish', 'crateOpenV2']) {
+      for (const id of ['uiKitV3', 'resourceFly', 'unitShots', 'unitIdle', 'roadv2', 'roadPolish', 'roadPerf', 'crateOpenV2']) {
         const row = QA_ROWS.find((r) => r.spec.id === id)!;
         row.apply!(false, q);
         expect([...mem.values()].pop(), id).toBe('off');
