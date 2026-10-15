@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <clipPath id="b"><path d="M-66,52 C-66,-30 -40,-72 0,-72 C40,-72 66,-30 66,52 Z"/></clipPath>
+    <radialGradient id="g" cx="50%" cy="50%" r="50%">
+      <stop offset="82%" stop-color="#fff6c2" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#fff6c2" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="116" r="122" fill="url(#g)"/>
+  <circle cx="128" cy="116" r="104" fill="none" stroke="#fff6c2" stroke-opacity="0.35" stroke-width="5"/>
+  <g transform="translate(128 104) scale(0.55)" stroke-linejoin="round">
+    <path d="M-66,52 C-66,-30 -40,-72 0,-72 C40,-72 66,-30 66,52 Z" fill="#f6b91a" stroke="#1b1326" stroke-width="11"/>
+    <g clip-path="url(#b)">
+      <path d="M-52,40 C-52,-24 -34,-58 -14,-62 C-30,-36 -34,0 -34,40 Z" fill="#ffffff" fill-opacity="0.55"/>
+      <path d="M30,-60 C56,-40 66,0 66,52 L26,52 C30,10 34,-30 30,-60 Z" fill="#000000" fill-opacity="0.28"/>
+    </g>
+    
+      <rect x="-86" y="46" width="172" height="26" rx="13" fill="#f6b91a" stroke="#1b1326" stroke-width="11"/>
+      <circle cx="0" cy="86" r="17" fill="#8a5a12" stroke="#1b1326" stroke-width="11"/>
+      <circle cx="0" cy="-80" r="12" fill="#f6b91a" stroke="#1b1326" stroke-width="11"/>
+  </g>
+  <circle cx="128" cy="232" r="7.5" fill="#fff6c2" stroke="#1b1326" stroke-width="4"/>
+</svg>
