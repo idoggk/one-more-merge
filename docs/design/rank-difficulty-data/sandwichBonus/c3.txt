@@ -1,0 +1,404 @@
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+# rank-difficulty n=20 every=3.5s rule=sandwichBonus pace=calm
+level kind fam rank reach% [wilson95] medT(s) medMerges | winRate medLevelSecs
+L31 random cannon r2 100% [84-100] 0.0s 0 | win 85% 109s
+L31 random cannon r3 100% [84-100] 3.6s 1 | win 85% 109s
+L31 random cannon r4 100% [84-100] 17.6s 5 | win 85% 109s
+L31 random cannon r5 100% [84-100] 28.1s 8 | win 85% 109s
+L31 random cannon r6 100% [84-100] 73.6s 21 | win 85% 109s
+L31 random cannon r7 40% [22-61] 94.5s 27 | win 85% 109s
+L31 random cannon r8 5% [1-24] 98.0s 28 | win 85% 109s
+L31 random coil r2 100% [84-100] 0.0s 0 | win 85% 109s
+L31 random coil r3 100% [84-100] 10.6s 3 | win 85% 109s
+L31 random coil r4 100% [84-100] 45.6s 13 | win 85% 109s
+L31 random coil r5 70% [48-85] 80.6s 23 | win 85% 109s
+L31 random coil r6 20% [8-42] 101.6s 29 | win 85% 109s
+L31 random coil r7 5% [1-24] 115.6s 33 | win 85% 109s
+L31 random bell r2 100% [84-100] 0.0s 0 | win 85% 109s
+L31 random bell r3 100% [84-100] 14.1s 4 | win 85% 109s
+L31 random bell r4 100% [84-100] 38.6s 11 | win 85% 109s
+L31 random bell r5 80% [58-92] 80.6s 23 | win 85% 109s
+L31 random bell r6 30% [15-52] 87.6s 25 | win 85% 109s
+L31 random bell r7 5% [1-24] 112.0s 32 | win 85% 109s
+L32 random cannon r2 100% [84-100] 0.0s 0 | win 65% 102s GOAL
+L32 random cannon r3 100% [84-100] 3.6s 1 | win 65% 102s GOAL
+L32 random cannon r4 100% [84-100] 10.6s 3 | win 65% 102s GOAL
+L32 random cannon r5 100% [84-100] 52.6s 15 | win 65% 102s GOAL
+L32 random cannon r6 35% [18-57] 91.1s 26 | win 65% 102s GOAL
+L32 random cannon r7 15% [5-36] 108.6s 31 | win 65% 102s GOAL
+L32 random coil r2 100% [84-100] 0.0s 0 | win 65% 102s GOAL
+L32 random coil r3 100% [84-100] 14.1s 4 | win 65% 102s GOAL
+L32 random coil r4 95% [76-99] 66.6s 19 | win 65% 102s GOAL
+L32 random coil r5 55% [34-74] 84.0s 24 | win 65% 102s GOAL
+L32 random coil r6 10% [3-30] 91.1s 26 | win 65% 102s GOAL
+L32 random bell r2 100% [84-100] 0.0s 0 | win 65% 102s GOAL
+L32 random bell r3 100% [84-100] 14.1s 4 | win 65% 102s GOAL
+L32 random bell r4 100% [84-100] 38.6s 11 | win 65% 102s GOAL
+L32 random bell r5 70% [48-85] 70.1s 20 | win 65% 102s GOAL
+L32 random bell r6 20% [8-42] 87.6s 25 | win 65% 102s GOAL
+L32 random battery r2 85% [64-95] 66.6s 19 | win 65% 102s GOAL
+L32 random battery r3 70% [48-85] 80.6s 23 | win 65% 102s GOAL
+L32 random battery r4 30% [15-52] 94.6s 27 | win 65% 102s GOAL
+L32 random battery r5 10% [3-30] 112.1s 32 | win 65% 102s GOAL
+L33 random cannon r2 100% [84-100] 0.0s 0 | win 75% 104s
+L33 random cannon r3 100% [84-100] 3.6s 1 | win 75% 104s
+L33 random cannon r4 100% [84-100] 17.6s 5 | win 75% 104s
+L33 random cannon r5 100% [84-100] 31.6s 9 | win 75% 104s
+L33 random cannon r6 80% [58-92] 73.6s 21 | win 75% 104s
+L33 random cannon r7 25% [11-47] 70.1s 20 | win 75% 104s
+L33 random cannon r8 10% [3-30] 66.6s 19 | win 75% 104s
+L33 random coil r2 100% [84-100] 0.0s 0 | win 75% 104s
+L33 random coil r3 100% [84-100] 10.6s 3 | win 75% 104s
+L33 random coil r4 100% [84-100] 28.1s 8 | win 75% 104s
+L33 random coil r5 90% [70-97] 45.6s 13 | win 75% 104s
+L33 random coil r6 55% [34-74] 94.6s 27 | win 75% 104s
+L33 random coil r7 5% [1-24] 91.1s 26 | win 75% 104s
+L33 random coil r8 5% [1-24] 122.6s 35 | win 75% 104s
+L33 random bell r2 100% [84-100] 0.0s 0 | win 75% 104s
+L33 random bell r3 100% [84-100] 17.6s 5 | win 75% 104s
+L33 random bell r4 90% [70-97] 42.1s 12 | win 75% 104s
+L33 random bell r5 50% [30-70] 70.1s 20 | win 75% 104s
+L33 random bell r6 25% [11-47] 84.1s 24 | win 75% 104s
+L33 random bell r7 10% [3-30] 87.6s 25 | win 75% 104s
+L34 random cannon r2 100% [84-100] 0.0s 0 | win 70% 109s GOAL
+L34 random cannon r3 100% [84-100] 3.6s 1 | win 70% 109s GOAL
+L34 random cannon r4 100% [84-100] 21.1s 6 | win 70% 109s GOAL
+L34 random cannon r5 100% [84-100] 52.6s 15 | win 70% 109s GOAL
+L34 random cannon r6 95% [76-99] 66.6s 19 | win 70% 109s GOAL
+L34 random cannon r7 45% [26-66] 91.1s 26 | win 70% 109s GOAL
+L34 random cannon r8 10% [3-30] 101.5s 29 | win 70% 109s GOAL
+L34 random coil r2 100% [84-100] 0.0s 0 | win 70% 109s GOAL
+L34 random coil r3 100% [84-100] 10.6s 3 | win 70% 109s GOAL
+L34 random coil r4 100% [84-100] 28.1s 8 | win 70% 109s GOAL
+L34 random coil r5 90% [70-97] 45.6s 13 | win 70% 109s GOAL
+L34 random coil r6 65% [43-82] 66.6s 19 | win 70% 109s GOAL
+L34 random coil r7 25% [11-47] 98.0s 28 | win 70% 109s GOAL
+L34 random coil r8 5% [1-24] 87.6s 25 | win 70% 109s GOAL
+L34 random bell r2 100% [84-100] 0.0s 0 | win 70% 109s GOAL
+L34 random bell r3 100% [84-100] 17.6s 5 | win 70% 109s GOAL
+L34 random bell r4 95% [76-99] 52.6s 15 | win 70% 109s GOAL
+L34 random bell r5 80% [58-92] 77.1s 22 | win 70% 109s GOAL
+L34 random bell r6 40% [22-61] 84.1s 24 | win 70% 109s GOAL
+L34 random bell r7 15% [5-36] 112.0s 32 | win 70% 109s GOAL
+L35 random cannon r2 100% [84-100] 0.0s 0 | win 75% 105s
+L35 random cannon r3 100% [84-100] 3.6s 1 | win 75% 105s
+L35 random cannon r4 100% [84-100] 17.6s 5 | win 75% 105s
+L35 random cannon r5 100% [84-100] 42.1s 12 | win 75% 105s
+L35 random cannon r6 70% [48-85] 84.1s 24 | win 75% 105s
+L35 random cannon r7 10% [3-30] 73.6s 21 | win 75% 105s
+L35 random coil r2 100% [84-100] 0.0s 0 | win 75% 105s
+L35 random coil r3 100% [84-100] 10.6s 3 | win 75% 105s
+L35 random coil r4 100% [84-100] 24.6s 7 | win 75% 105s
+L35 random coil r5 80% [58-92] 45.6s 13 | win 75% 105s
+L35 random coil r6 60% [39-78] 91.1s 26 | win 75% 105s
+L35 random coil r7 10% [3-30] 108.5s 31 | win 75% 105s
+L35 random bell r2 100% [84-100] 0.0s 0 | win 75% 105s
+L35 random bell r3 100% [84-100] 14.1s 4 | win 75% 105s
+L35 random bell r4 100% [84-100] 31.6s 9 | win 75% 105s
+L35 random bell r5 85% [64-95] 63.1s 18 | win 75% 105s
+L35 random bell r6 35% [18-57] 84.1s 24 | win 75% 105s
+L35 random bell r7 5% [1-24] 87.6s 25 | win 75% 105s
+L35 random magnet r2 45% [26-66] 70.1s 20 | win 75% 105s
+L35 random magnet r3 15% [5-36] 105.1s 30 | win 75% 105s
+L36 random cannon r2 100% [84-100] 0.0s 0 | win 70% 116s GOAL
+L36 random cannon r3 100% [84-100] 3.6s 1 | win 70% 116s GOAL
+L36 random cannon r4 100% [84-100] 14.1s 4 | win 70% 116s GOAL
+L36 random cannon r5 100% [84-100] 56.1s 16 | win 70% 116s GOAL
+L36 random cannon r6 90% [70-97] 77.1s 22 | win 70% 116s GOAL
+L36 random cannon r7 40% [22-61] 94.6s 27 | win 70% 116s GOAL
+L36 random cannon r8 10% [3-30] 56.0s 16 | win 70% 116s GOAL
+L36 random coil r2 100% [84-100] 0.0s 0 | win 70% 116s GOAL
+L36 random coil r3 100% [84-100] 14.1s 4 | win 70% 116s GOAL
+L36 random coil r4 95% [76-99] 38.6s 11 | win 70% 116s GOAL
+L36 random coil r5 80% [58-92] 70.1s 20 | win 70% 116s GOAL
+L36 random coil r6 30% [15-52] 56.1s 16 | win 70% 116s GOAL
+L36 random bell r2 100% [84-100] 0.0s 0 | win 70% 116s GOAL
+L36 random bell r3 100% [84-100] 10.6s 3 | win 70% 116s GOAL
+L36 random bell r4 100% [84-100] 28.1s 8 | win 70% 116s GOAL
+L36 random bell r5 95% [76-99] 63.1s 18 | win 70% 116s GOAL
+L36 random bell r6 55% [34-74] 94.6s 27 | win 70% 116s GOAL
+L36 random bell r7 10% [3-30] 80.6s 23 | win 70% 116s GOAL
+L36 random bell r8 5% [1-24] 91.1s 26 | win 70% 116s GOAL
+L37 random cannon r2 100% [84-100] 0.0s 0 | win 90% 112s
+L37 random cannon r3 100% [84-100] 3.6s 1 | win 90% 112s
+L37 random cannon r4 100% [84-100] 28.1s 8 | win 90% 112s
+L37 random cannon r5 100% [84-100] 73.6s 21 | win 90% 112s
+L37 random cannon r6 30% [15-52] 91.1s 26 | win 90% 112s
+L37 random cannon r7 15% [5-36] 105.1s 30 | win 90% 112s
+L37 random coil r2 100% [84-100] 0.0s 0 | win 90% 112s
+L37 random coil r3 100% [84-100] 10.6s 3 | win 90% 112s
+L37 random coil r4 100% [84-100] 38.6s 11 | win 90% 112s
+L37 random coil r5 70% [48-85] 70.1s 20 | win 90% 112s
+L37 random coil r6 30% [15-52] 94.6s 27 | win 90% 112s
+L37 random coil r7 5% [1-24] 122.6s 35 | win 90% 112s
+L37 random bell r2 100% [84-100] 0.0s 0 | win 90% 112s
+L37 random bell r3 100% [84-100] 14.1s 4 | win 90% 112s
+L37 random bell r4 100% [84-100] 52.6s 15 | win 90% 112s
+L37 random bell r5 70% [48-85] 77.1s 22 | win 90% 112s
+L37 random bell r6 20% [8-42] 87.6s 25 | win 90% 112s
+L38 random cannon r2 100% [84-100] 0.0s 0 | win 20% 125s
+L38 random cannon r3 100% [84-100] 3.6s 1 | win 20% 125s
+L38 random cannon r4 100% [84-100] 24.6s 7 | win 20% 125s
+L38 random cannon r5 100% [84-100] 59.6s 17 | win 20% 125s
+L38 random cannon r6 60% [39-78] 108.6s 31 | win 20% 125s
+L38 random cannon r7 15% [5-36] 115.6s 33 | win 20% 125s
+L38 random coil r2 100% [84-100] 0.0s 0 | win 20% 125s
+L38 random coil r3 100% [84-100] 7.1s 2 | win 20% 125s
+L38 random coil r4 100% [84-100] 45.6s 13 | win 20% 125s
+L38 random coil r5 80% [58-92] 80.6s 23 | win 20% 125s
+L38 random coil r6 30% [15-52] 98.1s 28 | win 20% 125s
+L38 random coil r7 10% [3-30] 94.6s 27 | win 20% 125s
+L38 random coil r8 5% [1-24] 122.6s 35 | win 20% 125s
+L38 random bell r2 100% [84-100] 0.0s 0 | win 20% 125s
+L38 random bell r3 100% [84-100] 10.6s 3 | win 20% 125s
+L38 random bell r4 100% [84-100] 38.6s 11 | win 20% 125s
+L38 random bell r5 90% [70-97] 84.1s 24 | win 20% 125s
+L38 random bell r6 35% [18-57] 119.1s 34 | win 20% 125s
+L38 random bell r7 10% [3-30] 98.1s 28 | win 20% 125s
+L39 random cannon r2 100% [84-100] 0.0s 0 | win 60% 119s
+L39 random cannon r3 100% [84-100] 3.6s 1 | win 60% 119s
+L39 random cannon r4 100% [84-100] 17.6s 5 | win 60% 119s
+L39 random cannon r5 100% [84-100] 28.1s 8 | win 60% 119s
+L39 random cannon r6 95% [76-99] 80.6s 23 | win 60% 119s
+L39 random cannon r7 15% [5-36] 80.6s 23 | win 60% 119s
+L39 random cannon r8 5% [1-24] 91.1s 26 | win 60% 119s
+L39 random coil r2 100% [84-100] 0.0s 0 | win 60% 119s
+L39 random coil r3 100% [84-100] 14.1s 4 | win 60% 119s
+L39 random coil r4 100% [84-100] 38.6s 11 | win 60% 119s
+L39 random coil r5 85% [64-95] 70.1s 20 | win 60% 119s
+L39 random coil r6 40% [22-61] 80.6s 23 | win 60% 119s
+L39 random coil r7 10% [3-30] 91.1s 26 | win 60% 119s
+L39 random bell r2 100% [84-100] 0.0s 0 | win 60% 119s
+L39 random bell r3 100% [84-100] 17.6s 5 | win 60% 119s
+L39 random bell r4 100% [84-100] 42.1s 12 | win 60% 119s
+L39 random bell r5 90% [70-97] 70.1s 20 | win 60% 119s
+L39 random bell r6 45% [26-66] 94.6s 27 | win 60% 119s
+L39 random bell r7 15% [5-36] 112.1s 32 | win 60% 119s
+L39 random battery r2 90% [70-97] 77.1s 22 | win 60% 119s
+L39 random battery r3 50% [30-70] 94.6s 27 | win 60% 119s
+L39 random battery r4 15% [5-36] 112.1s 32 | win 60% 119s
+L40 random cannon r2 100% [84-100] 0.0s 0 | win 40% 165s
+L40 random cannon r3 100% [84-100] 3.6s 1 | win 40% 165s
+L40 random cannon r4 100% [84-100] 17.6s 5 | win 40% 165s
+L40 random cannon r5 100% [84-100] 56.1s 16 | win 40% 165s
+L40 random cannon r6 95% [76-99] 91.1s 26 | win 40% 165s
+L40 random cannon r7 50% [30-70] 129.6s 37 | win 40% 165s
+L40 random cannon r8 15% [5-36] 150.6s 43 | win 40% 165s
+L40 random coil r2 100% [84-100] 0.0s 0 | win 40% 165s
+L40 random coil r3 100% [84-100] 14.1s 4 | win 40% 165s
+L40 random coil r4 100% [84-100] 42.1s 12 | win 40% 165s
+L40 random coil r5 100% [84-100] 84.1s 24 | win 40% 165s
+L40 random coil r6 65% [43-82] 119.1s 34 | win 40% 165s
+L40 random coil r7 45% [26-66] 154.1s 44 | win 40% 165s
+L40 random coil r8 5% [1-24] 147.1s 42 | win 40% 165s
+L40 random bell r2 100% [84-100] 0.0s 0 | win 40% 165s
+L40 random bell r3 100% [84-100] 10.6s 3 | win 40% 165s
+L40 random bell r4 100% [84-100] 38.6s 11 | win 40% 165s
+L40 random bell r5 100% [84-100] 77.1s 22 | win 40% 165s
+L40 random bell r6 65% [43-82] 112.1s 32 | win 40% 165s
+L40 random bell r7 20% [8-42] 112.1s 32 | win 40% 165s
+L40 random bell r8 5% [1-24] 133.1s 38 | win 40% 165s
+L31 rankseek cannon r2 100% [84-100] 0.0s 0 | win 30% 125s
+L31 rankseek cannon r3 100% [84-100] 3.6s 1 | win 30% 125s
+L31 rankseek cannon r4 100% [84-100] 7.1s 2 | win 30% 125s
+L31 rankseek cannon r5 100% [84-100] 10.6s 3 | win 30% 125s
+L31 rankseek cannon r6 100% [84-100] 14.1s 4 | win 30% 125s
+L31 rankseek cannon r7 60% [39-78] 84.1s 24 | win 30% 125s
+L31 rankseek cannon r8 10% [3-30] 91.1s 26 | win 30% 125s
+L31 rankseek coil r2 100% [84-100] 0.0s 0 | win 30% 125s
+L31 rankseek coil r3 100% [84-100] 17.6s 5 | win 30% 125s
+L31 rankseek coil r4 100% [84-100] 21.1s 6 | win 30% 125s
+L31 rankseek coil r5 90% [70-97] 70.1s 20 | win 30% 125s
+L31 rankseek coil r6 70% [48-85] 87.6s 25 | win 30% 125s
+L31 rankseek coil r7 20% [8-42] 101.6s 29 | win 30% 125s
+L31 rankseek bell r2 100% [84-100] 0.0s 0 | win 30% 125s
+L31 rankseek bell r3 100% [84-100] 24.6s 7 | win 30% 125s
+L31 rankseek bell r4 100% [84-100] 63.1s 18 | win 30% 125s
+L31 rankseek bell r5 100% [84-100] 66.6s 19 | win 30% 125s
+L31 rankseek bell r6 75% [53-89] 87.6s 25 | win 30% 125s
+L31 rankseek bell r7 15% [5-36] 91.1s 26 | win 30% 125s
+L31 rankseek bell r8 5% [1-24] 115.6s 33 | win 30% 125s
+L32 rankseek cannon r2 100% [84-100] 0.0s 0 | win 5% 125s GOAL
+L32 rankseek cannon r3 100% [84-100] 3.6s 1 | win 5% 125s GOAL
+L32 rankseek cannon r4 100% [84-100] 7.1s 2 | win 5% 125s GOAL
+L32 rankseek cannon r5 100% [84-100] 38.6s 11 | win 5% 125s GOAL
+L32 rankseek cannon r6 90% [70-97] 94.6s 27 | win 5% 125s GOAL
+L32 rankseek cannon r7 45% [26-66] 101.6s 29 | win 5% 125s GOAL
+L32 rankseek cannon r8 10% [3-30] 108.6s 31 | win 5% 125s GOAL
+L32 rankseek coil r2 100% [84-100] 0.0s 0 | win 5% 125s GOAL
+L32 rankseek coil r3 100% [84-100] 14.1s 4 | win 5% 125s GOAL
+L32 rankseek coil r4 100% [84-100] 49.1s 14 | win 5% 125s GOAL
+L32 rankseek coil r5 100% [84-100] 73.6s 21 | win 5% 125s GOAL
+L32 rankseek coil r6 45% [26-66] 98.1s 28 | win 5% 125s GOAL
+L32 rankseek bell r2 100% [84-100] 0.0s 0 | win 5% 125s GOAL
+L32 rankseek bell r3 100% [84-100] 14.1s 4 | win 5% 125s GOAL
+L32 rankseek bell r4 100% [84-100] 42.1s 12 | win 5% 125s GOAL
+L32 rankseek bell r5 95% [76-99] 66.6s 19 | win 5% 125s GOAL
+L32 rankseek bell r6 75% [53-89] 87.6s 25 | win 5% 125s GOAL
+L32 rankseek bell r7 5% [1-24] 122.6s 35 | win 5% 125s GOAL
+L32 rankseek battery r2 20% [8-42] 101.6s 29 | win 5% 125s GOAL
+L32 rankseek battery r3 5% [1-24] 98.1s 28 | win 5% 125s GOAL
+L32 rankseek battery r4 5% [1-24] 112.1s 32 | win 5% 125s GOAL
+L33 rankseek cannon r2 100% [84-100] 0.0s 0 | win 60% 105s
+L33 rankseek cannon r3 100% [84-100] 3.6s 1 | win 60% 105s
+L33 rankseek cannon r4 100% [84-100] 10.6s 3 | win 60% 105s
+L33 rankseek cannon r5 100% [84-100] 14.1s 4 | win 60% 105s
+L33 rankseek cannon r6 100% [84-100] 28.1s 8 | win 60% 105s
+L33 rankseek cannon r7 80% [58-92] 94.6s 27 | win 60% 105s
+L33 rankseek coil r2 100% [84-100] 0.0s 0 | win 60% 105s
+L33 rankseek coil r3 100% [84-100] 17.6s 5 | win 60% 105s
+L33 rankseek coil r4 100% [84-100] 28.1s 8 | win 60% 105s
+L33 rankseek coil r5 95% [76-99] 66.6s 19 | win 60% 105s
+L33 rankseek coil r6 90% [70-97] 28.1s 8 | win 60% 105s
+L33 rankseek coil r7 40% [22-61] 66.6s 19 | win 60% 105s
+L33 rankseek coil r8 10% [3-30] 73.6s 21 | win 60% 105s
+L33 rankseek bell r2 100% [84-100] 0.0s 0 | win 60% 105s
+L33 rankseek bell r3 100% [84-100] 21.1s 6 | win 60% 105s
+L33 rankseek bell r4 100% [84-100] 42.1s 12 | win 60% 105s
+L33 rankseek bell r5 90% [70-97] 14.1s 4 | win 60% 105s
+L33 rankseek bell r6 90% [70-97] 21.1s 6 | win 60% 105s
+L33 rankseek bell r7 40% [22-61] 77.1s 22 | win 60% 105s
+L33 rankseek bell r8 10% [3-30] 77.1s 22 | win 60% 105s
+L34 rankseek cannon r2 100% [84-100] 0.0s 0 | win 75% 116s GOAL
+L34 rankseek cannon r3 100% [84-100] 3.6s 1 | win 75% 116s GOAL
+L34 rankseek cannon r4 100% [84-100] 14.1s 4 | win 75% 116s GOAL
+L34 rankseek cannon r5 100% [84-100] 28.1s 8 | win 75% 116s GOAL
+L34 rankseek cannon r6 100% [84-100] 52.6s 15 | win 75% 116s GOAL
+L34 rankseek cannon r7 75% [53-89] 94.6s 27 | win 75% 116s GOAL
+L34 rankseek cannon r8 5% [1-24] 101.6s 29 | win 75% 116s GOAL
+L34 rankseek coil r2 100% [84-100] 0.0s 0 | win 75% 116s GOAL
+L34 rankseek coil r3 100% [84-100] 7.1s 2 | win 75% 116s GOAL
+L34 rankseek coil r4 100% [84-100] 10.6s 3 | win 75% 116s GOAL
+L34 rankseek coil r5 100% [84-100] 17.6s 5 | win 75% 116s GOAL
+L34 rankseek coil r6 100% [84-100] 52.6s 15 | win 75% 116s GOAL
+L34 rankseek coil r7 90% [70-97] 84.1s 24 | win 75% 116s GOAL
+L34 rankseek coil r8 50% [30-70] 84.1s 24 | win 75% 116s GOAL
+L34 rankseek bell r2 100% [84-100] 0.0s 0 | win 75% 116s GOAL
+L34 rankseek bell r3 100% [84-100] 21.1s 6 | win 75% 116s GOAL
+L34 rankseek bell r4 100% [84-100] 24.6s 7 | win 75% 116s GOAL
+L34 rankseek bell r5 100% [84-100] 28.1s 8 | win 75% 116s GOAL
+L34 rankseek bell r6 95% [76-99] 31.6s 9 | win 75% 116s GOAL
+L34 rankseek bell r7 70% [48-85] 80.6s 23 | win 75% 116s GOAL
+L34 rankseek bell r8 25% [11-47] 98.1s 28 | win 75% 116s GOAL
+L35 rankseek cannon r2 100% [84-100] 0.0s 0 | win 50% 120s
+L35 rankseek cannon r3 100% [84-100] 3.6s 1 | win 50% 120s
+L35 rankseek cannon r4 100% [84-100] 17.6s 5 | win 50% 120s
+L35 rankseek cannon r5 100% [84-100] 24.6s 7 | win 50% 120s
+L35 rankseek cannon r6 95% [76-99] 59.6s 17 | win 50% 120s
+L35 rankseek cannon r7 25% [11-47] 105.1s 30 | win 50% 120s
+L35 rankseek coil r2 100% [84-100] 0.0s 0 | win 50% 120s
+L35 rankseek coil r3 100% [84-100] 7.1s 2 | win 50% 120s
+L35 rankseek coil r4 100% [84-100] 17.6s 5 | win 50% 120s
+L35 rankseek coil r5 95% [76-99] 24.6s 7 | win 50% 120s
+L35 rankseek coil r6 65% [43-82] 31.6s 9 | win 50% 120s
+L35 rankseek coil r7 30% [15-52] 73.6s 21 | win 50% 120s
+L35 rankseek bell r2 100% [84-100] 0.0s 0 | win 50% 120s
+L35 rankseek bell r3 100% [84-100] 21.1s 6 | win 50% 120s
+L35 rankseek bell r4 100% [84-100] 28.1s 8 | win 50% 120s
+L35 rankseek bell r5 95% [76-99] 59.6s 17 | win 50% 120s
+L35 rankseek bell r6 45% [26-66] 98.1s 28 | win 50% 120s
+L35 rankseek bell r7 5% [1-24] 101.6s 29 | win 50% 120s
+L35 rankseek magnet r2 10% [3-30] 98.1s 28 | win 50% 120s
+L35 rankseek magnet r3 0% [-0-16] NaNs NaN | win 50% 120s
+L36 rankseek cannon r2 100% [84-100] 0.0s 0 | win 50% 123s GOAL
+L36 rankseek cannon r3 100% [84-100] 3.6s 1 | win 50% 123s GOAL
+L36 rankseek cannon r4 100% [84-100] 10.6s 3 | win 50% 123s GOAL
+L36 rankseek cannon r5 100% [84-100] 28.1s 8 | win 50% 123s GOAL
+L36 rankseek cannon r6 100% [84-100] 49.1s 14 | win 50% 123s GOAL
+L36 rankseek cannon r7 95% [76-99] 66.6s 19 | win 50% 123s GOAL
+L36 rankseek cannon r8 65% [43-82] 73.6s 21 | win 50% 123s GOAL
+L36 rankseek coil r2 100% [84-100] 0.0s 0 | win 50% 123s GOAL
+L36 rankseek coil r3 100% [84-100] 17.6s 5 | win 50% 123s GOAL
+L36 rankseek coil r4 100% [84-100] 24.6s 7 | win 50% 123s GOAL
+L36 rankseek coil r5 100% [84-100] 45.6s 13 | win 50% 123s GOAL
+L36 rankseek coil r6 90% [70-97] 84.1s 24 | win 50% 123s GOAL
+L36 rankseek coil r7 40% [22-61] 115.5s 33 | win 50% 123s GOAL
+L36 rankseek bell r2 100% [84-100] 0.0s 0 | win 50% 123s GOAL
+L36 rankseek bell r3 100% [84-100] 17.6s 5 | win 50% 123s GOAL
+L36 rankseek bell r4 100% [84-100] 24.6s 7 | win 50% 123s GOAL
+L36 rankseek bell r5 100% [84-100] 70.1s 20 | win 50% 123s GOAL
+L36 rankseek bell r6 35% [18-57] 49.1s 14 | win 50% 123s GOAL
+L36 rankseek bell r7 20% [8-42] 91.1s 26 | win 50% 123s GOAL
+L37 rankseek cannon r2 100% [84-100] 0.0s 0 | win 15% 125s
+L37 rankseek cannon r3 100% [84-100] 3.6s 1 | win 15% 125s
+L37 rankseek cannon r4 100% [84-100] 14.1s 4 | win 15% 125s
+L37 rankseek cannon r5 100% [84-100] 35.1s 10 | win 15% 125s
+L37 rankseek cannon r6 100% [84-100] 101.6s 29 | win 15% 125s
+L37 rankseek cannon r7 30% [15-52] 119.1s 34 | win 15% 125s
+L37 rankseek coil r2 100% [84-100] 0.0s 0 | win 15% 125s
+L37 rankseek coil r3 100% [84-100] 7.1s 2 | win 15% 125s
+L37 rankseek coil r4 100% [84-100] 28.1s 8 | win 15% 125s
+L37 rankseek coil r5 95% [76-99] 80.6s 23 | win 15% 125s
+L37 rankseek coil r6 55% [34-74] 108.6s 31 | win 15% 125s
+L37 rankseek coil r7 5% [1-24] 115.6s 33 | win 15% 125s
+L37 rankseek bell r2 100% [84-100] 0.0s 0 | win 15% 125s
+L37 rankseek bell r3 100% [84-100] 10.6s 3 | win 15% 125s
+L37 rankseek bell r4 100% [84-100] 66.6s 19 | win 15% 125s
+L37 rankseek bell r5 85% [64-95] 84.1s 24 | win 15% 125s
+L37 rankseek bell r6 25% [11-47] 108.6s 31 | win 15% 125s
+L37 rankseek bell r7 10% [3-30] 115.6s 33 | win 15% 125s
+L37 rankseek bell r8 5% [1-24] 122.6s 35 | win 15% 125s
+L38 rankseek cannon r2 100% [84-100] 0.0s 0 | win 5% 125s
+L38 rankseek cannon r3 100% [84-100] 3.6s 1 | win 5% 125s
+L38 rankseek cannon r4 100% [84-100] 10.6s 3 | win 5% 125s
+L38 rankseek cannon r5 100% [84-100] 35.1s 10 | win 5% 125s
+L38 rankseek cannon r6 90% [70-97] 91.1s 26 | win 5% 125s
+L38 rankseek cannon r7 15% [5-36] 112.1s 32 | win 5% 125s
+L38 rankseek cannon r8 5% [1-24] 112.1s 32 | win 5% 125s
+L38 rankseek coil r2 100% [84-100] 0.0s 0 | win 5% 125s
+L38 rankseek coil r3 100% [84-100] 14.1s 4 | win 5% 125s
+L38 rankseek coil r4 100% [84-100] 35.1s 10 | win 5% 125s
+L38 rankseek coil r5 100% [84-100] 56.1s 16 | win 5% 125s
+L38 rankseek coil r6 85% [64-95] 84.1s 24 | win 5% 125s
+L38 rankseek coil r7 20% [8-42] 91.1s 26 | win 5% 125s
+L38 rankseek coil r8 5% [1-24] 87.6s 25 | win 5% 125s
+L38 rankseek bell r2 100% [84-100] 0.0s 0 | win 5% 125s
+L38 rankseek bell r3 100% [84-100] 17.6s 5 | win 5% 125s
+L38 rankseek bell r4 100% [84-100] 35.1s 10 | win 5% 125s
+L38 rankseek bell r5 100% [84-100] 49.1s 14 | win 5% 125s
+L38 rankseek bell r6 65% [43-82] 84.1s 24 | win 5% 125s
+L38 rankseek bell r7 15% [5-36] 98.1s 28 | win 5% 125s
+L38 rankseek bell r8 5% [1-24] 105.1s 30 | win 5% 125s
+L39 rankseek cannon r2 100% [84-100] 0.0s 0 | win 10% 125s
+L39 rankseek cannon r3 100% [84-100] 3.6s 1 | win 10% 125s
+L39 rankseek cannon r4 100% [84-100] 17.6s 5 | win 10% 125s
+L39 rankseek cannon r5 100% [84-100] 24.6s 7 | win 10% 125s
+L39 rankseek cannon r6 100% [84-100] 52.6s 15 | win 10% 125s
+L39 rankseek cannon r7 75% [53-89] 70.1s 20 | win 10% 125s
+L39 rankseek cannon r8 10% [3-30] 108.6s 31 | win 10% 125s
+L39 rankseek coil r2 100% [84-100] 0.0s 0 | win 10% 125s
+L39 rankseek coil r3 100% [84-100] 17.6s 5 | win 10% 125s
+L39 rankseek coil r4 100% [84-100] 24.6s 7 | win 10% 125s
+L39 rankseek coil r5 85% [64-95] 63.1s 18 | win 10% 125s
+L39 rankseek coil r6 40% [22-61] 21.1s 6 | win 10% 125s
+L39 rankseek bell r2 100% [84-100] 0.0s 0 | win 10% 125s
+L39 rankseek bell r3 100% [84-100] 17.6s 5 | win 10% 125s
+L39 rankseek bell r4 100% [84-100] 24.6s 7 | win 10% 125s
+L39 rankseek bell r5 95% [76-99] 49.1s 14 | win 10% 125s
+L39 rankseek bell r6 85% [64-95] 66.6s 19 | win 10% 125s
+L39 rankseek bell r7 35% [18-57] 101.6s 29 | win 10% 125s
+L39 rankseek battery r2 15% [5-36] 98.1s 28 | win 10% 125s
+L39 rankseek battery r3 0% [-0-16] NaNs NaN | win 10% 125s
+L40 rankseek cannon r2 100% [84-100] 0.0s 0 | win 30% 165s
+L40 rankseek cannon r3 100% [84-100] 3.6s 1 | win 30% 165s
+L40 rankseek cannon r4 100% [84-100] 10.6s 3 | win 30% 165s
+L40 rankseek cannon r5 100% [84-100] 31.6s 9 | win 30% 165s
+L40 rankseek cannon r6 100% [84-100] 73.6s 21 | win 30% 165s
+L40 rankseek cannon r7 90% [70-97] 94.6s 27 | win 30% 165s
+L40 rankseek cannon r8 70% [48-85] 108.6s 31 | win 30% 165s
+L40 rankseek coil r2 100% [84-100] 0.0s 0 | win 30% 165s
+L40 rankseek coil r3 100% [84-100] 14.1s 4 | win 30% 165s
+L40 rankseek coil r4 100% [84-100] 28.1s 8 | win 30% 165s
+L40 rankseek coil r5 100% [84-100] 45.6s 13 | win 30% 165s
+L40 rankseek coil r6 85% [64-95] 126.1s 36 | win 30% 165s
+L40 rankseek coil r7 50% [30-70] 154.1s 44 | win 30% 165s
+L40 rankseek coil r8 20% [8-42] 150.6s 43 | win 30% 165s
+L40 rankseek bell r2 100% [84-100] 0.0s 0 | win 30% 165s
+L40 rankseek bell r3 100% [84-100] 17.6s 5 | win 30% 165s
+L40 rankseek bell r4 100% [84-100] 35.1s 10 | win 30% 165s
+L40 rankseek bell r5 100% [84-100] 49.1s 14 | win 30% 165s
+L40 rankseek bell r6 100% [84-100] 112.1s 32 | win 30% 165s
+L40 rankseek bell r7 65% [43-82] 143.6s 41 | win 30% 165s
+L40 rankseek bell r8 20% [8-42] 136.6s 39 | win 30% 165s
