@@ -10,3 +10,6 @@ Score = tools/rank-clarity.mjs (higher = more distinct, threshold 30). Pieces: `
 | vice 4-5 | 18.1 | 34.6 (silhouette differs) | DONE (cell 4 = rank 5, tower + dial, 252 px box) |
 | vice 5-6 | 26.7 | 34.5 | side effect of new rank 5 |
 | rivet_gun 7-8 | 15.3 | 42.2 (silhouette + edges differ) | DONE: brass wings, red dial, emerald tank (sheet `raw/rivet8_sheet.png` cell 3) |
+| piston 3-4 | 17.1 | 31.4 | DONE (sheet `raw/piston45_sheet.png` cell 3 = rank 4, V-twin barrels) |
+| piston 4-5 | 18.6 | 27.4 | IMPROVED, still weak (<30): cell 6 = rank 5, triple-barrel block with emerald tank |
+| piston 5-6 | 28 | 51.6 | side effect |
