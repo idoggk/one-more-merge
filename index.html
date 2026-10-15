@@ -6,6 +6,25 @@
     <meta name="theme-color" content="#f3cf9b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta http-equiv="Cache-Control" content="no-cache" />
+    <!-- stale page, removed chunk: a failed /assets/ script or stylesheet reloads once (cache-busted) instead of a blank crash.
+         Mirrors src/platform/versionGuard.ts (which cannot help when the main bundle itself failed to load). -->
+    <script>
+      addEventListener('error', function (e) {
+        var t = e.target, u = t && (t.src || t.href);
+        if (!t || (t.tagName !== 'SCRIPT' && t.tagName !== 'LINK') || !u || u.indexOf('/assets/') < 0) return;
+        try {
+          var k = 'omm.verReloadAt', last = Number(sessionStorage.getItem(k) || 0);
+          if (Date.now() - last < 60000) return;
+          sessionStorage.setItem(k, String(Date.now()));
+        } catch (x) {}
+        var go = function () { var n = new URL(location.href); n.searchParams.set('v', Date.now()); location.replace(n.toString()); };
+        var jobs = [];
+        if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (r) { return Promise.all(r.map(function (w) { return w.unregister(); })); }));
+        if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (c) { return caches.delete(c); })); }));
+        Promise.all(jobs).then(go, go);
+      }, true);
+    </script>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="icon-192.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />

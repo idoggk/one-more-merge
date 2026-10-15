@@ -4,6 +4,7 @@ import { computeLayout, GameScene, layoutHeight, setRenderScale, W } from './gam
 import { ScrewScene } from './game/ScrewScene';
 import { ObjectYardScene } from './game/ObjectYardScene';
 import { startMusic, unlockAudio } from './game/audio';
+import { installVersionGuard } from './platform/versionGuard';
 import { ROAD_PERF2_KEY, storedRoadPerf2 } from './content/experiments';
 
 async function boot() {
@@ -78,6 +79,7 @@ async function boot() {
 }
 
 void boot();
+installVersionGuard();
 
 // home-screen app: offline cache (only on the real HTTPS site, never inside the claude.ai artifact iframe)
 if ('serviceWorker' in navigator && import.meta.env.PROD && location.protocol === 'https:' && window.top === window.self) {

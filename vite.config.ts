@@ -19,9 +19,13 @@ function buildId(): string {
   }
 }
 
+const BUILD_ID = buildId();
+
 export default defineConfig({
   base: './',
-  define: { __BUILD_ID__: JSON.stringify(buildId()) },
+  // version.json holds the id baked into the bundle; the page compares it with the live one (src/platform/versionGuard.ts)
+  plugins: [{ name: 'omm-version-json', generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ id: BUILD_ID }) }); } }],
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   server: { host: true, port: 5173 },
   // Phaser (~1.4 MB) in its own chunk: it changes far less often than the game code, so it stays cached across deploys
   build: { rollupOptions: { output: { manualChunks: (id) => (id.includes('node_modules/phaser') ? 'phaser' : undefined) } } },

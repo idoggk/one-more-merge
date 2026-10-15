@@ -1,6 +1,8 @@
-// Offline support for the home-screen app. Hashed build assets are cached forever (cache-first);
-// the page itself is network-first so a new deploy is picked up the next time the app opens online.
-const CACHE = 'omm-v1';
+// Offline support for the home-screen app. Hashed build assets are cached (cache-first, they never change under
+// one name); the page and everything else is network-first AND skips the browser HTTP cache (GitHub Pages sends
+// max-age=600, which served old index.html / version.json for up to 10 minutes). Old caches are dropped on activate.
+// v2: a deploy keeps the last builds' hashed files, so a cached asset is never needed from a removed build.
+const CACHE = 'omm-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
@@ -23,7 +25,7 @@ self.addEventListener('fetch', (e) => {
     return res;
   };
   if (req.mode === 'navigate' || !req.url.includes('/assets/')) {
-    e.respondWith(fetch(req).then(put).catch(() => caches.match(req).then((r) => r ?? caches.match('./'))));
+    e.respondWith(fetch(req.url, { cache: 'reload', credentials: 'same-origin' }).then(put).catch(() => caches.match(req).then((r) => r ?? caches.match('./'))));
   } else {
     e.respondWith(caches.match(req).then((r) => r ?? fetch(req).then(put)));
   }
