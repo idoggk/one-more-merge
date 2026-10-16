@@ -49,14 +49,14 @@
     }
   ],
   "tiers": {
-    "micro":  { "examples": "badges, glyphs, buttons, bars, FX, road pieces, tool chips", "detailBudget": "3-4 elements", "sendThreshold": 72 },
+    "micro":  { "examples": "badges, glyphs, buttons, bars, road pieces, tool chips", "detailBudget": "3-4 elements", "sendThreshold": 72 },
     "hero":   { "examples": "chests, props, offer frames, rank 8, resource hero icons, landmarks", "detailBudget": "6-7 elements", "sendThreshold": 72 },
     "fx":     { "examples": "tool shots, impacts, surges (judged at 48 px blurred; fine particle dust does not count)", "detailBudget": "1 silhouette + 1 colour (max 2 colours)", "sendThreshold": 62 },
     "screen": { "examples": "painted mocks, results, loading", "detailBudget": "1 hero + at most 3 focal zones, calm backdrop", "sendThreshold": 72 }
   },
   "hardFails": [
     { "id": "HF1", "rule": "Photoreal or grunge surface (wood grain, rust, stone, fabric) as the main fill of a small or repeating piece (road tile, button, badge). A single hero-size object is exempt." },
-    { "id": "HF2", "rule": "Road or backdrop piece with a surface pattern of more than 2 tones at tile scale, inlays, constellations, mosaics, props or glow on the road itself." },
+    { "id": "HF2", "rule": "Road or backdrop piece with a surface pattern of surface texture at tile scale (grain, inlays, constellations, mosaics), props or glow on the road itself. Texture, not palette: liked roads may use several flat tones." },
     { "id": "HF3", "rule": "Badge or small icon with shine streaks plus more than 4 separate elements (extra keyholes, flags, specular dots, small flourishes)." },
     { "id": "HF4", "rule": "FX that combines 3 or more ideas (object + trail + orbit lines + sparks), or shares hue and shape with a sibling FX." },
     { "id": "HF5", "rule": "Shape count does not match the number (rank 7 needs 7 spikes), or a character is off-model (mascot)." },
@@ -77,7 +77,8 @@
     "n": 30, "likes": 15, "nots": 15,
     "agreement_first_pass": "26/30 (87%) with threshold 72 for all tiers",
     "misses": ["bomb_surge_fx_2", "impact_blowtorch", "node2_normal_locked", "stamp_claimed"],
-    "fixes_after_misses": ["fx tier with threshold 62 and a squint test", "HF9 glyph/base contrast", "duplicate-of-better penalty in C5", "lock-state rule in C2/C3"],
-    "caveat": "Not fully blind: the NOT list was in the brief. The fixes were made after seeing the misses and are not tested on fresh data."
+    "fixes_after_misses": ["fx tier with threshold 62 and a squint test", "HF9 glyph/base contrast", "duplicate-of-better penalty in C5"],
+    "unexplained_miss": "node2_normal_locked (no visual cause found; no rule added)",
+    "caveat": "Not fully blind: the NOT list was in the brief and labels come from the brief only (vote export not in repo; NOT ids in docs/art/owner_not_ids.md). The fixes were made after seeing the misses, the fx tier rests on 2 samples, and no fresh blind re-run was done."
   }
 }
