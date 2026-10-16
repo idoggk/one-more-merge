@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "date": "2026-10-16",
+  "source": "Owner review export 2026-10-16 (917 votes: 744 LIKE, 173 NOT) plus owner statements 2026-10-15/16. Human-readable version: docs/art/OWNER_TASTE_RULES.md",
+  "score": {
+    "scale": "0-10 per criterion",
+    "formula": "total = sum(score_i * weight_i) / 10   (weights sum to 100, so total is 0-100)"
+  },
+  "criteria": [
+    {
+      "id": "C1", "name": "glance_read", "weight": 18,
+      "question": "Can it be named in one second at 48 px, in greyscale, blurred? Is the glyph clearly lighter/darker/different hue than its base?",
+      "anchors": { "0": "blob or ambiguous; needs colour or text to identify", "5": "identified after a second look, or glyph and base are close in value", "10": "one bold silhouette, one dominant colour, instant" }
+    },
+    {
+      "id": "C2", "name": "detail_budget", "weight": 20,
+      "question": "Count separate visual elements (parts, glints, keyholes, flags, rivets beyond the frame, texture patterns). Within the budget of its role tier?",
+      "anchors": { "0": "more than 2x budget, or a textured fill (grain, rust, mosaic, constellations)", "5": "about 1.5x budget, or shine plus small details", "10": "at or under budget, no shine streaks, no micro detail" }
+    },
+    {
+      "id": "C3", "name": "one_visual_language", "weight": 14,
+      "question": "Glossy chunky toy-machine: thick warm-dark outline, one soft top-left highlight, brass/gold rim, saturated mostly-flat fill. Matches the liked anchors side by side?",
+      "anchors": { "0": "hyper-real, flat hairline, or a different hand and palette", "5": "close but thinner outline, grey/desaturated, or a second light source", "10": "indistinguishable from the liked ch1-3 roads, rank badges, resource icons, core board v1" }
+    },
+    {
+      "id": "C4", "name": "role_hierarchy", "weight": 12,
+      "question": "Does the supporting piece stay quieter than what it supports (road under plates, backdrop under board, FX tail under the grid, badge under its label)?",
+      "anchors": { "0": "steals the eye from the plates / board / grid", "5": "competes a little", "10": "recedes, the main thing wins" }
+    },
+    {
+      "id": "C5", "name": "set_distinctness", "weight": 10,
+      "question": "Next to its siblings in greyscale, does it differ in at least two of colour, shape, texture? Is it a duplicate of a better liked asset?",
+      "anchors": { "0": "same hue and shape as a neighbour, or a weaker duplicate", "5": "differs in one channel", "10": "differs in colour and shape (and texture)" }
+    },
+    {
+      "id": "C6", "name": "machine_toy_cues", "weight": 8,
+      "question": "1-2 workshop cues (brass, rivets, cogs, gauges) present but not piled on. Not photoreal wood or rust, not generic fantasy.",
+      "anchors": { "0": "no machine feeling, or hyper-real wooden toy / rust", "5": "generic game UI, no machine cue", "10": "clearly a chunky toy workshop machine part, 1-2 cues" }
+    },
+    {
+      "id": "C7", "name": "phone_thumb_scale", "weight": 10,
+      "question": "At real phone size (390 pt wide screen) is it readable and, if tappable, thumb sized?",
+      "anchors": { "0": "tiny, thin lines, detail disappears", "5": "readable but small or thin", "10": "big, thick, readable at arm's length; side badges at least ~48 pt" }
+    },
+    {
+      "id": "C8", "name": "consistency_semantics", "weight": 8,
+      "question": "Matches established characters, ranks and states? Shape count = number? Meaning obvious without text?",
+      "anchors": { "0": "off-model mascot, wrong spike count, unclear meaning", "5": "mostly consistent, one oddity", "10": "fully consistent with the family and its siblings" }
+    }
+  ],
+  "tiers": {
+    "micro":  { "examples": "badges, glyphs, buttons, bars, FX, road pieces, tool chips", "detailBudget": "3-4 elements", "sendThreshold": 72 },
+    "hero":   { "examples": "chests, props, offer frames, rank 8, resource hero icons, landmarks", "detailBudget": "6-7 elements", "sendThreshold": 72 },
+    "fx":     { "examples": "tool shots, impacts, surges (judged at 48 px blurred; fine particle dust does not count)", "detailBudget": "1 silhouette + 1 colour (max 2 colours)", "sendThreshold": 62 },
+    "screen": { "examples": "painted mocks, results, loading", "detailBudget": "1 hero + at most 3 focal zones, calm backdrop", "sendThreshold": 72 }
+  },
+  "hardFails": [
+    { "id": "HF1", "rule": "Photoreal or grunge surface (wood grain, rust, stone, fabric) as the main fill of a small or repeating piece (road tile, button, badge). A single hero-size object is exempt." },
+    { "id": "HF2", "rule": "Road or backdrop piece with a surface pattern of more than 2 tones at tile scale, inlays, constellations, mosaics, props or glow on the road itself." },
+    { "id": "HF3", "rule": "Badge or small icon with shine streaks plus more than 4 separate elements (extra keyholes, flags, specular dots, small flourishes)." },
+    { "id": "HF4", "rule": "FX that combines 3 or more ideas (object + trail + orbit lines + sparks), or shares hue and shape with a sibling FX." },
+    { "id": "HF5", "rule": "Shape count does not match the number (rank 7 needs 7 spikes), or a character is off-model (mascot)." },
+    { "id": "HF6", "rule": "Unit or machine not identifiable at 48 px greyscale, or more than 7 readable parts." },
+    { "id": "HF7", "rule": "Screen or mock with more than 3 competing focal zones, or a detailed top/backdrop that competes with the board or plates." },
+    { "id": "HF8", "rule": "Wrong language: hairline unoutlined flat shapes among glossy outlined ones, hyper-real art, or palette outside gold/brass plus one family colour." },
+    { "id": "HF9", "rule": "Glyph and base have the same hue and similar value (cream/gold check on a gold coin)." },
+    { "id": "HF10", "rule": "Tappable side badge or button below thumb size (about 48 pt) in the mock or build." }
+  ],
+  "decision": {
+    "send": "score >= tier sendThreshold AND no hard fail AND no criterion <= 4 AND all 8 Lead questions answered yes",
+    "fix_first": "any hard fail, or a criterion <= 4, or score between dropBelow and the threshold: a worker redoes it with the failing criteria named; the owner does not see it",
+    "drop": "score < dropBelow, or 2 or more hard fails, or the same asset/family was already NOT for the same reason: stop iterating, re-brief from scratch or cut the asset"
+  },
+  "thresholds": { "send": 72, "send_fx": 62, "dropBelow": 45 },
+  "scoreBands": { "85+": "very likely LIKE", "72-84": "likely LIKE", "62-71": "coin flip, fix first", "45-61": "likely NOT", "below 45": "almost certainly NOT" },
+  "calibration": {
+    "n": 30, "likes": 15, "nots": 15,
+    "agreement_first_pass": "26/30 (87%) with threshold 72 for all tiers",
+    "misses": ["bomb_surge_fx_2", "impact_blowtorch", "node2_normal_locked", "stamp_claimed"],
+    "fixes_after_misses": ["fx tier with threshold 62 and a squint test", "HF9 glyph/base contrast", "duplicate-of-better penalty in C5", "lock-state rule in C2/C3"],
+    "caveat": "Not fully blind: the NOT list was in the brief. The fixes were made after seeing the misses and are not tested on fresh data."
+  }
+}
