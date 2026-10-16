@@ -100,3 +100,5 @@ The section 3 plan estimate was 1878 files; 21 fewer were removed because of the
 Regenerating: the owner-review v9b/v9c page builders and the box-fx-frames / crate-shots tools point at folders whose images were partly removed. To regenerate, restore first with `git checkout baf5954~1 -- <path>`.
 
 Note: 29 files in screw-yard-3d-v2, screw-yard-backdrop and screw-yard-new-v3 (contact sheets, variants, raw, ref duplicates) were removed although those folders are ASK-adjacent.
+
+Verified: typecheck and full test suite pass after removal.
