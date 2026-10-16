@@ -32,3 +32,13 @@ The first `dotnet test` restores xUnit from nuget.org (free). Re-run the export 
 Covered: Rng outputs, int, shuffle, final state; for the 40 "plain" levels (no modifier, boss, mini-boss, extra pieces, shooter override) the init scalars and the 30-cell start grid as a hash (HP is the level file value; stage and goal HP rules are not ported yet).
 
 Not yet: the game state, `drop`, `tick`, `cascade`, and replaying `tests/golden/flagsOff.json`. The golden trails are copied into `cases.json` (`goldenFlagsOff`) as the source for the next step.
+
+## Unity project (`OneMoreMergeUnity/`)
+
+Unity 6 (`6000.6.2f1`, URP). `OneMoreMerge.Core/` is referenced as the local package `com.omm.core`, so the same C# is built by `dotnet` and by Unity. Needs an active Unity licence (the free Personal one is enough).
+
+- Open: Unity Hub > Add > `unity/OneMoreMergeUnity`, with editor 6000.6.2f1. The first import creates `Library/` (git-ignored, never commit it).
+- Tests (EditMode), from the repo root, with no editor open on the project:
+  `Unity.exe -batchmode -nographics -projectPath unity/OneMoreMergeUnity -runTests -testPlatform EditMode -testResults results.xml -logFile unity.log`
+  (a relative `-testResults` path lands inside the project folder; `*.log` and `results.xml` are ignored). Or Window > General > Test Runner > EditMode. The pure core tests stay `dotnet test unity/OneMoreMerge.Core.Tests`.
+- Build (Windows player): `Unity.exe -batchmode -nographics -quit -projectPath unity/OneMoreMergeUnity -executeMethod OneMoreMerge.EditorTools.BuildScript.BuildWindows -buildOutput Builds/Windows/OneMoreMerge.exe -logFile build.log`. Only one Unity editor process can use the project at a time.
