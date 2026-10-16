@@ -81,3 +81,18 @@ Checkout shrinks by about 85% in size and 52% in file count; `art-candidates` go
 - The manifest groups by folder; where a folder has several classes it has one row per class.
 
 Files: `docs/art/asset_cleanup_manifest.csv` (path_or_folder, class, size_mb, files, reason), `docs/art/asset_cleanup_dupes.csv` (per-file duplicates).
+
+## 8. DONE (SAFE set removed, task t-c43d36b9)
+
+Owner approved the SAFE set (all REMOVE-* classes, not ASK). Removed with `git rm` from the manifest rows and the dupes csv.
+
+| | Files | MiB |
+|---|---:|---:|
+| Before | 3626 | about 855 |
+| Removed | 1857 | 723.2 |
+| After | 1769 | about 132 |
+
+Removed by class: 301 REGENERABLE, 893 SUPERSEDED (incl. old unit-style-test svg), 52 REJECTED, 611 duplicates (395 from the dupes csv, 216 in REMOVE-DUPLICATE folders). `art-candidates` has 531 tracked files left.
+
+Kept: all KEEP-*, all ASK paths (crate-screen, roster-b1, assets_src, screw-yard-new-v3/sliced, screw-yard-3d-v2, screw-yard-backdrop, map-badge-2-v2/final, non-identical v9b/v9c files), `mockups/screw-yard-painted-v2` 04_win, and everything in `src/ public/ tests/ tools/ unity/`, root config, levels.json, puzzles.json. Text files were removed only for the exact v9b/v9c page-code duplicates; v9b/v9c README, index.html, app.css/js and v9-unit-style.html are not exact copies and stay.
+The section 3 plan estimate was 1878 files; 21 fewer were removed because of these text-file and ASK exceptions.
