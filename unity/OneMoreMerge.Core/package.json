@@ -1,0 +1,6 @@
+{
+  "name": "com.omm.core",
+  "version": "0.1.0",
+  "displayName": "One More Merge Core",
+  "description": "Pure C# game model (no UnityEngine). Also built by dotnet via OneMoreMerge.Core.csproj."
+}
