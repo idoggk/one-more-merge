@@ -38,7 +38,8 @@ namespace OneMoreMerge.EditorTools
             scaler.matchWidthOrHeight = 0.5f;
             var root = (RectTransform)canvasGo.transform;
 
-            Image bg = MakeImage("Background", root, Color.black);
+            c.backgroundColor = new Color(0.11f, 0.15f, 0.25f);
+            Image bg = MakeImage("Background", root, new Color(0.11f, 0.15f, 0.25f));
             Stretch(bg.rectTransform);
 
             var plates = new RectTransform[5];

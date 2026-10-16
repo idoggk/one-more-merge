@@ -26,7 +26,12 @@ namespace OneMoreMerge.Game
         float t = 1f;
         Vector2 from, to;
 
-        void Start() { cannon.anchoredPosition = plates[0].anchoredPosition; Refresh(); }
+        void Start()
+        {
+            cannon.anchoredPosition = plates[0].anchoredPosition;
+            background.color = Backgrounds[0]; // scene file stores black; show the intended colour from frame 1
+            Refresh();
+        }
 
         public void Hop()
         {
