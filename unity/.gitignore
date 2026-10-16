@@ -8,3 +8,4 @@ obj.meta
 Debug.meta
 *.log
 results.xml
+Builds/
