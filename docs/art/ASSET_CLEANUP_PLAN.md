@@ -96,3 +96,7 @@ Removed by class: 301 REGENERABLE, 893 SUPERSEDED (incl. old unit-style-test svg
 
 Kept: all KEEP-*, all ASK paths (crate-screen, roster-b1, assets_src, screw-yard-new-v3/sliced, screw-yard-3d-v2, screw-yard-backdrop, map-badge-2-v2/final, non-identical v9b/v9c files), `mockups/screw-yard-painted-v2` 04_win, and everything in `src/ public/ tests/ tools/ unity/`, root config, levels.json, puzzles.json. Text files were removed only for the exact v9b/v9c page-code duplicates; v9b/v9c README, index.html, app.css/js and v9-unit-style.html are not exact copies and stay.
 The section 3 plan estimate was 1878 files; 21 fewer were removed because of these text-file and ASK exceptions.
+
+Regenerating: the owner-review v9b/v9c page builders and the box-fx-frames / crate-shots tools point at folders whose images were partly removed. To regenerate, restore first with `git checkout baf5954~1 -- <path>`.
+
+Note: 29 files in screw-yard-3d-v2, screw-yard-backdrop and screw-yard-new-v3 (contact sheets, variants, raw, ref duplicates) were removed although those folders are ASK-adjacent.
