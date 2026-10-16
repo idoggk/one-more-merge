@@ -1,4 +1,10 @@
 bin/
 obj/
+# Unity-generated metas for dotnet output folders inside the Core package
+bin.meta
+obj.meta
+**/bin/**/*.meta
+**/obj/**/*.meta
+Debug.meta
 *.log
 results.xml
