@@ -54,3 +54,13 @@ Only progress, settings and flags are taken. The web run in progress (`omm.save.
 Typical use: the player pastes the code from the web game's backup screen, the app calls `WebSaveImport.Import(text)`, then `SaveFile.Save(path, data)`.
 
 Tests: `SaveTests.cs`, with synthetic (no personal data) fixtures in `OneMoreMerge.Core.Tests/fixtures/`.
+
+## Unity project (`OneMoreMergeUnity/`)
+
+Unity 6 (`6000.6.2f1`, URP). `OneMoreMerge.Core/` is referenced as the local package `com.omm.core`, so the same C# is built by `dotnet` and by Unity. Needs an active Unity licence (the free Personal one is enough).
+
+- Open: Unity Hub > Add > `unity/OneMoreMergeUnity`, with editor 6000.6.2f1. The first import creates `Library/` (git-ignored, never commit it).
+- Tests (EditMode), from the repo root, with no editor open on the project:
+  `Unity.exe -batchmode -nographics -projectPath unity/OneMoreMergeUnity -runTests -testPlatform EditMode -testResults results.xml -logFile unity.log`
+  (a relative `-testResults` path lands inside the project folder; `*.log` and `results.xml` are ignored). Or Window > General > Test Runner > EditMode. The pure core tests stay `dotnet test unity/OneMoreMerge.Core.Tests`.
+- Build (Windows player): `Unity.exe -batchmode -nographics -quit -projectPath unity/OneMoreMergeUnity -executeMethod OneMoreMerge.EditorTools.BuildScript.BuildWindows -buildOutput Builds/Windows/OneMoreMerge.exe -logFile build.log`. Only one Unity editor process can use the project at a time.
