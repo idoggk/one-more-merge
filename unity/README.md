@@ -32,3 +32,25 @@ The first `dotnet test` restores xUnit from nuget.org (free). Re-run the export 
 Covered: Rng outputs, int, shuffle, final state; for the 40 "plain" levels (no modifier, boss, mini-boss, extra pieces, shooter override) the init scalars and the 30-cell start grid as a hash (HP is the level file value; stage and goal HP rules are not ported yet).
 
 Not yet: the game state, `drop`, `tick`, `cascade`, and replaying `tests/golden/flagsOff.json`. The golden trails are copied into `cases.json` (`goldenFlagsOff`) as the source for the next step.
+
+## Save system
+
+`SaveData` (`SaveData.cs`) holds progress, settings and flag state only. No rules and no run in progress. It mirrors the progress part of the web Meta (`src/game/meta.ts`).
+
+- `SaveFile.Save(path, data)` writes JSON atomically (temp file, then replace) and keeps the previous file as `<path>.bak`.
+- `SaveFile.Load(path)` returns the saved data. A missing file gives a fresh `SaveData`. A damaged file falls back to `.bak`, then to fresh.
+- `SaveSerializer.ToJson` / `FromJson` do the JSON. Every save carries `Version` (`SaveData.CurrentVersion`). Older files go through `SaveSerializer.Migrations` (version -> step) up to the current version. A newer file than the build understands is rejected with `FormatException`.
+
+### Web import
+
+`WebSaveImport.Import(string)` turns a web-game save into `SaveData`. It accepts:
+
+1. the backup code from the web game (`OMM1j.<base64>.<crc32>`; `j` = plain JSON, `z` = deflate-raw), with the checksum verified;
+2. the backup bundle JSON `{"v":1,"at":..,"meta":{..},"run":..}`;
+3. the bare meta JSON stored in localStorage under `omm.meta.v1`.
+
+Only progress, settings and flags are taken. The web run in progress (`omm.save.v1`) is dropped, and unknown keys are ignored. Empty, foreign, newer, damaged or non-save input throws `FormatException`, so show the message and keep the existing save.
+
+Typical use: the player pastes the code from the web game's backup screen, the app calls `WebSaveImport.Import(text)`, then `SaveFile.Save(path, data)`.
+
+Tests: `SaveTests.cs`, with synthetic (no personal data) fixtures in `OneMoreMerge.Core.Tests/fixtures/`.
