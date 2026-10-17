@@ -3,6 +3,7 @@ import { FAMILY_INFO, PERKS, TARGET_NAMES } from '../content/perks';
 import { COLS, MAX_RANK, ROWS, TICK, TUNING } from '../content/tuning';
 import { applyPace, applyThinkBank, applyUnits, UNIT_SHOTS } from '../content/experiments';
 import { playStyledShot } from './fx/shotFx';
+import { resetInputLocks } from './inputLocks';
 import { juiceButton, juicePanelIn } from './fx/juiceHooks';
 import { hasShotStyle, linkStyle } from './fx/shotStyles';
 import {
@@ -207,6 +208,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => resetInputLocks(this)); // the scene instance is reused: no lock outlives it
     this.cameras.main.setOrigin(0, 0).setZoom(RS);
     // crisp text on high-DPI phones: rasterize every Text at the render scale
     const addText = this.add.text.bind(this.add);
@@ -465,7 +467,8 @@ export class GameScene extends Phaser.Scene {
     this.pulledIds.clear();
     this.acc = 0;
     this.heldQueue = []; // cards still waiting for a finger-up belong to the previous run
-    if (!this.explaining) this.explainQueue = [];
+    this.closeInspect();
+    resetInputLocks(this); // a card / lesson / dodge of the previous run must not lock the new one (audit D1-D3)
     this.tipLedger = newTipLedger(s.level !== undefined && !s.puzzle ? s.level : undefined);
     this.idleTime = 0;
     this.tutorialStep = 0;
@@ -3507,7 +3510,9 @@ Now beat the real level.`, this.coachY());
       store(SAVE_KEY, null);
       if (pay?.total) this.time.delayedCall(250, () => this.showToast(`+${pay.total} BOLTS`));
     }
-    this.paused = false;
+    this.closeInspect();
+    resetInputLocks(this);
+    this.coach?.clear();
     this.openTitle();
   }
 
