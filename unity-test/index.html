@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="One More Merge">
+    <meta name="theme-color" content="#1b1f2a">
+    <title>OneMoreMergeUnity</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #1b1f2a;
+        overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none;
+        -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+      #unity-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #1b1f2a; outline: none; }
+      #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
+        color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
+        text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
+      #loading { position: fixed; left: 10%; right: 10%; top: 50%; text-align: center; color: #ffd36a;
+        font: 700 20px/1.4 -apple-system, Helvetica, Arial, sans-serif; pointer-events: none; }
+      #bar { margin-top: 12px; height: 10px; border-radius: 5px; background: #333a4d; overflow: hidden; }
+      #fill { height: 100%; width: 0; background: #ffb42e; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="build-id">build dc97769 2026-10-17 20:03Z</div>
+    <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
+    <script src="Build/WebGL.loader.js"></script>
+    <script>
+      var msg = document.getElementById("msg");
+      createUnityInstance(document.querySelector("#unity-canvas"), {
+        arguments: [],
+        dataUrl: "Build/WebGL.data",
+        frameworkUrl: "Build/WebGL.framework.js",
+        codeUrl: "Build/WebGL.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "OneMoreMergeUnity",
+        productVersion: "1.0",
+      }, function (p) {
+        document.getElementById("fill").style.width = (100 * p) + "%";
+      }).then(function () {
+        document.getElementById("loading").style.display = "none";
+      }).catch(function (e) {
+        msg.textContent = "Could not start: " + e;
+      });
+      // iOS Safari: stop pinch / double-tap zoom and rubber-banding.
+      ["gesturestart", "gesturechange", "gestureend"].forEach(function (n) {
+        document.addEventListener(n, function (e) { e.preventDefault(); });
+      });
+      document.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+    </script>
+  </body>
+</html>
