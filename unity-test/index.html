@@ -59,7 +59,7 @@
       <img id="logo" src="logo.webp" alt="One More Merge">
       <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
     </div>
-    <div id="build-id">build dbe3a9f 2026-10-18 12:02Z</div>
+    <div id="build-id">build f5640f3 2026-10-18 16:06Z</div>
     <script src="Build/WebGL.loader.js"></script>
     <script>
       var msg = document.getElementById("msg");
@@ -79,7 +79,8 @@
         var shown = freeze === null ? p : Math.min(p, freeze / 100);
         document.getElementById("fill").style.width = (100 * shown) + "%";
         msg.textContent = "Loading… " + Math.round(100 * shown) + "%";
-      }).then(function () {
+      }).then(function (instance) {
+        window.unityInstance = instance; // read by the memory checks (Module.HEAPU32.buffer.byteLength)
         if (freeze !== null) return;
         var cover = document.getElementById("cover");
         cover.className = "done";
