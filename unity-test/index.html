@@ -8,28 +8,63 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="One More Merge">
     <meta name="theme-color" content="#1b1f2a">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="pwa/apple-touch-icon-180.png">
+    <link rel="icon" type="image/png" href="pwa/icon-192.png">
+    <link rel="apple-touch-startup-image" href="pwa/startup-1290x2796.jpg" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-1179x2556.jpg" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-1284x2778.jpg" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-1170x2532.jpg" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-1125x2436.jpg" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-1242x2688.jpg" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-828x1792.jpg" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="pwa/startup-750x1334.jpg" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <title>OneMoreMergeUnity</title>
     <style>
       html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #1b1f2a;
         overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none;
         -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-      #unity-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; background: #1b1f2a; outline: none; }
+      /* Canvas sits inside the safe area: nothing under the Dynamic Island, notch or home bar. */
+      /* Explicit width/height: a canvas is a replaced element, so "auto" would mean its own pixel size and Unity, which sets that
+         size from the CSS size, would grow it every frame (blank screen, "RenderTexture.Create failed ... too large"). */
+      #unity-canvas { position: fixed; top: env(safe-area-inset-top); left: env(safe-area-inset-left);
+        width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right));
+        height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        display: block; background: #1b1f2a; outline: none;
+        -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
       #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
         color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
-      #loading { position: fixed; left: 10%; right: 10%; top: 50%; text-align: center; color: #ffd36a;
-        font: 700 20px/1.4 -apple-system, Helvetica, Arial, sans-serif; pointer-events: none; }
-      #bar { margin-top: 12px; height: 10px; border-radius: 5px; background: #333a4d; overflow: hidden; }
-      #fill { height: 100%; width: 0; background: #ffb42e; }
+      #cover { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 4; background: #7fc4ee; overflow: hidden;
+        opacity: 1; transition: opacity .7s ease; }
+      #cover.done { opacity: 0; pointer-events: none; }
+      #cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+      #logo { position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + 3.5vh); transform: translateX(-50%);
+        width: min(74vw, 340px); height: auto; filter: drop-shadow(0 3px 4px rgba(40,20,0,.45)); }
+      #loading { position: absolute; left: 14%; right: 14%; bottom: calc(11% + env(safe-area-inset-bottom)); text-align: center;
+        color: #fff3c4; font: 700 16px/1.3 "Lilita One", -apple-system, Helvetica, Arial, sans-serif;
+        text-shadow: 0 2px 0 #4a2c14, 0 0 4px #4a2c14; pointer-events: none; }
+      #bar { margin-top: 8px; height: 20px; border-radius: 12px; background: #2b2f40; border: 3px solid #4a2c14;
+        box-shadow: 0 2px 0 rgba(0,0,0,.35); overflow: hidden; }
+      #fill { height: 100%; width: 0; background: linear-gradient(#ffd36a, #ffb42e 55%, #7ccf3c); transition: width .2s linear; }
     </style>
   </head>
   <body>
     <canvas id="unity-canvas" tabindex="-1"></canvas>
-    <div id="build-id">build dc97769 2026-10-17 20:03Z</div>
-    <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
+    <div id="cover">
+      <img id="cover-img" src="cover.jpg" alt="">
+      <img id="logo" src="logo.webp" alt="One More Merge">
+      <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
+    </div>
+    <div id="build-id">build dbe3a9f 2026-10-18 12:02Z</div>
     <script src="Build/WebGL.loader.js"></script>
     <script>
       var msg = document.getElementById("msg");
+      var fz = new URLSearchParams(location.search).get("freeze");
+      var freeze = fz === null || isNaN(Number(fz)) ? null : Number(fz);
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
         dataUrl: "Build/WebGL.data",
@@ -40,9 +75,15 @@
         productName: "OneMoreMergeUnity",
         productVersion: "1.0",
       }, function (p) {
-        document.getElementById("fill").style.width = (100 * p) + "%";
+        // ?freeze=60 holds the cover at 60% and never fades (screenshot testing).
+        var shown = freeze === null ? p : Math.min(p, freeze / 100);
+        document.getElementById("fill").style.width = (100 * shown) + "%";
+        msg.textContent = "Loading… " + Math.round(100 * shown) + "%";
       }).then(function () {
-        document.getElementById("loading").style.display = "none";
+        if (freeze !== null) return;
+        var cover = document.getElementById("cover");
+        cover.className = "done";
+        setTimeout(function () { cover.style.display = "none"; }, 800);
       }).catch(function (e) {
         msg.textContent = "Could not start: " + e;
       });
