@@ -7,13 +7,15 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="One More Merge">
-    <meta name="theme-color" content="#1b1f2a">
+    <meta name="theme-color" content="#0048f5">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
     <link rel="apple-touch-icon" sizes="180x180" href="pwa/apple-touch-icon-180.png">
-    <link rel="icon" type="image/png" href="pwa/icon-192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="pwa/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="pwa/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="pwa/icon-192.png">
     <link rel="apple-touch-startup-image" href="pwa/startup-1290x2796.jpg" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="pwa/startup-1179x2556.jpg" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
     <link rel="apple-touch-startup-image" href="pwa/startup-1284x2778.jpg" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
@@ -71,7 +73,7 @@
       <img id="logo" src="logo.webp" alt="One More Merge">
       <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
     </div>
-    <div id="build-id">build 9ec8a08 2026-10-19 04:45Z</div>
+    <div id="build-id">build 86e7b30 2026-10-19 09:56Z</div>
     <div id="omm-dot" title="error logged"></div>
     <div id="omm-sheet">
       <div id="omm-sheet-bar"><b>Error</b><span><button id="omm-copy" type="button">copy log</button><button id="omm-close" type="button">close</button></span></div>
@@ -99,7 +101,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 9ec8a08 2026-10-19 04:45Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 86e7b30 2026-10-19 09:56Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -150,7 +152,7 @@
             setInterval(function () {
               var heap = -1; try { heap = window.unityInstance.Module.HEAPU32.buffer.byteLength; } catch (e) { }
               var js = (performance.memory && performance.memory.usedJSHeapSize) || 0;
-              hud.textContent = "build 9ec8a08 2026-10-19 04:45Z | wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") +
+              hud.textContent = "build 86e7b30 2026-10-19 09:56Z | wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") +
                 " | " + innerWidth + "x" + innerHeight + " | errors " + errors.length;
             }, 1000);
           }
