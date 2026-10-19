@@ -38,6 +38,18 @@
       #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
         color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
+      /* A zero or tiny window (Share sheet, rotation) must never give the canvas a 0 or negative size. */
+      #unity-canvas { min-width: 50px; min-height: 50px; }
+      #omm-dot { display: none; position: fixed; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: 14px; height: 14px; z-index: 9;
+        border-radius: 50%; background: #e02020; border: 2px solid #fff; box-shadow: 0 0 0 10px rgba(224,32,32,.001); }
+      #omm-sheet { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 55%; z-index: 10; flex-direction: column;
+        background: rgba(20,12,12,.96); color: #ffd9d0; border-top: 3px solid #e02020; -webkit-user-select: text; user-select: text; touch-action: pan-y; }
+      #omm-sheet-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font: 700 15px -apple-system, Helvetica, Arial, sans-serif; }
+      #omm-sheet-bar button { margin-left: 8px; padding: 6px 12px; font: 700 14px -apple-system, Helvetica, Arial, sans-serif; border: 0; border-radius: 8px; background: #ffd36a; color: #3a2210; }
+      #omm-sheet-text { margin: 0; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); overflow: auto; -webkit-overflow-scrolling: touch;
+        font: 11px/1.35 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+      #omm-hud { display: none; position: fixed; left: 6px; top: calc(2px + env(safe-area-inset-top)); z-index: 9; pointer-events: none; color: #bfffbf;
+        font: 700 11px/1.2 ui-monospace, Menlo, monospace; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
       #cover { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 4; background: #7fc4ee; overflow: hidden;
         opacity: 1; transition: opacity .7s ease; }
       #cover.done { opacity: 0; pointer-events: none; }
@@ -59,7 +71,92 @@
       <img id="logo" src="logo.webp" alt="One More Merge">
       <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
     </div>
-    <div id="build-id">build f5640f3 2026-10-18 16:06Z</div>
+    <div id="build-id">build 9ec8a08 2026-10-19 04:45Z</div>
+    <div id="omm-dot" title="error logged"></div>
+    <div id="omm-sheet">
+      <div id="omm-sheet-bar"><b>Error</b><span><button id="omm-copy" type="button">copy log</button><button id="omm-close" type="button">close</button></span></div>
+      <pre id="omm-sheet-text"></pre>
+    </div>
+    <div id="omm-hud"></div>
+    <script>
+      // Error diagnostics. Registered before Unity's loader so nothing is missed. Replaces the loader's "Script error." dialog:
+      // a non-fatal error only turns on a red dot (tap it to read the report); a fatal one (abort, out of memory) opens the sheet at once.
+      (function () {
+        var MAX = 30, ring = [], errors = [], fatalSeen = false, lastKey = "", lastAt = 0;
+        var $ = function (id) { return document.getElementById(id); };
+        function str(a) { try { return typeof a === "string" ? a : (a && a.stack) || JSON.stringify(a); } catch (e) { return String(a); } }
+        function push(kind, text) {
+          ring.push((Math.round(performance.now()) / 1000).toFixed(1) + "s " + kind + ": " + String(text).slice(0, 400));
+          if (ring.length > MAX) ring.shift();
+        }
+        ["log", "info", "warn", "error"].forEach(function (k) {
+          var orig = console[k];
+          console[k] = function () {
+            try { push(k, Array.prototype.map.call(arguments, str).join(" ")); } catch (e) { /* logging must not break */ }
+            return orig && orig.apply(console, arguments);
+          };
+        });
+        function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
+        function render() {
+          var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 9ec8a08 2026-10-19 04:45Z | " + navigator.userAgent;
+          $("omm-sheet-text").textContent = t;
+          return t;
+        }
+        function showSheet() { try { render(); $("omm-sheet").style.display = "flex"; } catch (e) { } }
+        function report(kind, message, file, line, stack) {
+          try {
+            message = String(message || "");
+            var key = kind + message, now = Date.now();
+            if (key === lastKey && now - lastAt < 1000) return; // loader + our own listener see the same event
+            lastKey = key; lastAt = now;
+            var where = file ? file + (line ? ":" + line : "") : "";
+            if (!message || message === "Script error.") message = (message || "(no message)") + " (the browser hid the details" + (where ? "" : ": cross-origin or Safari") + ")";
+            if (errors.length < 20) errors.push({ kind: kind, message: message, where: where, stack: stack && stack !== message ? String(stack).slice(0, 1500) : "" });
+            push(kind, message + (where ? " @ " + where : ""));
+            var dot = $("omm-dot"); if (dot) dot.style.display = "block";
+            if (isFatal(message + " " + (stack || "")) && !fatalSeen) { fatalSeen = true; showSheet(); }
+          } catch (e) { /* never throw from the error reporter */ }
+        }
+        window.ommDiag = { report: report, ring: ring, errors: errors };
+        window.addEventListener("error", function (ev) {
+          if (ev.target && ev.target !== window && ev.target.tagName) { report("load", "failed to load " + (ev.target.src || ev.target.href || ev.target.tagName), "", 0, ""); return; }
+          var er = ev.error;
+          report("error", ev.message || (er && er.message), ev.filename, ev.lineno, er && er.stack);
+        }, true);
+        window.addEventListener("unhandledrejection", function (ev) {
+          var r = ev.reason;
+          report("promise", (r && r.message) || (typeof r === "string" ? r : str(r)), "", 0, r && r.stack);
+        });
+        document.addEventListener("DOMContentLoaded", function () {
+          $("omm-dot").addEventListener("click", showSheet);
+          $("omm-close").addEventListener("click", function () { $("omm-sheet").style.display = "none"; });
+          $("omm-copy").addEventListener("click", function () {
+            var t = render();
+            try { navigator.clipboard.writeText(t).then(null, function () { fallbackCopy(t); }); } catch (e) { fallbackCopy(t); }
+          });
+          function fallbackCopy(t) {
+            var pre = $("omm-sheet-text"), sel = window.getSelection(), r = document.createRange();
+            try { r.selectNodeContents(pre); sel.removeAllRanges(); sel.addRange(r); document.execCommand("copy"); } catch (e) { }
+          }
+          // The panel and dot are normal DOM above the canvas: stop their touches reaching the game and the page-wide touchmove blocker.
+          ["omm-dot", "omm-sheet"].forEach(function (id) { ["touchstart", "touchmove"].forEach(function (n) { $(id).addEventListener(n, function (e) { e.stopPropagation(); }, { passive: true }); }); });
+          // Test aid, only with ?forceerror=1: an uncaught error 3 s after start, to check the dot and the sheet on a real device.
+          if (/[?&]forceerror=1/.test(location.search)) {
+            setTimeout(function () { throw new Error("forced test error (forceerror=1)"); }, 3000);
+          }
+          if (/[?&]debug=1/.test(location.search)) {
+            var hud = $("omm-hud"); hud.style.display = "block";
+            setInterval(function () {
+              var heap = -1; try { heap = window.unityInstance.Module.HEAPU32.buffer.byteLength; } catch (e) { }
+              var js = (performance.memory && performance.memory.usedJSHeapSize) || 0;
+              hud.textContent = "build 9ec8a08 2026-10-19 04:45Z | wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") +
+                " | " + innerWidth + "x" + innerHeight + " | errors " + errors.length;
+            }, 1000);
+          }
+        });
+      })();
+    </script>
     <script src="Build/WebGL.loader.js"></script>
     <script>
       var msg = document.getElementById("msg");
@@ -74,6 +171,12 @@
         companyName: "DefaultCompany",
         productName: "OneMoreMergeUnity",
         productVersion: "1.0",
+        // Replaces the loader's modal "Script error." dialog: record the real text; true = the loader shows nothing itself.
+        errorHandler: function (message, filename, lineno) {
+          if (window.ommDiag) window.ommDiag.report("unity", message, filename, lineno, "");
+          return true;
+        },
+        printErr: function (t) { console.error(t); },
       }, function (p) {
         // ?freeze=60 holds the cover at 60% and never fades (screenshot testing).
         var shown = freeze === null ? p : Math.min(p, freeze / 100);
