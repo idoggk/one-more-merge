@@ -46,9 +46,6 @@
       html[data-fit="d"], html[data-fit="d"] body { height: 100%; height: -webkit-fill-available; }
       html[data-fit="d"] #unity-canvas, html[data-fit="d"] #cover { width: 100%; height: -webkit-fill-available; }
       html[data-fit="e"] #unity-canvas, html[data-fit="e"] #cover { position: absolute; width: 100vw; height: 100vh; }
-      /* Home-screen app: the page behind a canvas that stops short is sky with a dock-cream bottom band, so a leftover strip looks like part of the dock. */
-      html.standalone { background: linear-gradient(#7fc4ee calc(100% - 90px), #ffedc7 calc(100% - 90px)) fixed; }
-      html.standalone body { background: transparent; }
       /* b (and e's height) are overwritten inline by JS; this is the no-JS / before-JS size. */
       html[data-fit="b"] #unity-canvas, html[data-fit="b"] #cover { width: 100vw; height: 100dvh; }
       /* Dock-coloured bar under the home indicator, behind the canvas: if the canvas ever stops short, the strip looks intentional. */
@@ -76,56 +73,65 @@
       #cover.done { opacity: 0; pointer-events: none; }
       /* Same art, same fit (cover, centred) as the Unity title's cover Image. The logo is NOT drawn here: Unity draws it, so it is never doubled. */
       #cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-      /* The bar sits where the title's PLAY button appears (Unity: 1080-wide reference, button 640 wide, centre 405 above the bottom edge). */
-      #loading { position: absolute; left: 20.35%; right: 20.35%; bottom: calc(37.5vw - 20px); text-align: center;
-        color: #fff3c4; font: 700 16px/1.3 "Lilita One", -apple-system, Helvetica, Arial, sans-serif;
-        text-shadow: 0 2px 0 #4a2c14, 0 0 4px #4a2c14; pointer-events: none; }
-      #bar { margin-top: 8px; height: 20px; border-radius: 12px; background: #2b2f40; border: 3px solid #4a2c14;
-        box-shadow: 0 2px 0 rgba(0,0,0,.35); overflow: hidden; }
-      #fill { height: 100%; width: 0; background: linear-gradient(#ffd36a, #ffb42e 55%, #7ccf3c); transition: width .2s linear; }
+      /* LOADER = TITLE: one continuous screen. --u is one unit of Unity's 1080-wide reference canvas (CanvasScaler matches width), set from the
+         canvas width by JS (100vw / 1080 before that). Logo and button are placed exactly like Unity's TitleScreen.cs: two outlined Lilita
+         lines (centred at 91.5% / 83.5% of the height from the bottom, sizes 160 / 235, boxes 1060 wide x 1.25 size, 8-way outline of
+         size*0.045) and a 640 x 210 button whose bottom edge is 300 units above the bottom edge. */
+      @font-face { font-family: "OMM Lilita"; src: url("LilitaOne.ttf") format("truetype"); font-display: block; }
+      #cover { --u: calc(100vw / 1080); }
+      .logo { position: absolute; left: 50%; width: calc(var(--u) * 1060); transform: translate(-50%, -50%); text-align: center; white-space: nowrap;
+        display: flex; align-items: center; justify-content: center; font-family: "OMM Lilita", "Lilita One", sans-serif; line-height: normal;
+        pointer-events: none; opacity: 0; }
+      .fonts-ready .logo { opacity: 1; }
+      #logo1 { top: 8.5%; height: calc(var(--u) * 200); font-size: calc(var(--u) * 160); color: #ffbd33;
+        text-shadow: calc(var(--u) * 7.2) 0 #5e2b0d, calc(var(--u) * -7.2) 0 #5e2b0d, 0 calc(var(--u) * 7.2) #5e2b0d, 0 calc(var(--u) * -7.2) #5e2b0d,
+          calc(var(--u) * 5.09) calc(var(--u) * 5.09) #5e2b0d, calc(var(--u) * -5.09) calc(var(--u) * 5.09) #5e2b0d,
+          calc(var(--u) * 5.09) calc(var(--u) * -5.09) #5e2b0d, calc(var(--u) * -5.09) calc(var(--u) * -5.09) #5e2b0d; }
+      #logo2 { top: 16.5%; height: calc(var(--u) * 294); font-size: calc(var(--u) * 235); color: #ff8524;
+        text-shadow: calc(var(--u) * 10.6) 0 #5e2b0d, calc(var(--u) * -10.6) 0 #5e2b0d, 0 calc(var(--u) * 10.6) #5e2b0d, 0 calc(var(--u) * -10.6) #5e2b0d,
+          calc(var(--u) * 7.5) calc(var(--u) * 7.5) #5e2b0d, calc(var(--u) * -7.5) calc(var(--u) * 7.5) #5e2b0d,
+          calc(var(--u) * 7.5) calc(var(--u) * -7.5) #5e2b0d, calc(var(--u) * -7.5) calc(var(--u) * -7.5) #5e2b0d; }
+      /* The progress bar IS the PLAY button's place and shape (UiKit.Panel tinted green: dark outline, gold rim, cream face); the green fill
+         grows inside it and the label turns from "Loading 37%" into "PLAY". */
+      #bar { position: absolute; left: 50%; bottom: calc(var(--u) * 300); width: calc(var(--u) * 640); height: calc(var(--u) * 210);
+        transform: translateX(-50%); border-radius: calc(var(--u) * 30); overflow: hidden; pointer-events: none;
+        background: linear-gradient(#cfe7b4, #c4dca4);
+        box-shadow: inset 0 0 0 calc(var(--u) * 2.5) #392e08, inset 0 0 0 calc(var(--u) * 8) #b6cf5e, inset 0 0 0 calc(var(--u) * 10) #7b7e14; }
+      #fill { position: absolute; left: calc(var(--u) * 10); top: calc(var(--u) * 10); bottom: calc(var(--u) * 10); width: 0;
+        background: linear-gradient(#9ed550, #98c13f); transition: width .2s linear; }
+      #bar.ready #fill { width: calc(var(--u) * 620) !important; }
+      #msg { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+        font-family: "OMM Lilita", "Lilita One", sans-serif; color: #4d2910; font-size: calc(var(--u) * 64); line-height: normal; white-space: nowrap; }
+      #bar.ready #msg { font-size: calc(var(--u) * 120); }
     </style>
   </head>
   <body>
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     <div id="cover">
       <img id="cover-img" src="cover.jpg" alt="">
-      <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
+      <div class="logo" id="logo1">ONE MORE</div>
+      <div class="logo" id="logo2">MERGE</div>
+      <div id="bar"><div id="fill"></div><div id="msg">Loading… 0%</div></div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build c5fdadf 2026-10-20 09:33Z</div>
+    <div id="build-id" style="display:none">build fc8a3ef 2026-10-20 18:14Z</div>
     <div id="omm-bottom"></div>
     <script>
       // Fit mode shared by the canvas and the loading cover (rules in the CSS above). ?fit=a..e; default b = size the canvas in px from the window.
-      var OMM_BUILD = "c5fdadf 2026-10-20 09:33Z";
-      // Mode precedence: ?fit= in the URL, else the mode stored by double-tapping the debug overlay (the home-screen icon drops the query string),
-      // else "default" = b, plus the standalone guess below (canvas height = largest of innerHeight, screen.height, visualViewport.height).
-      // Plain "b" stays the old innerHeight rule so the two can be compared inside the icon.
-      var OMM_MODES = ["a", "b", "c", "d", "e", "default"];
-      function ommGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-      function ommSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode: setting just does not stick */ } }
-      var OMM_STANDALONE = (function () {
-        try { if (navigator.standalone) return true; } catch (e) { }
-        try { return !!(window.matchMedia && matchMedia("(display-mode: standalone)").matches); } catch (e) { return false; }
-      })();
-      var OMM_FIT = (/[?&]fit=([a-e]|default)\b/.exec(location.search) || [0, ommGet("omm_fit")])[1];
-      if (OMM_MODES.indexOf(OMM_FIT) < 0) OMM_FIT = "default";
-      function ommFitAttr() { return OMM_FIT === "default" ? "b" : OMM_FIT; }
-      document.documentElement.setAttribute("data-fit", ommFitAttr());
-      if (OMM_STANDALONE) document.documentElement.className = "standalone";
+      var OMM_BUILD = "fc8a3ef 2026-10-20 18:14Z";
+      var OMM_FIT = (/[?&]fit=([a-e])/.exec(location.search) || [0, "b"])[1];
+      document.documentElement.setAttribute("data-fit", OMM_FIT);
+      if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
         var t = 0, last = "", own = false;
-        var ids = ["unity-canvas", "cover"];
         function apply() {
-          var fit = ommFitAttr();
-          if (fit !== "b" && fit !== "e") return;
-          var vv = window.visualViewport, w = Math.round(window.innerWidth), h = Math.round(fit === "e" ? screen.height : window.innerHeight);
-          var guess = OMM_STANDALONE && OMM_FIT === "default";
-          if (guess) h = Math.round(Math.max(window.innerHeight, screen.height, vv ? vv.height : 0));
+          if (OMM_FIT !== "b" && OMM_FIT !== "e") return;
+          var w = Math.round(window.innerWidth), h = Math.round(OMM_FIT === "e" ? screen.height : window.innerHeight);
           if (!(w > 0 && h > 0)) return;
-          ids.forEach(function (id) {
+          ["unity-canvas", "cover"].forEach(function (id) {
             var el = document.getElementById(id); if (!el) return;
-            el.style.width = guess ? "100vw" : w + "px"; el.style.height = h + "px";
-            if (guess) { el.style.position = "fixed"; el.style.top = "0"; el.style.left = "0"; el.style.transform = "none"; }
+            el.style.width = w + "px"; el.style.height = h + "px";
+            if (id === "cover") el.style.setProperty("--u", (w / 1080) + "px");
           });
           if (w + "x" + h !== last) {
             last = w + "x" + h;
@@ -134,23 +140,12 @@
         }
         function later() { clearTimeout(t); t = setTimeout(apply, 60); }
         window.ommFitApply = apply;
-        // Double-tap on the overlay: next mode, stored. Inline sizes of the previous mode are dropped first.
-        window.ommCycleFit = function () {
-          OMM_FIT = OMM_MODES[(OMM_MODES.indexOf(OMM_FIT) + 1) % OMM_MODES.length];
-          ommSet("omm_fit", OMM_FIT);
-          document.documentElement.setAttribute("data-fit", ommFitAttr());
-          ids.forEach(function (id) { var el = document.getElementById(id); if (el) el.removeAttribute("style"); });
-          last = ""; apply();
-          try { window.dispatchEvent(new Event("resize")); } catch (e) { /* layout aid only */ }
-        };
         window.addEventListener("resize", function () { if (!own) later(); });
         window.addEventListener("orientationchange", later);
         if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
         apply();
         document.addEventListener("DOMContentLoaded", apply);
         window.addEventListener("load", apply);
-        // iOS reports the home-screen viewport late: measure again 300 ms and 1 s after the script runs.
-        setTimeout(apply, 300); setTimeout(apply, 1000);
       })();
     </script>
     <div id="omm-dot" title="error logged"></div>
@@ -180,7 +175,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild c5fdadf 2026-10-20 09:33Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild fc8a3ef 2026-10-20 18:14Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -226,36 +221,15 @@
           if (/[?&]forceerror=1/.test(location.search)) {
             setTimeout(function () { throw new Error("forced test error (forceerror=1)"); }, 3000);
           }
-          // Overlay on/off: triple-tap within 1 s on the top-left 60x60 corner (works in the home-screen icon, which drops ?debug=1).
-          // The stored choice (omm_debug) wins over the URL; with nothing stored, ?debug=1 decides. Double-tap on the overlay cycles the fit mode.
-          var hud = $("omm-hud"), urlDebug = /[?&]debug=1/.test(location.search), taps = [], hudTap = 0;
-          function hudOn() { var s = ommGet("omm_debug"); return s === null ? urlDebug : s === "1"; }
-          function showHud() { hud.style.display = hudOn() ? "block" : "none"; }
-          showHud();
-          window.addEventListener("pointerdown", function (e) {
-            var now = Date.now(), x = e.clientX, y = e.clientY;
-            if (hudOn() && hud.style.display === "block") {
-              var b = hud.getBoundingClientRect();
-              if (x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) {
-                if (now - hudTap < 400) { hudTap = 0; window.ommCycleFit(); } else { hudTap = now; }
-                return;
-              }
-            }
-            if (x < 60 && y < 60) {
-              taps = taps.filter(function (t) { return now - t < 1000; }); taps.push(now);
-              if (taps.length >= 3) { taps = []; ommSet("omm_debug", hudOn() ? "0" : "1"); showHud(); }
-            } else { taps = []; }
-          }, true);
-          {
+          if (/[?&]debug=1/.test(location.search)) {
+            var hud = $("omm-hud"); hud.style.display = "block";
             setInterval(function () {
-              if (!hudOn()) return;
               var heap = -1; try { heap = window.unityInstance.Module.HEAPU32.buffer.byteLength; } catch (e) { }
               var js = (performance.memory && performance.memory.usedJSHeapSize) || 0;
               var vv = window.visualViewport, c = $("unity-canvas"), r = c.getBoundingClientRect(), pr = $("omm-probe");
               var cs = pr ? getComputedStyle(pr) : null, f1 = function (v) { return Math.round(v * 10) / 10; };
               var std = false; try { std = matchMedia("(display-mode: standalone)").matches; } catch (e) { }
-              hud.textContent = "build " + OMM_BUILD + " | fit " + OMM_FIT + (OMM_FIT === "default" && std ? " (standalone guess)" : "") + "\n" +
-                "triple-tap top-left: hide | double-tap here: next fit\n" +
+              hud.textContent = "build " + OMM_BUILD + " | fit " + OMM_FIT + "\n" +
                 "inner " + innerWidth + "x" + innerHeight + " | docEl.clientH " + document.documentElement.clientHeight + "\n" +
                 "vv " + (vv ? f1(vv.width) + "x" + f1(vv.height) + " top " + f1(vv.offsetTop) + " sc " + f1(vv.scale) : "none") + "\n" +
                 "screen " + screen.width + "x" + screen.height + " | dpr " + devicePixelRatio + "\n" +
@@ -272,6 +246,12 @@
     <script src="Build/WebGL.loader.js"></script>
     <script>
       var msg = document.getElementById("msg");
+      // the logo appears only once its font is in, so it never shows in a fallback face
+      (function () {
+        var show = function () { document.getElementById("cover").classList.add("fonts-ready"); };
+        if (document.fonts && document.fonts.load) document.fonts.load('160px "OMM Lilita"').then(show, show); else show();
+        setTimeout(show, 2500);
+      })();
       var fz = new URLSearchParams(location.search).get("freeze");
       var freeze = fz === null || isNaN(Number(fz)) ? null : Number(fz);
       // Defined before Unity starts: the title may signal before the load promise resolves. Not under ?freeze (cover stays for screenshots).
@@ -280,7 +260,8 @@
         if (coverDone || freeze !== null) return;
         coverDone = true;
         var cover = document.getElementById("cover");
-        cover.className = "done";
+        document.getElementById("bar").className = "ready"; msg.textContent = "PLAY";   // the bar has become the PLAY button; Unity's identical one is under it
+        cover.classList.add("done");
         setTimeout(function () { cover.style.display = "none"; }, 400);
       };
       createUnityInstance(document.querySelector("#unity-canvas"), {
@@ -301,7 +282,7 @@
       }, function (p) {
         // ?freeze=60 holds the cover at 60% and never fades (screenshot testing).
         var shown = freeze === null ? p : Math.min(p, freeze / 100);
-        document.getElementById("fill").style.width = (100 * shown) + "%";
+        document.getElementById("fill").style.width = "calc(var(--u) * " + (620 * shown) + ")";
         msg.textContent = "Loading… " + Math.round(100 * shown) + "%";
       }).then(function (instance) {
         window.unityInstance = instance; // read by the memory checks (Module.HEAPU32.buffer.byteLength)
