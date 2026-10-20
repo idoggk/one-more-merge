@@ -46,6 +46,9 @@
       html[data-fit="d"], html[data-fit="d"] body { height: 100%; height: -webkit-fill-available; }
       html[data-fit="d"] #unity-canvas, html[data-fit="d"] #cover { width: 100%; height: -webkit-fill-available; }
       html[data-fit="e"] #unity-canvas, html[data-fit="e"] #cover { position: absolute; width: 100vw; height: 100vh; }
+      /* Home-screen app: the page behind a canvas that stops short is sky with a dock-cream bottom band, so a leftover strip looks like part of the dock. */
+      html.standalone { background: linear-gradient(#7fc4ee calc(100% - 90px), #ffedc7 calc(100% - 90px)) fixed; }
+      html.standalone body { background: transparent; }
       /* b (and e's height) are overwritten inline by JS; this is the no-JS / before-JS size. */
       html[data-fit="b"] #unity-canvas, html[data-fit="b"] #cover { width: 100vw; height: 100dvh; }
       /* Dock-coloured bar under the home indicator, behind the canvas: if the canvas ever stops short, the strip looks intentional. */
@@ -94,18 +97,35 @@
     <script>
       // Fit mode shared by the canvas and the loading cover (rules in the CSS above). ?fit=a..e; default b = size the canvas in px from the window.
       var OMM_BUILD = "c5fdadf 2026-10-20 09:33Z";
-      var OMM_FIT = (/[?&]fit=([a-e])/.exec(location.search) || [0, "b"])[1];
-      document.documentElement.setAttribute("data-fit", OMM_FIT);
-      if (navigator.standalone) document.documentElement.className = "standalone";
+      // Mode precedence: ?fit= in the URL, else the mode stored by double-tapping the debug overlay (the home-screen icon drops the query string),
+      // else "default" = b, plus the standalone guess below (canvas height = largest of innerHeight, screen.height, visualViewport.height).
+      // Plain "b" stays the old innerHeight rule so the two can be compared inside the icon.
+      var OMM_MODES = ["a", "b", "c", "d", "e", "default"];
+      function ommGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function ommSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode: setting just does not stick */ } }
+      var OMM_STANDALONE = (function () {
+        try { if (navigator.standalone) return true; } catch (e) { }
+        try { return !!(window.matchMedia && matchMedia("(display-mode: standalone)").matches); } catch (e) { return false; }
+      })();
+      var OMM_FIT = (/[?&]fit=([a-e]|default)\b/.exec(location.search) || [0, ommGet("omm_fit")])[1];
+      if (OMM_MODES.indexOf(OMM_FIT) < 0) OMM_FIT = "default";
+      function ommFitAttr() { return OMM_FIT === "default" ? "b" : OMM_FIT; }
+      document.documentElement.setAttribute("data-fit", ommFitAttr());
+      if (OMM_STANDALONE) document.documentElement.className = "standalone";
       (function () {
         var t = 0, last = "", own = false;
+        var ids = ["unity-canvas", "cover"];
         function apply() {
-          if (OMM_FIT !== "b" && OMM_FIT !== "e") return;
-          var w = Math.round(window.innerWidth), h = Math.round(OMM_FIT === "e" ? screen.height : window.innerHeight);
+          var fit = ommFitAttr();
+          if (fit !== "b" && fit !== "e") return;
+          var vv = window.visualViewport, w = Math.round(window.innerWidth), h = Math.round(fit === "e" ? screen.height : window.innerHeight);
+          var guess = OMM_STANDALONE && OMM_FIT === "default";
+          if (guess) h = Math.round(Math.max(window.innerHeight, screen.height, vv ? vv.height : 0));
           if (!(w > 0 && h > 0)) return;
-          ["unity-canvas", "cover"].forEach(function (id) {
+          ids.forEach(function (id) {
             var el = document.getElementById(id); if (!el) return;
-            el.style.width = w + "px"; el.style.height = h + "px";
+            el.style.width = guess ? "100vw" : w + "px"; el.style.height = h + "px";
+            if (guess) { el.style.position = "fixed"; el.style.top = "0"; el.style.left = "0"; el.style.transform = "none"; }
           });
           if (w + "x" + h !== last) {
             last = w + "x" + h;
@@ -114,12 +134,23 @@
         }
         function later() { clearTimeout(t); t = setTimeout(apply, 60); }
         window.ommFitApply = apply;
+        // Double-tap on the overlay: next mode, stored. Inline sizes of the previous mode are dropped first.
+        window.ommCycleFit = function () {
+          OMM_FIT = OMM_MODES[(OMM_MODES.indexOf(OMM_FIT) + 1) % OMM_MODES.length];
+          ommSet("omm_fit", OMM_FIT);
+          document.documentElement.setAttribute("data-fit", ommFitAttr());
+          ids.forEach(function (id) { var el = document.getElementById(id); if (el) el.removeAttribute("style"); });
+          last = ""; apply();
+          try { window.dispatchEvent(new Event("resize")); } catch (e) { /* layout aid only */ }
+        };
         window.addEventListener("resize", function () { if (!own) later(); });
         window.addEventListener("orientationchange", later);
         if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
         apply();
         document.addEventListener("DOMContentLoaded", apply);
         window.addEventListener("load", apply);
+        // iOS reports the home-screen viewport late: measure again 300 ms and 1 s after the script runs.
+        setTimeout(apply, 300); setTimeout(apply, 1000);
       })();
     </script>
     <div id="omm-dot" title="error logged"></div>
@@ -195,15 +226,36 @@
           if (/[?&]forceerror=1/.test(location.search)) {
             setTimeout(function () { throw new Error("forced test error (forceerror=1)"); }, 3000);
           }
-          if (/[?&]debug=1/.test(location.search)) {
-            var hud = $("omm-hud"); hud.style.display = "block";
+          // Overlay on/off: triple-tap within 1 s on the top-left 60x60 corner (works in the home-screen icon, which drops ?debug=1).
+          // The stored choice (omm_debug) wins over the URL; with nothing stored, ?debug=1 decides. Double-tap on the overlay cycles the fit mode.
+          var hud = $("omm-hud"), urlDebug = /[?&]debug=1/.test(location.search), taps = [], hudTap = 0;
+          function hudOn() { var s = ommGet("omm_debug"); return s === null ? urlDebug : s === "1"; }
+          function showHud() { hud.style.display = hudOn() ? "block" : "none"; }
+          showHud();
+          window.addEventListener("pointerdown", function (e) {
+            var now = Date.now(), x = e.clientX, y = e.clientY;
+            if (hudOn() && hud.style.display === "block") {
+              var b = hud.getBoundingClientRect();
+              if (x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) {
+                if (now - hudTap < 400) { hudTap = 0; window.ommCycleFit(); } else { hudTap = now; }
+                return;
+              }
+            }
+            if (x < 60 && y < 60) {
+              taps = taps.filter(function (t) { return now - t < 1000; }); taps.push(now);
+              if (taps.length >= 3) { taps = []; ommSet("omm_debug", hudOn() ? "0" : "1"); showHud(); }
+            } else { taps = []; }
+          }, true);
+          {
             setInterval(function () {
+              if (!hudOn()) return;
               var heap = -1; try { heap = window.unityInstance.Module.HEAPU32.buffer.byteLength; } catch (e) { }
               var js = (performance.memory && performance.memory.usedJSHeapSize) || 0;
               var vv = window.visualViewport, c = $("unity-canvas"), r = c.getBoundingClientRect(), pr = $("omm-probe");
               var cs = pr ? getComputedStyle(pr) : null, f1 = function (v) { return Math.round(v * 10) / 10; };
               var std = false; try { std = matchMedia("(display-mode: standalone)").matches; } catch (e) { }
-              hud.textContent = "build " + OMM_BUILD + " | fit " + OMM_FIT + "\n" +
+              hud.textContent = "build " + OMM_BUILD + " | fit " + OMM_FIT + (OMM_FIT === "default" && std ? " (standalone guess)" : "") + "\n" +
+                "triple-tap top-left: hide | double-tap here: next fit\n" +
                 "inner " + innerWidth + "x" + innerHeight + " | docEl.clientH " + document.documentElement.clientHeight + "\n" +
                 "vv " + (vv ? f1(vv.width) + "x" + f1(vv.height) + " top " + f1(vv.offsetTop) + " sc " + f1(vv.scale) : "none") + "\n" +
                 "screen " + screen.width + "x" + screen.height + " | dpr " + devicePixelRatio + "\n" +
