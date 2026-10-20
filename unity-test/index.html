@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="One More Merge">
-    <meta name="theme-color" content="#0048f5">
+    <meta name="theme-color" content="#7fc4ee">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
@@ -34,12 +34,15 @@
          while the painted background runs under the notch and the home bar. */
       /* Explicit width/height: a canvas is a replaced element, so "auto" would mean its own pixel size and Unity, which sets that
          size from the CSS size, would grow it every frame (blank screen, "RenderTexture.Create failed ... too large"). */
-      #unity-canvas { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; height: 100dvh;
+      #unity-canvas { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; height: -webkit-fill-available; height: 100dvh;
         display: block; background: #7fc4ee; outline: none;
         -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
       #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
         color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
+      /* Home-screen app (no Safari toolbar): the large viewport is the whole screen down to the physical bottom edge, under the home bar. */
+      @media (display-mode: standalone) { #unity-canvas { height: 100lvh; } }
+      html.standalone #unity-canvas { height: 100lvh; }
       /* A zero or tiny window (Share sheet, rotation) must never give the canvas a 0 or negative size. */
       #unity-canvas { min-width: 50px; min-height: 50px; }
       #omm-dot { display: none; position: fixed; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: 14px; height: 14px; z-index: 9;
@@ -53,12 +56,12 @@
       #omm-hud { display: none; position: fixed; left: 6px; top: calc(2px + env(safe-area-inset-top)); z-index: 9; pointer-events: none; color: #bfffbf;
         font: 700 11px/1.2 ui-monospace, Menlo, monospace; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
       #cover { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 4; background: #7fc4ee; overflow: hidden;
-        opacity: 1; transition: opacity .7s ease; }
+        opacity: 1; transition: opacity .25s ease; }
       #cover.done { opacity: 0; pointer-events: none; }
+      /* Same art, same fit (cover, centred) as the Unity title's cover Image. The logo is NOT drawn here: Unity draws it, so it is never doubled. */
       #cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-      #logo { position: absolute; left: 50%; top: calc(env(safe-area-inset-top) + 3.5vh); transform: translateX(-50%);
-        width: min(74vw, 340px); height: auto; filter: drop-shadow(0 3px 4px rgba(40,20,0,.45)); }
-      #loading { position: absolute; left: 14%; right: 14%; bottom: calc(11% + env(safe-area-inset-bottom)); text-align: center;
+      /* The bar sits where the title's PLAY button appears (Unity: 1080-wide reference, button 640 wide, centre 405 above the bottom edge). */
+      #loading { position: absolute; left: 20.35%; right: 20.35%; bottom: calc(37.5vw - 20px); text-align: center;
         color: #fff3c4; font: 700 16px/1.3 "Lilita One", -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 2px 0 #4a2c14, 0 0 4px #4a2c14; pointer-events: none; }
       #bar { margin-top: 8px; height: 20px; border-radius: 12px; background: #2b2f40; border: 3px solid #4a2c14;
@@ -70,11 +73,11 @@
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     <div id="cover">
       <img id="cover-img" src="cover.jpg" alt="">
-      <img id="logo" src="logo.webp" alt="One More Merge">
       <div id="loading"><span id="msg">Loading…</span><div id="bar"><div id="fill"></div></div></div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build 33135f0 2026-10-19 15:11Z</div>
+    <div id="build-id" style="display:none">build c5fdadf 2026-10-20 09:33Z</div>
+    <script>if (navigator.standalone) document.documentElement.className = "standalone";</script>
     <script>if (/[?&]debug=1/.test(location.search)) { var b = document.getElementById("build-id"); b.style.display = "block"; b.style.bottom = "auto"; b.style.top = "calc(2px + env(safe-area-inset-top))"; b.style.fontSize = "10px"; }</script>
     <div id="omm-dot" title="error logged"></div>
     <div id="omm-sheet">
@@ -103,7 +106,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 33135f0 2026-10-19 15:11Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild c5fdadf 2026-10-20 09:33Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -154,7 +157,7 @@
             setInterval(function () {
               var heap = -1; try { heap = window.unityInstance.Module.HEAPU32.buffer.byteLength; } catch (e) { }
               var js = (performance.memory && performance.memory.usedJSHeapSize) || 0;
-              hud.textContent = "build 33135f0 2026-10-19 15:11Z | wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") +
+              hud.textContent = "build c5fdadf 2026-10-20 09:33Z | wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") +
                 " | " + innerWidth + "x" + innerHeight + " | errors " + errors.length;
             }, 1000);
           }
@@ -166,6 +169,15 @@
       var msg = document.getElementById("msg");
       var fz = new URLSearchParams(location.search).get("freeze");
       var freeze = fz === null || isNaN(Number(fz)) ? null : Number(fz);
+      // Defined before Unity starts: the title may signal before the load promise resolves. Not under ?freeze (cover stays for screenshots).
+      var coverDone = false;
+      window.ommReady = function () {
+        if (coverDone || freeze !== null) return;
+        coverDone = true;
+        var cover = document.getElementById("cover");
+        cover.className = "done";
+        setTimeout(function () { cover.style.display = "none"; }, 400);
+      };
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
         dataUrl: "Build/WebGL.data",
@@ -189,9 +201,8 @@
       }).then(function (instance) {
         window.unityInstance = instance; // read by the memory checks (Module.HEAPU32.buffer.byteLength)
         if (freeze !== null) return;
-        var cover = document.getElementById("cover");
-        cover.className = "done";
-        setTimeout(function () { cover.style.display = "none"; }, 800);
+        // The cover stays fully opaque until Unity says the title is drawn (OMM_PageReady); 3 s fallback for entries without a title.
+        setTimeout(window.ommReady, 3000);
       }).catch(function (e) {
         msg.textContent = "Could not start: " + e;
       });
