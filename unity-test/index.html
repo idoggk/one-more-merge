@@ -34,15 +34,27 @@
          while the painted background runs under the notch and the home bar. */
       /* Explicit width/height: a canvas is a replaced element, so "auto" would mean its own pixel size and Unity, which sets that
          size from the CSS size, would grow it every frame (blank screen, "RenderTexture.Create failed ... too large"). */
-      #unity-canvas { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; height: -webkit-fill-available; height: 100dvh;
-        display: block; background: #7fc4ee; outline: none;
+      /* FIT MODES (?fit=a..e, default b). The canvas and the loading cover follow the SAME rule, set as html[data-fit] by the head script.
+         a: inset 0, no explicit size (a canvas has an intrinsic size, so this may blank or grow: diagnostic only).
+         b: size set by JS to window.innerWidth x innerHeight px (load, resize, orientationchange, visualViewport resize; debounced).
+         c: height 100svh.   d: -webkit-fill-available on html, body and canvas.   e: absolute top 0, height = screen.height px (JS). */
+      #unity-canvas, #cover { position: fixed; top: 0; left: 0; display: block; }
+      #unity-canvas { z-index: 1; background: #7fc4ee; outline: none;
         -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
+      html[data-fit="a"] #unity-canvas, html[data-fit="a"] #cover { right: 0; bottom: 0; }
+      html[data-fit="c"] #unity-canvas, html[data-fit="c"] #cover { width: 100vw; height: 100svh; }
+      html[data-fit="d"], html[data-fit="d"] body { height: 100%; height: -webkit-fill-available; }
+      html[data-fit="d"] #unity-canvas, html[data-fit="d"] #cover { width: 100%; height: -webkit-fill-available; }
+      html[data-fit="e"] #unity-canvas, html[data-fit="e"] #cover { position: absolute; width: 100vw; height: 100vh; }
+      /* b (and e's height) are overwritten inline by JS; this is the no-JS / before-JS size. */
+      html[data-fit="b"] #unity-canvas, html[data-fit="b"] #cover { width: 100vw; height: 100dvh; }
+      /* Dock-coloured bar under the home indicator, behind the canvas: if the canvas ever stops short, the strip looks intentional. */
+      #omm-bottom { position: fixed; left: 0; right: 0; bottom: 0; height: env(safe-area-inset-bottom); background: #ffedc7; z-index: 0; pointer-events: none; }
       #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
         color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
       /* Home-screen app (no Safari toolbar): the large viewport is the whole screen down to the physical bottom edge, under the home bar. */
-      @media (display-mode: standalone) { #unity-canvas { height: 100lvh; } }
-      html.standalone #unity-canvas { height: 100lvh; }
+      @media (display-mode: standalone) { html[data-fit="b"] #unity-canvas, html[data-fit="b"] #cover { height: 100lvh; } }
       /* A zero or tiny window (Share sheet, rotation) must never give the canvas a 0 or negative size. */
       #unity-canvas { min-width: 50px; min-height: 50px; }
       #omm-dot { display: none; position: fixed; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: 14px; height: 14px; z-index: 9;
@@ -53,9 +65,10 @@
       #omm-sheet-bar button { margin-left: 8px; padding: 6px 12px; font: 700 14px -apple-system, Helvetica, Arial, sans-serif; border: 0; border-radius: 8px; background: #ffd36a; color: #3a2210; }
       #omm-sheet-text { margin: 0; padding: 0 10px calc(10px + env(safe-area-inset-bottom)); overflow: auto; -webkit-overflow-scrolling: touch;
         font: 11px/1.35 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
-      #omm-hud { display: none; position: fixed; left: 6px; top: calc(2px + env(safe-area-inset-top)); z-index: 9; pointer-events: none; color: #bfffbf;
-        font: 700 11px/1.2 ui-monospace, Menlo, monospace; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
-      #cover { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 4; background: #7fc4ee; overflow: hidden;
+      #omm-hud { display: none; position: fixed; left: 4px; top: calc(2px + env(safe-area-inset-top)); z-index: 20; pointer-events: none; color: #bfffbf;
+        background: rgba(0,0,0,.72); padding: 2px 4px; border-radius: 3px; white-space: pre;
+        font: 700 11px/1.25 ui-monospace, Menlo, monospace; text-shadow: 0 0 3px #000, 0 1px 2px #000; }
+      #cover { z-index: 4; background: #7fc4ee; overflow: hidden;
         opacity: 1; transition: opacity .25s ease; }
       #cover.done { opacity: 0; pointer-events: none; }
       /* Same art, same fit (cover, centred) as the Unity title's cover Image. The logo is NOT drawn here: Unity draws it, so it is never doubled. */
@@ -77,8 +90,38 @@
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
     <div id="build-id" style="display:none">build c5fdadf 2026-10-20 09:33Z</div>
-    <script>if (navigator.standalone) document.documentElement.className = "standalone";</script>
-    <script>if (/[?&]debug=1/.test(location.search)) { var b = document.getElementById("build-id"); b.style.display = "block"; b.style.bottom = "auto"; b.style.top = "calc(2px + env(safe-area-inset-top))"; b.style.fontSize = "10px"; }</script>
+    <div id="omm-bottom"></div>
+    <script>
+      // Fit mode shared by the canvas and the loading cover (rules in the CSS above). ?fit=a..e; default b = size the canvas in px from the window.
+      var OMM_BUILD = "c5fdadf 2026-10-20 09:33Z";
+      var OMM_FIT = (/[?&]fit=([a-e])/.exec(location.search) || [0, "b"])[1];
+      document.documentElement.setAttribute("data-fit", OMM_FIT);
+      if (navigator.standalone) document.documentElement.className = "standalone";
+      (function () {
+        var t = 0, last = "", own = false;
+        function apply() {
+          if (OMM_FIT !== "b" && OMM_FIT !== "e") return;
+          var w = Math.round(window.innerWidth), h = Math.round(OMM_FIT === "e" ? screen.height : window.innerHeight);
+          if (!(w > 0 && h > 0)) return;
+          ["unity-canvas", "cover"].forEach(function (id) {
+            var el = document.getElementById(id); if (!el) return;
+            el.style.width = w + "px"; el.style.height = h + "px";
+          });
+          if (w + "x" + h !== last) {
+            last = w + "x" + h;
+            own = true; try { window.dispatchEvent(new Event("resize")); } catch (e) { /* layout aid only */ } own = false;
+          }
+        }
+        function later() { clearTimeout(t); t = setTimeout(apply, 60); }
+        window.ommFitApply = apply;
+        window.addEventListener("resize", function () { if (!own) later(); });
+        window.addEventListener("orientationchange", later);
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
+        apply();
+        document.addEventListener("DOMContentLoaded", apply);
+        window.addEventListener("load", apply);
+      })();
+    </script>
     <div id="omm-dot" title="error logged"></div>
     <div id="omm-sheet">
       <div id="omm-sheet-bar"><b>Error</b><span><button id="omm-copy" type="button">copy log</button><button id="omm-close" type="button">close</button></span></div>
@@ -157,9 +200,19 @@
             setInterval(function () {
               var heap = -1; try { heap = window.unityInstance.Module.HEAPU32.buffer.byteLength; } catch (e) { }
               var js = (performance.memory && performance.memory.usedJSHeapSize) || 0;
-              hud.textContent = "build c5fdadf 2026-10-20 09:33Z | wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") +
-                " | " + innerWidth + "x" + innerHeight + " | errors " + errors.length;
-            }, 1000);
+              var vv = window.visualViewport, c = $("unity-canvas"), r = c.getBoundingClientRect(), pr = $("omm-probe");
+              var cs = pr ? getComputedStyle(pr) : null, f1 = function (v) { return Math.round(v * 10) / 10; };
+              var std = false; try { std = matchMedia("(display-mode: standalone)").matches; } catch (e) { }
+              hud.textContent = "build " + OMM_BUILD + " | fit " + OMM_FIT + "\n" +
+                "inner " + innerWidth + "x" + innerHeight + " | docEl.clientH " + document.documentElement.clientHeight + "\n" +
+                "vv " + (vv ? f1(vv.width) + "x" + f1(vv.height) + " top " + f1(vv.offsetTop) + " sc " + f1(vv.scale) : "none") + "\n" +
+                "screen " + screen.width + "x" + screen.height + " | dpr " + devicePixelRatio + "\n" +
+                "standalone mq " + std + " nav " + navigator.standalone + "\n" +
+                "env top " + (cs ? cs.paddingTop : "?") + " bottom " + (cs ? cs.paddingBottom : "?") + "\n" +
+                "canvas top " + f1(r.top) + " h " + f1(r.height) + " w " + f1(r.width) + " | buf " + c.width + "x" + c.height + "\n" +
+                "OMM_GetSafeInsets t,r,b,l,w,h: " + (window.ommInsets ? window.ommInsets() : "?") + "\n" +
+                "wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") + " | errors " + errors.length;
+            }, 500);
           }
         });
       })();
@@ -208,6 +261,7 @@
       });
       // Safe-area insets for Unity (CSS px). A probe element resolves env(); read each call, so rotation and toolbar changes are picked up.
       var insetProbe = document.createElement("div");
+      insetProbe.id = "omm-probe";
       insetProbe.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;" +
         "padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";
       document.body.appendChild(insetProbe);
