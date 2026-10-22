@@ -34,29 +34,23 @@
          while the painted background runs under the notch and the home bar. */
       /* Explicit width/height: a canvas is a replaced element, so "auto" would mean its own pixel size and Unity, which sets that
          size from the CSS size, would grow it every frame (blank screen, "RenderTexture.Create failed ... too large"). */
-      /* FIT MODES (?fit=a..e, default b). The canvas and the loading cover follow the SAME rule, set as html[data-fit] by the head script.
-         a: inset 0, no explicit size (a canvas has an intrinsic size, so this may blank or grow: diagnostic only).
-         b: size set by JS to window.innerWidth x innerHeight px (load, resize, orientationchange, visualViewport resize; debounced).
-         c: height 100svh.   d: -webkit-fill-available on html, body and canvas.   e: absolute top 0, height = screen.height px (JS). */
-      #unity-canvas, #cover { position: fixed; top: 0; left: 0; display: block; }
+      /* ONE BOX. #omm-root is the only element with a size: html, body and the root are all fixed to the same box, and the canvas and the
+         loading cover are 100% x 100% of the root (no JS pixel size on the canvas CSS). With viewport-fit=cover a fixed box with bottom:0
+         already reaches the physical bottom; the safe-area inset is left to SafeInsets.cs (applied inside the dock), never added here. In the iOS home-screen app the layout viewport can
+         be shorter than the screen (build 8: 871 vs 932 CSS px); the head script then stretches the ROOT (never the canvas) to the screen's
+         long side, so canvas box == clipping box. The canvas buffer is set from the root's measured rect x DPR after layout. */
+      html, body { position: fixed; inset: 0; width: 100%; height: 100%; }
+      #omm-root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; background: #ffedc7; }
+      #unity-canvas, #cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
       #unity-canvas { z-index: 1; background: #ffedc7; outline: none;
         -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
-      html[data-fit="a"] #unity-canvas, html[data-fit="a"] #cover { right: 0; bottom: 0; }
-      html[data-fit="c"] #unity-canvas, html[data-fit="c"] #cover { width: 100vw; height: 100svh; }
-      html[data-fit="d"], html[data-fit="d"] body { height: 100%; height: -webkit-fill-available; }
-      html[data-fit="d"] #unity-canvas, html[data-fit="d"] #cover { width: 100%; height: -webkit-fill-available; }
-      html[data-fit="e"] #unity-canvas, html[data-fit="e"] #cover { position: absolute; width: 100vw; height: 100vh; }
-      /* b (and e's height) are overwritten inline by JS; this is the no-JS / before-JS size. */
-      html[data-fit="b"] #unity-canvas, html[data-fit="b"] #cover { width: 100vw; height: 100dvh; }
       /* Dock-coloured bar under the home indicator, behind the canvas: if the canvas ever stops short, the strip looks intentional. */
       #omm-bottom { position: fixed; left: 0; right: 0; bottom: 0; height: env(safe-area-inset-bottom); background: #ffedc7; z-index: 0; pointer-events: none; }
       #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
         color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
       /* Home-screen app (no Safari toolbar): the large viewport is the whole screen down to the physical bottom edge, under the home bar. */
-      @media (display-mode: standalone) { html[data-fit="b"] #unity-canvas, html[data-fit="b"] #cover { height: 100lvh; } }
-      /* A zero or tiny window (Share sheet, rotation) must never give the canvas a 0 or negative size. */
-      #unity-canvas { min-width: 50px; min-height: 50px; }
+      @supports (height: 100lvh) { @media (display-mode: standalone) { #omm-root { bottom: auto; height: 100lvh; } } }
       #omm-dot { display: none; position: fixed; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: 14px; height: 14px; z-index: 9;
         border-radius: 50%; background: #e02020; border: 2px solid #fff; box-shadow: 0 0 0 10px rgba(224,32,32,.001); }
       #omm-sheet { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 55%; z-index: 10; flex-direction: column;
@@ -106,6 +100,7 @@
     </style>
   </head>
   <body>
+    <div id="omm-root">
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     <div id="cover">
       <img id="cover-img" src="cover.jpg" alt="">
@@ -113,38 +108,35 @@
       <div class="logo" id="logo2">MERGE</div>
       <div id="bar"><div id="fill"></div><div id="msg">Loading… 0%</div></div>
     </div>
+    </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build c6da4a7 2026-10-22 22:38Z</div>
+    <div id="build-id" style="display:none">build 3a532bb 2026-10-22 23:52Z</div>
     <div id="omm-bottom"></div>
     <script>
-      // Fit mode shared by the canvas and the loading cover (rules in the CSS above). ?fit=a..e; default b = size the canvas in px from the window.
-      var OMM_BUILD = "c6da4a7 2026-10-22 22:38Z";
-      var OMM_FIT = (/[?&]fit=([a-e])/.exec(location.search) || [0, "b"])[1];
-      document.documentElement.setAttribute("data-fit", OMM_FIT);
+      // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
+      var OMM_BUILD = "3a532bb 2026-10-22 23:52Z";
+      var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
         var t = 0, last = "", own = false;
         function apply() {
-          if (OMM_FIT !== "b" && OMM_FIT !== "e") return;
-          var w = Math.round(window.innerWidth), h = Math.round(OMM_FIT === "e" ? screen.height : window.innerHeight);
-          // iOS home-screen app: innerHeight (and visualViewport) can stop short of the physical bottom (stale or without the home-indicator
-          // band), which left the page background showing as a strip under the canvas. There is no browser chrome in standalone mode, so
-          // take the largest plausible height, never more than the screen's long side.
-          if (OMM_FIT === "b" && h > w) {
-            var std = !!navigator.standalone; try { std = std || matchMedia("(display-mode: standalone)").matches; } catch (e) { }
-            if (std) {
-              var vv = window.visualViewport, longSide = Math.max(screen.width, screen.height);
-              var cand = Math.max(h, vv ? Math.round(vv.height + vv.offsetTop) : 0, document.documentElement.clientHeight);
-              if (Math.round(screen.width) === w) cand = Math.max(cand, longSide);
-              h = Math.min(cand, longSide || cand);
-            }
+          var root = document.getElementById("omm-root"), cv = document.getElementById("unity-canvas");
+          if (!root || !cv) return;
+          // iOS home-screen app: the layout viewport can stop short of the physical bottom (build 8: 871 vs 932 CSS px). If the root box ends
+          // above the screen's long side, stretch the ROOT (the canvas follows at 100%), so canvas box == clipping box == screen bottom.
+          root.style.height = ""; document.documentElement.style.height = ""; document.body.style.height = "";
+          var std = !!navigator.standalone; try { std = std || matchMedia("(display-mode: standalone)").matches; } catch (e) { }
+          var r = root.getBoundingClientRect(), longSide = Math.max(screen.width, screen.height);
+          if (std && r.width < r.height + 1 && Math.round(screen.width) === Math.round(r.width) && Math.abs(r.bottom - longSide) > 0.5) {
+            root.style.height = document.documentElement.style.height = document.body.style.height = longSide + "px";
           }
+          r =root.getBoundingClientRect();
+          var w = Math.round(r.width), h = Math.round(r.height), dpr = window.devicePixelRatio || 1;
           if (!(w > 0 && h > 0)) return;
-          ["unity-canvas", "cover"].forEach(function (id) {
-            var el = document.getElementById(id); if (!el) return;
-            el.style.width = w + "px"; el.style.height = h + "px";
-            if (id === "cover") el.style.setProperty("--u", (w / 1080) + "px");
-          });
+          var bw = Math.round(r.width * dpr), bh = Math.round(r.height * dpr);
+          if (cv.width !== bw) cv.width = bw;
+          if (cv.height !== bh) cv.height = bh;
+          document.getElementById("cover").style.setProperty("--u", (r.width / 1080) + "px");
           if (w + "x" + h !== last) {
             last = w + "x" + h;
             own = true; try { window.dispatchEvent(new Event("resize")); } catch (e) { /* layout aid only */ } own = false;
@@ -155,11 +147,11 @@
         window.addEventListener("resize", function () { if (!own) later(); });
         window.addEventListener("orientationchange", later);
         // iOS reports stale sizes right after launch / resume in standalone mode: measure again shortly after.
-        function settle() { later(); setTimeout(apply, 100); setTimeout(apply, 500); }
+        function settle() { later(); setTimeout(apply, 100); setTimeout(apply, 500); setTimeout(apply, 1500); }
         window.addEventListener("pageshow", settle);
         document.addEventListener("visibilitychange", settle);
         if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
-        apply(); setTimeout(apply, 100); setTimeout(apply, 500);
+        apply(); setTimeout(apply, 100); setTimeout(apply, 500); setTimeout(apply, 1500);
         document.addEventListener("DOMContentLoaded", apply);
         window.addEventListener("load", apply);
       })();
@@ -191,7 +183,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild c6da4a7 2026-10-22 22:38Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 3a532bb 2026-10-22 23:52Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -251,7 +243,11 @@
                 "screen " + screen.width + "x" + screen.height + " | dpr " + devicePixelRatio + "\n" +
                 "standalone mq " + std + " nav " + navigator.standalone + "\n" +
                 "env top " + (cs ? cs.paddingTop : "?") + " bottom " + (cs ? cs.paddingBottom : "?") + "\n" +
-                "canvas top " + f1(r.top) + " h " + f1(r.height) + " w " + f1(r.width) + " | buf " + c.width + "x" + c.height + "\n" +
+                ["html", "body", "omm-root", "unity-canvas"].map(function (n) {
+                  var e = n === "html" ? document.documentElement : n === "body" ? document.body : $(n), b = e.getBoundingClientRect();
+                  return n + " t " + f1(b.top) + " b " + f1(b.bottom) + " h " + f1(b.height) + " w " + f1(b.width);
+                }).join("\n") + "\n" +
+                "canvas buf " + c.width + "x" + c.height + " (want " + Math.round(r.width * devicePixelRatio) + "x" + Math.round(r.height * devicePixelRatio) + ")\n" +
                 "GAP below canvas to screen.h " + f1(screen.height - r.bottom) + " | to vv bottom " + (vv ? f1(vv.offsetTop + vv.height - r.bottom) : "?") + "\n" +
                 "OMM_GetSafeInsets t,r,b,l,w,h: " + (window.ommInsets ? window.ommInsets() : "?") + "\n" +
                 "wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") + " | errors " + errors.length;
