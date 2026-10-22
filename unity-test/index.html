@@ -26,7 +26,7 @@
     <link rel="apple-touch-startup-image" href="pwa/startup-750x1334.jpg" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     <title>OneMoreMergeUnity</title>
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #7fc4ee;
+      html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #ffedc7;
         overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none;
         -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
       /* The canvas fills the whole VISIBLE area (dvh = what is left with Safari's toolbar shown; 100vh would run under it and clip the
@@ -39,7 +39,7 @@
          b: size set by JS to window.innerWidth x innerHeight px (load, resize, orientationchange, visualViewport resize; debounced).
          c: height 100svh.   d: -webkit-fill-available on html, body and canvas.   e: absolute top 0, height = screen.height px (JS). */
       #unity-canvas, #cover { position: fixed; top: 0; left: 0; display: block; }
-      #unity-canvas { z-index: 1; background: #7fc4ee; outline: none;
+      #unity-canvas { z-index: 1; background: #ffedc7; outline: none;
         -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
       html[data-fit="a"] #unity-canvas, html[data-fit="a"] #cover { right: 0; bottom: 0; }
       html[data-fit="c"] #unity-canvas, html[data-fit="c"] #cover { width: 100vw; height: 100svh; }
@@ -114,11 +114,11 @@
       <div id="bar"><div id="fill"></div><div id="msg">Loading… 0%</div></div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build fb6e4f1 2026-10-22 22:12Z</div>
+    <div id="build-id" style="display:none">build c6da4a7 2026-10-22 22:38Z</div>
     <div id="omm-bottom"></div>
     <script>
       // Fit mode shared by the canvas and the loading cover (rules in the CSS above). ?fit=a..e; default b = size the canvas in px from the window.
-      var OMM_BUILD = "fb6e4f1 2026-10-22 22:12Z";
+      var OMM_BUILD = "c6da4a7 2026-10-22 22:38Z";
       var OMM_FIT = (/[?&]fit=([a-e])/.exec(location.search) || [0, "b"])[1];
       document.documentElement.setAttribute("data-fit", OMM_FIT);
       if (navigator.standalone) document.documentElement.className = "standalone";
@@ -127,6 +127,18 @@
         function apply() {
           if (OMM_FIT !== "b" && OMM_FIT !== "e") return;
           var w = Math.round(window.innerWidth), h = Math.round(OMM_FIT === "e" ? screen.height : window.innerHeight);
+          // iOS home-screen app: innerHeight (and visualViewport) can stop short of the physical bottom (stale or without the home-indicator
+          // band), which left the page background showing as a strip under the canvas. There is no browser chrome in standalone mode, so
+          // take the largest plausible height, never more than the screen's long side.
+          if (OMM_FIT === "b" && h > w) {
+            var std = !!navigator.standalone; try { std = std || matchMedia("(display-mode: standalone)").matches; } catch (e) { }
+            if (std) {
+              var vv = window.visualViewport, longSide = Math.max(screen.width, screen.height);
+              var cand = Math.max(h, vv ? Math.round(vv.height + vv.offsetTop) : 0, document.documentElement.clientHeight);
+              if (Math.round(screen.width) === w) cand = Math.max(cand, longSide);
+              h = Math.min(cand, longSide || cand);
+            }
+          }
           if (!(w > 0 && h > 0)) return;
           ["unity-canvas", "cover"].forEach(function (id) {
             var el = document.getElementById(id); if (!el) return;
@@ -142,8 +154,12 @@
         window.ommFitApply = apply;
         window.addEventListener("resize", function () { if (!own) later(); });
         window.addEventListener("orientationchange", later);
+        // iOS reports stale sizes right after launch / resume in standalone mode: measure again shortly after.
+        function settle() { later(); setTimeout(apply, 100); setTimeout(apply, 500); }
+        window.addEventListener("pageshow", settle);
+        document.addEventListener("visibilitychange", settle);
         if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
-        apply();
+        apply(); setTimeout(apply, 100); setTimeout(apply, 500);
         document.addEventListener("DOMContentLoaded", apply);
         window.addEventListener("load", apply);
       })();
@@ -175,7 +191,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild fb6e4f1 2026-10-22 22:12Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild c6da4a7 2026-10-22 22:38Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -236,6 +252,7 @@
                 "standalone mq " + std + " nav " + navigator.standalone + "\n" +
                 "env top " + (cs ? cs.paddingTop : "?") + " bottom " + (cs ? cs.paddingBottom : "?") + "\n" +
                 "canvas top " + f1(r.top) + " h " + f1(r.height) + " w " + f1(r.width) + " | buf " + c.width + "x" + c.height + "\n" +
+                "GAP below canvas to screen.h " + f1(screen.height - r.bottom) + " | to vv bottom " + (vv ? f1(vv.offsetTop + vv.height - r.bottom) : "?") + "\n" +
                 "OMM_GetSafeInsets t,r,b,l,w,h: " + (window.ommInsets ? window.ommInsets() : "?") + "\n" +
                 "wasm heap " + (heap < 0 ? "?" : Math.round(heap / 1048576) + " MiB") + (js ? " | js " + Math.round(js / 1048576) + " MiB" : "") + " | errors " + errors.length;
             }, 500);
