@@ -114,11 +114,11 @@
       <div id="bar"><div id="fill"></div><div id="msg">Loading… 0%</div></div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build 1e09da8 2026-10-22 16:43Z</div>
+    <div id="build-id" style="display:none">build 2d498c6 2026-10-22 21:27Z</div>
     <div id="omm-bottom"></div>
     <script>
       // Fit mode shared by the canvas and the loading cover (rules in the CSS above). ?fit=a..e; default b = size the canvas in px from the window.
-      var OMM_BUILD = "1e09da8 2026-10-22 16:43Z";
+      var OMM_BUILD = "2d498c6 2026-10-22 21:27Z";
       var OMM_FIT = (/[?&]fit=([a-e])/.exec(location.search) || [0, "b"])[1];
       document.documentElement.setAttribute("data-fit", OMM_FIT);
       if (navigator.standalone) document.documentElement.className = "standalone";
@@ -175,7 +175,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 1e09da8 2026-10-22 16:43Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 2d498c6 2026-10-22 21:27Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
