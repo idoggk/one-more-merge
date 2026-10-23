@@ -1,8 +1,8 @@
 // OMM service worker. The page shell is NEVER cached here: index.html, the manifest and this file always come from the network
 // (cache: "no-store"), so a template fix reaches the home-screen app on its next launch. Only the big Unity files under Build/ are
 // cached, in a cache named after the build; their URLs carry ?v=<build> so a new build never reads an old file.
-// fc820d8 is replaced at stage time (tools/stage-unity-test.mjs).
-const REV = "fc820d8";
+// f56fc26 is replaced at stage time (tools/stage-unity-test.mjs).
+const REV = "f56fc26";
 const CACHE = "omm-" + REV;
 
 self.addEventListener("install", function () { self.skipWaiting(); });
