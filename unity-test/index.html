@@ -110,11 +110,11 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build 3a532bb 2026-10-22 23:52Z</div>
+    <div id="build-id" style="display:none">build 6939fbe 2026-10-23 00:09Z</div>
     <div id="omm-bottom"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "3a532bb 2026-10-22 23:52Z";
+      var OMM_BUILD = "6939fbe 2026-10-23 00:09Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
@@ -183,7 +183,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 3a532bb 2026-10-22 23:52Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 6939fbe 2026-10-23 00:09Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
