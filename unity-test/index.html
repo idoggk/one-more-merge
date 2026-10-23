@@ -2,7 +2,7 @@
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -51,6 +51,10 @@
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
       /* Home-screen app (no Safari toolbar): the large viewport is the whole screen down to the physical bottom edge, under the home bar. */
       @supports (height: 100lvh) { @media (display-mode: standalone) { #omm-root { bottom: auto; height: 100lvh; } } }
+      /* Measuring probes for ?debug=1 (and the fit script): what 100vh / 100lvh / 100dvh resolve to in px. */
+      .omm-vh { position: fixed; left: 0; top: 0; width: 0; visibility: hidden; pointer-events: none; }
+      #omm-vh { height: 100vh; } #omm-lvh { height: 100vh; } #omm-dvh { height: 100vh; }
+      @supports (height: 100lvh) { #omm-lvh { height: 100lvh; } #omm-dvh { height: 100dvh; } }
       #omm-dot { display: none; position: fixed; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: 14px; height: 14px; z-index: 9;
         border-radius: 50%; background: #e02020; border: 2px solid #fff; box-shadow: 0 0 0 10px rgba(224,32,32,.001); }
       #omm-sheet { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 55%; z-index: 10; flex-direction: column;
@@ -110,11 +114,12 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build 004a96a 2026-10-23 00:33Z</div>
+    <div id="build-id" style="display:none">build 380b475 2026-10-23 09:04Z</div>
     <div id="omm-bottom"></div>
+    <div class="omm-vh" id="omm-vh"></div><div class="omm-vh" id="omm-lvh"></div><div class="omm-vh" id="omm-dvh"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "004a96a 2026-10-23 00:33Z";
+      var OMM_BUILD = "380b475 2026-10-23 09:04Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
@@ -126,10 +131,16 @@
           // above the screen's long side, stretch the ROOT (the canvas follows at 100%), so canvas box == clipping box == screen bottom.
           root.style.height = ""; document.documentElement.style.height = ""; document.body.style.height = "";
           var std = !!navigator.standalone; try { std = std || matchMedia("(display-mode: standalone)").matches; } catch (e) { }
-          var r = root.getBoundingClientRect(), longSide = Math.max(screen.width, screen.height);
-          if (std && r.width < r.height + 1 && Math.round(screen.width) === Math.round(r.width) && Math.abs(r.bottom - longSide) > 0.5) {
-            root.style.height = document.documentElement.style.height = document.body.style.height = longSide + "px";
+          // Never trust one number: take the tallest of the root box, innerHeight, visualViewport, the lvh/dvh probes and (portrait) the screen's long side.
+          var r = root.getBoundingClientRect(), longSide = Math.max(screen.width, screen.height), vv = window.visualViewport;
+          var px = function (id) { var e = document.getElementById(id); return e ? e.getBoundingClientRect().height : 0; };
+          var want = Math.max(r.bottom, innerHeight, vv ? vv.height + vv.offsetTop : 0, px("omm-lvh"), px("omm-dvh"));
+          if (std && Math.round(screen.width) === Math.round(r.width)) want = Math.max(want, longSide);
+          if (std && r.width < r.height + 1 && want - r.bottom > 0.5) {
+            root.style.height = document.documentElement.style.height = document.body.style.height = want + "px";
           }
+          // Unity or the browser must never give the canvas a box of its own: it follows the root at 100%.
+          cv.style.setProperty("width", "100%", "important"); cv.style.setProperty("height", "100%", "important");
           r =root.getBoundingClientRect();
           var w = Math.round(r.width), h = Math.round(r.height), dpr = window.devicePixelRatio || 1;
           if (!(w > 0 && h > 0)) return;
@@ -151,6 +162,8 @@
         window.addEventListener("pageshow", settle);
         document.addEventListener("visibilitychange", settle);
         if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
+        // iOS standalone sends no event for some viewport changes: re-check once a second (apply is cheap and only acts on a change).
+        setInterval(apply, 1000);
         apply(); setTimeout(apply, 100); setTimeout(apply, 500); setTimeout(apply, 1500);
         document.addEventListener("DOMContentLoaded", apply);
         window.addEventListener("load", apply);
@@ -183,7 +196,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 004a96a 2026-10-23 00:33Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 380b475 2026-10-23 09:04Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -241,6 +254,9 @@
                 "inner " + innerWidth + "x" + innerHeight + " | docEl.clientH " + document.documentElement.clientHeight + "\n" +
                 "vv " + (vv ? f1(vv.width) + "x" + f1(vv.height) + " top " + f1(vv.offsetTop) + " sc " + f1(vv.scale) : "none") + "\n" +
                 "screen " + screen.width + "x" + screen.height + " | dpr " + devicePixelRatio + "\n" +
+                "vh " + f1($("omm-vh").getBoundingClientRect().height) + " lvh " + f1($("omm-lvh").getBoundingClientRect().height) + " dvh " + f1($("omm-dvh").getBoundingClientRect().height) + "\n" +
+                "canvas client " + c.clientWidth + "x" + c.clientHeight + " css " + c.style.width + "/" + c.style.height + "\n" +
+                "root rect " + (function (b) { return f1(b.left) + "," + f1(b.top) + " " + f1(b.width) + "x" + f1(b.height); })($("omm-root").getBoundingClientRect()) + " style h " + $("omm-root").style.height + "\n" +
                 "standalone mq " + std + " nav " + navigator.standalone + "\n" +
                 "env top " + (cs ? cs.paddingTop : "?") + " bottom " + (cs ? cs.paddingBottom : "?") + "\n" +
                 ["html", "body", "omm-root", "unity-canvas"].map(function (n) {
