@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.webmanifest?v=655fc24">
+    <link rel="manifest" href="manifest.webmanifest?v=a5b1001">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
@@ -39,9 +39,10 @@
          size from the CSS size, would grow it every frame (blank screen, "RenderTexture.Create failed ... too large"). */
       /* ONE BOX. #omm-root is the only element with a size: html, body and the root are all fixed to the same box, and the canvas and the
          loading cover are 100% x 100% of the root (no JS pixel size on the canvas CSS). With viewport-fit=cover a fixed box with bottom:0
-         already reaches the physical bottom; the safe-area inset is left to SafeInsets.cs (applied inside the dock), never added here. In the iOS home-screen app the layout viewport can
-         be shorter than the screen (build 8: 871 vs 932 CSS px); the head script then stretches the ROOT (never the canvas) to the screen's
-         long side, so canvas box == clipping box. The canvas buffer is set from the root's measured rect x DPR after layout. */
+         already reaches the physical bottom; the safe-area inset is left to SafeInsets.cs (applied inside the dock), never added here. In the iOS home-screen app the visible
+         window can be shorter than the screen (build 8: 871 vs 932 CSS px) and lvh is taller than the window. The head script therefore sets the ROOT
+         height in px to what is visible (min of innerHeight, visualViewport bottom, clientHeight, the fixed-bottom probe), growing AND shrinking;
+         the canvas is 100% x 100% of the root and its buffer is round(css x dpr). html, body and root are all the dock plate colour. */
       html, body { position: fixed; inset: 0; width: 100%; height: 100%; }
       #omm-root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; background: #ffe6b2; }
       #unity-canvas, #cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
@@ -52,9 +53,11 @@
       #build-id { position: fixed; left: 6px; bottom: calc(2px + env(safe-area-inset-bottom)); z-index: 5; pointer-events: none;
         color: #ffe9a8; opacity: .95; font: 700 15px/1 -apple-system, Helvetica, Arial, sans-serif;
         text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,.7); }
-      /* Home-screen app (no Safari toolbar): the large viewport is the whole screen down to the physical bottom edge, under the home bar. */
-      @supports (height: 100lvh) { @media (display-mode: standalone) { #omm-root { bottom: auto; height: 100lvh; } } }
-      /* Measuring probes for ?debug=1 (and the fit script): what 100vh / 100lvh / 100dvh resolve to in px. */
+      /* Build 20: NO lvh/dvh/vh rule sizes the root any more (the standalone 100lvh rule of builds 8-19 made the root taller than the visible
+         window, which clipped the tab labels). The head script sets the root height in px from what is visible; this bottom:0 box is only
+         the first-paint default. #omm-bottom-probe is a zero-height fixed box at bottom:0: its rect bottom is where the layout viewport ends. */
+      #omm-bottom-probe { position: fixed; left: 0; bottom: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; }
+      /* Measuring probes for the layout readout (and ?debug=1): what 100vh / 100lvh / 100dvh resolve to in px. They size nothing. */
       .omm-vh { position: fixed; left: 0; top: 0; width: 0; visibility: hidden; pointer-events: none; }
       #omm-vh { height: 100vh; } #omm-lvh { height: 100vh; } #omm-dvh { height: 100vh; }
       @supports (height: 100lvh) { #omm-lvh { height: 100lvh; } #omm-dvh { height: 100dvh; } }
@@ -117,12 +120,13 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build 655fc24 2026-10-24 02:02Z</div>
-    <div id="omm-stamp" hidden data-rev="655fc24" data-time="2026-10-24 02:02Z">655fc24 2026-10-24 02:02Z</div>
+    <div id="build-id" style="display:none">build a5b1001 2026-10-24 13:37Z</div>
+    <div id="omm-stamp" hidden data-rev="a5b1001" data-time="2026-10-24 13:37Z">a5b1001 2026-10-24 13:37Z</div>
+    <div id="omm-bottom-probe"></div>
     <div class="omm-vh" id="omm-vh"></div><div class="omm-vh" id="omm-lvh"></div><div class="omm-vh" id="omm-dvh"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "655fc24 2026-10-24 02:02Z";
+      var OMM_BUILD = "a5b1001 2026-10-24 13:37Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
@@ -130,21 +134,22 @@
         function apply() {
           var root = document.getElementById("omm-root"), cv = document.getElementById("unity-canvas");
           if (!root || !cv) return;
-          // iOS home-screen app: the layout viewport can stop short of the physical bottom (build 8: 871 vs 932 CSS px). If the root box ends
-          // above the screen's long side, stretch the ROOT (the canvas follows at 100%), so canvas box == clipping box == screen bottom.
-          root.style.height = ""; document.documentElement.style.height = ""; document.body.style.height = "";
-          var std = !!navigator.standalone; try { std = std || matchMedia("(display-mode: standalone)").matches; } catch (e) { }
-          // Build 18: size to what is really VISIBLE (root box, innerHeight, visualViewport), never to the screen's long side or the lvh/dvh
-          // probes: those can be ~58pt taller than the window in the home-screen app, which put the canvas bottom (tab labels) outside the
-          // visible area and left a flat plate-coloured band over them. Any gap under the canvas now shows the plate-coloured body.
-          var r = root.getBoundingClientRect(), vv = window.visualViewport;
-          var want = Math.max(r.bottom, innerHeight, vv ? vv.height + vv.offsetTop : 0);
-          if (std && r.width < r.height + 1 && want - r.bottom > 0.5) {
-            root.style.height = document.documentElement.style.height = document.body.style.height = want + "px";
+          // Build 20: the root height is what is really VISIBLE: the smallest valid one of innerHeight, visualViewport bottom, the document's
+          // clientHeight and the bottom of a fixed bottom:0 probe. Never the screen's long side or lvh/dvh (taller than the window in the
+          // home-screen app: the canvas bottom, with the tab labels, then sat outside the visible area). It is set from the window, not from
+          // the root's old box, so it can shrink as well as grow. Any gap under the canvas shows the plate-coloured html/body.
+          var vv = window.visualViewport, pr = document.getElementById("omm-bottom-probe");
+          var size = Infinity;
+          [innerHeight, vv ? vv.height + vv.offsetTop : 0, document.documentElement.clientHeight, pr ? pr.getBoundingClientRect().bottom : 0].forEach(function (v) {
+            if (v > 50 && v < size) size = v;
+          });
+          if (size !== Infinity) {
+            size = Math.floor(size + 0.01) + "px";
+            if (root.style.height !== size) { root.style.bottom = "auto"; root.style.height = size; }
           }
           // Unity or the browser must never give the canvas a box of its own: it follows the root at 100%.
           cv.style.setProperty("width", "100%", "important"); cv.style.setProperty("height", "100%", "important");
-          r =root.getBoundingClientRect();
+          var r = root.getBoundingClientRect();
           var w = Math.round(r.width), h = Math.round(r.height), dpr = window.devicePixelRatio || 1;
           if (!(w > 0 && h > 0)) return;
           var bw = Math.round(r.width * dpr), bh = Math.round(r.height * dpr);
@@ -164,7 +169,7 @@
         function settle() { later(); setTimeout(apply, 100); setTimeout(apply, 500); setTimeout(apply, 1500); }
         window.addEventListener("pageshow", settle);
         document.addEventListener("visibilitychange", settle);
-        if (window.visualViewport) window.visualViewport.addEventListener("resize", later);
+        if (window.visualViewport) { window.visualViewport.addEventListener("resize", later); window.visualViewport.addEventListener("scroll", later); }
         // iOS standalone sends no event for some viewport changes: re-check once a second (apply is cheap and only acts on a change).
         setInterval(apply, 1000);
         apply(); setTimeout(apply, 100); setTimeout(apply, 500); setTimeout(apply, 1500);
@@ -199,7 +204,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild 655fc24 2026-10-24 02:02Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild a5b1001 2026-10-24 13:37Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -293,7 +298,7 @@
         });
       })();
     </script>
-    <script src="Build/WebGL.loader.js?v=655fc24"></script>
+    <script src="Build/WebGL.loader.js?v=a5b1001"></script>
     <script>
       var msg = document.getElementById("msg");
       // the logo appears only once its font is in, so it never shows in a fallback face
@@ -316,7 +321,7 @@
       };
       // Freshness. (1) The service worker serves the page shell network-only and caches just Build/* (see sw.js). (2) If this HTML is an old
       // copy (version.txt, always fetched with no-store, names another build), reload once onto a cache-busting URL.
-      var OMM_REV = "655fc24";
+      var OMM_REV = "a5b1001";
       if (OMM_REV.indexOf("__") !== 0) {
         try {
           if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { reg.update(); }, function () { });
@@ -330,9 +335,9 @@
       }
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/WebGL.data?v=655fc24",
-        frameworkUrl: "Build/WebGL.framework.js?v=655fc24",
-        codeUrl: "Build/WebGL.wasm?v=655fc24",
+        dataUrl: "Build/WebGL.data?v=a5b1001",
+        frameworkUrl: "Build/WebGL.framework.js?v=a5b1001",
+        codeUrl: "Build/WebGL.wasm?v=a5b1001",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "OneMoreMergeUnity",
@@ -377,12 +382,16 @@
       // The numbers behind the layout, as text lines for Settings > LAYOUT READOUT and the QA panel (Unity adds its own lines below these).
       window.ommLayoutReport = function () {
         var f = function (x) { return Math.round(x * 10) / 10; }, vv = window.visualViewport, c = document.getElementById("unity-canvas"), v = window.ommInsetValues();
-        var std = false; try { std = matchMedia("(display-mode: standalone)").matches || !!navigator.standalone; } catch (e) { }
-        return ["window " + innerWidth + "x" + innerHeight + "  screen " + screen.width + "x" + screen.height,
-          "visualViewport " + (vv ? f(vv.width) + "x" + f(vv.height) + " top " + f(vv.offsetTop) : "none"),
+        var mq = false; try { mq = matchMedia("(display-mode: standalone)").matches; } catch (e) { }
+        var h = function (id) { var e = document.getElementById(id); return e ? f(e.getBoundingClientRect().height) : "?"; };
+        var pr = document.getElementById("omm-bottom-probe"), root = document.getElementById("omm-root");
+        // Same five lines as before (Unity sizes its text block for 9 lines in all), with the extra numbers packed into them.
+        // Settings shows only the first two lines above its CLOSE button, so the numbers that tell the causes apart sit in lines 1 and 2.
+        return ["win " + innerWidth + "x" + innerHeight + " scr " + screen.width + "x" + screen.height + " root " + f(root.getBoundingClientRect().height) + " std " + (mq || navigator.standalone ? "yes" : "no"),
+          "vv " + (vv ? f(vv.height) + "+" + f(vv.offsetTop) : "none") + " probe " + (pr ? f(pr.getBoundingClientRect().bottom) : "?") + " lvh " + h("omm-lvh") + " dvh " + h("omm-dvh") + " vh " + h("omm-vh"),
           "env inset top " + f(v.top) + " bottom " + f(v.bottom) + (v.overridden ? " (test override)" : ""),
           "dpr " + devicePixelRatio + "  canvas " + c.clientWidth + "x" + c.clientHeight + "  buf " + c.width + "x" + c.height,
-          "standalone " + (std ? "yes" : "no")].join("\n");
+          "standalone " + (mq || navigator.standalone ? "yes" : "no") + " (mq " + (mq ? "y" : "n") + " nav " + (navigator.standalone ? "y" : "n") + ")  visualViewport " + (vv ? f(vv.width) + "x" + f(vv.height) : "none")].join("\n");
       };
       // Safari's toolbar collapsing / rotation: Unity follows the canvas CSS size itself; nudge a resize once the size settles (debounced).
       (function () {
