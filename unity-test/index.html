@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.webmanifest?v=a5b1001">
+    <link rel="manifest" href="manifest.webmanifest?v=eebdb31">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
@@ -120,13 +120,13 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build a5b1001 2026-10-24 13:37Z</div>
-    <div id="omm-stamp" hidden data-rev="a5b1001" data-time="2026-10-24 13:37Z">a5b1001 2026-10-24 13:37Z</div>
+    <div id="build-id" style="display:none">build eebdb31 2026-10-24 18:18Z</div>
+    <div id="omm-stamp" hidden data-rev="eebdb31" data-time="2026-10-24 18:18Z">eebdb31 2026-10-24 18:18Z</div>
     <div id="omm-bottom-probe"></div>
     <div class="omm-vh" id="omm-vh"></div><div class="omm-vh" id="omm-lvh"></div><div class="omm-vh" id="omm-dvh"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "a5b1001 2026-10-24 13:37Z";
+      var OMM_BUILD = "eebdb31 2026-10-24 18:18Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
@@ -134,17 +134,23 @@
         function apply() {
           var root = document.getElementById("omm-root"), cv = document.getElementById("unity-canvas");
           if (!root || !cv) return;
-          // Build 20: the root height is what is really VISIBLE: the smallest valid one of innerHeight, visualViewport bottom, the document's
-          // clientHeight and the bottom of a fixed bottom:0 probe. Never the screen's long side or lvh/dvh (taller than the window in the
-          // home-screen app: the canvas bottom, with the tab labels, then sat outside the visible area). It is set from the window, not from
-          // the root's old box, so it can shrink as well as grow. Any gap under the canvas shows the plate-coloured html/body.
-          var vv = window.visualViewport, pr = document.getElementById("omm-bottom-probe");
-          var size = Infinity;
-          [innerHeight, vv ? vv.height + vv.offsetTop : 0, document.documentElement.clientHeight, pr ? pr.getBoundingClientRect().bottom : 0].forEach(function (v) {
-            if (v > 50 && v < size) size = v;
-          });
-          if (size !== Infinity) {
-            size = Math.floor(size + 0.01) + "px";
+          // Build 20 took the smallest valid one of innerHeight, visualViewport bottom, the document's clientHeight and a fixed bottom:0 probe
+          // (still used in a browser tab). It is set from the window, not from the root's old box, so it can shrink as well as grow.
+          // Any gap under the canvas shows the plate-coloured html/body.
+          // Build 21: in the home-screen app (standalone, portrait) the window is the FULL screen (owner's phone: cream drawn to the physical
+          // bottom while innerHeight was 871-890 of 932), so there the root takes the LARGEST sane measure (innerHeight, visualViewport,
+          // clientHeight, probe, lvh, screen's long side), clamped to the screen's long side. In a browser tab (toolbars) it stays the smallest.
+          var vv = window.visualViewport, pr = document.getElementById("omm-bottom-probe"), lv = document.getElementById("omm-lvh");
+          var scrLong = Math.max(screen.width || 0, screen.height || 0);
+          var standalone = !!navigator.standalone && innerWidth < innerHeight;
+          var cand = [innerHeight, vv ? vv.height + vv.offsetTop : 0, document.documentElement.clientHeight, pr ? pr.getBoundingClientRect().bottom : 0];
+          if (standalone) { if (lv) cand.push(lv.getBoundingClientRect().height); if (screen.height) cand.push(screen.height); }
+          var size = standalone ? 0 : Infinity;
+          cand.forEach(function (v) { if (v > 50 && (standalone ? v > size : v < size)) size = v; });
+          if (standalone && scrLong > 50 && size > scrLong) size = scrLong;
+          window.ommFitChosen = size > 0 && size !== Infinity ? Math.floor(size + 0.01) : 0;
+          if (window.ommFitChosen) {
+            size = window.ommFitChosen + "px";
             if (root.style.height !== size) { root.style.bottom = "auto"; root.style.height = size; }
           }
           // Unity or the browser must never give the canvas a box of its own: it follows the root at 100%.
@@ -204,7 +210,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild a5b1001 2026-10-24 13:37Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild eebdb31 2026-10-24 18:18Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -298,7 +304,7 @@
         });
       })();
     </script>
-    <script src="Build/WebGL.loader.js?v=a5b1001"></script>
+    <script src="Build/WebGL.loader.js?v=eebdb31"></script>
     <script>
       var msg = document.getElementById("msg");
       // the logo appears only once its font is in, so it never shows in a fallback face
@@ -321,7 +327,7 @@
       };
       // Freshness. (1) The service worker serves the page shell network-only and caches just Build/* (see sw.js). (2) If this HTML is an old
       // copy (version.txt, always fetched with no-store, names another build), reload once onto a cache-busting URL.
-      var OMM_REV = "a5b1001";
+      var OMM_REV = "eebdb31";
       if (OMM_REV.indexOf("__") !== 0) {
         try {
           if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { reg.update(); }, function () { });
@@ -335,9 +341,9 @@
       }
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/WebGL.data?v=a5b1001",
-        frameworkUrl: "Build/WebGL.framework.js?v=a5b1001",
-        codeUrl: "Build/WebGL.wasm?v=a5b1001",
+        dataUrl: "Build/WebGL.data?v=eebdb31",
+        frameworkUrl: "Build/WebGL.framework.js?v=eebdb31",
+        codeUrl: "Build/WebGL.wasm?v=eebdb31",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "OneMoreMergeUnity",
@@ -387,7 +393,7 @@
         var pr = document.getElementById("omm-bottom-probe"), root = document.getElementById("omm-root");
         // Same five lines as before (Unity sizes its text block for 9 lines in all), with the extra numbers packed into them.
         // Settings shows only the first two lines above its CLOSE button, so the numbers that tell the causes apart sit in lines 1 and 2.
-        return ["win " + innerWidth + "x" + innerHeight + " scr " + screen.width + "x" + screen.height + " root " + f(root.getBoundingClientRect().height) + " std " + (mq || navigator.standalone ? "yes" : "no"),
+        return ["win " + innerWidth + "x" + innerHeight + " scr " + screen.width + "x" + screen.height + " root " + f(root.getBoundingClientRect().height) + " chose " + (window.ommFitChosen || "?") + " std " + (mq || navigator.standalone ? "yes" : "no"),
           "vv " + (vv ? f(vv.height) + "+" + f(vv.offsetTop) : "none") + " probe " + (pr ? f(pr.getBoundingClientRect().bottom) : "?") + " lvh " + h("omm-lvh") + " dvh " + h("omm-dvh") + " vh " + h("omm-vh"),
           "env inset top " + f(v.top) + " bottom " + f(v.bottom) + (v.overridden ? " (test override)" : ""),
           "dpr " + devicePixelRatio + "  canvas " + c.clientWidth + "x" + c.clientHeight + "  buf " + c.width + "x" + c.height,
