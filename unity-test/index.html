@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.webmanifest?v=b649c50">
+    <link rel="manifest" href="manifest.webmanifest?v=db19a67">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
@@ -120,13 +120,13 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build b649c50 2026-10-25 00:04Z</div>
-    <div id="omm-stamp" hidden data-rev="b649c50" data-time="2026-10-25 00:04Z">b649c50 2026-10-25 00:04Z</div>
+    <div id="build-id" style="display:none">build db19a67 2026-10-26 00:27Z</div>
+    <div id="omm-stamp" hidden data-rev="db19a67" data-time="2026-10-26 00:27Z">db19a67 2026-10-26 00:27Z</div>
     <div id="omm-bottom-probe"></div>
     <div class="omm-vh" id="omm-vh"></div><div class="omm-vh" id="omm-lvh"></div><div class="omm-vh" id="omm-dvh"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "b649c50 2026-10-25 00:04Z";
+      var OMM_BUILD = "db19a67 2026-10-26 00:27Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
@@ -144,10 +144,12 @@
           var scrLong = Math.max(screen.width || 0, screen.height || 0);
           var standalone = !!navigator.standalone && innerWidth < innerHeight;
           var cand = [innerHeight, vv ? vv.height + vv.offsetTop : 0, document.documentElement.clientHeight, pr ? pr.getBoundingClientRect().bottom : 0];
-          if (standalone) { if (lv) cand.push(lv.getBoundingClientRect().height); if (screen.height) cand.push(screen.height); }
-          var size = standalone ? 0 : Infinity;
-          cand.forEach(function (v) { if (v > 50 && (standalone ? v > size : v < size)) size = v; });
-          if (standalone && scrLong > 50 && size > scrLong) size = scrLong;
+          // Build 23: the owner's iPhone 14 Pro Max (home-screen app) has a web view of 873 css px on a 932 screen; the 59 px under it are native
+          // area (home indicator), outside the page. Build 21's "largest sane" rule chose 932 and clipped the tab bar. So ALWAYS the smallest valid
+          // measure (innerHeight / visualViewport / clientHeight / probe), never lvh or the screen height; the strip below shows the html background.
+          var size = Infinity;
+          cand.forEach(function (v) { if (v > 50 && v < size) size = v; });
+          if (scrLong > 50 && size > scrLong) size = scrLong;
           window.ommFitChosen = size > 0 && size !== Infinity ? Math.floor(size + 0.01) : 0;
           if (window.ommFitChosen) {
             size = window.ommFitChosen + "px";
@@ -210,7 +212,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild b649c50 2026-10-25 00:04Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild db19a67 2026-10-26 00:27Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -304,7 +306,7 @@
         });
       })();
     </script>
-    <script src="Build/WebGL.loader.js?v=b649c50"></script>
+    <script src="Build/WebGL.loader.js?v=db19a67"></script>
     <script>
       var msg = document.getElementById("msg");
       // the logo appears only once its font is in, so it never shows in a fallback face
@@ -327,7 +329,7 @@
       };
       // Freshness. (1) The service worker serves the page shell network-only and caches just Build/* (see sw.js). (2) If this HTML is an old
       // copy (version.txt, always fetched with no-store, names another build), reload once onto a cache-busting URL.
-      var OMM_REV = "b649c50";
+      var OMM_REV = "db19a67";
       if (OMM_REV.indexOf("__") !== 0) {
         try {
           if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { reg.update(); }, function () { });
@@ -341,9 +343,9 @@
       }
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/WebGL.data?v=b649c50",
-        frameworkUrl: "Build/WebGL.framework.js?v=b649c50",
-        codeUrl: "Build/WebGL.wasm?v=b649c50",
+        dataUrl: "Build/WebGL.data?v=db19a67",
+        frameworkUrl: "Build/WebGL.framework.js?v=db19a67",
+        codeUrl: "Build/WebGL.wasm?v=db19a67",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "OneMoreMergeUnity",
@@ -379,7 +381,12 @@
         var cs = getComputedStyle(insetProbe);
         var n = function (v) { v = parseFloat(v); return isFinite(v) && v > 0 ? v : 0; };
         var t = insetOverride("safeTop"), b = insetOverride("safeBottom");
-        return { top: t === null ? n(cs.paddingTop) : t, right: n(cs.paddingRight), bottom: b === null ? n(cs.paddingBottom) : b, left: n(cs.paddingLeft), overridden: t !== null || b !== null };
+        var rawB = b === null ? n(cs.paddingBottom) : b, usedB = rawB;
+        // Build 23: when the web view ends above the physical bottom (iPhone home-screen app: window 873 of a 932 screen) the home indicator sits in the native
+        // strip BELOW the page, so the page must not keep clear of it a second time: the bottom inset is 0 as soon as the strip is at least as tall as the inset.
+        var rootEl = document.getElementById("omm-root"), scrLong = Math.max(screen.width || 0, screen.height || 0);
+        if (rawB > 0 && rootEl && scrLong > 0 && scrLong - rootEl.getBoundingClientRect().bottom >= rawB - 0.5) usedB = 0;
+        return { top: t === null ? n(cs.paddingTop) : t, right: n(cs.paddingRight), bottom: usedB, rawBottom: rawB, left: n(cs.paddingLeft), overridden: t !== null || b !== null };
       };
       window.ommInsets = function () {
         var v = window.ommInsetValues(), c = document.getElementById("unity-canvas"), r = c.getBoundingClientRect();
@@ -395,7 +402,7 @@
         // Settings shows only the first two lines above its CLOSE button, so the numbers that tell the causes apart sit in lines 1 and 2.
         return ["win " + innerWidth + "x" + innerHeight + " scr " + screen.width + "x" + screen.height + " root " + f(root.getBoundingClientRect().height) + " chose " + (window.ommFitChosen || "?") + " std " + (mq || navigator.standalone ? "yes" : "no"),
           "vv " + (vv ? f(vv.height) + "+" + f(vv.offsetTop) : "none") + " probe " + (pr ? f(pr.getBoundingClientRect().bottom) : "?") + " lvh " + h("omm-lvh") + " dvh " + h("omm-dvh") + " vh " + h("omm-vh"),
-          "env inset top " + f(v.top) + " bottom " + f(v.bottom) + (v.overridden ? " (test override)" : ""),
+          "env inset top " + f(v.top) + " bottom " + f(v.rawBottom) + (v.bottom !== v.rawBottom ? " used 0 (strip below page)" : "") + (v.overridden ? " (test override)" : ""),
           "dpr " + devicePixelRatio + "  canvas " + c.clientWidth + "x" + c.clientHeight + "  buf " + c.width + "x" + c.height,
           "standalone " + (mq || navigator.standalone ? "yes" : "no") + " (mq " + (mq ? "y" : "n") + " nav " + (navigator.standalone ? "y" : "n") + ")  visualViewport " + (vv ? f(vv.width) + "x" + f(vv.height) : "none")].join("\n");
       };
