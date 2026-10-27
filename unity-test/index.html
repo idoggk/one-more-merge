@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.webmanifest?v=e7ea584">
+    <link rel="manifest" href="manifest.webmanifest?v=b46303a">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
@@ -120,13 +120,13 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build e7ea584 2026-10-26 21:31Z</div>
-    <div id="omm-stamp" hidden data-rev="e7ea584" data-time="2026-10-26 21:31Z">e7ea584 2026-10-26 21:31Z</div>
+    <div id="build-id" style="display:none">build b46303a 2026-10-27 23:36Z</div>
+    <div id="omm-stamp" hidden data-rev="b46303a" data-time="2026-10-27 23:36Z">b46303a 2026-10-27 23:36Z</div>
     <div id="omm-bottom-probe"></div>
     <div class="omm-vh" id="omm-vh"></div><div class="omm-vh" id="omm-lvh"></div><div class="omm-vh" id="omm-dvh"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "e7ea584 2026-10-26 21:31Z";
+      var OMM_BUILD = "b46303a 2026-10-27 23:36Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
       (function () {
@@ -151,8 +151,17 @@
           cand.forEach(function (v) { if (v > 50 && v < size) size = v; });
           if (scrLong > 50 && size > scrLong) size = scrLong;
           window.ommFitChosen = size > 0 && size !== Infinity ? Math.floor(size + 0.01) : 0;
-          if (window.ommFitChosen) {
+          // Build 32: the FILL strategy (script at the end of the page) may force the height. Builds 30-31 lost to THIS function: it rewrote the
+          // root to the smallest measure (873) every second, undoing every FILL mode, so all five looked identical. A forced height is applied
+          // with !important and wins; 0 means "no force" (desktop, Safari tab, FILL 0).
+          var forced = typeof window.ommForceH === "function" ? window.ommForceH() : 0;
+          var was = window.ommWasForced; window.ommWasForced = forced > 50; window.ommFitForced = forced || 0;
+          if (forced > 50) {
+            window.ommFitChosen = forced;
+            root.style.setProperty("bottom", "auto", "important"); root.style.setProperty("height", forced + "px", "important");
+          } else if (window.ommFitChosen) {
             size = window.ommFitChosen + "px";
+            if (was) { root.style.removeProperty("bottom"); root.style.removeProperty("height"); }
             if (root.style.height !== size) { root.style.bottom = "auto"; root.style.height = size; }
           }
           // Unity or the browser must never give the canvas a box of its own: it follows the root at 100%.
@@ -212,7 +221,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild e7ea584 2026-10-26 21:31Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild b46303a 2026-10-27 23:36Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -306,7 +315,7 @@
         });
       })();
     </script>
-    <script src="Build/WebGL.loader.js?v=e7ea584"></script>
+    <script src="Build/WebGL.loader.js?v=b46303a"></script>
     <script>
       var msg = document.getElementById("msg");
       // the logo appears only once its font is in, so it never shows in a fallback face
@@ -329,7 +338,7 @@
       };
       // Freshness. (1) The service worker serves the page shell network-only and caches just Build/* (see sw.js). (2) If this HTML is an old
       // copy (version.txt, always fetched with no-store, names another build), reload once onto a cache-busting URL.
-      var OMM_REV = "e7ea584";
+      var OMM_REV = "b46303a";
       if (OMM_REV.indexOf("__") !== 0) {
         try {
           if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { reg.update(); }, function () { });
@@ -343,9 +352,9 @@
       }
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/WebGL.data?v=e7ea584",
-        frameworkUrl: "Build/WebGL.framework.js?v=e7ea584",
-        codeUrl: "Build/WebGL.wasm?v=e7ea584",
+        dataUrl: "Build/WebGL.data?v=b46303a",
+        frameworkUrl: "Build/WebGL.framework.js?v=b46303a",
+        codeUrl: "Build/WebGL.wasm?v=b46303a",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "OneMoreMergeUnity",
@@ -428,10 +437,10 @@
       // Viewport diagnostics + container FILL strategies. See docs/design/VIEWPORT_DIAG.md.
       // Default strategy 0 = unchanged behaviour. Overlay only in standalone mode or with ?vdiag=1.
       (function () {
-        var KEY = "omm_fill";
+        var KEY = "omm_fill2"; // new key in Build 32: an old stored 0-4 from the diagnostic must not hide the new default
         var BOTTOM_BG = (/[?&]fillbg=([0-9a-fA-F]{6})/.exec(location.search) || [])[1];
         BOTTOM_BG = BOTTOM_BG ? "#" + BOTTOM_BG : "#1b1f2a"; // canvas bottom colour (override with ?fillbg=rrggbb)
-        var NAMES = ["current", "100lvh", "100dvh", "screen.height", "screen.height + bg"];
+        var NAMES = ["current", "100lvh", "100dvh", "screen.height", "screen.height + bg", "FORCE max(inner,lvh,screen)"];
         var container = document.getElementById("omm-root"); // merged into the Build 30 template: the single sized box is #omm-root
         var canvas = document.getElementById("unity-canvas");
         var baseBg = { html: "", body: "", cont: "" };
@@ -444,11 +453,32 @@
         var show = standalone() || /[?&]vdiag=1/.test(location.search);
 
         function getFill() {
-          try { var v = parseInt(localStorage.getItem(KEY), 10); if (v >= 0 && v <= 4) return v; } catch (e) {}
-          return 0;
+          try { var v = parseInt(localStorage.getItem(KEY), 10); if (v >= 0 && v <= 5) return v; } catch (e) {}
+          return 5; // default: FORCE (acts only in the home-screen app; elsewhere it forces nothing)
         }
         function setFill(v) { try { localStorage.setItem(KEY, String(v)); } catch (e) {} }
 
+        // Height the root is forced to, read by the fit script in the head (0 = no force). 5 acts in standalone portrait only.
+        var fill = 0;
+        function fillLong() { return Math.max(screen.width || 0, screen.height || 0); }
+        /* OMM_FORCEH_BEGIN (pure; tests/ommForceH.test.ts evaluates this block) */
+        function forceH(n, e) {
+          if (n === 1) return Math.round(e.lvh);
+          if (n === 2) return Math.round(e.dvh);
+          if (n === 3 || n === 4) return e.screenH;
+          // 5: iOS home-screen app only (navigator.standalone is iOS-only; the display-mode media query is also true for Android/desktop PWAs).
+          if (n === 5 && e.navStandalone === true && e.innerW < e.innerH) return Math.round(Math.max(e.innerH, e.lvh, e.screenW, e.screenH));
+          return 0;
+        }
+        /* OMM_FORCEH_END */
+        window.ommForceH = function () {
+          var n = fill;
+          return forceH(n, {
+            navStandalone: window.navigator.standalone, innerW: innerWidth, innerH: innerHeight,
+            screenW: screen.width || 0, screenH: screen.height || 0,
+            lvh: n === 1 || n === 5 ? probe("100lvh") : 0, dvh: n === 2 ? probe("100dvh") : 0
+          });
+        };
         function applyFill(n) {
           var s = container.style, h = document.documentElement.style, b = document.body.style;
           s.position = "fixed"; s.top = "0"; s.left = "0"; s.right = "0"; s.bottom = ""; s.width = "100%"; s.height = "100%"; s.overflow = "";
@@ -459,14 +489,21 @@
             s.height = screen.height + "px"; s.overflow = "hidden";
             if (n === 4) { s.bottom = "0"; h.background = b.background = s.background = BOTTOM_BG; }
           }
+          // 5: the page colours already are the plate colour (#ffe6b2, the colour of the tab bar plate at the bottom), so a sliver is invisible.
+          // A ?fillbg=rrggbb overrides it.
+          if (n === 5 && /[?&]fillbg=/.test(location.search)) h.background = b.background = s.background = BOTTOM_BG;
+          if (window.ommFitApply) window.ommFitApply();
           // Let Unity re-read the canvas size.
           window.dispatchEvent(new Event("resize"));
         }
         baseBg.html = document.documentElement.style.background;
         baseBg.body = document.body.style.background;
         baseBg.cont = container.style.background;
-        var fill = getFill();
-        if (fill !== 0) applyFill(fill);
+        fill = getFill();
+        applyFill(fill);
+        // Re-apply when iOS changes the window (rotation, resume, toolbar). The head fit script also calls ommForceH on every resize and each second.
+        ["orientationchange", "pageshow", "resize"].forEach(function (e) { window.addEventListener(e, function () { if (window.ommFitApply) window.ommFitApply(); }); });
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", function () { if (window.ommFitApply) window.ommFitApply(); });
 
         if (!show) return;
 
@@ -508,7 +545,7 @@
         function updFillBtn() { fillBtn.textContent = "FILL: " + fill + " (" + NAMES[fill] + ")"; }
         updFillBtn();
         fillBtn.addEventListener("click", function () {
-          fill = (fill + 1) % 5; setFill(fill); applyFill(fill); updFillBtn(); refresh();
+          fill = (fill + 1) % 6; setFill(fill); applyFill(fill); updFillBtn(); refresh();
         });
 
         var open = false;
@@ -555,7 +592,7 @@
             "standalone mm=" + mm + " nav=" + window.navigator.standalone,
             "vh " + vh + " svh " + svh + " lvh " + lvh + " dvh " + dvh,
             "safe top " + probeInset("top") + " bottom " + probeInset("bottom"),
-            "container " + rect(container),
+            "container " + rect(container) + "  APPLIED h " + (window.ommFitForced || "none (auto " + (window.ommFitChosen || "?") + ")"),
             "canvas " + rect(canvas) + " (" + canvas.width + "x" + canvas.height + "px)",
             "fill " + fill + " " + NAMES[fill]
           ].join("\n");
