@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="manifest.webmanifest?v=f7692bc">
+    <link rel="manifest" href="manifest.webmanifest?v=a975f48">
     <link rel="apple-touch-icon" href="pwa/apple-touch-icon-180.png">
     <link rel="apple-touch-icon" sizes="152x152" href="pwa/apple-touch-icon-152.png">
     <link rel="apple-touch-icon" sizes="167x167" href="pwa/apple-touch-icon-167.png">
@@ -45,6 +45,15 @@
          the canvas is 100% x 100% of the root and its buffer is round(css x dpr). html, body and root are all the dock plate colour. */
       html, body { position: fixed; inset: 0; width: 100%; height: 100%; }
       #omm-root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; background: #ffe6b2; }
+      /* FLOW layout (Build 38 experiment), iOS home-screen app only (navigator.standalone === true sets html.flow in the head script; desktop,
+         Android and the Safari tab keep the fixed box above). The 873 px strip on an iPhone 14 Pro Max is native space below the layout viewport:
+         a position:fixed box is clipped to it and cannot grow into it. Here html/body/root are NORMAL-FLOW boxes: the document is at least 100lvh
+         tall and the root is 100lvh (the head script also forces a px height = max(innerHeight, 100lvh, screen long side)), so the page can paint
+         the full screen height. The page never scrolls (overflow hidden, scrollTo(0,0) on pageshow/resize, touch-action/overscroll none). */
+      html.flow, html.flow body { position: static; inset: auto; width: 100%; height: auto; min-height: 100vh; min-height: 100lvh; overflow: hidden;
+        overscroll-behavior: none; touch-action: none; }
+      html.flow #omm-root { position: relative; top: auto; left: auto; right: auto; bottom: auto; width: 100%; height: 100vh; height: 100lvh;
+        overflow: hidden; overscroll-behavior: none; touch-action: none; }
       #unity-canvas, #cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
       #unity-canvas { z-index: 1; background: #ffe6b2; outline: none;
         -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
@@ -120,15 +129,23 @@
     </div>
     </div>
     <!-- The build id never sits over the game (it covered buttons): hidden unless the page is opened with ?debug=1, then a tiny chip top-left. -->
-    <div id="build-id" style="display:none">build f7692bc 2026-10-28 06:00Z</div>
-    <div id="omm-stamp" hidden data-rev="f7692bc" data-time="2026-10-28 06:00Z">f7692bc 2026-10-28 06:00Z</div>
+    <div id="build-id" style="display:none">build a975f48 2026-10-29 08:14Z</div>
+    <div id="omm-stamp" hidden data-rev="a975f48" data-time="2026-10-29 08:14Z">a975f48 2026-10-29 08:14Z</div>
     <div id="omm-bottom-probe"></div>
     <div class="omm-vh" id="omm-vh"></div><div class="omm-vh" id="omm-lvh"></div><div class="omm-vh" id="omm-dvh"></div>
     <script>
       // Page fit: one root box holds the canvas and the loading cover (rules in the CSS above); this script re-measures it and sizes the canvas buffer.
-      var OMM_BUILD = "f7692bc 2026-10-28 06:00Z";
+      var OMM_BUILD = "a975f48 2026-10-29 08:14Z";
       var OMM_FIT = "root";
       if (navigator.standalone) document.documentElement.className = "standalone";
+      // Build 38: flow layout (see the .flow CSS) in the iOS home-screen app only. The page must stay at scroll 0 so the root keeps its top at 0.
+      var OMM_FLOW = navigator.standalone === true;
+      if (OMM_FLOW) {
+        document.documentElement.className += " flow";
+        var ommTop = function () { try { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } catch (e) { /* aid only */ } };
+        window.addEventListener("pageshow", ommTop); window.addEventListener("resize", ommTop); window.addEventListener("scroll", ommTop);
+        ommTop();
+      }
       (function () {
         var t = 0, last = "", own = false;
         function apply() {
@@ -221,7 +238,7 @@
         function isFatal(t) { return /abort|out of memory|\bOOM\b|cannot enlarge memory|memory access out of bounds|unreachable|RuntimeError|Invalid array buffer length|too large/i.test(t); }
         function render() {
           var t = errors.map(function (e, i) { return "#" + (i + 1) + " [" + e.kind + "] " + e.message + (e.where ? "\n  at " + e.where : "") + (e.stack ? "\n" + e.stack : ""); }).join("\n\n");
-          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild f7692bc 2026-10-28 06:00Z | " + navigator.userAgent;
+          t += "\n\n--- last " + ring.length + " log lines ---\n" + ring.join("\n") + "\n\nbuild a975f48 2026-10-29 08:14Z | " + navigator.userAgent;
           $("omm-sheet-text").textContent = t;
           return t;
         }
@@ -315,7 +332,7 @@
         });
       })();
     </script>
-    <script src="Build/WebGL.loader.js?v=f7692bc"></script>
+    <script src="Build/WebGL.loader.js?v=a975f48"></script>
     <script>
       var msg = document.getElementById("msg");
       // the logo appears only once its font is in, so it never shows in a fallback face
@@ -338,7 +355,7 @@
       };
       // Freshness. (1) The service worker serves the page shell network-only and caches just Build/* (see sw.js). (2) If this HTML is an old
       // copy (version.txt, always fetched with no-store, names another build), reload once onto a cache-busting URL.
-      var OMM_REV = "f7692bc";
+      var OMM_REV = "a975f48";
       if (OMM_REV.indexOf("__") !== 0) {
         try {
           if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { reg.update(); }, function () { });
@@ -352,9 +369,9 @@
       }
       createUnityInstance(document.querySelector("#unity-canvas"), {
         arguments: [],
-        dataUrl: "Build/WebGL.data?v=f7692bc",
-        frameworkUrl: "Build/WebGL.framework.js?v=f7692bc",
-        codeUrl: "Build/WebGL.wasm?v=f7692bc",
+        dataUrl: "Build/WebGL.data?v=a975f48",
+        frameworkUrl: "Build/WebGL.framework.js?v=a975f48",
+        codeUrl: "Build/WebGL.wasm?v=a975f48",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "OneMoreMergeUnity",
@@ -481,7 +498,8 @@
         };
         function applyFill(n) {
           var s = container.style, h = document.documentElement.style, b = document.body.style;
-          s.position = "fixed"; s.top = "0"; s.left = "0"; s.right = "0"; s.bottom = ""; s.width = "100%"; s.height = "100%"; s.overflow = "";
+          if (window.OMM_FLOW) { s.position = ""; s.top = ""; s.left = ""; s.right = ""; s.bottom = ""; s.width = "100%"; s.height = ""; s.overflow = ""; }   // flow: the CSS positions the root
+          else { s.position = "fixed"; s.top = "0"; s.left = "0"; s.right = "0"; s.bottom = ""; s.width = "100%"; s.height = "100%"; s.overflow = ""; }
           h.background = baseBg.html; b.background = baseBg.body; s.background = baseBg.cont;
           if (n === 1) s.height = "100lvh";
           else if (n === 2) s.height = "100dvh";
@@ -569,6 +587,15 @@
         bar("innerH", "#f00"); bar("svh", "#0af"); bar("lvh", "#fa0"); bar("dvh", "#f0f");
         bar("visualVP", "#0f0"); bar("screen-1", "#ff0");
 
+        // Build 38: ROOT-BOTTOM marker. A 4px magenta line INSIDE the root, anchored to its bottom edge (bottom:0), so it sits on the lowest pixel
+        // the root paints. If the owner sees it at the very bottom of the screen the flow layout reached the physical bottom; if it floats above
+        // a strip, the strip is native space the page cannot paint. The label is drawn above it and reads the numbers.
+        var mark = document.createElement("div"); mark.id = "omm-root-mark";
+        mark.style.cssText = "position:absolute;left:0;right:0;bottom:0;height:4px;z-index:2147483645;pointer-events:none;background:#f0f;";
+        var markLbl = document.createElement("span");
+        markLbl.style.cssText = "position:absolute;left:50%;transform:translateX(-50%);bottom:5px;font:700 10px monospace;color:#fff;background:#f0f;padding:1px 4px;border-radius:3px;white-space:pre;";
+        mark.appendChild(markLbl); container.appendChild(mark);
+
         function placeBar(id, bottomPx) {
           var b = bars[id];
           b.el.style.top = Math.round(bottomPx - 3) + "px";
@@ -582,6 +609,8 @@
           placeBar("svh", svh); placeBar("lvh", lvh); placeBar("dvh", dvh);
           placeBar("visualVP", vv ? vv.offsetTop + vv.height : window.innerHeight);
           placeBar("screen-1", screen.height - 1);
+          var rb = container.getBoundingClientRect().bottom;
+          markLbl.textContent = "root bottom " + Math.round(rb * 10) / 10 + " | screen " + screen.height + " | gap " + Math.round((screen.height - rb) * 10) / 10 + (OMM_FLOW ? " | flow" : " | fixed");
           if (!open) return;
           var mm = false; try { mm = window.matchMedia("(display-mode: standalone)").matches; } catch (e) {}
           panel.textContent = [
@@ -594,7 +623,9 @@
             "safe top " + probeInset("top") + " bottom " + probeInset("bottom"),
             "container " + rect(container) + "  APPLIED h " + (window.ommFitForced || "none (auto " + (window.ommFitChosen || "?") + ")"),
             "canvas " + rect(canvas) + " (" + canvas.width + "x" + canvas.height + "px)",
-            "fill " + fill + " " + NAMES[fill]
+            "fill " + fill + " " + NAMES[fill] + "  layout " + (OMM_FLOW ? "FLOW" : "fixed"),
+            "ROOT bottom " + Math.round(container.getBoundingClientRect().bottom * 10) / 10 + " vs screen.h " + screen.height + " (gap " + Math.round((screen.height - container.getBoundingClientRect().bottom) * 10) / 10 + ") vs inner " + innerHeight,
+            "doc scrollH " + document.documentElement.scrollHeight + " body b " + Math.round(document.body.getBoundingClientRect().bottom * 10) / 10 + " scrollY " + Math.round(window.pageYOffset)
           ].join("\n");
         }
         window.addEventListener("resize", refresh);
